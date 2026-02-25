@@ -1,0 +1,20 @@
+{
+	"folders": [
+		{
+			"name": "digia_sdk_android",
+			"path": "../../../../../../../../.."
+		},
+		{
+			"name": "digia_builder_dashboard",
+			"path": "../../../../../../../../../../digia_builder_dashboard"
+		},
+		{
+			"name": "digia_ui",
+			"path": "../../../../../../../../../../digia_ui"
+		},
+		{
+			"path": "../../../../../../../../../../testDigia"
+		}
+	],
+	"settings": {}
+}
