@@ -46,7 +46,7 @@ import com.digia.digiaui.init.DigiaUIOptions
  * @param environmentVariables Environment variables to make available in expressions
  */
 @Composable
-fun DigiaUIAppBuilder(
+internal fun DigiaUIAppBuilder(
     options: DigiaUIOptions,
     builder: @Composable (DigiaUIStatus) -> Unit,
     analytics: DUIAnalytics? = null,
@@ -94,7 +94,7 @@ fun DigiaUIAppBuilder(
  * This sealed class encapsulates the current state along with relevant data such as the initialized
  * DigiaUI instance (when ready) or error information (when failed).
  */
-sealed class DigiaUIStatus {
+internal sealed class DigiaUIStatus {
     /** Initialization is in progress */
     object Loading : DigiaUIStatus() {
         val isLoading = true

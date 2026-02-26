@@ -39,32 +39,32 @@ jobs:
 
       - name: Update version in build.gradle.kts
         run: |
-          sed -i 's/version = ".*"/version = "${{ steps.version.outputs.version }}"/' digia-ui/build.gradle.kts
+          sed -i 's/version = ".*"/version = "${{ steps.version.outputs.version }}"/' digia_engage/build.gradle.kts
 
       - name: Build library
-        run: ./gradlew :digia-ui:assembleRelease
+        run: ./gradlew :digia_engage:assembleRelease
 
       - name: Publish to GitHub Packages
-        run: ./gradlew :digia-ui:publish
+        run: ./gradlew :digia_engage:publish
         env:
           USERNAME: ${{ github.actor }}
           TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Publish to Maven Local (for artifact upload)
-        run: ./gradlew :digia-ui:publishToMavenLocal
+        run: ./gradlew :digia_engage:publishToMavenLocal
 
       - name: Upload AAR artifact
         uses: actions/upload-artifact@v4
         with:
-          name: digia-ui-${{ steps.version.outputs.version }}.aar
-          path: digia-ui/build/outputs/aar/digia-ui-release.aar
+          name: digia_engage-${{ steps.version.outputs.version }}.aar
+          path: digia_engage/build/outputs/aar/digia_engage-release.aar
 
       - name: Create GitHub Release
         if: startsWith(github.ref, 'refs/tags/')
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         with:
           files: |
-            digia-ui/build/outputs/aar/digia-ui-release.aar
+            digia_engage/build/outputs/aar/digia_engage-release.aar
           generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

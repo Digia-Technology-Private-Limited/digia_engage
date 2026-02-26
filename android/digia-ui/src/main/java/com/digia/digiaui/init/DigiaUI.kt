@@ -10,25 +10,7 @@ import com.digia.digiaui.utils.HostApp
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
-/**
- * Core DigiaUI class responsible for initializing and managing the SDK.
- *
- * This class handles the initialization of the Digia UI SDK, including network
- * configuration, preferences setup, and configuration loading. It serves as
- * the main entry point for SDK setup and provides methods for runtime
- * configuration management.
- *
- * Example usage:
- * ```kotlin
- * val options = DigiaUIOptions(
- *     context = applicationContext,
- *     accessKey = "YOUR_ACCESS_KEY",
- *     flavor = Flavor.DASHBOARD
- * )
- * val digiaUI = DigiaUI.initialize(options)
- * ```
- */
-class DigiaUI
+internal class DigiaUI
 private constructor(
         /** The initialization configuration provided during SDK setup. */
         val initConfig: DigiaUIOptions,
@@ -55,7 +37,7 @@ private constructor(
          * @return A fully initialized [DigiaUI] instance ready for use
          * @throws Exception if initialization fails (network errors, invalid config, etc.)
          */
-        suspend fun initialize(options: DigiaUIOptions): DigiaUI =
+        internal suspend fun initialize(options: DigiaUIOptions): DigiaUI =
                 withContext(Dispatchers.IO) {
                     try {
                         Logger.log("Initializing Digia UI SDK...")
@@ -197,4 +179,3 @@ private constructor(
         }
     }
 }
-
