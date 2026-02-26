@@ -41,6 +41,7 @@ internal object DigiaInstance : DigiaCEPDelegate {
     val isRenderEngineReady: StateFlow<Boolean> = _isRenderEngineReady.asStateFlow()
 
     private val activePlugin = AtomicReference<DigiaCEPPlugin?>(null)
+    private val pendingPlugin = AtomicReference<DigiaCEPPlugin?>(null)
     private val currentScreen = AtomicReference<String?>(null)
     private val initialized = AtomicBoolean(false)
     private val initializationStarted = AtomicBoolean(false)
@@ -73,6 +74,7 @@ internal object DigiaInstance : DigiaCEPDelegate {
                     _isUiReady.value = true
                     registerLifecycleObserver()
                     initialized.set(true)
+                    applyPendingPluginIfAny()
                 }.join()
             } catch (t: Throwable) {
                 initializationStarted.set(false)
@@ -86,24 +88,27 @@ internal object DigiaInstance : DigiaCEPDelegate {
 
     fun register(plugin: DigiaCEPPlugin) {
         if (!initialized.get()) {
-            logWarning("Digia.initialize(...) must be called before Digia.register(...).")
+            pendingPlugin.getAndSet(plugin)?.teardown()
             return
         }
+        applyPlugin(plugin)
+    }
+
+    private fun applyPlugin(plugin: DigiaCEPPlugin) {
         activePlugin.getAndSet(plugin)?.teardown()
+        pendingPlugin.set(null)
         plugin.setup(this)
-        currentScreen.get()?.let { s ->
-            plugin.forwardScreenEvent(s)
-        }
+        currentScreen.get()?.let { s -> plugin.forwardScreenEvent(s) }
+    }
+
+    private fun applyPendingPluginIfAny() {
+        pendingPlugin.getAndSet(null)?.let { applyPlugin(it) }
     }
 
     fun setCurrentScreen(name: String) {
         currentScreen.set(name)
-        val plugin = activePlugin.get()
-        if (plugin == null) {
-            logWarning("Digia.register(plugin) has not been called. Screen '$name' is dropped.")
-            return
-        }
-        plugin.forwardScreenEvent(name)
+        activePlugin.get()?.forwardScreenEvent(name)
+            ?: logWarning("Digia.register(plugin) has not been called. Screen '$name' is dropped.")
     }
 
     fun ensureRenderEngineInitialized() {
@@ -133,6 +138,7 @@ internal object DigiaInstance : DigiaCEPDelegate {
         supervisorJob = SupervisorJob()
         scope = CoroutineScope(supervisorJob + Dispatchers.Main.immediate)
         initializationStarted.set(false)
+        pendingPlugin.getAndSet(null)?.teardown()
         activePlugin.getAndSet(null)?.teardown()
         controller.dismiss()
         controller.clearSlots()
@@ -229,6 +235,7 @@ internal object DigiaInstance : DigiaCEPDelegate {
         supervisorJob = SupervisorJob()
         scope = CoroutineScope(supervisorJob + Dispatchers.Main.immediate)
         initializationStarted.set(false)
+        pendingPlugin.getAndSet(null)?.teardown()
         activePlugin.getAndSet(null)?.teardown()
         currentScreen.set(null)
         initialized.set(false)

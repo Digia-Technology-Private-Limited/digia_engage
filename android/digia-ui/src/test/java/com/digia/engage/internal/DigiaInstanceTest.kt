@@ -177,11 +177,12 @@ class DigiaInstanceTest {
     }
 
     @Test
+    fun `invalid dialog payload is dropped`() = runTest(testDispatcher) {
         val plugin = FakePlugin()
         DigiaInstance.initForTest()
         DigiaInstance.register(plugin)
 
-        DigiaInstance.onExperienceReady(
+        plugin.delegate!!.onExperienceReady(
             InAppPayload(
                 id = "exp-invalid-dialog",
                 content = mapOf("type" to "dialog"),
@@ -200,7 +201,7 @@ class DigiaInstanceTest {
         DigiaInstance.initForTest()
         DigiaInstance.register(plugin)
 
-        DigiaInstance.onExperienceReady(
+        plugin.delegate!!.onExperienceReady(
             InAppPayload(
                 id = "exp-invalid-slot",
                 content = mapOf("type" to "slot", "componentId" to "hero_component"),
@@ -222,7 +223,7 @@ class DigiaInstanceTest {
             id = "dialog-1",
             content = mapOf("type" to "dialog", "componentId" to "welcome_modal"),
         )
-        DigiaInstance.onExperienceReady(payload)
+        plugin.delegate!!.onExperienceReady(payload)
         testScheduler.advanceUntilIdle()
 
         DigiaInstance.markDismissed("dialog-1")
@@ -238,7 +239,7 @@ class DigiaInstanceTest {
         val plugin = FakePlugin()
         DigiaInstance.initForTest()
         DigiaInstance.register(plugin)
-        DigiaInstance.onExperienceReady(
+        plugin.delegate!!.onExperienceReady(
             InAppPayload(
                 id = "dialog-1",
                 content = mapOf("type" to "dialog", "componentId" to "welcome_modal"),
@@ -258,7 +259,7 @@ class DigiaInstanceTest {
         val plugin = FakePlugin()
         DigiaInstance.initForTest()
         DigiaInstance.register(plugin)
-        DigiaInstance.onExperienceReady(
+        plugin.delegate!!.onExperienceReady(
             InAppPayload(
                 id = "dialog-1",
                 content = mapOf("type" to "dialog", "componentId" to "welcome_modal"),
