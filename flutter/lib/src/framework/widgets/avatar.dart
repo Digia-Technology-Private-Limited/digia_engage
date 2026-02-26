@@ -1,0 +1,89 @@
+import 'package:flutter/material.dart';
+
+import '../base/virtual_leaf_stateless_widget.dart';
+import '../models/props.dart';
+import '../render_payload.dart';
+import '../utils/flutter_type_converters.dart';
+import '../utils/functional_util.dart';
+import '../widget_props/text_props.dart';
+import 'image.dart';
+import 'text.dart';
+
+class VWAvatar extends VirtualLeafStatelessWidget<Props> {
+  VWAvatar({
+    required super.props,
+    required super.commonProps,
+    super.parentProps,
+    required super.parent,
+    super.refName,
+  });
+
+  @override
+  Widget render(RenderPayload payload) {
+    final shapeProps = props.toProps('shape');
+
+    // if (shapeProps == null) return empty();
+
+    return switch (shapeProps?.get('value')) {
+      'circle' => _getCircleAvatar(shapeProps, payload),
+      'square' => _getSquareAvatar(shapeProps, payload),
+      _ => _getCircleAvatar(shapeProps, payload)
+    };
+  }
+
+  Widget _getCircleAvatar(Props? shapeProps, RenderPayload payload) {
+    final bgColor = payload.evalColor(props.get('bgColor'));
+    final radius = payload.eval<double>(shapeProps?.get('radius'));
+    final radiusVal = radius ?? 16;
+    return CircleAvatar(
+      radius: radiusVal,
+      backgroundColor: bgColor ?? Colors.grey,
+      child: ClipOval(
+        child: SizedBox(
+          height: radiusVal * 2,
+          width: radiusVal * 2,
+          child: _getAvatarChildWidget(payload),
+        ),
+      ),
+    );
+  }
+
+  Widget _getSquareAvatar(Props? shapeProps, RenderPayload payload) {
+    final bgColor = payload.evalColor(props.get('bgColor'));
+    final cornerRadius = To.borderRadius(shapeProps?.get('cornerRadius'));
+    final side = payload.eval<double>(shapeProps?.get('side'));
+
+    return Container(
+      height: side,
+      width: side,
+      decoration: BoxDecoration(
+          color: bgColor ?? Colors.grey,
+          shape: BoxShape.rectangle,
+          borderRadius: cornerRadius),
+      clipBehavior: Clip.hardEdge,
+      child: _getAvatarChildWidget(payload),
+    );
+  }
+
+  Widget? _getAvatarChildWidget(RenderPayload payload) {
+    final imageProps = props.getMap('image');
+    final String? imageSrc = payload
+        .eval(props.get('image.src.imageSrc') ?? imageProps?['imageSrc']);
+    final String? imageFit = payload.eval(imageProps?['fit']);
+
+    if (imageSrc != null && imageSrc.isNotEmpty) {
+      return VWImage.fromValues(
+        imageSrc: imageSrc,
+        imageFit: imageFit,
+      ).toWidget(payload);
+    }
+    return Align(
+      alignment: Alignment.center,
+      child: VWText(
+        props: props.getMap('text').maybe(TextProps.fromJson) ?? TextProps(),
+        commonProps: null,
+        parent: null,
+      ).toWidget(payload),
+    );
+  }
+}
