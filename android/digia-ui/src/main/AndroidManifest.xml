@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    
+    <application>
+        <!-- Digia UI Navigation Activity -->
+        <!-- This Activity is launched when the host app calls DUIFactory.CreateNavHost() -->
+        <!-- It contains the entire Digia UI navigation system in a separate Activity context -->
+        <activity
+            android:name="com.digia.digiaui.framework.navigation.DigiaUINavigationActivity"
+            android:exported="false"
+            android:theme="@android:style/Theme.NoTitleBar"
+            android:configChanges="orientation|screenSize|screenLayout|keyboardHidden"
+            android:windowSoftInputMode="adjustResize" />
+    </application>
+    
+</manifest>
+

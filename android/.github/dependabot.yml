@@ -1,0 +1,26 @@
+version: 2
+updates:
+  # Enable version updates for gradle
+  - package-ecosystem: "gradle"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 10
+    groups:
+      androidx:
+        patterns:
+          - "androidx.*"
+      compose:
+        patterns:
+          - "androidx.compose.*"
+      kotlin:
+        patterns:
+          - "org.jetbrains.kotlin*"
+          - "org.jetbrains.kotlinx*"
+
+  # Enable version updates for GitHub Actions
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+
