@@ -20,6 +20,7 @@ import '../internal/digia_instance.dart';
 class DigiaNavigatorObserver extends NavigatorObserver {
   @override
   void didPush(Route<dynamic> route, Route<dynamic>? previousRoute) {
+    _ensureAttached();
     final name = _extractName(route);
     if (name != null) {
       DigiaInstance.instance.setCurrentScreen(name);
@@ -28,6 +29,7 @@ class DigiaNavigatorObserver extends NavigatorObserver {
 
   @override
   void didReplace({Route<dynamic>? newRoute, Route<dynamic>? oldRoute}) {
+    _ensureAttached();
     final name = newRoute != null ? _extractName(newRoute) : null;
     if (name != null) {
       DigiaInstance.instance.setCurrentScreen(name);
@@ -44,5 +46,16 @@ class DigiaNavigatorObserver extends NavigatorObserver {
     // Skip unnamed or internal Flutter overlay routes (e.g. dialogs).
     if (name == null || name.isEmpty) return null;
     return name;
+  }
+
+  void _ensureAttached() {
+    final nav = navigator;
+    if (nav == null) return;
+
+    final instance = DigiaInstance.instance;
+
+    if (!identical(instance.navigator, nav)) {
+      instance.attachNavigator(nav);
+    }
   }
 }

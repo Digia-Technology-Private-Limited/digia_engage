@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../src/framework/ui_factory.dart';
+import '../../src/framework/utils/navigation_util.dart';
 import '../internal/digia_instance.dart';
 import '../internal/digia_overlay_controller.dart';
 import '../models/digia_experience_event.dart';
@@ -23,10 +25,25 @@ import '../models/in_app_payload.dart';
 ///
 /// Marketing name: "In-App Messages" → [DigiaHost]
 class DigiaHost extends StatefulWidget {
+  /// Navigator key that must be passed to [MaterialApp.navigatorKey].
+  ///
+  /// [DigiaHost] sits in [MaterialApp.builder], which is above the app's
+  /// [Navigator] in the widget tree. Dialogs and bottom sheets require a
+  /// context that is a descendant of that navigator; this key provides it.
+  ///
+  /// ```dart
+  /// MaterialApp(
+  ///   navigatorKey: DigiaHost.navigatorKey,
+  ///   navigatorObservers: [DigiaNavigatorObserver()],
+  ///   builder: (context, child) => DigiaHost(child: child!),
+  /// )
+  /// ```
+  final GlobalKey<NavigatorState>? navigatorKey;
+
   /// The application widget tree to render below the overlay layer.
   final Widget child;
 
-  const DigiaHost({required this.child, super.key});
+  const DigiaHost({required this.child, this.navigatorKey, super.key});
 
   @override
   State<DigiaHost> createState() => _DigiaHostState();
@@ -55,116 +72,97 @@ class _DigiaHostState extends State<DigiaHost> {
   }
 
   void _onControllerChanged() {
-    // Rebuild whenever activePayload changes.
-    setState(() {});
+    final payload = _controller.activePayload;
+
+    if (payload == null) {
+      return;
+    }
+
+    final displayType =
+        (payload.content['type'] as String? ?? 'inline').toLowerCase();
+
+    // Only handle modal types. Inline/fullscreen experiences are handled
+    // by the pages themselves, not overlaid globally.
+    if (displayType == 'bottomsheet' || displayType == 'dialog') {
+      WidgetsBinding.instance.ensureVisualUpdate();
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        // Fire impression before the modal appears.
+        _controller.onEvent?.call(const ExperienceImpressed(), payload);
+        _presentModal(context, payload, displayType);
+      });
+    } else {
+      // Inline/fullscreen: dismiss immediately since DigiaHost doesn't handle these.
+      _controller.dismiss();
+    }
+  }
+
+  /// Presents a modal bottom sheet or dialog using the [DUIFactory] rendering
+  /// engine. The controller is dismissed when the modal closes so the overlay
+  /// state is cleared for both user-driven and programmatic dismissals.
+  void _presentModal(
+      BuildContext context, InAppPayload payload, String displayType) {
+    final content = payload.content;
+    final viewId = content['viewId'] as String? ??
+        content['componentId'] as String? ??
+        content['pageId'] as String?;
+
+    void fireAndDismiss(_) {
+      _controller.onEvent?.call(const ExperienceDismissed(), payload);
+      _controller.dismiss();
+    }
+
+    if (viewId == null || viewId.isEmpty) {
+      _controller.dismiss();
+      return;
+    }
+
+    // Resolve a context that is a descendant of the app Navigator.
+    // DigiaHost lives in MaterialApp.builder (above the Navigator), so
+    // this.context cannot be used directly for Navigator-based APIs.
+    final navContext = widget.navigatorKey?.currentContext ??
+        DigiaInstance.instance.navigator?.context ??
+        context;
+
+    if (displayType == 'bottomsheet') {
+      DUIFactory()
+          .showBottomSheet(
+            navContext,
+            viewId,
+            content,
+            backgroundColor:
+                Theme.of(navContext).bottomSheetTheme.backgroundColor,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+            useSafeArea: true,
+          )
+          .then(fireAndDismiss);
+    } else {
+      // dialog
+      presentDialog(
+        context: navContext,
+        builder: (innerCtx) => _buildView(innerCtx, viewId, content),
+        barrierDismissible: true,
+      ).then(fireAndDismiss);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    return Stack(
-      children: [
-        // App content sits below — always present.
-        widget.child,
-
-        // Experience overlay renders above when a payload is active.
-        if (_controller.activePayload != null)
-          _DigiaOverlayWidget(
-            payload: _controller.activePayload!,
-            onEvent: (event) {
-              // Route event back to DigiaInstance → plugin.
-              _controller.onEvent?.call(event, _controller.activePayload!);
-
-              // Dismiss overlay on click or explicit dismiss.
-              if (event is ExperienceClicked || event is ExperienceDismissed) {
-                _controller.dismiss();
-              }
-            },
-          ),
-      ],
-    );
+    // DigiaHost only handles modal experiences (dialog/bottomsheet).
+    // Inline/fullscreen experiences are handled by individual pages.
+    return widget.child;
   }
 }
 
-/// Internal widget that renders the campaign artifact and emits lifecycle
-/// events back to [DigiaHost] via [onEvent].
-class _DigiaOverlayWidget extends StatefulWidget {
-  final InAppPayload payload;
-  final void Function(DigiaExperienceEvent) onEvent;
-
-  const _DigiaOverlayWidget({
-    required this.payload,
-    required this.onEvent,
-  });
-
-  @override
-  State<_DigiaOverlayWidget> createState() => _DigiaOverlayWidgetState();
-}
-
-class _DigiaOverlayWidgetState extends State<_DigiaOverlayWidget> {
-  @override
-  void initState() {
-    super.initState();
-    // Emit ExperienceImpressed on first frame — after layout is complete.
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) {
-        widget.onEvent(const ExperienceImpressed());
-      }
-    });
+/// Builds a server-driven view using [DUIFactory].
+///
+/// Routes to [DUIFactory.createPage] or [DUIFactory.createComponent]
+/// based on whether [viewId] is registered as a page in the Digia config.
+Widget _buildView(
+    BuildContext context, String viewId, Map<String, dynamic> args) {
+  final factory = DUIFactory();
+  if (factory.configProvider.isPage(viewId)) {
+    return factory.createPage(viewId, args);
   }
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      // Tapping the scrim (outside the card) dismisses the experience.
-      onTap: () => widget.onEvent(const ExperienceDismissed()),
-      child: ColoredBox(
-        color: Colors.black54,
-        child: Center(
-          child: _buildContent(),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildContent() {
-    // In production, this delegates to Digia's server-driven UI rendering
-    // engine, which reads payload.content and constructs the correct widget
-    // tree from the campaign artifact.
-    //
-    // Shown here with a representative static layout for clarity.
-    return GestureDetector(
-      // Consume taps inside the card — do not propagate to scrim.
-      onTap: () {},
-      child: Card(
-        margin: const EdgeInsets.all(32),
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                widget.payload.content['title'] as String? ?? '',
-                style: Theme.of(context).textTheme.headlineSmall,
-              ),
-              const SizedBox(height: 16),
-              // Primary CTA — emits ExperienceClicked with elementId
-              ElevatedButton(
-                onPressed: () => widget.onEvent(
-                  const ExperienceClicked(elementId: 'primary_cta'),
-                ),
-                child: Text(
-                  widget.payload.content['cta'] as String? ?? 'OK',
-                ),
-              ),
-              // Dismiss — emits ExperienceDismissed
-              TextButton(
-                onPressed: () => widget.onEvent(const ExperienceDismissed()),
-                child: const Text('Dismiss'),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
+  return factory.createComponent(viewId, args);
 }

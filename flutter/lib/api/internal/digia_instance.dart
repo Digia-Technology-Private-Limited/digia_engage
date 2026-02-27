@@ -1,11 +1,6 @@
 import 'package:flutter/widgets.dart';
 
-import '../../src/init/digia_ui.dart';
-import '../../src/init/digia_ui_manager.dart';
-import '../interfaces/digia_cep_delegate.dart';
-import '../interfaces/digia_cep_plugin.dart';
-import '../models/digia_config.dart';
-import '../models/in_app_payload.dart';
+import '../../digia_ui.dart';
 import 'digia_overlay_controller.dart';
 
 /// Internal singleton that backs the public [Digia] static facade.
@@ -19,6 +14,14 @@ class DigiaInstance with WidgetsBindingObserver implements DigiaCEPDelegate {
 
   /// Internal accessor used only by [Digia] and [DigiaHost].
   static DigiaInstance get instance => _instance;
+
+  NavigatorState? _navigator;
+
+  void attachNavigator(NavigatorState navigator) {
+    _navigator = navigator;
+  }
+
+  NavigatorState? get navigator => _navigator;
 
   DigiaConfig? _config;
   DigiaCEPPlugin? _activePlugin;
@@ -48,11 +51,30 @@ class DigiaInstance with WidgetsBindingObserver implements DigiaCEPDelegate {
     // loads the DSL config (app_config / functions) from the server or
     // local assets depending on the chosen Flavor.
     final digiaUI = await DigiaUI.initialize(config.toOptions());
-
-    // DigiaUIManager is the singleton that the rest of the src framework
-    // (DigiaUIApp, DigiaUIScope, analytics, font loading, etc.) reads
-    // for the active SDK instance.
+    // Initialize the Digia UI manager with the provided configuration
     DigiaUIManager().initialize(digiaUI);
+
+    // Initialize global app state with configuration from DSL
+    DUIAppState().init(digiaUI.dslConfig.appState ?? []);
+
+    // Set up the UI factory with custom resources and providers
+    DUIFactory().initialize(
+        // pageConfigProvider: pageConfigProvider,
+        // icons: icons,
+        // images: {
+        //   ...(DigiaUIManager().assetImages.asMap().map((k, v) => MapEntry(
+        //       v.assetData.localPath,
+        //       NetworkImage(
+        //           '${v.assetData.image?.baseUrl}${v.assetData.image?.path}')))),
+        //   ...?images
+        // },
+        // fontFactory: fontFactory,
+        );
+
+    // Apply environment variables from DigiaUIApp if provided
+    // if (widget.environmentVariables != null) {
+    //   DUIFactory().setEnvironmentVariables(widget.environmentVariables!);
+    // }
 
     // Wire the event callback — when DigiaHost reports a user interaction,
     // route it to the active plugin.
