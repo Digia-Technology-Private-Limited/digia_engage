@@ -38,13 +38,12 @@ class DigiaHost extends StatefulWidget {
   ///   builder: (context, child) => DigiaHost(child: child!),
   /// )
   /// ```
-  static final GlobalKey<NavigatorState> navigatorKey =
-      GlobalKey<NavigatorState>();
+  final GlobalKey<NavigatorState>? navigatorKey;
 
   /// The application widget tree to render below the overlay layer.
   final Widget child;
 
-  const DigiaHost({required this.child, super.key});
+  const DigiaHost({required this.child, this.navigatorKey, super.key});
 
   @override
   State<DigiaHost> createState() => _DigiaHostState();
@@ -121,7 +120,9 @@ class _DigiaHostState extends State<DigiaHost> {
     // Resolve a context that is a descendant of the app Navigator.
     // DigiaHost lives in MaterialApp.builder (above the Navigator), so
     // this.context cannot be used directly for Navigator-based APIs.
-    final navContext = DigiaHost.navigatorKey.currentContext ?? context;
+    final navContext = widget.navigatorKey?.currentContext ??
+        DigiaInstance.instance.navigator?.context ??
+        context;
 
     if (displayType == 'bottomsheet') {
       DUIFactory()

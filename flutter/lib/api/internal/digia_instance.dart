@@ -15,6 +15,14 @@ class DigiaInstance with WidgetsBindingObserver implements DigiaCEPDelegate {
   /// Internal accessor used only by [Digia] and [DigiaHost].
   static DigiaInstance get instance => _instance;
 
+  NavigatorState? _navigator;
+
+  void attachNavigator(NavigatorState navigator) {
+    _navigator = navigator;
+  }
+
+  NavigatorState? get navigator => _navigator;
+
   DigiaConfig? _config;
   DigiaCEPPlugin? _activePlugin;
   bool _hostMounted = false;
