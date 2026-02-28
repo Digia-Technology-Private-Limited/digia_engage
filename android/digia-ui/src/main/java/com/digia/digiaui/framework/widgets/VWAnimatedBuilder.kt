@@ -37,7 +37,7 @@ class VWAnimatedBuilder(
 		val flow = notifierAny as? StateFlow<Any?> ?: run { Empty(); return }
 
 		// Recompose whenever the flow emits.
-		flow.collectAsState(initial = flow.value)
+		flow.collectAsState()
 
 		childNode.ToWidget(payload)
 	}

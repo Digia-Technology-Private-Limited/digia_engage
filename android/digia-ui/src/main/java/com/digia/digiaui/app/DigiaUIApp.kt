@@ -62,14 +62,14 @@ import com.digia.digiaui.init.DigiaUIManager
  * @param content Builder function that creates the child composable tree
  */
 @Composable
-fun DigiaUIApp(
+internal fun DigiaUIApp(
     digiaUI: DigiaUI,
     analytics: DUIAnalytics? = null,
     messageBus: MessageBus = MessageBus(),
     pageConfigFetcher: ConfigProvider? = null,
     icons: Map<String, ImageVector>? = null,
     images: Map<String, ImageBitmap>? = null,
-    fontFactory: Any? = null,
+    fontFactory: DUIFontFactory? = null,
     environmentVariables: Map<String, Any?>? = null,
     content: @Composable () -> Unit
 ) {
@@ -103,7 +103,7 @@ fun DigiaUIApp(
             pageConfigFetcher = pageConfigFetcher,
             icons = icons ,
             images = images ,
-            fontFactory = fontFactory as DUIFontFactory?
+            fontFactory = fontFactory
         )
 
         environmentVariables?.let {
