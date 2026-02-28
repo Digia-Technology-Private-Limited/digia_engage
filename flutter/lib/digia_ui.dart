@@ -4,13 +4,13 @@ library;
 export 'package:digia_ui/api/digia.dart';
 export 'package:digia_ui/api/interfaces/digia_cep_delegate.dart';
 export 'package:digia_ui/api/interfaces/digia_cep_plugin.dart';
+export 'package:digia_ui/api/models/diagnostic_report.dart';
 export 'package:digia_ui/api/models/digia_config.dart';
 export 'package:digia_ui/api/models/digia_experience_event.dart';
 export 'package:digia_ui/api/models/in_app_payload.dart';
 export 'package:digia_ui/api/widgets/digia_host.dart';
 export 'package:digia_ui/api/widgets/digia_navigator_observer.dart';
 export 'package:digia_ui/api/widgets/digia_slot.dart';
-
 // ─── Server-driven UI (DigiaUIApp / DigiaUIAppBuilder) ───────────────────────
 export 'package:digia_ui/dui_settings.dart';
 export 'package:digia_ui/src/analytics/dui_analytics.dart';

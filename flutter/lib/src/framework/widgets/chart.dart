@@ -209,7 +209,7 @@ class ChartConfigBuilder {
     if (color is Color) {
       // Flutter Color.value is AARRGGBB (int)
       // CSS Hex is #RRGGBBAA
-      final value = color.value;
+      final value = color.toARGB32();
       final alpha = ((value >> 24) & 0xFF).toRadixString(16).padLeft(2, '0');
       final red = ((value >> 16) & 0xFF).toRadixString(16).padLeft(2, '0');
       final green = ((value >> 8) & 0xFF).toRadixString(16).padLeft(2, '0');

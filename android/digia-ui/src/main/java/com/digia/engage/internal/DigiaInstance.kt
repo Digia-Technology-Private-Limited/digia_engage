@@ -25,7 +25,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import java.util.concurrent.atomic.AtomicBoolean
-import java.util.concurrent.atomic.AtomicReference
 
 internal object DigiaInstance : DigiaCEPDelegate {
 
@@ -40,22 +39,35 @@ internal object DigiaInstance : DigiaCEPDelegate {
     private val _isRenderEngineReady = MutableStateFlow(false)
     val isRenderEngineReady: StateFlow<Boolean> = _isRenderEngineReady.asStateFlow()
 
-    private val activePlugin = AtomicReference<DigiaCEPPlugin?>(null)
-    private val pendingPlugin = AtomicReference<DigiaCEPPlugin?>(null)
-    private val currentScreen = AtomicReference<String?>(null)
-    private val initialized = AtomicBoolean(false)
-    private val initializationStarted = AtomicBoolean(false)
+    private val _sdkState = MutableStateFlow(SDKState.NOT_INITIALIZED)
+    val sdkState: StateFlow<SDKState> = _sdkState.asStateFlow()
 
+    private val initializationStarted = AtomicBoolean(false)
+    private val initialized = AtomicBoolean(false)
     private val lifecycleObserverAttached = AtomicBoolean(false)
-    private var lifecycleObserver: LifecycleEventObserver? = null
     private val renderEngineInitialized = AtomicBoolean(false)
+
+    private var lifecycleObserver: LifecycleEventObserver? = null
+    private var hostMounted = false
+    private var pendingPayload: InAppPayload? = null
+
+    private val diagnosticsReporter = DiagnosticsReporter(::logWarning)
+    private val analyticsClient = AnalyticsClient(diagnosticsReporter)
+    private val pluginRegistry = PluginRegistry(delegate = this, diagnosticsReporter = diagnosticsReporter)
+    private val screenTracker = ScreenTracker(onScreenChanged = pluginRegistry::forwardScreen)
+    private val displayCoordinator = DisplayCoordinator(
+        overlayController = controller,
+        pluginRegistry = pluginRegistry,
+        analyticsClient = analyticsClient,
+    )
+
+    init {
+        controller.onEvent = { event, payload -> displayCoordinator.onOverlayEvent(event, payload) }
+    }
 
     fun initialize(context: Context, config: DigiaConfig) {
         if (!initializationStarted.compareAndSet(false, true)) return
-
-        controller.onEvent = { event, payload ->
-            activePlugin.get()?.notifyEvent(event, payload)
-        }
+        _sdkState.value = SDKState.INITIALIZING
 
         scope.launch(Dispatchers.IO) {
             val options = DigiaUIOptions(
@@ -72,14 +84,17 @@ internal object DigiaInstance : DigiaCEPDelegate {
                 scope.launch(Dispatchers.Main.immediate) {
                     DigiaUIManager.initialize(digiaUI)
                     _isUiReady.value = true
-                    registerLifecycleObserver()
                     initialized.set(true)
-                    applyPendingPluginIfAny()
+                    _sdkState.value = SDKState.READY
+                    registerLifecycleObserver()
+                    pluginRegistry.runHealthCheck()
+                    flushPendingPayloadIfAny()
                 }.join()
             } catch (t: Throwable) {
                 initializationStarted.set(false)
                 scope.launch(Dispatchers.Main.immediate) {
                     _isUiReady.value = false
+                    _sdkState.value = SDKState.FAILED
                 }
                 logWarning("Digia.initialize failed: ${t.message}")
             }
@@ -87,28 +102,12 @@ internal object DigiaInstance : DigiaCEPDelegate {
     }
 
     fun register(plugin: DigiaCEPPlugin) {
-        if (!initialized.get()) {
-            pendingPlugin.getAndSet(plugin)?.teardown()
-            return
-        }
-        applyPlugin(plugin)
-    }
-
-    private fun applyPlugin(plugin: DigiaCEPPlugin) {
-        activePlugin.getAndSet(plugin)?.teardown()
-        pendingPlugin.set(null)
-        plugin.setup(this)
-        currentScreen.get()?.let { s -> plugin.forwardScreenEvent(s) }
-    }
-
-    private fun applyPendingPluginIfAny() {
-        pendingPlugin.getAndSet(null)?.let { applyPlugin(it) }
+        pluginRegistry.register(plugin)
+        screenTracker.currentScreen?.let(pluginRegistry::forwardScreen)
     }
 
     fun setCurrentScreen(name: String) {
-        currentScreen.set(name)
-        activePlugin.get()?.forwardScreenEvent(name)
-            ?: logWarning("Digia.register(plugin) has not been called. Screen '$name' is dropped.")
+        screenTracker.setScreen(name)
     }
 
     fun ensureRenderEngineInitialized() {
@@ -120,17 +119,29 @@ internal object DigiaInstance : DigiaCEPDelegate {
         _isRenderEngineReady.value = true
     }
 
+    fun onHostMounted() {
+        hostMounted = true
+    }
+
+    fun onHostUnmounted() {
+        hostMounted = false
+    }
+
+    fun reportOverlayImpression(payload: InAppPayload) {
+        displayCoordinator.onOverlayEvent(DigiaExperienceEvent.Impressed, payload)
+    }
+
     fun markDismissed(payloadId: String) {
         val current = controller.activePayload.value
         if (current?.id == payloadId) {
-            activePlugin.get()?.notifyEvent(DigiaExperienceEvent.Dismissed, current)
+            displayCoordinator.onOverlayEvent(DigiaExperienceEvent.Dismissed, current)
             controller.dismiss()
         }
     }
 
     fun emitExplicitCtaClick(elementId: String?) {
         val payload = controller.activePayload.value ?: return
-        activePlugin.get()?.notifyEvent(DigiaExperienceEvent.Clicked(elementId), payload)
+        displayCoordinator.onOverlayEvent(DigiaExperienceEvent.Clicked(elementId), payload)
     }
 
     fun teardown() {
@@ -138,15 +149,17 @@ internal object DigiaInstance : DigiaCEPDelegate {
         supervisorJob = SupervisorJob()
         scope = CoroutineScope(supervisorJob + Dispatchers.Main.immediate)
         initializationStarted.set(false)
-        pendingPlugin.getAndSet(null)?.teardown()
-        activePlugin.getAndSet(null)?.teardown()
+        initialized.set(false)
+        pendingPayload = null
+        hostMounted = false
+        pluginRegistry.teardown()
         controller.dismiss()
         controller.clearSlots()
-        currentScreen.set(null)
-        initialized.set(false)
+        screenTracker.clear()
         renderEngineInitialized.set(false)
         _isRenderEngineReady.value = false
         _isUiReady.value = false
+        _sdkState.value = SDKState.NOT_INITIALIZED
         lifecycleObserver?.let {
             ProcessLifecycleOwner.get().lifecycle.removeObserver(it)
         }
@@ -158,11 +171,94 @@ internal object DigiaInstance : DigiaCEPDelegate {
         DUIFactory.getInstance().destroy()
     }
 
+    override fun onCampaignTriggered(payload: InAppPayload) {
+        scope.launch(Dispatchers.Main.immediate) {
+            when (_sdkState.value) {
+                SDKState.NOT_INITIALIZED,
+                SDKState.FAILED,
+                -> {
+                    logWarning("campaign dropped before sdk ready: ${payload.id}")
+                    return@launch
+                }
+                SDKState.INITIALIZING -> {
+                    if (isNudgePayload(payload)) {
+                        if (pendingPayload != null) {
+                            logWarning("pending payload replaced by newer payload: ${payload.id}")
+                        }
+                        pendingPayload = payload
+                    } else {
+                        logWarning("inline payload dropped while initializing: ${payload.id}")
+                    }
+                    return@launch
+                }
+                SDKState.READY -> Unit
+            }
+
+            routeCampaign(payload)
+        }
+    }
+
+    override fun onCampaignInvalidated(campaignId: String) {
+        scope.launch(Dispatchers.Main.immediate) {
+            displayCoordinator.dismissNudge(campaignId)
+            displayCoordinator.dismissInline(campaignId)
+        }
+    }
+
+    @Suppress("UNCHECKED_CAST")
+    private fun routeCampaign(payload: InAppPayload) {
+        val command = (payload.content["command"] as? String)?.trim()?.uppercase()
+
+        if (command != "SHOW_INLINE") {
+            val screenId = (payload.content["screenId"] as? String)?.trim()
+            val currentScreen = screenTracker.currentScreen?.trim()
+            if (screenId.isNullOrBlank() || currentScreen.isNullOrBlank() || screenId != currentScreen) {
+                logWarning(
+                    "campaign dropped due to screen mismatch: payload=${payload.id}, " +
+                        "screenId=$screenId, current=$currentScreen",
+                )
+                return
+            }
+        }
+
+        when (command) {
+            "SHOW_DIALOG", "SHOW_BOTTOM_SHEET" -> {
+                if (!hostMounted) {
+                    logWarning("nudge campaign arrived before DigiaHost mounted: ${payload.id}")
+                }
+                displayCoordinator.routeNudge(payload)
+            }
+            "SHOW_INLINE" -> {
+                val placementKey = payload.content["placementKey"] as? String
+                val componentId = payload.content["componentId"] as? String
+                if (placementKey.isNullOrBlank() || componentId.isNullOrBlank()) {
+                    logWarning("inline payload dropped due to invalid placement/component id: ${payload.id}")
+                    return
+                }
+                displayCoordinator.routeInline(placementKey, payload)
+            }
+            else -> logWarning("campaign dropped due to unsupported command '$command': ${payload.id}")
+        }
+    }
+
+    private fun isNudgePayload(payload: InAppPayload): Boolean {
+        val command = (payload.content["command"] as? String)?.trim()?.uppercase()
+        return command == "SHOW_DIALOG" || command == "SHOW_BOTTOM_SHEET"
+    }
+
+    private fun flushPendingPayloadIfAny() {
+        val payload = pendingPayload ?: return
+        pendingPayload = null
+        routeCampaign(payload)
+    }
+
     private fun registerLifecycleObserver() {
         if (!lifecycleObserverAttached.compareAndSet(false, true)) return
         val observer = LifecycleEventObserver { _, event ->
-            if (event == Lifecycle.Event.ON_DESTROY) {
-                teardown()
+            when (event) {
+                Lifecycle.Event.ON_START -> pluginRegistry.runHealthCheck()
+                Lifecycle.Event.ON_DESTROY -> teardown()
+                else -> Unit
             }
         }
         lifecycleObserver = observer
@@ -175,58 +271,26 @@ internal object DigiaInstance : DigiaCEPDelegate {
         }
     }
 
-    override fun onExperienceReady(payload: InAppPayload) {
-        scope.launch(Dispatchers.Main.immediate) {
-            if (activePlugin.get() == null) {
-                logWarning("Digia.register(plugin) has not been called. Experience '${payload.id}' is dropped.")
-                return@launch
-            }
-
-            val type = (payload.content["type"] as? String)?.lowercase() ?: "dialog"
-            val componentId = payload.content["componentId"] as? String
-
-            when (type) {
-                "slot" -> {
-                    val placementKey = payload.content["placementKey"] as? String
-                    if (placementKey.isNullOrBlank() || componentId == null) {
-                        logWarning("Experience '${payload.id}' has invalid slot content (placementKey/componentId) and was dropped.")
-                        return@launch
-                    }
-                    controller.addSlot(placementKey, payload)
-                }
-                "dialog", "bottom_sheet" -> {
-                    if (componentId == null) {
-                        logWarning("Experience '${payload.id}' has invalid content (componentId) and was dropped.")
-                        return@launch
-                    }
-                    controller.show(payload)
-                    activePlugin.get()?.notifyEvent(DigiaExperienceEvent.Impressed, payload)
-                }
-                else -> logWarning("Unknown experience type '$type' for '${payload.id}', dropped.")
-            }
-        }
-    }
-
-    override fun onExperienceInvalidated(payloadId: String) {
-        scope.launch(Dispatchers.Main.immediate) {
-            if (controller.activePayload.value?.id == payloadId) {
-                controller.dismiss()
-            }
-            controller.removeSlotById(payloadId)
-        }
-    }
-
     private fun logWarning(message: String) {
         Logger.warning(message, tag = "Digia")
     }
 
     @Suppress("unused")
     internal fun initForTest() {
-        initialized.set(true)
         initializationStarted.set(true)
-        controller.onEvent = { event, payload ->
-            activePlugin.get()?.notifyEvent(event, payload)
-        }
+        initialized.set(true)
+        _isUiReady.value = true
+        _sdkState.value = SDKState.READY
+    }
+
+    @Suppress("unused")
+    internal fun setSdkStateForTest(state: SDKState) {
+        _sdkState.value = state
+    }
+
+    @Suppress("unused")
+    internal fun flushPendingPayloadForTest() {
+        flushPendingPayloadIfAny()
     }
 
     @Suppress("unused")
@@ -235,15 +299,17 @@ internal object DigiaInstance : DigiaCEPDelegate {
         supervisorJob = SupervisorJob()
         scope = CoroutineScope(supervisorJob + Dispatchers.Main.immediate)
         initializationStarted.set(false)
-        pendingPlugin.getAndSet(null)?.teardown()
-        activePlugin.getAndSet(null)?.teardown()
-        currentScreen.set(null)
         initialized.set(false)
+        pendingPayload = null
+        hostMounted = false
+        pluginRegistry.teardown()
+        screenTracker.clear()
         controller.dismiss()
         controller.clearSlots()
         renderEngineInitialized.set(false)
         _isRenderEngineReady.value = false
         _isUiReady.value = false
+        _sdkState.value = SDKState.NOT_INITIALIZED
         lifecycleObserver?.let {
             ProcessLifecycleOwner.get().lifecycle.removeObserver(it)
         }

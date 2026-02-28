@@ -8,6 +8,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import com.digia.digiaui.framework.UIActionType
 import com.digia.digiaui.framework.DUIFactory
 import com.digia.digiaui.framework.bottomsheet.BottomSheetHost
 import com.digia.digiaui.framework.dialog.DialogHost
@@ -35,23 +36,24 @@ fun DigiaHost(content: @Composable () -> Unit) {
                 digiaUiManager.bottomSheetManager?.dismiss()
             }
             else -> {
-                val type = resolvePayloadType(payload)
-                val componentId = payload.content["componentId"] as? String ?: return@LaunchedEffect
+                val actionType = resolveActionType(payload) ?: return@LaunchedEffect
+                val viewId = payload.content["viewId"] as? String ?: return@LaunchedEffect
                 val args = payload.content["args"].toStringAnyMap()
 
-                when (type) {
-                    "dialog" -> digiaUiManager.dialogManager?.show(
-                        componentId = componentId,
+                when (actionType) {
+                    UIActionType.SHOW_DIALOG -> digiaUiManager.dialogManager?.show(
+                        componentId = viewId,
                         args = args,
                         onDismiss = { DigiaInstance.markDismissed(payload.id) },
                     )
-                    "bottom_sheet" -> digiaUiManager.bottomSheetManager?.show(
-                        componentId = componentId,
+                    UIActionType.SHOW_BOTTOM_SHEET -> digiaUiManager.bottomSheetManager?.show(
+                        componentId = viewId,
                         args = args,
                         onDismiss = { DigiaInstance.markDismissed(payload.id) },
                     )
                     else -> Unit
                 }
+                DigiaInstance.reportOverlayImpression(payload)
             }
         }
     }
@@ -118,6 +120,10 @@ private fun Any?.toStringAnyMap(): Map<String, Any?>? {
     }
 }
 
-private fun resolvePayloadType(payload: InAppPayload): String {
-    return (payload.content["type"] as? String)?.lowercase() ?: "dialog"
+private fun resolveActionType(payload: InAppPayload): UIActionType? {
+    return when ((payload.content["command"] as? String)?.trim()?.uppercase()) {
+        "SHOW_DIALOG" -> UIActionType.SHOW_DIALOG
+        "SHOW_BOTTOM_SHEET" -> UIActionType.SHOW_BOTTOM_SHEET
+        else -> null
+    }
 }

@@ -13,9 +13,11 @@ import '../models/in_app_payload.dart';
 /// Never exposed to app developers.
 class DigiaOverlayController extends ChangeNotifier {
   InAppPayload? _activePayload;
+  final Map<String, InAppPayload> _slotPayloads = <String, InAppPayload>{};
 
   /// The currently active campaign payload, or null when no experience is shown.
   InAppPayload? get activePayload => _activePayload;
+  Map<String, InAppPayload> get slotPayloads => Map.unmodifiable(_slotPayloads);
 
   /// Called by [DigiaInstance] when a new experience is ready to render.
   /// Notifies [DigiaHost] to rebuild and display the overlay.
@@ -29,6 +31,21 @@ class DigiaOverlayController extends ChangeNotifier {
   /// Notifies [DigiaHost] to rebuild and remove the overlay.
   void dismiss() {
     _activePayload = null;
+    notifyListeners();
+  }
+
+  void addSlot(String placementKey, InAppPayload payload) {
+    _slotPayloads[placementKey] = payload;
+    notifyListeners();
+  }
+
+  void removeSlotById(String campaignId) {
+    _slotPayloads.removeWhere((_, payload) => payload.id == campaignId);
+    notifyListeners();
+  }
+
+  void clearSlots() {
+    _slotPayloads.clear();
     notifyListeners();
   }
 

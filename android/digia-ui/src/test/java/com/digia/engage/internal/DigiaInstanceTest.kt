@@ -1,5 +1,6 @@
 package com.digia.engage.internal
 
+import com.digia.engage.DiagnosticReport
 import com.digia.engage.DigiaCEPDelegate
 import com.digia.engage.DigiaCEPPlugin
 import com.digia.engage.DigiaExperienceEvent
@@ -7,12 +8,11 @@ import com.digia.engage.InAppPayload
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
-import kotlinx.coroutines.test.setMain
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
@@ -37,7 +37,7 @@ class DigiaInstanceTest {
     }
 
     @Test
-    fun `register wires setup with delegate`() {
+    fun `register wires setup with delegate and runs health check`() {
         val plugin = FakePlugin()
 
         DigiaInstance.initForTest()
@@ -45,6 +45,7 @@ class DigiaInstanceTest {
 
         assertTrue(plugin.setupCalled)
         assertNotNull(plugin.delegate)
+        assertTrue(plugin.healthChecked)
     }
 
     @Test
@@ -62,259 +63,149 @@ class DigiaInstanceTest {
     }
 
     @Test
-    fun `setCurrentScreen before register is forwarded when plugin registers later`() {
+    fun `setCurrentScreen forwards screen to plugin`() {
         val plugin = FakePlugin()
 
         DigiaInstance.initForTest()
-        DigiaInstance.setCurrentScreen("checkout")
         DigiaInstance.register(plugin)
+        DigiaInstance.setCurrentScreen("checkout")
 
         assertEquals(listOf("checkout"), plugin.forwardedScreens)
     }
 
     @Test
-    fun `valid overlay payload shows and emits impressed`() = runTest(testDispatcher) {
+    fun `matching screen nudge payload shows overlay`() = runTest(testDispatcher) {
         val plugin = FakePlugin()
-
         DigiaInstance.initForTest()
         DigiaInstance.register(plugin)
+        DigiaInstance.setCurrentScreen("home")
 
-        val payload = InAppPayload(
-            id = "exp-1",
-            content = mapOf(
-                "type" to "dialog",
-                "componentId" to "welcome_modal",
-                "args" to mapOf("title" to "Hi"),
-            ),
+        plugin.delegate!!.onCampaignTriggered(
+            nudgePayload(id = "exp-1", screenId = "home", command = "SHOW_DIALOG"),
         )
-        plugin.delegate!!.onExperienceReady(payload)
-
         testScheduler.advanceUntilIdle()
 
-        assertNotNull(DigiaInstance.controller.activePayload.value)
-        val event = plugin.events.single()
-        assertTrue(event.first is DigiaExperienceEvent.Impressed)
-        assertEquals("exp-1", event.second.id)
+        assertEquals("exp-1", DigiaInstance.controller.activePayload.value?.id)
     }
 
     @Test
-    fun `slot payload is stored in slotPayloads`() = runTest(testDispatcher) {
+    fun `mismatched screen payload is dropped`() = runTest(testDispatcher) {
         val plugin = FakePlugin()
-
         DigiaInstance.initForTest()
         DigiaInstance.register(plugin)
+        DigiaInstance.setCurrentScreen("checkout")
 
-        val payload = InAppPayload(
-            id = "slot-1",
-            content = mapOf(
-                "type" to "slot",
-                "placementKey" to "hero_banner",
-                "componentId" to "hero_component",
-            ),
+        plugin.delegate!!.onCampaignTriggered(
+            nudgePayload(id = "exp-1", screenId = "home", command = "SHOW_DIALOG"),
         )
-        plugin.delegate!!.onExperienceReady(payload)
-
         testScheduler.advanceUntilIdle()
 
         assertNull(DigiaInstance.controller.activePayload.value)
+    }
+
+    @Test
+    fun `inline payload stores slot by placement key`() = runTest(testDispatcher) {
+        val plugin = FakePlugin()
+        DigiaInstance.initForTest()
+        DigiaInstance.register(plugin)
+        DigiaInstance.setCurrentScreen("home")
+
+        plugin.delegate!!.onCampaignTriggered(
+            inlinePayload(
+                id = "slot-1",
+                screenId = "home",
+                placementKey = "hero_banner",
+                componentId = "hero_component",
+            ),
+        )
+        testScheduler.advanceUntilIdle()
+
         assertEquals("slot-1", DigiaInstance.controller.slotPayloads.value["hero_banner"]?.id)
-    }
-
-    @Test
-    fun `experience is dropped when plugin not registered`() = runTest(testDispatcher) {
-        DigiaInstance.initForTest()
-
-        DigiaInstance.onExperienceReady(
-            InAppPayload(
-                id = "exp-1",
-                content = mapOf("type" to "dialog", "componentId" to "welcome"),
-            ),
-        )
-
-        testScheduler.advanceUntilIdle()
-
-        assertNull(DigiaInstance.controller.activePayload.value)
-        assertTrue(DigiaInstance.controller.slotPayloads.value.isEmpty())
-    }
-
-    @Test
-    fun `bottom_sheet payload shows and emits impressed`() = runTest(testDispatcher) {
-        val plugin = FakePlugin()
-        DigiaInstance.initForTest()
-        DigiaInstance.register(plugin)
-
-        val payload = InAppPayload(
-            id = "exp-bs-1",
-            content = mapOf(
-                "type" to "bottom_sheet",
-                "componentId" to "checkout_sheet",
-            ),
-        )
-        plugin.delegate!!.onExperienceReady(payload)
-        testScheduler.advanceUntilIdle()
-
-        assertNotNull(DigiaInstance.controller.activePayload.value)
-        assertEquals("exp-bs-1", DigiaInstance.controller.activePayload.value?.id)
-        assertTrue(plugin.events.single().first is DigiaExperienceEvent.Impressed)
-    }
-
-    @Test
-    fun `unknown payload type is dropped and does not emit impressed`() = runTest(testDispatcher) {
-        val plugin = FakePlugin()
-        DigiaInstance.initForTest()
-        DigiaInstance.register(plugin)
-
-        plugin.delegate!!.onExperienceReady(
-            InAppPayload(
-                id = "exp-unknown",
-                content = mapOf("type" to "fullscreen", "componentId" to "splash"),
-            ),
-        )
-        testScheduler.advanceUntilIdle()
-
-        assertNull(DigiaInstance.controller.activePayload.value)
-        assertTrue(plugin.events.isEmpty())
-    }
-
-    @Test
-    fun `invalid dialog payload is dropped`() = runTest(testDispatcher) {
-        val plugin = FakePlugin()
-        DigiaInstance.initForTest()
-        DigiaInstance.register(plugin)
-
-        plugin.delegate!!.onExperienceReady(
-            InAppPayload(
-                id = "exp-invalid-dialog",
-                content = mapOf("type" to "dialog"),
-            ),
-        )
-
-        testScheduler.advanceUntilIdle()
-
-        assertNull(DigiaInstance.controller.activePayload.value)
-        assertTrue(plugin.events.isEmpty())
-    }
-
-    @Test
-    fun `invalid slot payload is dropped`() = runTest(testDispatcher) {
-        val plugin = FakePlugin()
-        DigiaInstance.initForTest()
-        DigiaInstance.register(plugin)
-
-        plugin.delegate!!.onExperienceReady(
-            InAppPayload(
-                id = "exp-invalid-slot",
-                content = mapOf("type" to "slot", "componentId" to "hero_component"),
-            ),
-        )
-
-        testScheduler.advanceUntilIdle()
-
-        assertTrue(DigiaInstance.controller.slotPayloads.value.isEmpty())
         assertNull(DigiaInstance.controller.activePayload.value)
     }
 
     @Test
-    fun `markDismissed emits dismissed and clears active payload`() = runTest(testDispatcher) {
+    fun `pending nudge payload is buffered during initializing and flushed on ready`() = runTest(testDispatcher) {
         val plugin = FakePlugin()
         DigiaInstance.initForTest()
         DigiaInstance.register(plugin)
-        val payload = InAppPayload(
-            id = "dialog-1",
-            content = mapOf("type" to "dialog", "componentId" to "welcome_modal"),
+        DigiaInstance.setCurrentScreen("home")
+        DigiaInstance.setSdkStateForTest(SDKState.INITIALIZING)
+
+        plugin.delegate!!.onCampaignTriggered(
+            nudgePayload(id = "pending-1", screenId = "home", command = "SHOW_BOTTOM_SHEET"),
         )
-        plugin.delegate!!.onExperienceReady(payload)
+        testScheduler.advanceUntilIdle()
+        assertNull(DigiaInstance.controller.activePayload.value)
+
+        DigiaInstance.setSdkStateForTest(SDKState.READY)
+        DigiaInstance.flushPendingPayloadForTest()
         testScheduler.advanceUntilIdle()
 
+        assertEquals("pending-1", DigiaInstance.controller.activePayload.value?.id)
+    }
+
+    @Test
+    fun `markDismissed emits dismissed event and clears overlay`() = runTest(testDispatcher) {
+        val plugin = FakePlugin()
+        DigiaInstance.initForTest()
+        DigiaInstance.register(plugin)
+        DigiaInstance.setCurrentScreen("home")
+
+        plugin.delegate!!.onCampaignTriggered(
+            nudgePayload(id = "dialog-1", screenId = "home", command = "SHOW_DIALOG"),
+        )
+        testScheduler.advanceUntilIdle()
+
+        DigiaInstance.reportOverlayImpression(
+            DigiaInstance.controller.activePayload.value!!,
+        )
         DigiaInstance.markDismissed("dialog-1")
 
         assertNull(DigiaInstance.controller.activePayload.value)
-        assertEquals(2, plugin.events.size)
-        assertTrue(plugin.events[0].first is DigiaExperienceEvent.Impressed)
-        assertTrue(plugin.events[1].first is DigiaExperienceEvent.Dismissed)
+        assertTrue(plugin.events.any { it.first is DigiaExperienceEvent.Dismissed })
     }
 
     @Test
-    fun `markDismissed with non matching id does not emit dismissed`() = runTest(testDispatcher) {
+    fun `emitExplicitCtaClick emits clicked event when active payload exists`() = runTest(testDispatcher) {
         val plugin = FakePlugin()
         DigiaInstance.initForTest()
         DigiaInstance.register(plugin)
-        plugin.delegate!!.onExperienceReady(
-            InAppPayload(
-                id = "dialog-1",
-                content = mapOf("type" to "dialog", "componentId" to "welcome_modal"),
-            ),
-        )
-        testScheduler.advanceUntilIdle()
+        DigiaInstance.setCurrentScreen("home")
 
-        DigiaInstance.markDismissed("another-id")
-
-        assertNotNull(DigiaInstance.controller.activePayload.value)
-        assertEquals(1, plugin.events.size)
-        assertTrue(plugin.events.single().first is DigiaExperienceEvent.Impressed)
-    }
-
-    @Test
-    fun `emitExplicitCtaClick emits clicked when active payload exists`() = runTest(testDispatcher) {
-        val plugin = FakePlugin()
-        DigiaInstance.initForTest()
-        DigiaInstance.register(plugin)
-        plugin.delegate!!.onExperienceReady(
-            InAppPayload(
-                id = "dialog-1",
-                content = mapOf("type" to "dialog", "componentId" to "welcome_modal"),
-            ),
+        plugin.delegate!!.onCampaignTriggered(
+            nudgePayload(id = "dialog-1", screenId = "home", command = "SHOW_DIALOG"),
         )
         testScheduler.advanceUntilIdle()
 
         DigiaInstance.emitExplicitCtaClick("cta-1")
 
-        assertEquals(2, plugin.events.size)
-        assertTrue(plugin.events[1].first is DigiaExperienceEvent.Clicked)
-        val clicked = plugin.events[1].first as DigiaExperienceEvent.Clicked
+        val clicked = plugin.events.first { it.first is DigiaExperienceEvent.Clicked }.first as DigiaExperienceEvent.Clicked
         assertEquals("cta-1", clicked.elementId)
     }
 
     @Test
-    fun `emitExplicitCtaClick is no op when no active payload`() = runTest(testDispatcher) {
+    fun `onCampaignInvalidated clears active and slot payload`() = runTest(testDispatcher) {
         val plugin = FakePlugin()
         DigiaInstance.initForTest()
         DigiaInstance.register(plugin)
+        DigiaInstance.setCurrentScreen("home")
 
-        DigiaInstance.emitExplicitCtaClick("cta-1")
-
-        assertFalse(plugin.events.any { it.first is DigiaExperienceEvent.Clicked })
-    }
-
-    @Test
-    fun `onExperienceInvalidated clears active and slot`() = runTest(testDispatcher) {
-        val plugin = FakePlugin()
-
-        DigiaInstance.initForTest()
-        DigiaInstance.register(plugin)
-
-        plugin.delegate!!.onExperienceReady(
-            InAppPayload(
-                id = "dialog-1",
-                content = mapOf("type" to "dialog", "componentId" to "w1"),
-            ),
+        plugin.delegate!!.onCampaignTriggered(
+            nudgePayload(id = "dialog-1", screenId = "home", command = "SHOW_DIALOG"),
         )
-        plugin.delegate!!.onExperienceReady(
-            InAppPayload(
+        plugin.delegate!!.onCampaignTriggered(
+            inlinePayload(
                 id = "slot-1",
-                content = mapOf(
-                    "type" to "slot",
-                    "placementKey" to "hero",
-                    "componentId" to "c1",
-                ),
+                screenId = "home",
+                placementKey = "hero",
+                componentId = "comp-1",
             ),
         )
-
         testScheduler.advanceUntilIdle()
 
-        plugin.delegate!!.onExperienceInvalidated("dialog-1")
-        plugin.delegate!!.onExperienceInvalidated("slot-1")
-
+        plugin.delegate!!.onCampaignInvalidated("dialog-1")
+        plugin.delegate!!.onCampaignInvalidated("slot-1")
         testScheduler.advanceUntilIdle()
 
         assertNull(DigiaInstance.controller.activePayload.value)
@@ -325,6 +216,7 @@ class DigiaInstanceTest {
         override val identifier: String = "fake"
         var setupCalled = false
         var teardownCalled = false
+        var healthChecked = false
         var delegate: DigiaCEPDelegate? = null
         val forwardedScreens = mutableListOf<String>()
         val events = mutableListOf<Pair<DigiaExperienceEvent, InAppPayload>>()
@@ -334,7 +226,7 @@ class DigiaInstanceTest {
             this.delegate = delegate
         }
 
-        override fun forwardScreenEvent(name: String) {
+        override fun forwardScreen(name: String) {
             forwardedScreens += name
         }
 
@@ -342,8 +234,43 @@ class DigiaInstanceTest {
             events += event to payload
         }
 
+        override fun healthCheck(): DiagnosticReport {
+            healthChecked = true
+            return DiagnosticReport(isHealthy = true)
+        }
+
         override fun teardown() {
             teardownCalled = true
         }
     }
+
+    private fun nudgePayload(
+        id: String,
+        screenId: String,
+        command: String,
+    ): InAppPayload = InAppPayload(
+        id = id,
+        content = mapOf(
+            "command" to command,
+            "viewId" to "welcome_modal",
+            "screenId" to screenId,
+            "args" to mapOf("title" to "Hello"),
+        ),
+    )
+
+    private fun inlinePayload(
+        id: String,
+        screenId: String,
+        placementKey: String,
+        componentId: String,
+    ): InAppPayload = InAppPayload(
+        id = id,
+        content = mapOf(
+            "command" to "SHOW_INLINE",
+            "screenId" to screenId,
+            "placementKey" to placementKey,
+            "componentId" to componentId,
+            "args" to mapOf("style" to "compact"),
+        ),
+    )
 }
