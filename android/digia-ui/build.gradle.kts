@@ -162,7 +162,7 @@ afterEvaluate {
             create<MavenPublication>("release") {
                 from(components["release"])
                 groupId = "com.digia"
-                artifactId = "digia_engage"
+                artifactId = "digia-engage"
                 version = version
 
                 pom {
@@ -189,9 +189,7 @@ afterEvaluate {
         }
 
         repositories {
-            // Local Maven (for development) - uncomment to publish locally
-            // maven { name = "local"; url = uri(layout.buildDirectory.dir("repo")) }
-            // JitPack builds from GitHub - no publish target needed
+            mavenLocal()
         }
     }
 }
