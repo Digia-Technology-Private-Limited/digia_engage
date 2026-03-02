@@ -21,5 +21,6 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "digia_ui_compose"
-include(":digia-ui")
+rootProject.name = "digia_engage"
+include(":digia_engage")
+project(":digia_engage").projectDir = file("digia-ui")

@@ -1,3 +1,4 @@
+import '../models/diagnostic_report.dart';
 import '../models/digia_experience_event.dart';
 import '../models/in_app_payload.dart';
 import 'digia_cep_delegate.dart';
@@ -41,6 +42,9 @@ abstract class DigiaCEPPlugin {
   /// payload.cepContext carries CEP-specific identifiers the plugin
   /// wrote during _mapToInAppPayload() — use them here for correlation.
   void notifyEvent(DigiaExperienceEvent event, InAppPayload payload);
+
+  /// Returns plugin health diagnostics for runtime checks.
+  DiagnosticReport healthCheck();
 
   /// Called when Digia is shutting down or a new plugin is being registered
   /// in place of this one.

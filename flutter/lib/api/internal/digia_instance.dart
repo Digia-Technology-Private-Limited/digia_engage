@@ -139,7 +139,7 @@ class DigiaInstance with WidgetsBindingObserver implements DigiaCEPDelegate {
   // ─── DigiaCEPDelegate ──────────────────────────────────────────────────────
 
   @override
-  void onExperienceReady(InAppPayload payload) {
+  void onCampaignTriggered(InAppPayload payload) {
     if (!_hostMounted) {
       debugPrint(
         '[Digia] WARNING: A campaign payload arrived but DigiaHost is not '
@@ -161,13 +161,13 @@ class DigiaInstance with WidgetsBindingObserver implements DigiaCEPDelegate {
   }
 
   @override
-  void onExperienceInvalidated(String payloadId) {
+  void onCampaignInvalidated(String campaignId) {
     // Check if it's an active overlay.
-    if (_controller.activePayload?.id == payloadId) {
+    if (_controller.activePayload?.id == campaignId) {
       _controller.dismiss();
     }
     // Check if it's an inline campaign.
-    inlineController.removeCampaign(payloadId);
+    inlineController.removeCampaign(campaignId);
   }
 
   // ─── WidgetsBindingObserver ────────────────────────────────────────────────
@@ -214,7 +214,7 @@ class InlineCampaignController extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Server-driven removal — called from [DigiaInstance.onExperienceInvalidated].
+  /// Server-driven removal — called from [DigiaInstance.onCampaignInvalidated].
   /// Matches by placement key (which equals the payloadId stored by the server).
   void removeCampaign(String placementId) {
     _campaigns.removeWhere((key, payload) => key == placementId);

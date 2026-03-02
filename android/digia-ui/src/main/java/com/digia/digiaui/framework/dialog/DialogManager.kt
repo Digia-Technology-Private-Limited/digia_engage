@@ -137,13 +137,15 @@ fun DialogHost(
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .wrapContentHeight().pointerInput(Unit) {
+                                .wrapContentHeight()
+                                .pointerInput(Unit) {
                                     awaitPointerEventScope {
                                         while (true) {
                                             awaitPointerEvent()
                                         }
                                     }
-                                }
+                                },
+                            contentAlignment = Alignment.Center
                         ) {
                             DUIFactory.getInstance().CreateComponent(
                                 componentId = request.componentId,

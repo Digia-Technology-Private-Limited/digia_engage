@@ -1,2 +1,2 @@
-# Consumer ProGuard rules for digia-ui
+# Consumer ProGuard rules for digia_engage
 

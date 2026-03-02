@@ -16,31 +16,7 @@ import com.google.gson.Gson
 import kotlin.collections.map
 import kotlin.collections.mapOf
 
-/**
- * Singleton manager for accessing the initialized Digia UI instance.
- *
- * [DigiaUIManager] provides global access to the DigiaUI instance and its core components. This
- * follows the Flutter implementation pattern where DigiaUIManager acts as a central access point
- * for SDK resources.
- *
- * Key responsibilities:
- * - Global access point to DigiaUI instance
- * - Provides access to network client, config, and other core components
- * - Manages SDK lifecycle (initialization and cleanup)
- *
- * Example usage:
- * ```kotlin
- * // Initialize
- * val digiaUI = DigiaUI.initialize(options)
- * DigiaUIManager.initialize(digiaUI)
- *
- * // Access anywhere in the app
- * val accessKey = DigiaUIManager.getInstance().accessKey
- * val networkClient = DigiaUIManager.getInstance().networkClient
- * val inspector = DigiaUIManager.getInstance().inspector
- * ```
- */
-class DigiaUIManager private constructor() {
+internal class DigiaUIManager private constructor() {
 
     private var _digiaUI: DigiaUI? = null
 

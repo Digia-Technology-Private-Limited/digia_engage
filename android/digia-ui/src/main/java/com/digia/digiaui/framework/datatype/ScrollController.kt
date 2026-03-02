@@ -301,12 +301,13 @@ class AdaptedScrollController {
      * Note: For LazyList and LazyGrid, this requires knowing the item count.
      */
     suspend fun animateScrollToBottom(itemCount: Int = 0) {
+        val targetIndex = (itemCount - 1).coerceAtLeast(0)
         when {
             scrollState != null -> scrollState!!.animateScrollTo(scrollState!!.maxValue)
             lazyListState != null && itemCount > 0 -> 
-                lazyListState!!.animateScrollToItem(itemCount - 1)
+                lazyListState!!.animateScrollToItem(targetIndex)
             lazyGridState != null && itemCount > 0 ->
-                lazyGridState!!.animateScrollToItem(itemCount - 1)
+                lazyGridState!!.animateScrollToItem(targetIndex)
         }
     }
     

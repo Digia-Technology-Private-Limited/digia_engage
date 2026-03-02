@@ -56,8 +56,8 @@ android {
 }
 
 dependencies {
-    // Use the local digia-ui module
-    implementation(project(":digia-ui"))
+    // Use the local digia_engage module
+    implementation(project(":digia_engage"))
 
     // Android Core
     implementation("androidx.core:core-ktx:1.12.0")

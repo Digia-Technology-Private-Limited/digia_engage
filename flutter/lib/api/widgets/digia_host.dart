@@ -78,21 +78,18 @@ class _DigiaHostState extends State<DigiaHost> {
       return;
     }
 
-    final displayType =
-        (payload.content['type'] as String? ?? 'inline').toLowerCase();
+    final command =
+        (payload.content['command'] as String?)?.trim().toUpperCase();
 
-    // Only handle modal types. Inline/fullscreen experiences are handled
-    // by the pages themselves, not overlaid globally.
-    if (displayType == 'bottomsheet' || displayType == 'dialog') {
+    if (command == 'SHOW_BOTTOM_SHEET' || command == 'SHOW_DIALOG') {
       WidgetsBinding.instance.ensureVisualUpdate();
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
-        // Fire impression before the modal appears.
         _controller.onEvent?.call(const ExperienceImpressed(), payload);
-        _presentModal(context, payload, displayType);
+        _presentModal(context, payload, command!);
       });
     } else {
-      // Inline/fullscreen: dismiss immediately since DigiaHost doesn't handle these.
+      // Inline is handled by DigiaSlot; host only renders overlay commands.
       _controller.dismiss();
     }
   }
@@ -101,11 +98,10 @@ class _DigiaHostState extends State<DigiaHost> {
   /// engine. The controller is dismissed when the modal closes so the overlay
   /// state is cleared for both user-driven and programmatic dismissals.
   void _presentModal(
-      BuildContext context, InAppPayload payload, String displayType) {
+      BuildContext context, InAppPayload payload, String command) {
     final content = payload.content;
-    final viewId = content['viewId'] as String? ??
-        content['componentId'] as String? ??
-        content['pageId'] as String?;
+    final viewId = content['viewId'] as String?;
+    final args = _toStringDynamicMap(content['args']) ?? <String, dynamic>{};
 
     void fireAndDismiss(_) {
       _controller.onEvent?.call(const ExperienceDismissed(), payload);
@@ -124,12 +120,12 @@ class _DigiaHostState extends State<DigiaHost> {
         DigiaInstance.instance.navigator?.context ??
         context;
 
-    if (displayType == 'bottomsheet') {
+    if (command == 'SHOW_BOTTOM_SHEET') {
       DUIFactory()
           .showBottomSheet(
             navContext,
             viewId,
-            content,
+            args,
             backgroundColor:
                 Theme.of(navContext).bottomSheetTheme.backgroundColor,
             borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
@@ -137,10 +133,9 @@ class _DigiaHostState extends State<DigiaHost> {
           )
           .then(fireAndDismiss);
     } else {
-      // dialog
       presentDialog(
         context: navContext,
-        builder: (innerCtx) => _buildView(innerCtx, viewId, content),
+        builder: (innerCtx) => _buildView(innerCtx, viewId, args),
         barrierDismissible: true,
       ).then(fireAndDismiss);
     }
@@ -165,4 +160,16 @@ Widget _buildView(
     return factory.createPage(viewId, args);
   }
   return factory.createComponent(viewId, args);
+}
+
+Map<String, dynamic>? _toStringDynamicMap(Object? raw) {
+  final map = raw as Map<Object?, Object?>?;
+  if (map == null) return null;
+  final output = <String, dynamic>{};
+  for (final entry in map.entries) {
+    if (entry.key is String) {
+      output[entry.key! as String] = entry.value;
+    }
+  }
+  return output;
 }

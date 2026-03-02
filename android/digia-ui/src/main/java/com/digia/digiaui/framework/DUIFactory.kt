@@ -54,7 +54,7 @@ enum class UIActionType {
     CLOSE_DIALOG
 }
 
-class DUIFactory private constructor() {
+internal class DUIFactory private constructor() {
 
     private lateinit var configProvider: ConfigProvider
     private lateinit var widgetRegistry: DefaultVirtualWidgetRegistry
@@ -240,7 +240,6 @@ class DUIFactory private constructor() {
                         pageArgs = pageArgs,
                         pageDef = pageDef,
                         registry = widgetRegistry,
-                        //                resources = mergedResources
                         )
             }
         }

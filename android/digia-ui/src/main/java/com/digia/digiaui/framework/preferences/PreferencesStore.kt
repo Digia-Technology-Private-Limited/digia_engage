@@ -70,7 +70,7 @@ class PreferencesStore private constructor() {
     }
 
     companion object {
-        private const val PREFS_NAME = "digia_ui_prefs"
+        private const val PREFS_NAME = "digia_engage_prefs"
 
         @Volatile private var INSTANCE: PreferencesStore? = null
 

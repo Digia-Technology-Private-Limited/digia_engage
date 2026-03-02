@@ -7,7 +7,7 @@ plugins {
 }
 
 group = "com.digia"
-version = "1.0.0-beta.6"
+version = "1.0.0-beta-1"
 
 android {
     namespace = "com.digia.digiaui"
@@ -69,6 +69,7 @@ android {
 dependencies {
     implementation("androidx.core:core-ktx:1.12.0")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.6.2")
+    implementation("androidx.lifecycle:lifecycle-process:2.6.2")
     implementation("androidx.activity:activity-compose:1.7.2")
     implementation(platform("androidx.compose:compose-bom:2023.03.00"))
     implementation("androidx.compose.ui:ui")
@@ -146,6 +147,7 @@ dependencies {
     implementation("io.github.gsrathoreniks:scratchify:1.0.0-alpha2")
 
     testImplementation("junit:junit:4.13.2")
+    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.7.3")
     androidTestImplementation("androidx.test.ext:junit:1.1.5")
     androidTestImplementation("androidx.test.espresso:espresso-core:3.5.1")
     androidTestImplementation(platform("androidx.compose:compose-bom:2023.03.00"))
@@ -160,13 +162,13 @@ afterEvaluate {
             create<MavenPublication>("release") {
                 from(components["release"])
                 groupId = "com.digia"
-                artifactId = "digia-ui"
+                artifactId = "digia_engage"
                 version = version
 
                 pom {
                     name.set("Digia UI Compose")
                     description.set("Digia UI SDK for Android Compose - Server-driven UI framework")
-                    url.set("https://github.com/digia/digia-ui-compose")
+                    url.set("https://github.com/Digia-Technology-Private-Limited/digia_engage")
 
                     licenses {
                         license {
@@ -187,11 +189,9 @@ afterEvaluate {
         }
 
         repositories {
-            maven {
-                name = "local"
-                url = uri(layout.buildDirectory.dir("repo"))
-            }
-
+            // Local Maven (for development) - uncomment to publish locally
+            // maven { name = "local"; url = uri(layout.buildDirectory.dir("repo")) }
+            // JitPack builds from GitHub - no publish target needed
         }
     }
 }

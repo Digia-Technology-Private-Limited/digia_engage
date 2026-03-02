@@ -53,9 +53,10 @@ class _DigiaSlotState extends State<DigiaSlot> {
   /// Prevents re-firing on every setState rebuild.
   String? _impressedPayloadId;
 
-  /// ID of the payload currently being displayed.
-  /// Used to skip setState when the controller fires for a different slot.
-  String? _currentPayloadId;
+  /// The payload currently being displayed.
+  /// Stored in state so build reads from here, not the controller directly,
+  /// avoiding rebuilds driven by parent widget rebuilds.
+  InAppPayload? _currentPayload;
 
   @override
   void initState() {
@@ -88,15 +89,14 @@ class _DigiaSlotState extends State<DigiaSlot> {
   /// Fires [ExperienceImpressed] the first time a unique payload renders in
   /// this slot. Safe to call multiple times — no-ops if already impressed.
   ///
-  /// Returns `true` if the payload changed (triggering a rebuild is needed).
+  /// Returns `true` if the payload changed (a rebuild is needed).
   bool _scheduleImpressionIfNeeded() {
     final payload = DigiaInstance.instance.inlineController
         .getCampaign(widget.placementKey);
 
-    final newId = payload?.id;
-    if (newId == _currentPayloadId) return false;
+    if (payload?.id == _currentPayload?.id) return false;
 
-    _currentPayloadId = newId;
+    _currentPayload = payload;
 
     if (payload == null || payload.id == _impressedPayloadId) return true;
 
@@ -125,10 +125,8 @@ class _DigiaSlotState extends State<DigiaSlot> {
 
   @override
   Widget build(BuildContext context) {
-    final payload = DigiaInstance.instance.inlineController
-        .getCampaign(widget.placementKey);
     return _DigiaSlotContent(
-      payload: payload,
+      payload: _currentPayload,
       onDismiss: _dismiss,
       placeholder: widget.placeholder,
     );
