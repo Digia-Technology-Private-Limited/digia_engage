@@ -43,6 +43,7 @@ Future<T?> presentBottomSheet<T>({
     scrollControlDisabledMaxHeightRatio: scrollControlDisabledMaxHeightRatio,
     barrierColor: barrierColor,
     useSafeArea: useSafeArea,
+    useRootNavigator: true,
     // isScrollControlled: true,
     builder: (innerContext) {
       return BackdropFilter(

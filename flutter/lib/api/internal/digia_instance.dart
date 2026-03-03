@@ -147,11 +147,10 @@ class DigiaInstance with WidgetsBindingObserver implements DigiaCEPDelegate {
       );
     }
 
-    final displayType =
-        (payload.content['type'] as String? ?? 'inline').toLowerCase();
+    final displayType = (payload.content['command'] as String? ?? 'Inline');
     final placementId = payload.content['placementId'] as String?;
 
-    if (displayType == 'inline' && placementId != null) {
+    if (displayType == 'Inline' && placementId != null) {
       // Store inline campaign for DigiaSlot to render.
       inlineController.setCampaign(placementId, payload);
     } else {
