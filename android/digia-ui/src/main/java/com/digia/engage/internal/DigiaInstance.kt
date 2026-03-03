@@ -212,7 +212,12 @@ internal object DigiaInstance : DigiaCEPDelegate {
         if (command != "SHOW_INLINE") {
             val screenId = (payload.content["screenId"] as? String)?.trim()
             val currentScreen = screenTracker.currentScreen?.trim()
-            if (screenId.isNullOrBlank() || currentScreen.isNullOrBlank() || screenId != currentScreen) {
+            val screenMismatch = when {
+                screenId.isNullOrBlank() || screenId == "*" -> false
+                currentScreen.isNullOrBlank() -> true
+                else -> screenId != currentScreen
+            }
+            if (screenMismatch) {
                 logWarning(
                     "campaign dropped due to screen mismatch: payload=${payload.id}, " +
                         "screenId=$screenId, current=$currentScreen",
