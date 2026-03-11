@@ -1,0 +1,84 @@
+{
+    "name": "@digia/engage-react-native",
+    "version": "0.1.0",
+    "description": "React Native bridge for Digia Engage – renders native Android Compose UI inside React Native apps",
+    "main": "lib/commonjs/index",
+    "module": "lib/module/index",
+    "types": "lib/typescript/src/index.d.ts",
+    "react-native": "src/index",
+    "source": "src/index",
+    "exports": {
+        ".": {
+            "import": "./lib/module/index.js",
+            "require": "./lib/commonjs/index.js",
+            "types": "./lib/typescript/src/index.d.ts"
+        }
+    },
+    "files": [
+        "src",
+        "lib",
+        "android",
+        "ios",
+        "*.podspec",
+        "!lib/typescript/example",
+        "!android/build",
+        "!ios/build",
+        "!**/__tests__",
+        "!**/__fixtures__",
+        "!**/__mocks__"
+    ],
+    "scripts": {
+        "typecheck": "tsc --noEmit",
+        "lint": "eslint \"**/*.{js,ts,tsx}\"",
+        "build": "bob build",
+        "prepare": "bob build"
+    },
+    "keywords": [
+        "react-native",
+        "digia",
+        "engage",
+        "compose",
+        "android",
+        "native"
+    ],
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/Digia-Technology-Private-Limited/digia_engage.git",
+        "directory": "react-native"
+    },
+    "author": "Digia Technology Private Limited",
+    "license": "MIT",
+    "peerDependencies": {
+        "react": "*",
+        "react-native": "*"
+    },
+    "devDependencies": {
+        "@react-native/eslint-config": "^0.73.0",
+        "@types/react": "^18.2.0",
+        "@types/react-native": "^0.73.0",
+        "eslint": "^8.51.0",
+        "react": "18.2.0",
+        "react-native": "0.73.0",
+        "react-native-builder-bob": "^0.23.0",
+        "typescript": "^5.2.0"
+    },
+    "codegenConfig": {
+        "name": "DigiaEngageSpec",
+        "type": "all",
+        "jsSrcsDir": "src"
+    },
+    "react-native-builder-bob": {
+        "source": "src",
+        "output": "lib",
+        "targets": [
+            "commonjs",
+            "module",
+            [
+                "typescript",
+                {
+                    "project": "tsconfig.build.json"
+                }
+            ]
+        ]
+    }
+}
