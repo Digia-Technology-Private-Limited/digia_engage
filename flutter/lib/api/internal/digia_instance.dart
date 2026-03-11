@@ -1,11 +1,7 @@
 import 'package:flutter/widgets.dart';
 
+import '../../digia_engage.dart';
 import '../../digia_ui.dart';
-import '../interfaces/digia_cep_delegate.dart';
-import '../interfaces/digia_cep_plugin.dart';
-import '../models/digia_config.dart';
-import '../models/digia_experience_event.dart';
-import '../models/in_app_payload.dart';
 import 'digia_overlay_controller.dart';
 
 /// Internal singleton that backs the public [Digia] static facade.
@@ -152,10 +148,11 @@ class DigiaInstance with WidgetsBindingObserver implements DigiaCEPDelegate {
       );
     }
 
-    final displayType = (payload.content['command'] as String? ?? 'Inline');
+    final displayType =
+        (payload.content['command'] as String? ?? 'SHOW_INLINE');
     final placementId = payload.content['placementId'] as String?;
 
-    if (displayType == 'Inline' && placementId != null) {
+    if (displayType == 'SHOW_INLINE' && placementId != null) {
       // Store inline campaign for DigiaSlot to render.
       inlineController.setCampaign(placementId, payload);
     } else {
