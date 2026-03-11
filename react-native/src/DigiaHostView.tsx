@@ -38,10 +38,16 @@ import {
     UIManager,
     View,
     requireNativeComponent,
+    type StyleProp,
     type ViewStyle,
 } from 'react-native';
 
 interface DigiaHostViewProps {
+    style?: StyleProp<ViewStyle>;
+}
+
+// requireNativeComponent expects a plain ViewStyle, not StyleProp.
+interface NativeDigiaHostViewProps {
     style?: ViewStyle;
 }
 
@@ -60,7 +66,7 @@ const _hostViewAvailable =
     !!UIManager.hasViewManagerConfig?.('DigiaHostView');
 
 const NativeDigiaHostView = _hostViewAvailable
-    ? requireNativeComponent<DigiaHostViewProps>('DigiaHostView')
+    ? requireNativeComponent<NativeDigiaHostViewProps>('DigiaHostView')
     : null;
 
 // ── DigiaHostView ─────────────────────────────────────────────────────────────
@@ -69,7 +75,8 @@ export function DigiaHostView({ style }: DigiaHostViewProps) {
     if (Platform.OS === 'android' && NativeDigiaHostView) {
         return (
             <NativeDigiaHostView
-                style={[StyleSheet.absoluteFill, style]}
+                // Flatten StyleProp array into a plain ViewStyle for the native layer.
+                style={StyleSheet.flatten([StyleSheet.absoluteFill, style])}
             // pointerEvents="none" is handled inside the native view so touches
             // pass through when no overlay is visible.
             />
