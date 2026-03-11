@@ -1,6 +1,11 @@
 import 'package:flutter/widgets.dart';
 
 import '../../digia_ui.dart';
+import '../interfaces/digia_cep_delegate.dart';
+import '../interfaces/digia_cep_plugin.dart';
+import '../models/digia_config.dart';
+import '../models/digia_experience_event.dart';
+import '../models/in_app_payload.dart';
 import 'digia_overlay_controller.dart';
 
 /// Internal singleton that backs the public [Digia] static facade.

@@ -1,16 +1,3 @@
-library;
-
-// ─── Digia public API ─────────────────────────────────────────────────────────
-export 'package:digia_engage/api/digia.dart';
-export 'package:digia_engage/api/interfaces/digia_cep_delegate.dart';
-export 'package:digia_engage/api/interfaces/digia_cep_plugin.dart';
-export 'package:digia_engage/api/models/digia_config.dart';
-export 'package:digia_engage/api/models/digia_experience_event.dart';
-export 'package:digia_engage/api/models/in_app_payload.dart';
-export 'package:digia_engage/api/widgets/digia_host.dart';
-export 'package:digia_engage/api/widgets/digia_navigator_observer.dart';
-export 'package:digia_engage/api/widgets/digia_slot.dart';
-
 // ─── Server-driven UI (DigiaUIApp / DigiaUIAppBuilder) ───────────────────────
 export 'package:digia_engage/dui_settings.dart';
 export 'package:digia_engage/src/analytics/dui_analytics.dart';
