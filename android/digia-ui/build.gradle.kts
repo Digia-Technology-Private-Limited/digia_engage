@@ -7,7 +7,7 @@ plugins {
 }
 
 group = "com.digia"
-version = "1.0.0-beta.1"
+version = "1.0.0-beta.2"
 
 android {
     namespace = "com.digia.digiaui"

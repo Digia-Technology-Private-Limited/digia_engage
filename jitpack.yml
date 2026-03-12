@@ -1,4 +1,4 @@
 jdk:
   - openjdk17
 install:
-  - cd android && ./gradlew :digia-ui:publishReleasePublicationToMavenLocal
+  - cd android && ./gradlew :digia_engage:publishReleasePublicationToMavenLocal
