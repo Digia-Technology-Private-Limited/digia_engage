@@ -17,6 +17,7 @@ import com.digia.engage.DigiaConfig
 import com.digia.engage.DigiaEnvironment
 import com.digia.engage.DigiaExperienceEvent
 import com.digia.engage.InAppPayload
+import java.util.concurrent.atomic.AtomicBoolean
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -24,7 +25,6 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import java.util.concurrent.atomic.AtomicBoolean
 
 internal object DigiaInstance : DigiaCEPDelegate {
 
@@ -53,13 +53,15 @@ internal object DigiaInstance : DigiaCEPDelegate {
 
     private val diagnosticsReporter = DiagnosticsReporter(::logWarning)
     private val analyticsClient = AnalyticsClient(diagnosticsReporter)
-    private val pluginRegistry = PluginRegistry(delegate = this, diagnosticsReporter = diagnosticsReporter)
+    private val pluginRegistry =
+            PluginRegistry(delegate = this, diagnosticsReporter = diagnosticsReporter)
     private val screenTracker = ScreenTracker(onScreenChanged = pluginRegistry::forwardScreen)
-    private val displayCoordinator = DisplayCoordinator(
-        overlayController = controller,
-        pluginRegistry = pluginRegistry,
-        analyticsClient = analyticsClient,
-    )
+    private val displayCoordinator =
+            DisplayCoordinator(
+                    overlayController = controller,
+                    pluginRegistry = pluginRegistry,
+                    analyticsClient = analyticsClient,
+            )
 
     init {
         controller.onEvent = { event, payload -> displayCoordinator.onOverlayEvent(event, payload) }
@@ -70,26 +72,32 @@ internal object DigiaInstance : DigiaCEPDelegate {
         _sdkState.value = SDKState.INITIALIZING
 
         scope.launch(Dispatchers.IO) {
-            val options = DigiaUIOptions(
-                context = context.applicationContext,
-                accessKey = config.apiKey,
-                environment = when (config.environment) {
-                    DigiaEnvironment.PRODUCTION -> com.digia.digiaui.init.Environment.Production
-                    DigiaEnvironment.SANDBOX -> com.digia.digiaui.init.Environment.Development
-                },
-            )
+            val options =
+                    DigiaUIOptions(
+                            context = context.applicationContext,
+                            accessKey = config.apiKey,
+                            environment =
+                                    when (config.environment) {
+                                        DigiaEnvironment.PRODUCTION ->
+                                                com.digia.digiaui.init.Environment.Production
+                                        DigiaEnvironment.SANDBOX ->
+                                                com.digia.digiaui.init.Environment.Development
+                                    },
+                    )
 
             try {
                 val digiaUI = DigiaUI.initialize(options)
-                scope.launch(Dispatchers.Main.immediate) {
-                    DigiaUIManager.initialize(digiaUI)
-                    _isUiReady.value = true
-                    initialized.set(true)
-                    _sdkState.value = SDKState.READY
-                    registerLifecycleObserver()
-                    pluginRegistry.runHealthCheck()
-                    flushPendingPayloadIfAny()
-                }.join()
+                scope
+                        .launch(Dispatchers.Main.immediate) {
+                            DigiaUIManager.initialize(digiaUI)
+                            _isUiReady.value = true
+                            initialized.set(true)
+                            _sdkState.value = SDKState.READY
+                            registerLifecycleObserver()
+                            pluginRegistry.runHealthCheck()
+                            flushPendingPayloadIfAny()
+                        }
+                        .join()
             } catch (t: Throwable) {
                 initializationStarted.set(false)
                 scope.launch(Dispatchers.Main.immediate) {
@@ -160,9 +168,7 @@ internal object DigiaInstance : DigiaCEPDelegate {
         _isRenderEngineReady.value = false
         _isUiReady.value = false
         _sdkState.value = SDKState.NOT_INITIALIZED
-        lifecycleObserver?.let {
-            ProcessLifecycleOwner.get().lifecycle.removeObserver(it)
-        }
+        lifecycleObserver?.let { ProcessLifecycleOwner.get().lifecycle.removeObserver(it) }
         lifecycleObserver = null
         lifecycleObserverAttached.set(false)
         DigiaUIManager.getInstance().dialogManager?.clear()
@@ -174,9 +180,7 @@ internal object DigiaInstance : DigiaCEPDelegate {
     override fun onCampaignTriggered(payload: InAppPayload) {
         scope.launch(Dispatchers.Main.immediate) {
             when (_sdkState.value) {
-                SDKState.NOT_INITIALIZED,
-                SDKState.FAILED,
-                -> {
+                SDKState.NOT_INITIALIZED, SDKState.FAILED, -> {
                     logWarning("campaign dropped before sdk ready: ${payload.id}")
                     return@launch
                 }
@@ -212,18 +216,18 @@ internal object DigiaInstance : DigiaCEPDelegate {
         if (command != "SHOW_INLINE") {
             val screenId = (payload.content["screenId"] as? String)?.trim()
             val currentScreen = screenTracker.currentScreen?.trim()
-            val screenMismatch = when {
-                screenId.isNullOrBlank() || screenId == "*" -> false
-                currentScreen.isNullOrBlank() -> true
-                else -> screenId != currentScreen
-            }
-            if (screenMismatch) {
-                logWarning(
-                    "campaign dropped due to screen mismatch: payload=${payload.id}, " +
-                        "screenId=$screenId, current=$currentScreen",
-                )
-                return
-            }
+            // val screenMismatch = when {
+            //     screenId.isNullOrBlank() || screenId == "*" -> false
+            //     currentScreen.isNullOrBlank() -> true
+            //     else -> screenId != currentScreen
+            // }
+            // if (screenMismatch) {
+            //     logWarning(
+            //         "campaign dropped due to screen mismatch: payload=${payload.id}, " +
+            //             "screenId=$screenId, current=$currentScreen",
+            //     )
+            //     return
+            // }
         }
 
         when (command) {
@@ -237,12 +241,17 @@ internal object DigiaInstance : DigiaCEPDelegate {
                 val placementKey = payload.content["placementKey"] as? String
                 val componentId = payload.content["componentId"] as? String
                 if (placementKey.isNullOrBlank() || componentId.isNullOrBlank()) {
-                    logWarning("inline payload dropped due to invalid placement/component id: ${payload.id}")
+                    logWarning(
+                            "inline payload dropped due to invalid placement/component id: ${payload.id}"
+                    )
                     return
                 }
                 displayCoordinator.routeInline(placementKey, payload)
             }
-            else -> logWarning("campaign dropped due to unsupported command '$command': ${payload.id}")
+            else ->
+                    logWarning(
+                            "campaign dropped due to unsupported command '$command': ${payload.id}"
+                    )
         }
     }
 
@@ -315,9 +324,7 @@ internal object DigiaInstance : DigiaCEPDelegate {
         _isRenderEngineReady.value = false
         _isUiReady.value = false
         _sdkState.value = SDKState.NOT_INITIALIZED
-        lifecycleObserver?.let {
-            ProcessLifecycleOwner.get().lifecycle.removeObserver(it)
-        }
+        lifecycleObserver?.let { ProcessLifecycleOwner.get().lifecycle.removeObserver(it) }
         lifecycleObserver = null
         lifecycleObserverAttached.set(false)
     }
