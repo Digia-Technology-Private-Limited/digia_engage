@@ -62,11 +62,6 @@
         "react-native-builder-bob": "^0.23.0",
         "typescript": "^5.2.0"
     },
-    "codegenConfig": {
-        "name": "DigiaEngageSpec",
-        "type": "all",
-        "jsSrcsDir": "src"
-    },
     "react-native-builder-bob": {
         "source": "src",
         "output": "lib",

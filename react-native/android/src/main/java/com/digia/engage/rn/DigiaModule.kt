@@ -119,7 +119,7 @@ internal class DigiaModule(
      */
     @ReactMethod
     fun openNavigation(startPageId: String?, pageArgs: ReadableMap?) {
-        val activity = currentActivity ?: run { reactContext.currentActivity ?: return }
+        val activity = reactContext.currentActivity ?: return
 
         val argsMap: Map<String, Any?>? =
                 pageArgs?.toHashMap()?.entries?.associate { (k, v) -> k to v }?.takeIf {
@@ -159,7 +159,7 @@ internal class DigiaModule(
                 )
         // DigiaCEPDelegate.onCampaignTriggered routes through DisplayCoordinator
         // → DigiaOverlayController.show() → DigiaHost composable renders the overlay.
-        com.digia.engage.internal.DigiaInstance.onCampaignTriggered(payload)
+        Digia.triggerCampaign(payload)
     }
 
     // ─── invalidateCampaign ───────────────────────────────────────────────────
@@ -170,7 +170,7 @@ internal class DigiaModule(
      */
     @ReactMethod
     fun invalidateCampaign(campaignId: String) {
-        com.digia.engage.internal.DigiaInstance.onCampaignInvalidated(campaignId)
+        Digia.invalidateCampaign(campaignId)
     }
 
     // ─── Internal: mount the Compose overlay host ─────────────────────────────
@@ -185,7 +185,7 @@ internal class DigiaModule(
      * Safe to call multiple times – a guard tag prevents duplicate mounting.
      */
     private fun mountDigiaHost() {
-        val activity = currentActivity ?: return
+        val activity = reactContext.currentActivity ?: return
 
         // Guard: don't mount twice
         val contentRoot =

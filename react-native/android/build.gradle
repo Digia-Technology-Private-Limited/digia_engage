@@ -12,23 +12,19 @@
  * the bridge code itself.
  */
 
-buildscript {
-    ext.safeExtGet = { prop, fallback ->
-        rootProject.ext.has(prop) ? rootProject.ext.get(prop) : fallback
-    }
+plugins {
+    id 'com.android.library'
+    id 'org.jetbrains.kotlin.android'
+    id 'org.jetbrains.kotlin.plugin.compose'
 }
 
-apply plugin: 'com.android.library'
-apply plugin: 'org.jetbrains.kotlin.android'
-apply plugin: 'org.jetbrains.kotlin.plugin.compose'
-
 android {
-    compileSdkVersion safeExtGet('compileSdkVersion', 36)
+    compileSdk 36
     namespace 'com.digia.engage.rn'
 
     defaultConfig {
-        minSdkVersion safeExtGet('minSdkVersion', 24)
-        targetSdkVersion safeExtGet('targetSdkVersion', 36)
+        minSdk 24
+        targetSdk 36
     }
 
     buildTypes {
@@ -38,12 +34,12 @@ android {
     }
 
     compileOptions {
-        sourceCompatibility JavaVersion.VERSION_1_8
-        targetCompatibility JavaVersion.VERSION_1_8
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
     }
 
     kotlinOptions {
-        jvmTarget = '1.8'
+        jvmTarget = '17'
     }
 
     buildFeatures {
@@ -57,28 +53,9 @@ android {
     }
 }
 
-repositories {
-    // Host project may publish the digia-ui AAR to a local Maven repo.
-    // Adjust the path if your project uses a different convention.
-    maven {
-        url "$rootDir/../android/digia-ui/build/outputs/aar"
-    }
-    google()
-    mavenCentral()
-}
-
 dependencies {
-    // ── Digia Engage Android SDK ────────────────────────────────────────────
-    // When consuming via a local build of the Android sub-project, add it as:
-    //   implementation(project(":digia-ui"))
-    // When consuming the published AAR from Maven, use the coordinate below.
-    // Uncomment one of the two lines depending on your project setup:
-
-    // (A) Local AAR from the android/ sub-project (monorepo setup):
-    // implementation(project(':digia-ui'))
-
-    // (B) Published Maven coordinate:
-    implementation 'com.digia:digia-ui:1.0.0-beta-1'
+    // Digia Engage Android library (published to Maven Local)
+    implementation 'com.digia:digia-engage:1.0.0-beta-1'
 
     // ── React Native ─────────────────────────────────────────────────────────
     // React Native is provided by the host app; mark as compileOnly so it is
