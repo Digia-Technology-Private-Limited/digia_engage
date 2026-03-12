@@ -17,7 +17,6 @@ composeMaterial3 = "1.5.6"
 foundationLayout = "1.10.0"
 animationCore = "1.10.0"
 ui = "1.10.0"
-browser = "1.9.0"
 media3Ui = "1.9.0"
 uiGraphics = "1.10.0"
 foundation = "1.10.1"
@@ -79,7 +78,6 @@ compose-material3 = { group = "androidx.wear.compose", name = "compose-material3
 androidx-compose-foundation-layout = { group = "androidx.compose.foundation", name = "foundation-layout", version.ref = "foundationLayout" }
 androidx-compose-animation-core = { group = "androidx.compose.animation", name = "animation-core", version.ref = "animationCore" }
 androidx-ui = { group = "androidx.compose.ui", name = "ui", version.ref = "ui" }
-androidx-browser = { group = "androidx.browser", name = "browser", version.ref = "browser" }
 androidx-media3-ui = { group = "androidx.media3", name = "media3-ui", version.ref = "media3Ui" }
 androidx-ui-graphics = { group = "androidx.compose.ui", name = "ui-graphics", version.ref = "uiGraphics" }
 androidx-compose-foundation = { group = "androidx.compose.foundation", name = "foundation", version.ref = "foundation" }

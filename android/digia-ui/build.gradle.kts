@@ -7,14 +7,16 @@ plugins {
 }
 
 group = "com.digia"
-version = "1.0.0-beta.2"
+version = "1.0.0-beta.3"
 
 android {
     namespace = "com.digia.digiaui"
-    compileSdk = 36
+    compileSdk = 35
+    
 
     defaultConfig {
         minSdk = 24
+        targetSdk = 35
         consumerProguardFiles("consumer-rules.pro")
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -130,8 +132,7 @@ dependencies {
     implementation(libs.androidx.compose.foundation.layout)
     implementation(libs.androidx.compose.animation.core)
     implementation(libs.androidx.ui)
-    implementation(libs.androidx.browser)
-    implementation(libs.androidx.media3.exoplayer)
+   implementation(libs.androidx.media3.exoplayer)
     implementation(libs.androidx.media3.ui.compose)
     implementation(libs.androidx.media3.ui.compose.material3)
     implementation(libs.androidx.media3.ui)
