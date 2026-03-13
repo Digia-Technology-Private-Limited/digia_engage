@@ -52,7 +52,6 @@ fun DefaultVirtualWidgetRegistry.registerBuiltInWidgets() {
         register("digia/styledVerticalDivider", ::vwVerticalDividerBuilder)
         register("digia/pageView", ::pageViewBuilder)
         register("digia/refreshIndicator", ::refreshIndicatorBuilder)
-        register("digia/markdown", ::markdownBuilder)
         register("digia/youtubePlayer", ::youtubePlayerBuilder)
         register("digia/checkBox", ::checkBoxBuilder)
         register("digia/switch", ::switchBuilder)

@@ -95,12 +95,6 @@ dependencies {
     // JSON
     implementation("com.google.code.gson:gson:2.10.1")
 
-    // Markdown (Markwon)
-    implementation("io.noties.markwon:core:4.6.2")
-    implementation("io.noties.markwon:ext-strikethrough:4.6.2")
-    implementation("io.noties.markwon:ext-tables:4.6.2")
-    implementation("io.noties.markwon:linkify:4.6.2")
-
     // Coroutines
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.7.3")
@@ -108,12 +102,8 @@ dependencies {
     // Networking
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
     implementation(libs.digia.expr.kt)
-    // DataStore for preferences
-    implementation("androidx.datastore:datastore-preferences:1.0.0")
-
     // ViewModel
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.6.2")
-    implementation("androidx.lifecycle:lifecycle-runtime-compose:2.6.2")
 
     // Navigation
     implementation("androidx.navigation:navigation-compose:2.8.0")
@@ -127,17 +117,9 @@ dependencies {
     implementation(libs.android.youtube.player)
     implementation("io.coil-kt:coil-svg:2.5.0") 
 
-    implementation(libs.androidx.compose.runtime)
-    implementation(libs.androidx.compose.foundation.layout)
-    implementation(libs.androidx.compose.animation.core)
-    implementation(libs.androidx.ui)
-   implementation(libs.androidx.media3.exoplayer)
+    implementation(libs.androidx.media3.exoplayer)
     implementation(libs.androidx.media3.ui.compose)
-    implementation(libs.androidx.media3.ui.compose.material3)
     implementation(libs.androidx.media3.ui)
-    implementation(libs.androidx.ui.graphics)
-    implementation(libs.androidx.compose.foundation)
-//    implementation(libs.androidx.navigation.runtime.ktx)
 
 
     implementation("androidx.paging:paging-runtime-ktx:3.2.1")
