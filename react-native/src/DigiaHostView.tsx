@@ -36,7 +36,6 @@ import {
     Platform,
     StyleSheet,
     UIManager,
-    View,
     requireNativeComponent,
     type StyleProp,
     type ViewStyle,
@@ -73,22 +72,24 @@ const NativeDigiaHostView = _hostViewAvailable
 
 export function DigiaHostView({ style }: DigiaHostViewProps) {
     if (Platform.OS === 'android' && NativeDigiaHostView) {
+        // The native Compose DigiaHost renders dialogs / bottom sheets that
+        // float above the view hierarchy on their own — the host view only
+        // needs to be mounted in the tree, not take up any screen space.
         return (
             <NativeDigiaHostView
-                // Flatten StyleProp array into a plain ViewStyle for the native layer.
-                style={StyleSheet.flatten([StyleSheet.absoluteFill, style])}
-            // pointerEvents="none" is handled inside the native view so touches
-            // pass through when no overlay is visible.
+                style={StyleSheet.flatten([styles.host, style])}
             />
         );
     }
 
-    // iOS / other platforms: transparent placeholder
-    return <View style={[StyleSheet.absoluteFill, styles.transparent, style]} />;
+    // iOS / other platforms: no-op, nothing to mount.
+    return null;
 }
 
 const styles = StyleSheet.create({
-    transparent: {
-        backgroundColor: 'transparent',
+    host: {
+        width: 0,
+        height: 0,
+        overflow: 'hidden',
     },
 });

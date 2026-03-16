@@ -1,8 +1,8 @@
 /**
  * DigiaSlotViewManager
  *
- * React Native ViewManager that exposes [DigiaSlotComposeView] as the native view behind the JS
- * `<DigiaSlotView>` component.
+ * React Native ViewManager that exposes [DigiaSlotView] (from the Digia Android SDK) as the native
+ * view behind the JS `<DigiaSlotView>` component.
  *
  * Supported JS props:
  * - `placementKey` (String) — matches the placement key set in the Digia dashboard.
@@ -17,18 +17,19 @@ import androidx.lifecycle.setViewTreeLifecycleOwner
 import androidx.lifecycle.setViewTreeViewModelStoreOwner
 import androidx.savedstate.SavedStateRegistryOwner
 import androidx.savedstate.setViewTreeSavedStateRegistryOwner
+import com.digia.engage.DigiaSlotView
 import com.facebook.react.uimanager.SimpleViewManager
 import com.facebook.react.uimanager.ThemedReactContext
 import com.facebook.react.uimanager.annotations.ReactProp
 
-internal class DigiaSlotViewManager : SimpleViewManager<DigiaSlotComposeView>() {
+internal class DigiaSlotViewManager : SimpleViewManager<DigiaSlotView>() {
 
     override fun getName(): String = VIEW_NAME
 
-    override fun createViewInstance(context: ThemedReactContext): DigiaSlotComposeView {
+    override fun createViewInstance(context: ThemedReactContext): DigiaSlotView {
         val activityContext: Context = context.currentActivity ?: context
 
-        val view = DigiaSlotComposeView(activityContext)
+        val view = DigiaSlotView(activityContext)
 
         // Wire Architecture Component owners so the Compose runtime works correctly.
         val activity = context.currentActivity
@@ -53,7 +54,7 @@ internal class DigiaSlotViewManager : SimpleViewManager<DigiaSlotComposeView>() 
     }
 
     @ReactProp(name = "placementKey")
-    fun setPlacementKey(view: DigiaSlotComposeView, placementKey: String?) {
+    fun setPlacementKey(view: DigiaSlotView, placementKey: String?) {
         view.placementKey = placementKey.orEmpty()
     }
 

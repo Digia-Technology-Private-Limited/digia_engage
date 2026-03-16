@@ -12,15 +12,13 @@
  * // Whenever your navigation screen changes:
  * Digia.setCurrentScreen('Home');
  *
- * // To open the Digia UI navigation flow (Android):
- * Digia.openNavigation({ startPageId: 'onboarding' });
  * ```
  */
 
 import { nativeDigiaModule } from './NativeDigiaModule';
-import type { DigiaConfig, DigiaNavigationOptions, DigiaPlugin } from './types';
+import type { DigiaConfig, DigiaDelegate, DigiaPlugin, InAppPayload } from './types';
 
-class DigiaClass {
+class DigiaClass implements DigiaDelegate {
     private readonly _plugins = new Map<string, DigiaPlugin>();
     /**
      * Initialise the Digia Engage SDK.
@@ -37,11 +35,12 @@ class DigiaClass {
     /**
      * Register a CEP plugin with the Digia SDK.
      *
-     * Calls plugin.setup() internally. Do not call plugin.setup() manually.
+     * • Calls nativeDigiaModule.register() to register the internal
+     *   RNEventBridgePlugin with the native SDK (mirrors Digia.register)
+     * • Calls plugin.setup(this) to give the JS plugin a DigiaDelegate
      *
      * ```ts
-     * import MoEngage from 'react-native-moengage';
-     * import { DigiaMoEngagePlugin } from '@digia/moengage-react-native';
+     * import { DigiaMoEngagePlugin } from '@digia/moengage-plugin';
      *
      * await Digia.initialize({ apiKey: 'YOUR_KEY' });
      * Digia.register(new DigiaMoEngagePlugin({ moEngage: MoEngage }));
@@ -51,7 +50,9 @@ class DigiaClass {
         if (this._plugins.has(plugin.identifier)) {
             this._plugins.get(plugin.identifier)!.teardown();
         }
-        plugin.setup();
+        // Register the native bridge plugin so overlay events flow to JS
+        nativeDigiaModule.register();
+        plugin.setup(this);
         this._plugins.set(plugin.identifier, plugin);
     }
 
@@ -77,45 +78,18 @@ class DigiaClass {
         this._plugins.forEach((plugin) => plugin.forwardScreen(name));
     }
 
-    /**
-     * Launch the Digia UI navigation activity (Android).
-     *
-     * Presents the full-screen Compose navigation flow managed by the Digia UI
-     * DSL configuration.  On iOS this is a no-op until iOS support is added.
-     */
-    openNavigation(options: DigiaNavigationOptions = {}): void {
-        nativeDigiaModule.openNavigation(
-            options.startPageId ?? null,
-            options.pageArgs ?? {}
-        );
+    // ── DigiaDelegate ────────────────────────────────────────────────────────
+    // Mirrors DigiaCEPDelegate on Android.
+    // Forwards to the native DigiaCEPDelegate via the bridge.
+
+    onCampaignTriggered(payload: InAppPayload): void {
+        nativeDigiaModule.triggerCampaign(payload.id, payload.content, payload.cepContext);
     }
 
-    /**
-     * Push a campaign payload into Digia's rendering engine.
-     *
-     * Called by JS-side CEP plugins (e.g. DigiaMoEngagePlugin from
-     * @digia/moengage-react-native) when they receive a self-handled in-app
-     * campaign from their own SDK.  Digia's overlay system (Compose
-     * Dialog / BottomSheet) will render it according to the DSL configuration.
-     *
-     * @param id         Unique campaign ID from the CEP platform.
-     * @param content    Marketer-authored payload (JSON-serialisable map).
-     * @param cepContext CEP-platform metadata (e.g. { campaignId, campaignName }).
-     */
-    triggerCampaign(
-        id: string,
-        content: Record<string, unknown>,
-        cepContext: Record<string, unknown>,
-    ): void {
-        nativeDigiaModule.triggerCampaign(id, content, cepContext);
-    }
-
-    /**
-     * Dismiss / invalidate a currently-active campaign by its ID.
-     */
-    invalidateCampaign(campaignId: string): void {
+    onCampaignInvalidated(campaignId: string): void {
         nativeDigiaModule.invalidateCampaign(campaignId);
     }
+
 }
 
 export const Digia = new DigiaClass();

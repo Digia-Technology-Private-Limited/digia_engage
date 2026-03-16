@@ -1,13 +1,40 @@
 /**
+ * Payload delivered to the Digia rendering engine for a CEP campaign.
+ *
+ * Mirrors InAppPayload on Android / Flutter.
+ */
+export interface InAppPayload {
+    /** Unique campaign ID from the CEP platform. */
+    id: string;
+    /** Marketer-authored content map (JSON-serialisable). */
+    content: Record<string, unknown>;
+    /** CEP-platform metadata, e.g. { campaignId, campaignName }. */
+    cepContext: Record<string, unknown>;
+}
+
+/**
+ * Delegate passed by the Digia SDK to each registered plugin via setup().
+ *
+ * Mirrors DigiaCEPDelegate on Android / Flutter.
+ * Call these instead of touching Digia directly from inside a plugin.
+ */
+export interface DigiaDelegate {
+    /** Deliver a campaign payload into the Digia rendering engine. */
+    onCampaignTriggered(payload: InAppPayload): void;
+    /** Invalidate / dismiss a campaign by its ID. */
+    onCampaignInvalidated(campaignId: string): void;
+}
+
+/**
  * Interface that every Digia CEP plugin must implement.
  *
- * Mirrors DigiaCEPPlugin on Android/Flutter.
+ * Mirrors DigiaCEPPlugin on Android / Flutter.
  * Register plugins via `Digia.register(plugin)` — do NOT call setup() directly.
  */
 export interface DigiaPlugin {
     readonly identifier: string;
     /** Called by Digia.register() — do not call manually. */
-    setup(): void;
+    setup(delegate: DigiaDelegate): void;
     /** Called by Digia.setCurrentScreen() — do not call manually. */
     forwardScreen(name: string): void;
     /** Called by Digia.unregister() or when tearing down the app. */
@@ -32,12 +59,3 @@ export interface DigiaConfig {
     logLevel?: 'none' | 'error' | 'verbose';
 }
 
-/**
- * Arguments passed to openNavigation.
- */
-export interface DigiaNavigationOptions {
-    /** The starting page ID defined in your Digia DSL config. */
-    startPageId?: string;
-    /** Additional key/value arguments forwarded to the page. */
-    pageArgs?: Record<string, string>;
-}

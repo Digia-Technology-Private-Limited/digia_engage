@@ -19,6 +19,7 @@ dependencyResolutionManagement {
         google()
         mavenCentral()
         mavenLocal()
+        maven { url 'https://jitpack.io' }
     }
     versionCatalogs {
         libs {
@@ -28,3 +29,5 @@ dependencyResolutionManagement {
 }
 
 rootProject.name = "digia-engage-rn"
+include ':digia-engage-rn'
+project(':digia-engage-rn').projectDir = file('.')

@@ -33,21 +33,20 @@ export interface NativeDigiaModule {
     initialize(apiKey: string, environment: string, logLevel: string): Promise<void>;
 
     /**
+     * Register the internal RNEventBridgePlugin with the native SDK.
+     * Mirrors Digia.register(plugin) on Android.
+     */
+    register(): void;
+
+    /**
      * Notify the SDK of the currently visible screen.
      * Call this whenever the navigation state changes.
      */
     setCurrentScreen(name: string): void;
 
     /**
-     * Launch the Digia UI full-screen navigation activity (Android-only currently).
-     */
-    openNavigation(startPageId: string | null, pageArgs: Record<string, string>): void;
-
-    /**
-     * Push a campaign payload into Digia's rendering engine.
-     *
-     * Used by JS-side CEP plugins (e.g. DigiaMoEngagePlugin) to hand off a
-     * campaign received from a third-party SDK into the Digia overlay system.
+     * Forward a campaign payload to the native DigiaCEPDelegate.
+     * Called by the JS DigiaDelegate.onCampaignTriggered() implementation.
      */
     triggerCampaign(
         id: string,
@@ -56,15 +55,15 @@ export interface NativeDigiaModule {
     ): void;
 
     /**
-     * Dismiss / invalidate an active campaign by ID.
+     * Forward a campaign invalidation to the native DigiaCEPDelegate.
      */
     invalidateCampaign(campaignId: string): void;
 }
 
 export const nativeDigiaModule: NativeDigiaModule = NativeDigia ?? {
     initialize: () => Promise.resolve(),
+    register: () => { },
     setCurrentScreen: () => { },
-    openNavigation: () => { },
     triggerCampaign: () => { },
     invalidateCampaign: () => { },
 };
