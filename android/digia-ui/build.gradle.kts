@@ -7,7 +7,7 @@ plugins {
 }
 
 group = "com.digia"
-version = "1.0.0-beta.3"
+version = "1.0.0-beta.6"
 
 android {
     namespace = "com.digia.digiaui"
@@ -69,7 +69,7 @@ android {
 }
 
 dependencies {
-    implementation("androidx.core:core-ktx:1.12.0")
+      implementation("androidx.core:core-ktx:1.12.0")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.6.2")
     implementation("androidx.lifecycle:lifecycle-process:2.6.2")
     implementation("androidx.activity:activity-compose:1.7.2")
@@ -102,8 +102,12 @@ dependencies {
     // Networking
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
     implementation(libs.digia.expr.kt)
+    // DataStore for preferences
+    implementation("androidx.datastore:datastore-preferences:1.0.0")
+
     // ViewModel
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.6.2")
+    implementation("androidx.lifecycle:lifecycle-runtime-compose:2.6.2")
 
     // Navigation
     implementation("androidx.navigation:navigation-compose:2.8.0")
@@ -117,9 +121,17 @@ dependencies {
     implementation(libs.android.youtube.player)
     implementation("io.coil-kt:coil-svg:2.5.0") 
 
-    implementation(libs.androidx.media3.exoplayer)
+    implementation(libs.androidx.compose.runtime)
+    implementation(libs.androidx.compose.foundation.layout)
+    implementation(libs.androidx.compose.animation.core)
+    implementation(libs.androidx.ui)
+   implementation(libs.androidx.media3.exoplayer)
     implementation(libs.androidx.media3.ui.compose)
+    implementation(libs.androidx.media3.ui.compose.material3)
     implementation(libs.androidx.media3.ui)
+    implementation(libs.androidx.ui.graphics)
+    implementation(libs.androidx.compose.foundation)
+//    implementation(libs.androidx.navigation.runtime.ktx)
 
 
     implementation("androidx.paging:paging-runtime-ktx:3.2.1")
