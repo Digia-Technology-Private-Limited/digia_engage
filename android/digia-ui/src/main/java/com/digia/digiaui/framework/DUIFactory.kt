@@ -72,20 +72,20 @@ internal class DUIFactory private constructor() {
                 DigiaUIManager.getInstance()
                         .bottomSheetManager
                         ?.show(
-                            componentId = componentId,
-                            args = componentArgs,
-                            maxHeightRatio = 0.7F,
-                            onDismiss = onDismiss
+                                componentId = componentId,
+                                args = componentArgs,
+                                maxHeightRatio = 0.7F,
+                                onDismiss = onDismiss
                         )
             }
             UIActionType.SHOW_DIALOG -> {
                 DigiaUIManager.getInstance()
-                    .dialogManager
-                    ?.show(
-                        componentId = componentId,
-                        args = componentArgs,
-                        onDismiss = onDismiss
-                    )
+                        .dialogManager
+                        ?.show(
+                                componentId = componentId,
+                                args = componentArgs,
+                                onDismiss = onDismiss
+                        )
             }
             UIActionType.CLOSE_BOTTOM_SHEET -> {
                 DigiaUIManager.getInstance().bottomSheetManager?.dismiss()
@@ -240,7 +240,7 @@ internal class DUIFactory private constructor() {
                         pageArgs = pageArgs,
                         pageDef = pageDef,
                         registry = widgetRegistry,
-                        )
+                )
             }
         }
     }

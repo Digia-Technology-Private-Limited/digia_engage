@@ -7,14 +7,16 @@ plugins {
 }
 
 group = "com.digia"
-version = "1.0.0-beta-1"
+version = "1.0.0-beta.6"
 
 android {
     namespace = "com.digia.digiaui"
-    compileSdk = 36
+    compileSdk = 35
+    
 
     defaultConfig {
         minSdk = 24
+        targetSdk = 35
         consumerProguardFiles("consumer-rules.pro")
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -67,7 +69,7 @@ android {
 }
 
 dependencies {
-    implementation("androidx.core:core-ktx:1.12.0")
+      implementation("androidx.core:core-ktx:1.12.0")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.6.2")
     implementation("androidx.lifecycle:lifecycle-process:2.6.2")
     implementation("androidx.activity:activity-compose:1.7.2")
@@ -92,12 +94,6 @@ dependencies {
 
     // JSON
     implementation("com.google.code.gson:gson:2.10.1")
-
-    // Markdown (Markwon)
-    implementation("io.noties.markwon:core:4.6.2")
-    implementation("io.noties.markwon:ext-strikethrough:4.6.2")
-    implementation("io.noties.markwon:ext-tables:4.6.2")
-    implementation("io.noties.markwon:linkify:4.6.2")
 
     // Coroutines
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
@@ -126,12 +122,10 @@ dependencies {
     implementation("io.coil-kt:coil-svg:2.5.0") 
 
     implementation(libs.androidx.compose.runtime)
-    implementation(libs.compose.material3)
     implementation(libs.androidx.compose.foundation.layout)
     implementation(libs.androidx.compose.animation.core)
     implementation(libs.androidx.ui)
-    implementation(libs.androidx.browser)
-    implementation(libs.androidx.media3.exoplayer)
+   implementation(libs.androidx.media3.exoplayer)
     implementation(libs.androidx.media3.ui.compose)
     implementation(libs.androidx.media3.ui.compose.material3)
     implementation(libs.androidx.media3.ui)

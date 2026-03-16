@@ -53,12 +53,12 @@ fun DUINavHost(
             NavigationManager.setPageArgs(startPageId, startPageArgs)
         }
     }
-    
+
     // Track backstack changes to manage state lifecycle
     LaunchedEffect(navController) {
         navController.currentBackStackEntryFlow.collect { entry ->
             // Mark the current page as entered in backstack
-            entry?.let { 
+            entry?.let {
                 val pageId = it.toRoute<PageRoute>().pageId
                 NavigationManager.markPageEntered(pageId)
             }
@@ -67,91 +67,96 @@ fun DUINavHost(
 
     // Listen to navigation events from NavigationManager
     LaunchedEffect(navController) {
-        NavigationManager.navigationEvents.collectLatest { event ->
-            when (event) {
-                is NavigationEvent.Navigate -> {
-                    // Store arguments for the new page
-                    if (event.args != null) {
-                        NavigationManager.setPageArgs(event.route.pageId, event.args)
-                    }
-
-                    // Navigate using type-safe route
-                    if (event.replace) {
-                        // Mark replaced page as left
-                        navController.currentBackStackEntry?.let { 
-                            val replacedPageId = it.toRoute<PageRoute>().pageId
-                            NavigationManager.markPageLeft(replacedPageId)
+        NavigationManager.onNavHostAttached()
+        try {
+            NavigationManager.navigationEvents.collectLatest { event ->
+                when (event) {
+                    is NavigationEvent.Navigate -> {
+                        // Store arguments for the new page
+                        if (event.args != null) {
+                            NavigationManager.setPageArgs(event.route.pageId, event.args)
                         }
-                        navController.navigate(event.route) {
-                            popUpTo(
-                                    navController.currentDestination?.route
-                                            ?: PageRoute(startPageId)
-                            ) {
-                                inclusive = true
-                                saveState = true
+
+                        // Navigate using type-safe route
+                        if (event.replace) {
+                            // Mark replaced page as left
+                            navController.currentBackStackEntry?.let {
+                                val replacedPageId = it.toRoute<PageRoute>().pageId
+                                NavigationManager.markPageLeft(replacedPageId)
                             }
-                            restoreState = true
-                        }
-                    } else {
-                        navController.navigate(event.route) { restoreState = true }
-                    }
-                }
-                is NavigationEvent.Pop -> {
-                    val canPop = navController.previousBackStackEntry != null
-                    if (canPop || !event.maybe) {
-                        // The page being popped (this is the key used to register the result
-                        // callback)
-                        val poppedPageId =
-                                navController.currentBackStackEntry?.let { backStackEntry ->
-                                    backStackEntry.toRoute<PageRoute>().pageId
+                            navController.navigate(event.route) {
+                                popUpTo(
+                                        navController.currentDestination?.route
+                                                ?: PageRoute(startPageId)
+                                ) {
+                                    inclusive = true
+                                    saveState = true
                                 }
-
-                        // Mark page as left before popping
-                        if (poppedPageId != null) {
-                            NavigationManager.markPageLeft(poppedPageId)
-                        }
-
-                        // Pop the current page
-                        navController.popBackStack()
-
-                        // Execute result callback if there's a result and a registered callback
-                        // key.
-                        if (event.result != null && poppedPageId != null) {
-                            NavigationManager.executeResultCallback(poppedPageId, event.result)
+                                restoreState = true
+                            }
+                        } else {
+                            navController.navigate(event.route) { restoreState = true }
                         }
                     }
-                }
-                is NavigationEvent.PopTo -> {
-                    // Mark pages being removed as left
-                    var current = navController.currentBackStackEntry
-                    while (current != null && current.toRoute<PageRoute>() != event.route) {
-                        val pageId = current.toRoute<PageRoute>().pageId
-                        NavigationManager.markPageLeft(pageId)
-                        current = navController.previousBackStackEntry
+                    is NavigationEvent.Pop -> {
+                        val canPop = navController.previousBackStackEntry != null
+                        if (canPop || !event.maybe) {
+                            // The page being popped (this is the key used to register the result
+                            // callback)
+                            val poppedPageId =
+                                    navController.currentBackStackEntry?.let { backStackEntry ->
+                                        backStackEntry.toRoute<PageRoute>().pageId
+                                    }
+
+                            // Mark page as left before popping
+                            if (poppedPageId != null) {
+                                NavigationManager.markPageLeft(poppedPageId)
+                            }
+
+                            // Pop the current page
+                            navController.popBackStack()
+
+                            // Execute result callback if there's a result and a registered callback
+                            // key.
+                            if (event.result != null && poppedPageId != null) {
+                                NavigationManager.executeResultCallback(poppedPageId, event.result)
+                            }
+                        }
                     }
-                    if (event.inclusive && current != null) {
-                        val pageId = current.toRoute<PageRoute>().pageId
-                        NavigationManager.markPageLeft(pageId)
+                    is NavigationEvent.PopTo -> {
+                        // Mark pages being removed as left
+                        var current = navController.currentBackStackEntry
+                        while (current != null && current.toRoute<PageRoute>() != event.route) {
+                            val pageId = current.toRoute<PageRoute>().pageId
+                            NavigationManager.markPageLeft(pageId)
+                            current = navController.previousBackStackEntry
+                        }
+                        if (event.inclusive && current != null) {
+                            val pageId = current.toRoute<PageRoute>().pageId
+                            NavigationManager.markPageLeft(pageId)
+                        }
+                        navController.popBackStack(route = event.route, inclusive = event.inclusive)
                     }
-                    navController.popBackStack(route = event.route, inclusive = event.inclusive)
-                }
-                is NavigationEvent.ExecuteResultCallback -> {
-                    actionExecutor.execute(
-                            context,
-                            event.actionFlow,
-                            event.scopeContext,
-                            event.stateContext,
-                            resource
-                    )
+                    is NavigationEvent.ExecuteResultCallback -> {
+                        actionExecutor.execute(
+                                context,
+                                event.actionFlow,
+                                event.scopeContext,
+                                event.stateContext,
+                                resource
+                        )
+                    }
                 }
             }
+        } finally {
+            NavigationManager.onNavHostDetached()
         }
     }
 
     // Handle back button
     BackHandler(enabled = navController.previousBackStackEntry != null) {
         // Mark current page as left before back navigation
-        navController.currentBackStackEntry?.let { 
+        navController.currentBackStackEntry?.let {
             val pageId = it.toRoute<PageRoute>().pageId
             NavigationManager.markPageLeft(pageId)
         }

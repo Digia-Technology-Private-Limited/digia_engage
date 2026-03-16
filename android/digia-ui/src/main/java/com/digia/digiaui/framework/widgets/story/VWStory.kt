@@ -47,6 +47,9 @@ class VWStory(
                 _slots = slots
         ) {
 
+        private val shouldRepeatChild: Boolean
+                get() = props.dataSource != null
+
         private val items: List<VirtualNode>
                 get() = slotChildren("items")
 
@@ -55,6 +58,16 @@ class VWStory(
 
         private val footer: VirtualNode?
                 get() = slot("footer")
+
+        private fun createExprContext(item: Any?, index: Int): DefaultScopeContext {
+                val storyObj = mapOf("currentItem" to item, "index" to index)
+                val variables =
+                        mutableMapOf<String, Any?>().apply {
+                                putAll(storyObj)
+                                refName?.let { name -> put(name, storyObj) }
+                        }
+                return DefaultScopeContext(variables = variables)
+        }
 
         @Composable
         override fun Render(payload: RenderPayload) {
@@ -82,13 +95,29 @@ class VWStory(
 
                 // Convert items to composable content list
                 val contents: List<@Composable () -> Unit> =
-                        items.map { item -> { item.ToWidget(payload) } }
+                        if (shouldRepeatChild) {
+                                val template = items.first()
+                                val dataItems =
+                                        payload.evalExpr<List<Any>>(props.dataSource) ?: emptyList()
+                                dataItems.mapIndexed { index, item ->
+                                        {
+                                                template.ToWidget(
+                                                        payload.copyWithChainedContext(
+                                                                createExprContext(item, index)
+                                                        )
+                                                )
+                                        }
+                                }
+                        } else {
+                                items.map { item -> { item.ToWidget(payload) } }
+                        }
 
                 // Render presenter with all callbacks wired
                 StoryPresenter(
                         contents = contents,
                         controller = controller,
-                        initialIndex = initialIndex.coerceIn(0, items.size - 1),
+                        initialIndex =
+                                initialIndex.coerceIn(0, (contents.size - 1).coerceAtLeast(0)),
                         restartOnCompleted = restartOnCompleted,
                         defaultDuration = duration.milliseconds,
                         indicatorConfig = indicatorConfig,
