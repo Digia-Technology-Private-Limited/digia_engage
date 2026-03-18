@@ -1,0 +1,105 @@
+import DigiaExpr
+import Foundation
+
+private struct ExpressionObject: Decodable {
+    let expr: String
+}
+
+enum ExprOr<Value: Codable & Equatable & Sendable>: Codable, Equatable, Sendable {
+    case value(Value)
+    case expression(String)
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.singleValueContainer()
+
+        if let value = try? container.decode(Value.self) {
+            self = .value(value)
+            return
+        }
+
+        if let expressionObject = try? container.decode(ExpressionObject.self) {
+            self = .expression(expressionObject.expr)
+            return
+        }
+
+        let expressionString = try container.decode(String.self)
+        self = .expression(expressionString)
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.singleValueContainer()
+
+        switch self {
+        case let .value(value):
+            try container.encode(value)
+        case let .expression(expression):
+            try container.encode(expression)
+        }
+    }
+}
+
+extension ExprOr where Value == String {
+    func resolve(in context: (any ExprContext)?) -> String? {
+        switch self {
+        case let .value(value):
+            if Expression.hasExpression(value) || Expression.isExpression(value) {
+                if let resolved = try? Expression.eval(value, context) {
+                    return resolved as? String ?? String(describing: resolved)
+                }
+            }
+            return value
+        case let .expression(expression):
+            if let resolved = try? Expression.eval(expression, context) {
+                return resolved as? String ?? String(describing: resolved)
+            }
+            return nil
+        }
+    }
+}
+
+extension ExprOr where Value == Bool {
+    func resolve(in context: (any ExprContext)?) -> Bool? {
+        switch self {
+        case let .value(value):
+            return value
+        case let .expression(expression):
+            if let resolved = try? Expression.eval(expression, context) {
+                if let value = resolved as? Bool { return value }
+                if let value = resolved as? String { return Bool(value) }
+            }
+            return nil
+        }
+    }
+}
+
+extension ExprOr where Value == Int {
+    func resolve(in context: (any ExprContext)?) -> Int? {
+        switch self {
+        case let .value(value):
+            return value
+        case let .expression(expression):
+            if let resolved = try? Expression.eval(expression, context) {
+                if let value = resolved as? Int { return value }
+                if let value = resolved as? Double { return Int(value) }
+                if let value = resolved as? String { return Int(value) }
+            }
+            return nil
+        }
+    }
+}
+
+extension ExprOr where Value == Double {
+    func resolve(in context: (any ExprContext)?) -> Double? {
+        switch self {
+        case let .value(value):
+            return value
+        case let .expression(expression):
+            if let resolved = try? Expression.eval(expression, context) {
+                if let value = resolved as? Double { return value }
+                if let value = resolved as? Int { return Double(value) }
+                if let value = resolved as? String { return Double(value) }
+            }
+            return nil
+        }
+    }
+}
