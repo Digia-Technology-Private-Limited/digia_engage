@@ -5,11 +5,11 @@
 *.swp
 .DS_Store
 .atom/
+.build/
 .buildlog/
 .history
 .svn/
-.fvm/
-.fvmrc
+.swiftpm/
 migrate_working_dir/
 
 # IntelliJ related
@@ -27,13 +27,11 @@ migrate_working_dir/
 **/doc/api/
 **/ios/Flutter/.last_build_id
 .dart_tool/
-.flutter-plugins
 .flutter-plugins-dependencies
-.packages
 .pub-cache/
 .pub/
 /build/
-example/build/
+/coverage/
 
 # Symbolication related
 app.*.symbols
@@ -42,18 +40,6 @@ app.*.symbols
 app.*.map.json
 
 # Android Studio will place build artifacts here
-/example/android/app/debug
-/example/android/app/profile
-/example/android/app/release
-android/local.properties
-/android/local.properties
-pubspec.lock
-.vscode/launch.json
-example/ios/Podfile.lock
-macos/Podfile.lock
-
-# FVM Version Cache
-.fvm/
-
-ios/Flutter/flutter_export_environment.sh
-ios/Flutter/Generated.xcconfig
+/android/app/debug
+/android/app/profile
+/android/app/release

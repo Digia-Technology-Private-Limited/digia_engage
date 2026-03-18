@@ -1,0 +1,20 @@
+name: digia_engage_example
+description: Demonstrates digia_engage — the Flutter SDK for server-driven in-app experiences from Digia Studio.
+publish_to: none
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.3.0 <4.0.0'
+
+dependencies:
+  digia_engage:
+    path: ../
+  flutter:
+    sdk: flutter
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+flutter:
+  uses-material-design: true
