@@ -44,8 +44,6 @@
 import React from 'react';
 import {
     Platform,
-    UIManager,
-    View,
     requireNativeComponent,
     type StyleProp,
     type ViewStyle,
@@ -57,23 +55,12 @@ interface DigiaSlotViewProps {
     style?: StyleProp<ViewStyle>;
 }
 
-// ── Android ──────────────────────────────────────────────────────────────────
-// The native Kotlin ViewManager (DigiaSlotViewManager) registers itself under
-// 'DigiaSlotView'. It creates an AbstractComposeView that hosts the
-// DigiaSlot composable and forwards the `placementKey` prop via @ReactProp.
-//
-// Guard with UIManager.hasViewManagerConfig so that in Expo Go or before the
-// first `npx expo run:android` the component degrades to a transparent View
-// rather than throwing "View config not found" at render time (Fabric/New Arch
-// resolves the native config lazily and throws on first render, not on
-// requireNativeComponent).
-const _slotViewAvailable =
-    Platform.OS === 'android' &&
-    !!UIManager.hasViewManagerConfig?.('DigiaSlotView');
-
-const NativeDigiaSlotView = _slotViewAvailable
-    ? requireNativeComponent<DigiaSlotViewProps>('DigiaSlotView')
-    : null;
+// Fabric (New Architecture) resolves view configs lazily — no UIManager
+// guard needed. requireNativeComponent is called unconditionally on Android.
+const NativeDigiaSlotView =
+    Platform.OS === 'android'
+        ? requireNativeComponent<DigiaSlotViewProps>('DigiaSlotView')
+        : null;
 
 // ── DigiaSlotView ─────────────────────────────────────────────────────────────
 
@@ -87,6 +74,6 @@ export function DigiaSlotView({ placementKey, style }: DigiaSlotViewProps) {
         );
     }
 
-    // iOS / other platforms: transparent placeholder
-    return <View style={style} />;
+    // iOS / other platforms: not yet implemented — render nothing.
+    return null;
 }

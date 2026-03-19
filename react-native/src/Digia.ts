@@ -20,6 +20,10 @@ import type { DigiaConfig, DigiaDelegate, DigiaPlugin, InAppPayload } from './ty
 
 class DigiaClass implements DigiaDelegate {
     private readonly _plugins = new Map<string, DigiaPlugin>();
+    // Tracks whether the native bridge plugin (RNEventBridgePlugin) has been
+    // wired to the native SDK. Done once on the first Digia.register() call.
+    private _nativeBridgeWired = false;
+
     /**
      * Initialise the Digia Engage SDK.
      *
@@ -35,9 +39,10 @@ class DigiaClass implements DigiaDelegate {
     /**
      * Register a CEP plugin with the Digia SDK.
      *
-     * • Calls nativeDigiaModule.register() to register the internal
-     *   RNEventBridgePlugin with the native SDK (mirrors Digia.register)
-     * • Calls plugin.setup(this) to give the JS plugin a DigiaDelegate
+     * On the first call this also wires the internal RNEventBridgePlugin with
+     * the native Android SDK so it holds the DigiaCEPDelegate reference needed
+     * to show overlays and emit lifecycle events back to JS. This is transparent
+     * bridge plumbing — you never interact with RNEventBridgePlugin directly.
      *
      * ```ts
      * import { DigiaMoEngagePlugin } from '@digia/moengage-plugin';
@@ -50,8 +55,12 @@ class DigiaClass implements DigiaDelegate {
         if (this._plugins.has(plugin.identifier)) {
             this._plugins.get(plugin.identifier)!.teardown();
         }
-        // Register the native bridge plugin so overlay events flow to JS
-        nativeDigiaModule.register();
+        // Wire the native bridge plugin once, before the first plugin's setup()
+        // so the delegate is ready when JS campaigns start flowing.
+        if (!this._nativeBridgeWired) {
+            nativeDigiaModule.registerBridge();
+            this._nativeBridgeWired = true;
+        }
         plugin.setup(this);
         this._plugins.set(plugin.identifier, plugin);
     }

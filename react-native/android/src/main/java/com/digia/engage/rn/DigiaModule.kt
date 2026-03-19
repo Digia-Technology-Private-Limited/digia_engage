@@ -90,15 +90,15 @@ internal class DigiaModule(
     // ─── register ─────────────────────────────────────────────────────────────
 
     /**
-     * Registers the internal [RNEventBridgePlugin] with the native Digia SDK.
+     * Registers [RNEventBridgePlugin] with the native Digia SDK.
      *
-     * The host app must call this from JS after initialize() resolves. This mirrors
-     * `Digia.register(plugin)` on native — the bridge plugin is the single native DigiaCEPPlugin
-     * that: • receives the DigiaCEPDelegate via setup(delegate) • forwards overlay lifecycle events
-     * to JS via DeviceEventEmitter
+     * This is bridge infrastructure — not a user-facing CEP plugin. Called once by the JS
+     * `Digia.register()` wrapper on the first plugin registration so that
+     * [RNEventBridgePlugin.delegate] is populated before any triggerCampaign / invalidateCampaign
+     * calls arrive from JS.
      */
     @ReactMethod
-    fun register() {
+    fun registerBridge() {
         Digia.register(rnPlugin)
     }
 
@@ -194,7 +194,7 @@ internal class RNEventBridgePlugin(
         private set
 
     private fun emit(event: String, params: com.facebook.react.bridge.WritableMap) {
-        if (reactContext.hasActiveCatalystInstance()) {
+        if (reactContext.hasActiveReactInstance()) {
             reactContext
                     .getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter::class.java)
                     .emit(event, params)

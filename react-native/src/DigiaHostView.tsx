@@ -35,7 +35,6 @@ import React from 'react';
 import {
     Platform,
     StyleSheet,
-    UIManager,
     requireNativeComponent,
     type StyleProp,
     type ViewStyle,
@@ -50,23 +49,12 @@ interface NativeDigiaHostViewProps {
     style?: ViewStyle;
 }
 
-// ── Android ──────────────────────────────────────────────────────────────────
-// The native Kotlin ViewManager registers itself under 'DigiaHostView'.
-// It creates an AbstractComposeView that hosts the DigiaHost composable,
-// which renders the dialog/bottom-sheet overlay layer.
-//
-// Guard with UIManager.hasViewManagerConfig so that in Expo Go or before the
-// first `npx expo run:android` the component degrades to a transparent View
-// rather than throwing "View config not found" at render time (Fabric/New Arch
-// resolves the native config lazily and throws on first render, not on
-// requireNativeComponent).
-const _hostViewAvailable =
-    Platform.OS === 'android' &&
-    !!UIManager.hasViewManagerConfig?.('DigiaHostView');
-
-const NativeDigiaHostView = _hostViewAvailable
-    ? requireNativeComponent<NativeDigiaHostViewProps>('DigiaHostView')
-    : null;
+// Fabric (New Architecture) resolves view configs lazily — no UIManager
+// guard needed. requireNativeComponent is called unconditionally on Android.
+const NativeDigiaHostView =
+    Platform.OS === 'android'
+        ? requireNativeComponent<NativeDigiaHostViewProps>('DigiaHostView')
+        : null;
 
 // ── DigiaHostView ─────────────────────────────────────────────────────────────
 
