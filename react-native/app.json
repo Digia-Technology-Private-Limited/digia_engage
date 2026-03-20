@@ -1,0 +1,8 @@
+{
+  "android": {
+    "package": "com.ramsuthar.digiaengage"
+  },
+  "ios": {
+    "bundleIdentifier": "com.ramsuthar.digiaengage"
+  }
+}

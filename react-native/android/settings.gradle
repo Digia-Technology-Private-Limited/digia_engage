@@ -1,0 +1,33 @@
+pluginManagement {
+    plugins {
+        id 'com.android.library' version '8.11.2'
+        id 'com.android.application' version '8.11.2'
+        id 'org.jetbrains.kotlin.android' version '2.1.0'
+        id 'org.jetbrains.kotlin.plugin.compose' version '2.1.0'
+        id 'org.jetbrains.kotlin.plugin.serialization' version '2.1.0'
+    }
+    repositories {
+        google()
+        mavenCentral()
+        gradlePluginPortal()
+    }
+}
+
+dependencyResolutionManagement {
+    repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+    repositories {
+        google()
+        mavenCentral()
+        mavenLocal()
+        maven { url 'https://jitpack.io' }
+    }
+    versionCatalogs {
+        libs {
+            from(files("../../android/gradle/libs.versions.toml"))
+        }
+    }
+}
+
+rootProject.name = "digia-engage-rn"
+include ':digia-engage-rn'
+project(':digia-engage-rn').projectDir = file('.')
