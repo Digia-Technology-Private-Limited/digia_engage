@@ -1,6 +1,6 @@
 {
-  "name": "@digia/engage",
-  "version": "0.1.0",
+  "name": "@digia-engage/core",
+  "version": "1.0.0-beta.1",
   "description": "React Native bridge for Digia Engage – renders native Android Compose UI inside React Native apps",
   "main": "lib/commonjs/index",
   "module": "lib/module/index",
@@ -21,7 +21,9 @@
     "ios",
     "*.podspec",
     "!lib/typescript/example",
+    "!android/.gradle",
     "!android/build",
+    "!android/example",
     "!ios/build",
     "!**/__tests__",
     "!**/__fixtures__",
@@ -43,7 +45,7 @@
   ],
   "repository": {
     "type": "git",
-    "url": "https://github.com/Digia-Technology-Private-Limited/digia_engage.git",
+    "url": "git+https://github.com/Digia-Technology-Private-Limited/digia_engage.git",
     "directory": "react-native"
   },
   "author": "Digia Technology Private Limited",
@@ -83,10 +85,5 @@
     "android": {
       "javaPackageName": "com.digia.engage.rn"
     }
-  },
-  "dependencies": {
-    "expo": "^55.0.7",
-    "react": "19.2.0",
-    "react-native": "0.83.2"
   }
 }
