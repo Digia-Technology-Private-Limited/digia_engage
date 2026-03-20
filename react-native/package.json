@@ -1,6 +1,6 @@
 {
   "name": "@digia-engage/core",
-  "version": "1.0.0-beta.1",
+  "version": "1.0.0-beta.2",
   "description": "React Native bridge for Digia Engage – renders native Android Compose UI inside React Native apps",
   "main": "lib/commonjs/index",
   "module": "lib/module/index",

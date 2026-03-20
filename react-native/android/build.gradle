@@ -12,11 +12,26 @@
  * the bridge code itself.
  */
 
+def isNewArchitectureEnabled() {
+    return project.hasProperty("newArchEnabled") && project.newArchEnabled == "true"
+}
+
 plugins {
     id 'com.android.library'
     id 'org.jetbrains.kotlin.android'
-    id 'org.jetbrains.kotlin.plugin.compose'
-    id 'com.facebook.react'
+    id 'org.jetbrains.kotlin.plugin.compose' version '2.1.20'
+}
+
+if (isNewArchitectureEnabled()) {
+    apply plugin: 'com.facebook.react'
+}
+
+if (isNewArchitectureEnabled()) {
+    react {
+        jsRootDir = file("../src/")
+        libraryName = "DigiaEngageSpec"
+        codegenJavaPackageName = "com.digia.engage.rn"
+    }
 }
 
 android {
@@ -55,8 +70,8 @@ android {
 }
 
 dependencies {
-    // Digia Engage Android library (published to Maven Local)
-    implementation 'com.digia:digia-engage:1.0.0-beta.6'
+    // Digia Engage Android library (published to JitPack)
+    implementation 'com.github.Digia-Technology-Private-Limited:digia_engage:android.1.0.0-beta.6'
 
     // ── React Native ─────────────────────────────────────────────────────────
     // React Native is provided by the host app; mark as compileOnly so it is
