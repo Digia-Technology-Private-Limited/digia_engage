@@ -159,9 +159,7 @@ class _DigiaSlotContent extends StatelessWidget {
     if (payload == null) return placeholder ?? const SizedBox.shrink();
 
     final content = payload!.content;
-    final viewId = content['viewId'] as String? ??
-        content['componentId'] as String? ??
-        content['pageId'] as String?;
+    final viewId = content['viewId'] as String?;
 
     if (viewId == null || viewId.isEmpty) {
       return placeholder ?? const SizedBox.shrink();

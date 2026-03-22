@@ -1,6 +1,6 @@
 # digia_engage_example
 
-Demonstrates how to use the digia_engage plugin.
+A new Flutter project.
 
 ## Getting Started
 

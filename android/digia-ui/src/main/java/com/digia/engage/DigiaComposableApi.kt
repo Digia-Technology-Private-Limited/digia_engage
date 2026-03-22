@@ -8,8 +8,8 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
-import com.digia.digiaui.framework.UIActionType
 import com.digia.digiaui.framework.DUIFactory
+import com.digia.digiaui.framework.UIActionType
 import com.digia.digiaui.framework.bottomsheet.BottomSheetHost
 import com.digia.digiaui.framework.dialog.DialogHost
 import com.digia.digiaui.init.DigiaUIManager
@@ -41,16 +41,18 @@ fun DigiaHost(content: @Composable () -> Unit) {
                 val args = payload.content["args"].toStringAnyMap()
 
                 when (actionType) {
-                    UIActionType.SHOW_DIALOG -> digiaUiManager.dialogManager?.show(
-                        componentId = viewId,
-                        args = args,
-                        onDismiss = { DigiaInstance.markDismissed(payload.id) },
-                    )
-                    UIActionType.SHOW_BOTTOM_SHEET -> digiaUiManager.bottomSheetManager?.show(
-                        componentId = viewId,
-                        args = args,
-                        onDismiss = { DigiaInstance.markDismissed(payload.id) },
-                    )
+                    UIActionType.SHOW_DIALOG ->
+                            digiaUiManager.dialogManager?.show(
+                                    componentId = viewId,
+                                    args = args,
+                                    onDismiss = { DigiaInstance.markDismissed(payload.id) },
+                            )
+                    UIActionType.SHOW_BOTTOM_SHEET ->
+                            digiaUiManager.bottomSheetManager?.show(
+                                    componentId = viewId,
+                                    args = args,
+                                    onDismiss = { DigiaInstance.markDismissed(payload.id) },
+                            )
                     else -> Unit
                 }
                 DigiaInstance.reportOverlayImpression(payload)
@@ -64,16 +66,16 @@ fun DigiaHost(content: @Composable () -> Unit) {
         if (isUiReady) {
             digiaUiManager.dialogManager?.let { manager ->
                 DialogHost(
-                    dialogManager = manager,
-                    registry = duiFactory.getRegistry(),
-                    resources = duiFactory.getResources(),
+                        dialogManager = manager,
+                        registry = duiFactory.getRegistry(),
+                        resources = duiFactory.getResources(),
                 )
             }
 
             digiaUiManager.bottomSheetManager?.let { manager ->
                 BottomSheetHost(
-                    bottomSheetManager = manager,
-                    resources = duiFactory.getResources(),
+                        bottomSheetManager = manager,
+                        resources = duiFactory.getResources(),
                 )
             }
         }
@@ -90,24 +92,20 @@ fun DigiaSlot(placementKey: String, modifier: Modifier = Modifier) {
 
     if (!isUiReady || !isRenderEngineReady || payload == null) return
 
-    val componentId = payload.content["viewId"] as? String
-        ?: payload.content["componentId"] as? String
-        ?: return
+    val viewId = payload.content["viewId"] as? String ?: return
     val args = payload.content["args"].toStringAnyMap()
 
     Box(modifier = modifier) {
         factory.CreateComponent(
-            componentId = componentId,
-            args = args,
+                componentId = viewId,
+                args = args,
         )
     }
 }
 
 @Composable
 fun DigiaScreen(name: String) {
-    LaunchedEffect(name) {
-        Digia.setCurrentScreen(name)
-    }
+    LaunchedEffect(name) { Digia.setCurrentScreen(name) }
 }
 
 private fun Any?.toStringAnyMap(): Map<String, Any?>? {

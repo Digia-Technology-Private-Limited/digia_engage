@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'scratch_config.dart';
 import 'scratch_controller.dart';
-import 'scratch_grid.dart';
 import 'scratch_painter.dart';
 
 class ScratchCard extends StatefulWidget {

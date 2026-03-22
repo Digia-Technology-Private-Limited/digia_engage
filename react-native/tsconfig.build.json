@@ -1,0 +1,10 @@
+{
+    "extends": "./tsconfig",
+    "compilerOptions": {
+        "noEmit": false,
+        "rootDir": "src"
+    },
+    "exclude": [
+        "example"
+    ]
+}

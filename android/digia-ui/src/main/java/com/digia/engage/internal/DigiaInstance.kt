@@ -211,7 +211,31 @@ internal object DigiaInstance : DigiaCEPDelegate {
 
     @Suppress("UNCHECKED_CAST")
     private fun routeCampaign(payload: InAppPayload) {
+        val type = (payload.content["type"] as? String)?.trim()?.lowercase()
         val command = (payload.content["command"] as? String)?.trim()?.uppercase()
+
+        if (type.isNullOrBlank() && command.isNullOrBlank()) {
+            logWarning("campaign dropped: neither 'type' nor 'command' is set: ${payload.id}")
+            return
+        }
+
+        val viewId = (payload.content["viewId"] as? String)?.trim()
+        if (viewId.isNullOrBlank()) {
+            logWarning("campaign dropped: 'viewId' is required: ${payload.id}")
+            return
+        }
+
+        if (type == "inline") {
+            val placementKey = (payload.content["placementKey"] as? String)?.trim()
+            if (placementKey.isNullOrBlank()) {
+                logWarning(
+                        "inline payload dropped: 'placementKey' is required when 'type' is set: ${payload.id}"
+                )
+                return
+            }
+            displayCoordinator.routeInline(placementKey, payload)
+            return
+        }
 
         when (command) {
             "SHOW_DIALOG", "SHOW_BOTTOM_SHEET" -> {
@@ -222,11 +246,10 @@ internal object DigiaInstance : DigiaCEPDelegate {
             }
             "SHOW_INLINE" -> {
                 val placementKey = payload.content["placementKey"] as? String
-                val viewId = payload.content["viewId"] as? String
-                    ?: payload.content["componentId"] as? String
-                if (placementKey.isNullOrBlank() || viewId.isNullOrBlank()) {
+                val componentId = payload.content["componentId"] as? String
+                if (placementKey.isNullOrBlank() || componentId.isNullOrBlank()) {
                     logWarning(
-                            "inline payload dropped due to invalid placement/view id: ${payload.id}"
+                            "inline payload dropped due to invalid placement/component id: ${payload.id}"
                     )
                     return
                 }
@@ -240,6 +263,8 @@ internal object DigiaInstance : DigiaCEPDelegate {
     }
 
     private fun isNudgePayload(payload: InAppPayload): Boolean {
+        val type = (payload.content["type"] as? String)?.trim()?.lowercase()
+        if (type == "inline") return false
         val command = (payload.content["command"] as? String)?.trim()?.uppercase()
         return command == "SHOW_DIALOG" || command == "SHOW_BOTTOM_SHEET"
     }

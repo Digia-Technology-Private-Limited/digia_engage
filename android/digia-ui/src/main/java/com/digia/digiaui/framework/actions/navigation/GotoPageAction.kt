@@ -1,6 +1,8 @@
 package com.digia.digiaui.framework.actions.navigation
 
+import android.app.Activity
 import android.content.Context
+import android.content.Intent
 import com.digia.digiaui.framework.UIResources
 import com.digia.digiaui.framework.actions.base.Action
 import com.digia.digiaui.framework.actions.base.ActionFlow
@@ -9,6 +11,7 @@ import com.digia.digiaui.framework.actions.base.ActionProcessor
 import com.digia.digiaui.framework.actions.base.ActionType
 import com.digia.digiaui.framework.expr.ScopeContext
 import com.digia.digiaui.framework.models.ExprOr
+import com.digia.digiaui.framework.navigation.DigiaUINavigationActivity
 import com.digia.digiaui.framework.navigation.NavigationManager
 import com.digia.digiaui.framework.utils.JsonLike
 import com.digia.digiaui.framework.utils.asSafe
@@ -102,6 +105,25 @@ class GotoPageProcessor : ActionProcessor<GotoPageAction>() {
             println("  - shouldRemovePreviousScreens: $shouldRemovePreviousScreens")
             println("  - routeNameToRemoveUntil: $routeNameToRemoveUntil")
 
+            // If no NavHost is active, fall back to launching DigiaUINavigationActivity
+            if (!NavigationManager.isNavHostActive()) {
+                println(
+                        "NavigateToPageProcessor: No active NavHost, launching DigiaUINavigationActivity for $pageId"
+                )
+                val intent =
+                        DigiaUINavigationActivity.createIntent(
+                                context = context,
+                                startPageId = pageId,
+                                pageArgs = evaluatedArgs
+                        )
+                if (context !is Activity) {
+                    intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                }
+
+                context.startActivity(intent)
+                return null
+            }
+
             // Handle different navigation modes based on Flutter logic
             when {
                 // Pop until specific route with replace
@@ -128,10 +150,10 @@ class GotoPageProcessor : ActionProcessor<GotoPageAction>() {
             if (waitForResult && action.onResult != null) {
 
                 NavigationManager.registerResultCallback(
-                    pageId = pageId,
-                    onResult = action.onResult,
-                    scopeContext = scopeContext,
-                    stateContext = stateContext
+                        pageId = pageId,
+                        onResult = action.onResult,
+                        scopeContext = scopeContext,
+                        stateContext = stateContext
                 )
                 println("NavigateToPageProcessor: Registered result callback for $pageId")
             }

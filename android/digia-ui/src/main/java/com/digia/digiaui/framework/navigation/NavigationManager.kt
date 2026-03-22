@@ -26,9 +26,25 @@ object NavigationManager {
 
     // Store result callbacks for pages that wait for results
     private val resultCallbacks = mutableMapOf<String, ResultCallback>()
-    
+
     // Track pages currently in the backstack (should not detach state)
     private val backstackPages = mutableSetOf<String>()
+
+    // Track whether a DUINavHost is currently active and consuming navigation events
+    private var _isNavHostActive = false
+
+    /** Returns true if a DUINavHost is currently mounted and listening to navigation events */
+    fun isNavHostActive(): Boolean = _isNavHostActive
+
+    /** Called by DUINavHost when it starts collecting navigation events */
+    fun onNavHostAttached() {
+        _isNavHostActive = true
+    }
+
+    /** Called by DUINavHost when it stops collecting navigation events */
+    fun onNavHostDetached() {
+        _isNavHostActive = false
+    }
 
     /** Request navigation to a specific page */
     fun navigate(pageId: String, args: Map<String, Any?>? = null, replace: Boolean = false) {
@@ -102,17 +118,17 @@ object NavigationManager {
     fun clearResultCallbacks() {
         resultCallbacks.clear()
     }
-    
+
     /** Mark a page as entered (in backstack) */
     fun markPageEntered(pageId: String) {
         backstackPages.add(pageId)
     }
-    
+
     /** Mark a page as left (removed from backstack) */
     fun markPageLeft(pageId: String) {
         backstackPages.remove(pageId)
     }
-    
+
     /** Check if a page is in the backstack */
     fun isPageInBackstack(pageId: String): Boolean {
         return backstackPages.contains(pageId)

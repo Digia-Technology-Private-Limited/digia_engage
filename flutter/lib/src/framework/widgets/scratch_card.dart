@@ -34,30 +34,30 @@ class VWScratchCard extends VirtualStatelessWidget<ScratchCardProps> {
     }
   }
 
-  RevealAnimationType _parseRevealAnimationType(String? type) {
-    switch (type) {
-      case 'none':
-        return RevealAnimationType.none;
-      case 'fade':
-        return RevealAnimationType.fade;
-      case 'scale':
-        return RevealAnimationType.scale;
-      case 'slideup':
-        return RevealAnimationType.slideUp;
-      case 'slidedown':
-        return RevealAnimationType.slideDown;
-      case 'slideleft':
-        return RevealAnimationType.slideLeft;
-      case 'slideright':
-        return RevealAnimationType.slideRight;
-      case 'bounce':
-        return RevealAnimationType.bounce;
-      case 'zoomout':
-        return RevealAnimationType.zoomOut;
-      default:
-        return RevealAnimationType.none;
-    }
-  }
+  // RevealAnimationType _parseRevealAnimationType(String? type) {
+  //   switch (type) {
+  //     case 'none':
+  //       return RevealAnimationType.none;
+  //     case 'fade':
+  //       return RevealAnimationType.fade;
+  //     case 'scale':
+  //       return RevealAnimationType.scale;
+  //     case 'slideup':
+  //       return RevealAnimationType.slideUp;
+  //     case 'slidedown':
+  //       return RevealAnimationType.slideDown;
+  //     case 'slideleft':
+  //       return RevealAnimationType.slideLeft;
+  //     case 'slideright':
+  //       return RevealAnimationType.slideRight;
+  //     case 'bounce':
+  //       return RevealAnimationType.bounce;
+  //     case 'zoomout':
+  //       return RevealAnimationType.zoomOut;
+  //     default:
+  //       return RevealAnimationType.none;
+  //   }
+  // }
 
   @override
   Widget render(RenderPayload payload) {

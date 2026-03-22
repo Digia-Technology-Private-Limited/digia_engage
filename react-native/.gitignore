@@ -1,0 +1,41 @@
+# Dependencies
+node_modules/
+
+# Build output
+lib/
+
+# TypeScript
+*.tsbuildinfo
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# macOS
+.DS_Store
+
+# Editor
+.vscode/
+.idea/
+*.iml
+
+# Android build artifacts
+android/build/
+android/.gradle/
+android/local.properties
+
+# iOS build artifacts
+ios/build/
+ios/Pods/
+ios/DerivedData/
+
+# Environment
+.env
+.env.local
+.env.*
+
+# Temporary files
+*.swp
+*.swo

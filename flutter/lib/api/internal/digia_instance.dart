@@ -67,17 +67,17 @@ class DigiaInstance with WidgetsBindingObserver implements DigiaCEPDelegate {
 
     // Set up the UI factory with custom resources and providers
     DUIFactory().initialize(
-        // pageConfigProvider: pageConfigProvider,
-        // icons: icons,
-        // images: {
-        //   ...(DigiaUIManager().assetImages.asMap().map((k, v) => MapEntry(
-        //       v.assetData.localPath,
-        //       NetworkImage(
-        //           '${v.assetData.image?.baseUrl}${v.assetData.image?.path}')))),
-        //   ...?images
-        // },
-        // fontFactory: fontFactory,
-        );
+      // pageConfigProvider: pageConfigProvider,
+      // icons: icons,
+      // images: {
+      //   ...(DigiaUIManager().assetImages.asMap().map((k, v) => MapEntry(
+      //       v.assetData.localPath,
+      //       NetworkImage(
+      //           '${v.assetData.image?.baseUrl}${v.assetData.image?.path}')))),
+      //   ...?images
+      // },
+      // fontFactory: fontFactory,
+    );
 
     // Apply environment variables from DigiaUIApp if provided
     // if (widget.environmentVariables != null) {
@@ -95,8 +95,10 @@ class DigiaInstance with WidgetsBindingObserver implements DigiaCEPDelegate {
       _activePlugin?.notifyEvent(event, payload);
     };
 
-    _logIfVerbose('Digia initialized with apiKey=${config.apiKey}, '
-        'environment=${config.environment.name}');
+    _logIfVerbose(
+      'Digia initialized with apiKey=${config.apiKey}, '
+      'environment=${config.environment.name}',
+    );
   }
 
   void register(DigiaCEPPlugin plugin) {
@@ -148,17 +150,30 @@ class DigiaInstance with WidgetsBindingObserver implements DigiaCEPDelegate {
       );
     }
 
-    final displayType =
-        (payload.content['command'] as String? ?? '').trim().toUpperCase();
-    final placementKey = payload.content['placementKey'] as String?;
+    final type = (payload.content['type'] as String?)?.trim().toLowerCase();
+    final command = (payload.content['command'] as String?)
+        ?.trim()
+        .toUpperCase();
 
-    if (displayType == 'SHOW_INLINE' &&
-        placementKey != null &&
-        placementKey.isNotEmpty) {
-      // Store inline campaign for DigiaSlot to render.
+    if ((type == null || type.isEmpty) &&
+        (command == null || command.isEmpty)) {
+      debugPrint(
+        '[Digia] WARNING: campaign dropped: neither type nor command is set: ${payload.id}',
+      );
+      return;
+    }
+
+    if (type == 'inline') {
+      final placementKey = payload.content['placementKey'] as String?;
+      if (placementKey == null || placementKey.isEmpty) {
+        debugPrint(
+          '[Digia] WARNING: inline payload dropped: placementKey is required when type is set: ${payload.id}',
+        );
+        return;
+      }
       inlineController.setCampaign(placementKey, payload);
     } else {
-      // Modal campaigns: route to DigiaHost via the shared controller.
+      // Modal campaigns (SHOW_BOTTOM_SHEET / SHOW_DIALOG): route to DigiaHost.
       _controller.show(payload);
     }
   }
