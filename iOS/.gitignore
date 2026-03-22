@@ -22,3 +22,8 @@ DerivedData/
 *.perspectivev3
 !default.perspectivev3
 xcuserdata/
+
+# Swift driver incremental outputs (should live under DerivedData/.build; remove if emitted here)
+*.swiftdeps
+*.dia
+*.d

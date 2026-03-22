@@ -4,11 +4,11 @@ import Foundation
 import Testing
 
 @MainActor
-@Suite("State and Event Actions")
+@Suite("State and Event Actions", .serialized)
 struct StateAndEventActionTests {
     @Test("setAppState stores the key-value pair in runtime state")
     func setAppStateStoresValue() async throws {
-        DigiaRuntime.shared.resetForTesting()
+        SDKInstance.shared.resetForTesting()
         let configPath = try makeTempConfigFile("""
         {
           "appSettings": { "initialRoute": "home" },
@@ -26,7 +26,7 @@ struct StateAndEventActionTests {
           ]
         }
         """)
-        Digia.initialize(
+        try await Digia.initialize(
             DigiaConfig(
                 apiKey: "prod_123",
                 flavor: .release(
@@ -41,12 +41,12 @@ struct StateAndEventActionTests {
             data: ["stateKey": .string("theme"), "value": .string("dark")]
         )
         try await SetAppStateProcessor().execute(action: action, context: context())
-        #expect(DigiaRuntime.shared.appState["theme"] == .string("dark"))
+        #expect(SDKInstance.shared.appState["theme"] == .string("dark"))
     }
 
     @Test("setState and rebuildState update local mutable view state")
     func setStateAndRebuildStateWork() async throws {
-        let store = LocalStateStore(namespace: "actiontests-X5o9Xo", initialState: ["myState": .string("Initial State")])
+        let store = StateContext(namespace: "actiontests-X5o9Xo", initialState: ["myState": .string("Initial State")])
 
         let setAction = SetStateAction(
             disableActionIf: nil,
@@ -73,11 +73,11 @@ struct StateAndEventActionTests {
 
     @Test("fireEvent accepts events array when active payload exists")
     func fireEventAcceptsEventsArray() async throws {
-        DigiaRuntime.shared.resetForTesting()
+        SDKInstance.shared.resetForTesting()
         let payload = InAppPayload(id: "campaign", content: InAppPayloadContent(type: "dialog"))
-        DigiaRuntime.shared.onCampaignTriggered(payload)
+        SDKInstance.shared.onCampaignTriggered(payload)
         let recorder = EventRecorder()
-        DigiaRuntime.shared.controller.onEvent = { event, _ in
+        SDKInstance.shared.controller.onEvent = { event, _ in
             recorder.values.append(event)
         }
         try await FireEventProcessor().execute(
@@ -87,13 +87,8 @@ struct StateAndEventActionTests {
         #expect(recorder.values.count == 1)
     }
 
-    private func context(appConfig: AppConfigStore = AppConfigStore(), localStateStore: LocalStateStore? = nil) -> ActionProcessorContext {
-        ActionProcessorContext(
-            appConfig: appConfig,
-            widgetHierarchy: [],
-            currentEntityId: nil,
-            localStateStore: localStateStore
-        )
+    private func context(appConfig: AppConfigStore = AppConfigStore(), localStateStore: StateContext? = nil) -> ActionProcessorContext {
+        ActionProcessorContext(appConfig: appConfig, localStateStore: localStateStore)
     }
 }
 

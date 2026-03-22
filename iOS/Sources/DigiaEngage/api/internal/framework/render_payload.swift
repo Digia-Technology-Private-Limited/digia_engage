@@ -4,28 +4,22 @@ import SwiftUI
 @MainActor
 struct RenderPayload {
     let appConfigStore: AppConfigStore
-    let scopeContext: any ExprContext
-    let widgetHierarchy: [String]
-    let currentEntityId: String?
+    let scopeContext: any ScopeContext
     let actionExecutor: ActionExecutor
-    let localStateStore: LocalStateStore?
+    let localStateStore: StateContext?
 
     init(
         appConfigStore: AppConfigStore,
-        scopeContext: (any ExprContext)? = nil,
-        widgetHierarchy: [String] = [],
-        currentEntityId: String? = nil,
+        scopeContext: (any ScopeContext)? = nil,
         actionExecutor: ActionExecutor = ActionExecutor(),
-        localStateStore: LocalStateStore? = nil
+        localStateStore: StateContext? = nil
     ) {
         self.appConfigStore = appConfigStore
-        let rootContext = scopeContext ?? AppStateExprContext(
-            values: DigiaRuntime.shared.appState.mapValues(\.anyValue),
-            streams: DigiaRuntime.shared.appStateStreams.mapValues { $0 as Any }
+        let rootContext: any ScopeContext = scopeContext ?? AppStateExprContext(
+            values: SDKInstance.shared.appState.mapValues(\.anyValue),
+            streams: SDKInstance.shared.appStateStreams.mapValues { $0 as Any }
         )
         self.scopeContext = rootContext
-        self.widgetHierarchy = widgetHierarchy
-        self.currentEntityId = currentEntityId
         self.actionExecutor = actionExecutor
         self.localStateStore = localStateStore
     }
@@ -54,13 +48,13 @@ struct RenderPayload {
         value?.resolve(in: chainContext(incoming))
     }
 
-    func evalScopeValue(_ value: ScopeValue?, scopeContext incoming: (any ExprContext)? = nil) -> ScopeValue? {
+    func evalJSONValue(_ value: JSONValue?, scopeContext incoming: (any ExprContext)? = nil) -> JSONValue? {
         guard let value else { return nil }
-        return ScopeValueResolver.resolve(value, in: chainContext(incoming))
+        return ExpressionUtil.evaluateNestedExpressions(value, in: chainContext(incoming))
     }
 
-    func evalAny(_ value: ScopeValue?, scopeContext incoming: (any ExprContext)? = nil) -> Any? {
-        ScopeValueResolver.resolveAny(value, in: chainContext(incoming))
+    func evalAny(_ value: JSONValue?, scopeContext incoming: (any ExprContext)? = nil) -> Any? {
+        ExpressionUtil.evaluateNestedExpressionsToAny(value, in: chainContext(incoming))
     }
 
     func evalColor(_ value: ExprOr<String>?, scopeContext incoming: (any ExprContext)? = nil) -> Color? {
@@ -77,42 +71,35 @@ struct RenderPayload {
             appConfig: appConfigStore,
             scopeContext: overrideContext ?? scopeContext,
             triggerType: triggerType,
-            widgetHierarchy: widgetHierarchy,
-            currentEntityId: currentEntityId,
             localStateStore: localStateStore
         )
     }
 
-    func withExtendedHierarchy(_ widgetName: String) -> RenderPayload {
-        copyWith(widgetHierarchy: widgetHierarchy + [widgetName])
-    }
-
-    func forComponent(componentId: String) -> RenderPayload {
-        copyWith(widgetHierarchy: widgetHierarchy + [componentId], currentEntityId: componentId)
-    }
-
-    func copyWithChainedContext(_ context: any ExprContext) -> RenderPayload {
-        copyWith(scopeContext: chainContext(context))
+    func copyWithChainedContext(_ context: any ScopeContext) -> RenderPayload {
+        copyWith(scopeContext: chainedScopeContext(context))
     }
 
     func copyWith(
-        scopeContext: (any ExprContext)? = nil,
-        widgetHierarchy: [String]? = nil,
-        currentEntityId: String? = nil,
-        localStateStore: LocalStateStore? = nil
+        scopeContext: (any ScopeContext)? = nil,
+        localStateStore: StateContext? = nil
     ) -> RenderPayload {
         RenderPayload(
             appConfigStore: appConfigStore,
             scopeContext: scopeContext ?? self.scopeContext,
-            widgetHierarchy: widgetHierarchy ?? self.widgetHierarchy,
-            currentEntityId: currentEntityId ?? self.currentEntityId,
             actionExecutor: actionExecutor,
             localStateStore: localStateStore ?? self.localStateStore
         )
     }
 
+    /// Chains `incoming` with `scopeContext` at its tail. Returns `incoming` (or `scopeContext` if nil).
     private func chainContext(_ incoming: (any ExprContext)?) -> any ExprContext {
         guard let incoming else { return scopeContext }
+        incoming.addContextAtTail(scopeContext)
+        return incoming
+    }
+
+    /// Like `chainContext` but requires and returns `any ScopeContext`.
+    private func chainedScopeContext(_ incoming: any ScopeContext) -> any ScopeContext {
         incoming.addContextAtTail(scopeContext)
         return incoming
     }

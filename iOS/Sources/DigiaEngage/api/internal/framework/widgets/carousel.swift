@@ -70,7 +70,7 @@ final class VWCarousel: VirtualStatelessWidget<CarouselProps> {
         }
     }
 
-    private func createExprContext(_ item: Any?, index: Int) -> any ExprContext {
+    private func createExprContext(_ item: Any?, index: Int) -> any ScopeContext {
         let carouselObj: [String: Any?] = [
             "currentItem": item,
             "index": index,
@@ -227,13 +227,25 @@ private struct DigiaCarouselView: View {
         }
         .frame(
             width: width,
-            height: resolvedHeight(containerWidth: width ?? (containerWidth > 0 ? containerWidth : UIScreen.main.bounds.width))
+            height: resolvedHeight(
+                containerWidth: width ?? (containerWidth > 0 ? containerWidth : fallbackContainerWidth)
+            )
         )
     }
 
     // MARK: - Helpers
 
     private var animDuration: Double { Double(animationDuration) / 1000.0 }
+
+    private var fallbackContainerWidth: CGFloat {
+        #if canImport(UIKit)
+        UIScreen.main.bounds.width
+        #elseif os(macOS)
+        390
+        #else
+        390
+        #endif
+    }
 
     var realPage: Int {
         guard infiniteScroll, pages.count > 1 else {

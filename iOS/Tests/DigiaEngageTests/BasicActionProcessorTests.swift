@@ -3,7 +3,7 @@ import Foundation
 import Testing
 
 @MainActor
-@Suite("Basic Action Processors")
+@Suite("Basic Action Processors", .serialized)
 struct BasicActionProcessorTests {
     @Test("delay processor sleeps for at least the requested duration")
     func delayExecutes() async throws {
@@ -19,36 +19,32 @@ struct BasicActionProcessorTests {
 
     @Test("openUrl processor stores resolved URL")
     func openUrlStoresResolvedURL() async throws {
-        DigiaRuntime.shared.resetForTesting()
+        SDKInstance.shared.resetForTesting()
         let action = OpenUrlAction(disableActionIf: nil, data: ["url": .string("https://app.digia.tech/")])
         let processor = OpenUrlProcessor()
         try await processor.execute(action: action, context: context())
-        #expect(DigiaRuntime.shared.lastOpenedURL?.absoluteString == "https://app.digia.tech/")
+        #expect(SDKInstance.shared.lastOpenedURL?.absoluteString == "https://app.digia.tech/")
     }
 
     @Test("copyToClipBoard processor stores copied message")
     func copyToClipboardStoresMessage() async throws {
-        DigiaRuntime.shared.resetForTesting()
+        SDKInstance.shared.resetForTesting()
         let action = CopyToClipBoardAction(disableActionIf: nil, data: ["message": .string("TEST COPIED")])
         let processor = CopyToClipBoardProcessor()
         try await processor.execute(action: action, context: context())
-        #expect(DigiaRuntime.shared.clipboardString == "TEST COPIED")
+        #expect(SDKInstance.shared.clipboardString == "TEST COPIED")
     }
 
     @Test("showToast processor publishes toast presentation")
     func showToastPublishesPresentation() async throws {
-        DigiaRuntime.shared.resetForTesting()
+        SDKInstance.shared.resetForTesting()
         let action = ShowToastAction(disableActionIf: nil, data: ["message": .string("hello")])
         let processor = ShowToastProcessor()
         try await processor.execute(action: action, context: context())
-        #expect(DigiaRuntime.shared.controller.activeToast?.message == "hello")
+        #expect(SDKInstance.shared.controller.activeToast?.message == "hello")
     }
 
     private func context() -> ActionProcessorContext {
-        ActionProcessorContext(
-            appConfig: AppConfigStore(),
-            widgetHierarchy: [],
-            currentEntityId: nil
-        )
+        ActionProcessorContext(appConfig: AppConfigStore())
     }
 }

@@ -3,11 +3,11 @@ import Foundation
 import Testing
 
 @MainActor
-@Suite("AppState Parity")
+@Suite("AppState Parity", .serialized)
 struct AppStateParityTests {
     @Test("initializes runtime appState from config appState string descriptor")
-    func initializesRuntimeAppStateFromConfig() throws {
-        DigiaRuntime.shared.resetForTesting()
+    func initializesRuntimeAppStateFromConfig() async throws {
+        SDKInstance.shared.resetForTesting()
         let configPath = try makeTempConfigFile("""
         {
           "appSettings": { "initialRoute": "home" },
@@ -34,9 +34,9 @@ struct AppStateParityTests {
                 functionsPath: "unused"
             )
         )
-        Digia.initialize(config)
+        try await Digia.initialize(config)
 
-        #expect(DigiaRuntime.shared.appState["theme"] == .string("dark"))
+        #expect(SDKInstance.shared.appState["theme"] == .string("dark"))
     }
 
     @Test("loads persisted value for descriptor marked shouldPersist")
@@ -125,8 +125,8 @@ struct AppStateParityTests {
     }
 
     @Test("exposes appState map in expression scope")
-    func exposesAppStateInExpressionScope() throws {
-        DigiaRuntime.shared.resetForTesting()
+    func exposesAppStateInExpressionScope() async throws {
+        SDKInstance.shared.resetForTesting()
         let configPath = try makeTempConfigFile("""
         {
           "appSettings": { "initialRoute": "home" },
@@ -153,8 +153,8 @@ struct AppStateParityTests {
                 functionsPath: "unused"
             )
         )
-        Digia.initialize(config)
-        let payload = RenderPayload(appConfigStore: DigiaRuntime.shared.appConfigStore)
+        try await Digia.initialize(config)
+        let payload = RenderPayload(appConfigStore: SDKInstance.shared.appConfigStore)
 
         #expect(payload.eval(.expression("${appState.theme}")) == "dark")
     }
@@ -186,8 +186,8 @@ struct AppStateParityTests {
         }
         """)
 
-        DigiaRuntime.shared.resetForTesting()
-        Digia.initialize(
+        SDKInstance.shared.resetForTesting()
+        try await Digia.initialize(
             DigiaConfig(
                 apiKey: apiKey,
                 flavor: .release(
@@ -203,10 +203,10 @@ struct AppStateParityTests {
             data: ["stateKey": .string("count"), "value": .int(2)]
         )
         try await SetAppStateProcessor().execute(action: action, context: context())
-        #expect(DigiaRuntime.shared.appState["count"] == .int(2))
+        #expect(SDKInstance.shared.appState["count"] == .int(2))
 
-        DigiaRuntime.shared.resetForTesting()
-        Digia.initialize(
+        SDKInstance.shared.resetForTesting()
+        try await Digia.initialize(
             DigiaConfig(
                 apiKey: apiKey,
                 flavor: .release(
@@ -216,7 +216,7 @@ struct AppStateParityTests {
                 )
             )
         )
-        #expect(DigiaRuntime.shared.appState["count"] == .int(2))
+        #expect(SDKInstance.shared.appState["count"] == .int(2))
     }
 
     @Test("setAppState rejects missing keys and type mismatches")
@@ -238,8 +238,8 @@ struct AppStateParityTests {
           ]
         }
         """)
-        DigiaRuntime.shared.resetForTesting()
-        Digia.initialize(
+        SDKInstance.shared.resetForTesting()
+        try await Digia.initialize(
             DigiaConfig(
                 apiKey: "proj_123",
                 flavor: .release(
@@ -281,8 +281,8 @@ struct AppStateParityTests {
           ]
         }
         """)
-        DigiaRuntime.shared.resetForTesting()
-        Digia.initialize(
+        SDKInstance.shared.resetForTesting()
+        try await Digia.initialize(
             DigiaConfig(
                 apiKey: "proj_123",
                 flavor: .release(
@@ -304,8 +304,8 @@ struct AppStateParityTests {
         )
 
         try await SetAppStateProcessor().execute(action: action, context: context())
-        #expect(DigiaRuntime.shared.appState["count"] == .int(2))
-        #expect(DigiaRuntime.shared.appState["theme"] == .string("light"))
+        #expect(SDKInstance.shared.appState["count"] == .int(2))
+        #expect(SDKInstance.shared.appState["theme"] == .string("light"))
     }
 
     @Test("setAppState evaluates expression-like newValue in batch updates")
@@ -321,8 +321,8 @@ struct AppStateParityTests {
           ]
         }
         """)
-        DigiaRuntime.shared.resetForTesting()
-        Digia.initialize(
+        SDKInstance.shared.resetForTesting()
+        try await Digia.initialize(
             DigiaConfig(
                 apiKey: "proj_123",
                 flavor: .release(
@@ -343,6 +343,6 @@ struct AppStateParityTests {
         )
 
         try await SetAppStateProcessor().execute(action: action, context: context())
-        #expect(DigiaRuntime.shared.appState["count"] == .int(2))
+        #expect(SDKInstance.shared.appState["count"] == .int(2))
     }
 }

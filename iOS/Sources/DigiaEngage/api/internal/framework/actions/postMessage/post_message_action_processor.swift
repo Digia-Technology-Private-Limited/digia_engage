@@ -3,7 +3,7 @@ import Foundation
 struct PostMessageAction: Sendable {
     let actionType: ActionType = .postMessage
     let disableActionIf: ExprOr<Bool>?
-    let data: [String: ScopeValue]
+    let data: [String: JSONValue]
 }
 
 @MainActor
@@ -13,6 +13,6 @@ struct PostMessageProcessor {
     func execute(action: PostMessageAction, context _: ActionProcessorContext) async throws {
         guard let name = action.data.string("name")
         else { throw ActionExecutionError.unsupportedContext(processorType) }
-        DigiaRuntime.shared.publishMessage(name: name, payload: action.data["payload"] ?? action.data["body"])
+        SDKInstance.shared.publishMessage(name: name, payload: action.data["payload"] ?? action.data["body"])
     }
 }

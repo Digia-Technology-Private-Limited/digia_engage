@@ -1,9 +1,18 @@
 import SwiftUI
 
+/// Wraps the application root and renders in-app message overlays
+/// (dialogs, bottom sheets, toasts) above all app content via the SDUI engine.
+///
+/// Place this widget once, at the root of your application:
+/// ```swift
+/// DigiaHost {
+///     ContentView()
+/// }
+/// ```
 @MainActor
 public struct DigiaHost<Content: View>: View {
     private let content: Content
-    @ObservedObject private var controller = DigiaRuntime.shared.controller
+    @ObservedObject private var controller = SDKInstance.shared.controller
 
     public init(@ViewBuilder content: () -> Content) {
         self.content = content()
@@ -12,18 +21,10 @@ public struct DigiaHost<Content: View>: View {
     public var body: some View {
         ZStack {
             content
+                .onAppear { SDKInstance.shared.onHostMounted() }
+                .onDisappear { SDKInstance.shared.onHostUnmounted() }
 
-            if let payload = controller.activePayload {
-                DigiaFallbackExperienceView(payload: payload, mode: .modal) {
-                    controller.onEvent?(.dismissed, payload)
-                    controller.dismiss()
-                }
-                .onAppear {
-                    DigiaRuntime.shared.onHostMounted()
-                    controller.onEvent?(.impressed, payload)
-                }
-            }
-
+            // Toast overlay (rendered natively)
             VStack {
                 Spacer()
                 if let toast = controller.activeToast {
@@ -40,11 +41,63 @@ public struct DigiaHost<Content: View>: View {
             }
             .animation(.easeInOut(duration: 0.2), value: controller.activeToast != nil)
         }
-        .onAppear {
-            DigiaRuntime.shared.onHostMounted()
+        .onChange(of: controller.activePayload) { payload in
+            handlePayload(payload)
         }
-        .onDisappear {
-            DigiaRuntime.shared.onHostUnmounted()
+    }
+
+    /// Reads the `command` and `viewId` from the CEP payload and routes it through
+    /// the appropriate action processor so the SDUI renderer handles the view.
+    private func handlePayload(_ payload: InAppPayload?) {
+        guard let payload else { return }
+
+        // Determine presentation command — explicit `command` wins, otherwise fall back to `type`.
+        let command = (payload.content.command ?? payload.content.type)
+            .trimmingCharacters(in: .whitespaces)
+            .uppercased()
+
+        let viewId = payload.content.viewId
+
+        guard let viewId, !viewId.isEmpty else {
+            // No SDUI view to render — dismiss silently.
+            controller.onEvent?(.dismissed, payload)
+            controller.dismiss()
+            return
+        }
+
+        controller.onEvent?(.impressed, payload)
+
+        let appConfig = SDKInstance.shared.appConfigStore
+        let executor = ActionExecutor()
+
+        if command == "SHOW_BOTTOM_SHEET" || command == "BOTTOMSHEET" {
+            var actionData: [String: JSONValue] = ["componentId": .string(viewId)]
+            if !payload.content.args.isEmpty {
+                actionData["args"] = .object(payload.content.args)
+            }
+            let action = ShowBottomSheetAction(disableActionIf: nil, data: actionData)
+            let context = ActionProcessorContext(appConfig: appConfig, actionExecutor: executor)
+            Task { @MainActor in
+                try? await ShowBottomSheetProcessor().execute(action: action, context: context)
+                controller.onEvent?(.dismissed, payload)
+                controller.dismiss()
+            }
+        } else {
+            // Default: dialog presentation for SHOW_DIALOG and any unrecognised overlay command.
+            var actionData: [String: JSONValue] = [
+                "componentId": .string(viewId),
+                "barrierDismissible": .bool(true)
+            ]
+            if !payload.content.args.isEmpty {
+                actionData["args"] = .object(payload.content.args)
+            }
+            let action = ShowDialogAction(disableActionIf: nil, data: actionData)
+            let context = ActionProcessorContext(appConfig: appConfig, actionExecutor: executor)
+            Task { @MainActor in
+                try? await ShowDialogProcessor().execute(action: action, context: context)
+                controller.onEvent?(.dismissed, payload)
+                controller.dismiss()
+            }
         }
     }
 }

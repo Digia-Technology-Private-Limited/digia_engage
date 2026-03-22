@@ -4,7 +4,7 @@ enum AppStateStoreError: Error, Equatable, LocalizedError {
     case duplicateKey(String)
     case unknownType(String)
     case missingKey(String)
-    case typeMismatch(key: String, expected: AppStateValueType, actual: ScopeValue)
+    case typeMismatch(key: String, expected: AppStateValueType, actual: JSONValue)
 
     var errorDescription: String? {
         switch self {
@@ -48,7 +48,7 @@ enum AppStateValueType: String, Sendable, Equatable {
 private struct AppStateEntry: Sendable {
     let descriptor: AppStateDefinition
     let type: AppStateValueType
-    var value: ScopeValue
+    var value: JSONValue
 }
 
 @MainActor
@@ -78,7 +78,7 @@ final class AppStateStore {
         }
     }
 
-    func snapshot() -> [String: ScopeValue] {
+    func snapshot() -> [String: JSONValue] {
         entries.mapValues(\.value)
     }
 
@@ -90,7 +90,7 @@ final class AppStateStore {
         entries[key]?.descriptor.streamName
     }
 
-    func update(key: String, value: ScopeValue) throws {
+    func update(key: String, value: JSONValue) throws {
         guard var entry = entries[key] else {
             throw AppStateStoreError.missingKey(key)
         }
@@ -108,13 +108,13 @@ final class AppStateStore {
         }
     }
 
-    private func persist(value: ScopeValue, key: String, type: AppStateValueType) {
+    private func persist(value: JSONValue, key: String, type: AppStateValueType) {
         let storageKey = makeStorageKey(key: key)
         let encoded = encodeForStorage(value: value, as: type)
         storage.set(encoded, forKey: storageKey)
     }
 
-    private func loadPersistedValue(key: String, type: AppStateValueType, shouldPersist: Bool) -> ScopeValue? {
+    private func loadPersistedValue(key: String, type: AppStateValueType, shouldPersist: Bool) -> JSONValue? {
         guard shouldPersist else { return nil }
         let storageKey = makeStorageKey(key: key)
         guard let raw = storage.string(forKey: storageKey) else { return nil }
@@ -125,7 +125,7 @@ final class AppStateStore {
         "\(namespace)_app_state_\(key)"
     }
 
-    private func normalize(value: ScopeValue?, for type: AppStateValueType) -> ScopeValue {
+    private func normalize(value: JSONValue?, for type: AppStateValueType) -> JSONValue {
         guard let value else {
             switch type {
             case .number: return .int(0)
@@ -138,7 +138,7 @@ final class AppStateStore {
         return normalizeLossy(value: value, for: type)
     }
 
-    private func normalizeIfMatchingType(value: ScopeValue, for type: AppStateValueType) -> ScopeValue? {
+    private func normalizeIfMatchingType(value: JSONValue, for type: AppStateValueType) -> JSONValue? {
         switch (type, value) {
         case (.string, .string):
             return value
@@ -155,7 +155,7 @@ final class AppStateStore {
         }
     }
 
-    private func normalizeLossy(value: ScopeValue, for type: AppStateValueType) -> ScopeValue {
+    private func normalizeLossy(value: JSONValue, for type: AppStateValueType) -> JSONValue {
         switch type {
         case .string:
             switch value {
@@ -192,7 +192,7 @@ final class AppStateStore {
             }
             if case let .string(raw) = value,
                let data = raw.data(using: .utf8),
-               let decoded = try? JSONDecoder().decode([String: ScopeValue].self, from: data)
+               let decoded = try? JSONDecoder().decode([String: JSONValue].self, from: data)
             {
                 return .object(decoded)
             }
@@ -203,7 +203,7 @@ final class AppStateStore {
             }
             if case let .string(raw) = value,
                let data = raw.data(using: .utf8),
-               let decoded = try? JSONDecoder().decode([ScopeValue].self, from: data)
+               let decoded = try? JSONDecoder().decode([JSONValue].self, from: data)
             {
                 return .array(decoded)
             }
@@ -211,7 +211,7 @@ final class AppStateStore {
         }
     }
 
-    private func encodeForStorage(value: ScopeValue, as type: AppStateValueType) -> String {
+    private func encodeForStorage(value: JSONValue, as type: AppStateValueType) -> String {
         switch type {
         case .string:
             if case let .string(v) = value { return v }
@@ -244,7 +244,7 @@ final class AppStateStore {
         }
     }
 
-    private func decodeFromStorage(raw: String, as type: AppStateValueType) -> ScopeValue {
+    private func decodeFromStorage(raw: String, as type: AppStateValueType) -> JSONValue {
         switch type {
         case .string:
             return .string(raw)
@@ -256,14 +256,14 @@ final class AppStateStore {
             return .bool(Bool(raw) ?? false)
         case .json:
             if let data = raw.data(using: .utf8),
-               let value = try? JSONDecoder().decode([String: ScopeValue].self, from: data)
+               let value = try? JSONDecoder().decode([String: JSONValue].self, from: data)
             {
                 return .object(value)
             }
             return .object([:])
         case .list:
             if let data = raw.data(using: .utf8),
-               let value = try? JSONDecoder().decode([ScopeValue].self, from: data)
+               let value = try? JSONDecoder().decode([JSONValue].self, from: data)
             {
                 return .array(value)
             }

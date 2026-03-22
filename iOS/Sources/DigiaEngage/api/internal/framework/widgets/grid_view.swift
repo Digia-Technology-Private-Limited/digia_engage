@@ -54,7 +54,7 @@ final class VWGridView: VirtualStatelessWidget<GridViewProps> {
         }
     }
 
-    private func createExprContext(_ item: Any?, index: Int) -> any ExprContext {
+    private func createExprContext(_ item: Any?, index: Int) -> any ScopeContext {
         let gridObj: [String: Any?] = [
             "currentItem": item,
             "index": index,

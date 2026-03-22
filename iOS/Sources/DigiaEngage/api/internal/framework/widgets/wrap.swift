@@ -54,7 +54,7 @@ final class VWWrap: VirtualStatelessWidget<WrapProps> {
         return resolved as? [Any]
     }
 
-    private func createExprContext(_ item: Any?, index: Int) -> any ExprContext {
+    private func createExprContext(_ item: Any?, index: Int) -> any ScopeContext {
         let wrapObject: [String: Any?] = [
             "currentItem": item,
             "index": index,

@@ -32,7 +32,7 @@ final class VWStreamBuilder: VirtualStatelessWidget<StreamBuilderProps> {
         )
     }
 
-    private func makeContext(data: Any?, state: String, error: Error?) -> any ExprContext {
+    private func makeContext(data: Any?, state: String, error: Error?) -> any ScopeContext {
         var streamObject: [String: Any?] = [
             "streamState": state,
             "streamValue": data,

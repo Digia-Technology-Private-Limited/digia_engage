@@ -1,6 +1,6 @@
 import Foundation
 
-extension Dictionary where Key == String, Value == ScopeValue {
+extension Dictionary where Key == String, Value == JSONValue {
     func string(_ key: String) -> String? {
         guard case let .string(value)? = self[key] else { return nil }
         return value
@@ -17,7 +17,7 @@ extension Dictionary where Key == String, Value == ScopeValue {
         }
     }
 
-    func object(_ key: String) -> [String: ScopeValue]? {
+    func object(_ key: String) -> [String: JSONValue]? {
         guard case let .object(value)? = self[key] else { return nil }
         return value
     }

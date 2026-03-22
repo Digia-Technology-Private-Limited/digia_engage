@@ -5,6 +5,7 @@ struct DigiaViewPresentation: Equatable, Sendable {
     let viewID: String
     let title: String?
     let text: String?
+    let args: [String: JSONValue]
 }
 
 struct DigiaToastPresentation: Equatable, Sendable {
@@ -32,6 +33,11 @@ final class DigiaOverlayController: ObservableObject {
     private var toastToken = UUID()
     var onEvent: ((DigiaExperienceEvent, InAppPayload) -> Void)?
 
+    /// Callback invoked when the active dialog is dismissed, carrying an optional result value.
+    var onDialogDismissed: ((JSONValue?) -> Void)?
+    /// Callback invoked when the active bottom sheet is dismissed, carrying an optional result value.
+    var onBottomSheetDismissed: ((JSONValue?) -> Void)?
+
     func show(_ payload: InAppPayload) {
         activePayload = payload
     }
@@ -44,16 +50,20 @@ final class DigiaOverlayController: ObservableObject {
         activeBottomSheet = presentation
     }
 
-    func dismissBottomSheet() {
+    func dismissBottomSheet(result: JSONValue? = nil) {
         activeBottomSheet = nil
+        onBottomSheetDismissed?(result)
+        onBottomSheetDismissed = nil
     }
 
     func showDialog(_ presentation: DigiaDialogPresentation) {
         activeDialog = presentation
     }
 
-    func dismissDialog() {
+    func dismissDialog(result: JSONValue? = nil) {
         activeDialog = nil
+        onDialogDismissed?(result)
+        onDialogDismissed = nil
     }
 
     func showToast(_ presentation: DigiaToastPresentation) {

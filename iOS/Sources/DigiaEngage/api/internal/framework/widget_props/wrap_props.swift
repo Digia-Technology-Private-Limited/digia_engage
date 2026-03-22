@@ -1,7 +1,7 @@
 import Foundation
 
 struct WrapProps: Decodable, Equatable, Sendable {
-    let dataSource: ScopeValue?
+    let dataSource: JSONValue?
     let spacing: ExprOr<Double>?
     let wrapAlignment: ExprOr<String>?
     let wrapCrossAlignment: ExprOr<String>?

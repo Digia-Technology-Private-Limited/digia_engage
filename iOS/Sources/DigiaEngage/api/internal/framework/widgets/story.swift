@@ -88,7 +88,7 @@ final class VWStory: VirtualStatelessWidget<StoryProps> {
         return resolved as? [Any]
     }
 
-    private func createExprContext(_ item: Any?, index: Int) -> any ExprContext {
+    private func createExprContext(_ item: Any?, index: Int) -> any ScopeContext {
         let storyObject: [String: Any?] = [
             "currentItem": item,
             "index": index,
@@ -479,6 +479,7 @@ private struct DigiaStoryView: View {
                     Rectangle()
                         .fill(.clear)
                         .contentShape(Rectangle())
+                        .frame(width: 72)
                         .onTapGesture {
                                 Task {
                                 let shouldProceed = await (onLeftTap?() ?? true)
@@ -487,11 +488,13 @@ private struct DigiaStoryView: View {
                             }
                         }
                         .accessibilityIdentifier("story.tap.previous")
-                        .frame(maxWidth: .infinity)
+
+                    Spacer(minLength: 0)
 
                     Rectangle()
                         .fill(.clear)
                         .contentShape(Rectangle())
+                        .frame(width: 72)
                         .onTapGesture {
                             Task {
                                 let shouldProceed = await (onRightTap?() ?? true)
@@ -500,7 +503,6 @@ private struct DigiaStoryView: View {
                             }
                         }
                         .accessibilityIdentifier("story.tap.next")
-                        .frame(maxWidth: .infinity)
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
 

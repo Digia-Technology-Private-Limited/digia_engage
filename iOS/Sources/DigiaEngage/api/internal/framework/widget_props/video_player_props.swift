@@ -1,7 +1,7 @@
 import Foundation
 
 struct VideoPlayerProps: Decodable, Equatable, Sendable {
-    let videoURL: ScopeValue?
+    let videoURL: JSONValue?
     let showControls: ExprOr<Bool>?
     let aspectRatio: ExprOr<Double>?
     let autoPlay: ExprOr<Bool>?

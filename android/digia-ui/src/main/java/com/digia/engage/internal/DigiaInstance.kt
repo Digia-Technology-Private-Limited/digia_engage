@@ -213,23 +213,6 @@ internal object DigiaInstance : DigiaCEPDelegate {
     private fun routeCampaign(payload: InAppPayload) {
         val command = (payload.content["command"] as? String)?.trim()?.uppercase()
 
-        if (command != "SHOW_INLINE") {
-            val screenId = (payload.content["screenId"] as? String)?.trim()
-            val currentScreen = screenTracker.currentScreen?.trim()
-            // val screenMismatch = when {
-            //     screenId.isNullOrBlank() || screenId == "*" -> false
-            //     currentScreen.isNullOrBlank() -> true
-            //     else -> screenId != currentScreen
-            // }
-            // if (screenMismatch) {
-            //     logWarning(
-            //         "campaign dropped due to screen mismatch: payload=${payload.id}, " +
-            //             "screenId=$screenId, current=$currentScreen",
-            //     )
-            //     return
-            // }
-        }
-
         when (command) {
             "SHOW_DIALOG", "SHOW_BOTTOM_SHEET" -> {
                 if (!hostMounted) {
@@ -239,10 +222,11 @@ internal object DigiaInstance : DigiaCEPDelegate {
             }
             "SHOW_INLINE" -> {
                 val placementKey = payload.content["placementKey"] as? String
-                val componentId = payload.content["componentId"] as? String
-                if (placementKey.isNullOrBlank() || componentId.isNullOrBlank()) {
+                val viewId = payload.content["viewId"] as? String
+                    ?: payload.content["componentId"] as? String
+                if (placementKey.isNullOrBlank() || viewId.isNullOrBlank()) {
                     logWarning(
-                            "inline payload dropped due to invalid placement/component id: ${payload.id}"
+                            "inline payload dropped due to invalid placement/view id: ${payload.id}"
                     )
                     return
                 }

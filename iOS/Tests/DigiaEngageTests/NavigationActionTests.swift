@@ -4,7 +4,7 @@ import Foundation
 import Testing
 
 @MainActor
-@Suite("Navigation Actions")
+@Suite("Navigation Actions", .serialized)
 struct NavigationActionTests {
     @Test("navigateToPage with openAs bottomSheet maps to showBottomSheet action")
     func navigateToPageBottomSheetMaps() throws {
@@ -19,7 +19,7 @@ struct NavigationActionTests {
 
     @Test("navigation processors update runtime navigation and dialog state")
     func navigationAndDialogBehavior() async throws {
-        DigiaRuntime.shared.resetForTesting()
+        SDKInstance.shared.resetForTesting()
         let configPath = try makeTempConfigFile("""
         {
           "appSettings": { "initialRoute": "home-page" },
@@ -35,37 +35,37 @@ struct NavigationActionTests {
           "theme": { "colors": { "light": {} } }
         }
         """)
-        Digia.initialize(
+        try await Digia.initialize(
             DigiaConfig(
                 apiKey: "test_nav",
                 flavor: .release(initStrategy: .localFirst, appConfigPath: configPath, functionsPath: "unused")
             )
         )
-        let ctx = context(appConfig: DigiaRuntime.shared.appConfigStore)
+        let ctx = context(appConfig: SDKInstance.shared.appConfigStore)
 
         try await NavigateToPageProcessor().execute(
             action: NavigateToPageAction(disableActionIf: nil, data: ["pageData": .object(["id": .string("next-page")])]),
             context: ctx
         )
-        #expect(DigiaRuntime.shared.navigationController.currentRoute == "next-page")
+        #expect(SDKInstance.shared.navigationController.currentPageID == "next-page")
 
         try await NavigateBackUntilProcessor().execute(
             action: NavigateBackUntilAction(disableActionIf: nil, data: ["routeNameToPopUntil": .string("/home-page")]),
             context: ctx
         )
-        #expect(DigiaRuntime.shared.navigationController.currentRoute == "home-page")
+        #expect(SDKInstance.shared.navigationController.currentPageID == "home-page")
 
         try await ShowDialogProcessor().execute(
             action: ShowDialogAction(disableActionIf: nil, data: ["viewData": .object(["id": .string("dialog_1")])]),
             context: ctx
         )
-        #expect(DigiaRuntime.shared.controller.activeDialog?.view.viewID == "dialog_1")
+        #expect(SDKInstance.shared.controller.activeDialog?.view.viewID == "dialog_1")
 
         try await DismissDialogProcessor().execute(
             action: DismissDialogAction(disableActionIf: nil, data: [:]),
             context: ctx
         )
-        #expect(DigiaRuntime.shared.controller.activeDialog == nil)
+        #expect(SDKInstance.shared.controller.activeDialog == nil)
 
         try await ShowBottomSheetProcessor().execute(
             action: ShowBottomSheetAction(
@@ -74,20 +74,16 @@ struct NavigationActionTests {
             ),
             context: ctx
         )
-        #expect(DigiaRuntime.shared.controller.activeBottomSheet?.view.viewID == "sheet_1")
+        #expect(SDKInstance.shared.controller.activeBottomSheet?.view.viewID == "sheet_1")
 
         try await HideBottomSheetProcessor().execute(
             action: HideBottomSheetAction(disableActionIf: nil, data: [:]),
             context: ctx
         )
-        #expect(DigiaRuntime.shared.controller.activeBottomSheet == nil)
+        #expect(SDKInstance.shared.controller.activeBottomSheet == nil)
     }
 
     private func context(appConfig: AppConfigStore = AppConfigStore()) -> ActionProcessorContext {
-        ActionProcessorContext(
-            appConfig: appConfig,
-            widgetHierarchy: [],
-            currentEntityId: nil
-        )
+        ActionProcessorContext(appConfig: appConfig)
     }
 }

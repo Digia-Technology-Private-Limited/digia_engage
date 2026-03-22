@@ -3,11 +3,11 @@ import Foundation
 import Testing
 
 @MainActor
-@Suite("Overlay Action Processors")
+@Suite("Overlay Action Processors", .serialized)
 struct OverlayActionProcessorTests {
     @Test("showToast uses default duration when absent")
     func showToastDefaultsDuration() async throws {
-        DigiaRuntime.shared.resetForTesting()
+        SDKInstance.shared.resetForTesting()
 
         try await ShowToastProcessor().execute(
             action: ShowToastAction(
@@ -17,13 +17,13 @@ struct OverlayActionProcessorTests {
             context: context()
         )
 
-        #expect(DigiaRuntime.shared.controller.activeToast?.message == "Saved")
-        #expect(DigiaRuntime.shared.controller.activeToast?.durationSeconds == 2)
+        #expect(SDKInstance.shared.controller.activeToast?.message == "Saved")
+        #expect(SDKInstance.shared.controller.activeToast?.durationSeconds == 2)
     }
 
     @Test("showBottomSheet maps componentId fallback")
     func showBottomSheetUsesComponentIdFallback() async throws {
-        DigiaRuntime.shared.resetForTesting()
+        SDKInstance.shared.resetForTesting()
 
         try await ShowBottomSheetProcessor().execute(
             action: ShowBottomSheetAction(
@@ -36,15 +36,47 @@ struct OverlayActionProcessorTests {
             context: context()
         )
 
-        #expect(DigiaRuntime.shared.controller.activeBottomSheet?.view.viewID == "checkout_sheet")
-        #expect(DigiaRuntime.shared.controller.activeBottomSheet?.view.title == "Checkout")
+        #expect(SDKInstance.shared.controller.activeBottomSheet?.view.viewID == "checkout_sheet")
+        #expect(SDKInstance.shared.controller.activeBottomSheet?.view.title == "Checkout")
+    }
+
+    @Test("showBottomSheet forwards args into the presentation")
+    func showBottomSheetForwardsArgs() async throws {
+        SDKInstance.shared.resetForTesting()
+
+        try await ShowBottomSheetProcessor().execute(
+            action: ShowBottomSheetAction(
+                disableActionIf: nil,
+                data: [
+                    "componentId": .string("checkout_sheet"),
+                    "args": .object(["name": .string("Ada")]),
+                ]
+            ),
+            context: context()
+        )
+
+        #expect(SDKInstance.shared.controller.activeBottomSheet?.view.args == ["name": .string("Ada")])
+    }
+
+    @Test("showDialog forwards args into the presentation")
+    func showDialogForwardsArgs() async throws {
+        SDKInstance.shared.resetForTesting()
+
+        try await ShowDialogProcessor().execute(
+            action: ShowDialogAction(
+                disableActionIf: nil,
+                data: [
+                    "componentId": .string("checkout_dialog"),
+                    "args": .object(["step": .int(2)]),
+                ]
+            ),
+            context: context()
+        )
+
+        #expect(SDKInstance.shared.controller.activeDialog?.view.args == ["step": .int(2)])
     }
 
     private func context() -> ActionProcessorContext {
-        ActionProcessorContext(
-            appConfig: AppConfigStore(),
-            widgetHierarchy: [],
-            currentEntityId: nil
-        )
+        ActionProcessorContext(appConfig: AppConfigStore())
     }
 }

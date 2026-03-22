@@ -2,23 +2,27 @@ import SwiftUI
 
 @MainActor
 public struct DigiaInitialRouteScreen: View {
-    @ObservedObject private var store = DigiaRuntime.shared.appConfigStore
-    @ObservedObject private var navigation = DigiaRuntime.shared.navigationController
+    @ObservedObject private var store = SDKInstance.shared.appConfigStore
+    @ObservedObject private var navigation = SDKInstance.shared.navigationController
 
     public init() {}
 
     public var body: some View {
         Group {
             if let initialRoute = store.appConfig?.initialRoute {
+                let rootID = navigation.rootRoute?.isEmpty == false ? navigation.rootRoute! : initialRoute
                 NavigationStack(path: Binding(get: { navigation.path }, set: { navigation.updatePath($0) })) {
-                    DUIFactory.shared.createPage(navigation.rootRoute?.isEmpty == false ? navigation.rootRoute! : initialRoute)
-                        .navigationDestination(for: String.self) { route in
-                            DUIFactory.shared.createPage(route)
+                    DUIFactory.shared.createPage(rootID, pageArgs: navigation.rootArgs)
+                        .navigationDestination(for: NavigationEntry.self) { entry in
+                            DUIFactory.shared.createPage(
+                                entry.pageID,
+                                pageArgs: navigation.args(for: entry.id)
+                            )
                         }
                 }
                 .digiaHideHostNavigationBar()
                 .onAppear {
-                    DigiaRuntime.shared.navigationController.setInitialRoute(initialRoute)
+                    SDKInstance.shared.navigationController.setInitialRoute(initialRoute)
                 }
             } else if let error = store.lastError {
                 VStack(alignment: .leading, spacing: 12) {

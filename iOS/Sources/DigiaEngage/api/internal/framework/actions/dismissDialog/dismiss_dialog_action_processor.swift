@@ -3,16 +3,19 @@ import Foundation
 struct DismissDialogAction: Sendable {
     let actionType: ActionType = .dismissDialog
     let disableActionIf: ExprOr<Bool>?
-    let data: [String: ScopeValue]
+    let data: [String: JSONValue]
 }
 
 @MainActor
 struct DismissDialogProcessor {
     let processorType: ActionType = .dismissDialog
 
-    func execute(action _: DismissDialogAction, context _: ActionProcessorContext) async throws {
-        DigiaRuntime.shared.controller.dismissDialog()
-        DigiaRuntime.shared.didDismissDialog()
+    func execute(action: DismissDialogAction, context: ActionProcessorContext) async throws {
+        let result = action.data["result"].map {
+            ExpressionUtil.evaluateNestedExpressions($0, in: context.scopeContext)
+        }
+        SDKInstance.shared.controller.dismissDialog(result: result)
+        SDKInstance.shared.didDismissDialog()
         #if canImport(UIKit)
         ViewControllerUtil.dismissPresented()
         #endif

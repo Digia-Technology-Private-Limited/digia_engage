@@ -1,20 +1,20 @@
 import Foundation
 
-final class LocalStateStore: ObservableObject {
+final class StateContext: ObservableObject {
     let namespace: String?
-    private let parent: LocalStateStore?
+    private let parent: StateContext?
     // Intentionally NOT @Published.
     // We want `setValues(..., notify: false)` to mutate state without triggering SwiftUI updates.
     // Rebuilds should only happen via explicit `objectWillChange.send()` (notify=true or rebuildState).
-    private(set) var stateVariables: [String: ScopeValue]
+    private(set) var stateVariables: [String: JSONValue]
 
-    init(namespace: String?, initialState: [String: ScopeValue], parent: LocalStateStore? = nil) {
+    init(namespace: String?, initialState: [String: JSONValue], parent: StateContext? = nil) {
         self.namespace = namespace
         self.stateVariables = initialState
         self.parent = parent
     }
 
-    func getValue(_ key: String) -> ScopeValue? {
+    func getValue(_ key: String) -> JSONValue? {
         if let value = stateVariables[key] {
             return value
         }
@@ -25,7 +25,7 @@ final class LocalStateStore: ObservableObject {
         stateVariables[key] != nil
     }
 
-    func setValues(_ updates: [String: ScopeValue], notify: Bool) {
+    func setValues(_ updates: [String: JSONValue], notify: Bool) {
         guard !updates.isEmpty else { return }
         var changed = false
         for (key, value) in updates where stateVariables[key] != nil {
@@ -43,7 +43,7 @@ final class LocalStateStore: ObservableObject {
         objectWillChange.send()
     }
 
-    func findAncestorContext(_ targetNamespace: String) -> LocalStateStore? {
+    func findAncestorContext(_ targetNamespace: String) -> StateContext? {
         if namespace == targetNamespace {
             return self
         }

@@ -3,7 +3,7 @@ import Foundation
 struct NavigateBackUntilAction: Sendable {
     let actionType: ActionType = .navigateBackUntil
     let disableActionIf: ExprOr<Bool>?
-    let data: [String: ScopeValue]
+    let data: [String: JSONValue]
 }
 
 @MainActor
@@ -11,10 +11,10 @@ struct NavigateBackUntilProcessor {
     let processorType: ActionType = .navigateBackUntil
 
     func execute(action: NavigateBackUntilAction, context: ActionProcessorContext) async throws {
-        let target = ScopeValueResolver.resolveAny(action.data["routeNameToPopUntil"], in: context.scopeContext) as? String
+        let target = ExpressionUtil.evaluateNestedExpressionsToAny(action.data["routeNameToPopUntil"], in: context.scopeContext) as? String
         guard let target else { throw ActionExecutionError.unsupportedContext(processorType) }
         let normalizedTarget = NavigationUtil.normalizedRoute(target)
-        DigiaRuntime.shared.navigationController.popUntil { current in
+        SDKInstance.shared.navigationController.popUntil { current in
             let normalizedCurrent = NavigationUtil.normalizedRoute(current)
             if normalizedCurrent == normalizedTarget { return true }
             if normalizedCurrent == normalizedTarget.trimmingCharacters(in: CharacterSet(charactersIn: "/")) { return true }

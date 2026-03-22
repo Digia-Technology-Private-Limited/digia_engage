@@ -7,7 +7,7 @@ import UIKit
 struct ShowDialogAction: Sendable {
     let actionType: ActionType = .showDialog
     let disableActionIf: ExprOr<Bool>?
-    let data: [String: ScopeValue]
+    let data: [String: JSONValue]
 }
 
 @MainActor
@@ -18,18 +18,36 @@ struct ShowDialogProcessor {
         let viewData = action.data.object("viewData") ?? [:]
         let viewID = viewData.string("id") ?? action.data.string("componentId") ?? action.data.string("pageId")
         guard let viewID else { throw ActionExecutionError.unsupportedContext(processorType) }
-        let barrierDismissible = (ScopeValueResolver.resolveAny(action.data["barrierDismissible"], in: context.scopeContext) as? Bool) ?? true
+
+        let barrierDismissible = (ExpressionUtil.evaluateNestedExpressionsToAny(
+            action.data["barrierDismissible"], in: context.scopeContext
+        ) as? Bool) ?? true
+
+        let waitForResult = (ExpressionUtil.evaluateNestedExpressionsToAny(
+            action.data["waitForResult"], in: context.scopeContext
+        ) as? Bool) ?? false
+
+        let onResultFlow = action.data["onResult"]?.asActionFlow()
+        let args: [String: JSONValue]
+        if case let .object(value)? = action.data["args"] {
+            args = value
+        } else {
+            args = [:]
+        }
+
         let presentation = DigiaDialogPresentation(
             view: DigiaViewPresentation(
                 viewID: viewID,
                 title: viewData.string("title") ?? action.data.string("title"),
-                text: viewData.string("text") ?? action.data.string("message")
+                text: viewData.string("text") ?? action.data.string("message"),
+                args: args
             ),
             barrierDismissible: barrierDismissible
         )
-        DigiaRuntime.shared.controller.showDialog(presentation)
+        SDKInstance.shared.controller.showDialog(presentation)
 
         #if canImport(UIKit)
+        let overlayController = SDKInstance.shared.controller
         let root = ZStack {
             if barrierDismissible {
                 Color.black.opacity(0.35)
@@ -38,7 +56,7 @@ struct ShowDialogProcessor {
                     .onTapGesture {
                         DispatchQueue.main.async {
                             ViewControllerUtil.dismissPresented {
-                                DigiaRuntime.shared.controller.dismissDialog()
+                                overlayController.dismissDialog()
                             }
                         }
                     }
@@ -48,14 +66,50 @@ struct ShowDialogProcessor {
             }
             DigiaPresentationView(presentation: presentation.view)
                 .padding(24)
-                .background(Color.white)
-                .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-                .padding(24)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
         }
         let host = UIHostingController(rootView: root)
         host.view.backgroundColor = .clear
         host.modalPresentationStyle = .overFullScreen
         ViewControllerUtil.present(host)
+
+        if waitForResult, onResultFlow != nil {
+            let result = await withCheckedContinuation { (continuation: CheckedContinuation<JSONValue?, Never>) in
+                overlayController.onDialogDismissed = { value in
+                    continuation.resume(returning: value)
+                }
+            }
+            let resultContext = BasicExprContext(variables: ["result": result?.anyValue ?? NSNull()])
+            if let scopeContext = context.scopeContext {
+                resultContext.addContextAtTail(scopeContext)
+            }
+            await context.actionExecutor.executeNow(
+                onResultFlow,
+                appConfig: context.appConfig,
+                scopeContext: resultContext,
+                triggerType: "onResult",
+                localStateStore: context.localStateStore
+            )
+        }
         #endif
+    }
+}
+
+private extension [String: JSONValue] {
+    func asActionFlow() -> ActionFlow? {
+        nil // not used here — action data drives this
+    }
+}
+
+private extension JSONValue {
+    func asActionFlow() -> ActionFlow? {
+        guard case let .object(object) = self,
+              case let .array(steps)? = object["steps"] else { return nil }
+        let decodedSteps = steps.compactMap { item -> ActionStep? in
+            guard case let .object(obj) = item,
+                  let type = obj.string("type") else { return nil }
+            return ActionStep(type: type, data: obj.object("data"), disableActionIf: nil)
+        }
+        return ActionFlow(steps: decodedSteps)
     }
 }

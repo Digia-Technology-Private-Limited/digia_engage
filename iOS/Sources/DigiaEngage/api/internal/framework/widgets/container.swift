@@ -1,4 +1,3 @@
-import SDWebImageSwiftUI
 import SwiftUI
 
 @MainActor
@@ -244,10 +243,17 @@ final class VWContainer: VirtualStatelessWidget<ContainerProps> {
     @ViewBuilder
     private func decorationImageView(_ props: DecorationImageProps, source: String) -> some View {
         if source.hasPrefix("http"), let url = URL(string: source) {
-            WebImage(url: url)
-                .resizable()
-                .aspectRatio(contentMode: To.imageContentMode(props.fit))
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: To.alignment(props.alignment) ?? .center)
+            AsyncImage(url: url) { phase in
+                switch phase {
+                case .success(let image):
+                    image
+                        .resizable()
+                        .aspectRatio(contentMode: To.imageContentMode(props.fit))
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: To.alignment(props.alignment) ?? .center)
+                default:
+                    Color.clear
+                }
+            }
         } else {
             Image(source)
                 .resizable()

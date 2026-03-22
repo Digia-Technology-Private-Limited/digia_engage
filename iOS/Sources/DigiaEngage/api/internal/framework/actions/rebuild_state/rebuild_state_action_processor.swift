@@ -3,7 +3,7 @@ import Foundation
 struct RebuildStateAction: Sendable {
     let actionType: ActionType = .rebuildState
     let disableActionIf: ExprOr<Bool>?
-    let data: [String: ScopeValue]
+    let data: [String: JSONValue]
 }
 
 @MainActor
@@ -11,9 +11,9 @@ struct RebuildStateProcessor {
     let processorType: ActionType = .rebuildState
 
     func execute(action: RebuildStateAction, context: ActionProcessorContext) async throws {
-        let targetStore: LocalStateStore?
+        let targetStore: StateContext?
         if let name = action.data.string("stateContextName") {
-            targetStore = DigiaRuntime.shared.localStateStore(named: name)
+            targetStore = SDKInstance.shared.localStateStore(named: name)
         } else {
             targetStore = context.localStateStore
         }

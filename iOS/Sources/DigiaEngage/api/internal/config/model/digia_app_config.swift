@@ -62,11 +62,11 @@ struct DigiaAppConfig: Decodable, Equatable {
 struct AppStateDefinition: Decodable, Equatable, Sendable {
     let name: String
     let type: String
-    let value: ScopeValue?
+    let value: JSONValue?
     let shouldPersist: Bool
     let streamName: String
 
-    init(name: String, type: String, value: ScopeValue?, shouldPersist: Bool, streamName: String) {
+    init(name: String, type: String, value: JSONValue?, shouldPersist: Bool, streamName: String) {
         self.name = name
         self.type = type
         self.value = value
@@ -86,7 +86,7 @@ struct AppStateDefinition: Decodable, Equatable, Sendable {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         name = try container.decode(String.self, forKey: .name)
         type = try container.decode(String.self, forKey: .type)
-        value = try container.decodeIfPresent(ScopeValue.self, forKey: .value)
+        value = try container.decodeIfPresent(JSONValue.self, forKey: .value)
         shouldPersist = try container.decodeIfPresent(Bool.self, forKey: .shouldPersist) ?? false
         streamName = try container.decodeIfPresent(String.self, forKey: .streamName) ?? "\(name)changeStream"
     }
@@ -158,16 +158,14 @@ struct PageActions: Decodable, Equatable {
 }
 
 struct LayoutDefinition: Decodable, Equatable {
-    let root: ScopeValue?
+    let root: VWData?
     let body: LayoutBody?
 
-    var renderRoot: VWData? {
-        VWDataBuilder.build(from: root ?? body?.root)
-    }
+    var renderRoot: VWData? { root ?? body?.root }
 }
 
 struct LayoutBody: Decodable, Equatable {
-    let root: ScopeValue?
+    let root: VWData?
 }
 
 struct RestConfiguration: Decodable, Equatable {

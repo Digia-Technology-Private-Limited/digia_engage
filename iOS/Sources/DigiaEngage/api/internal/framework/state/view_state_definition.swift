@@ -3,7 +3,7 @@ import Foundation
 
 struct ViewStateDefinition: Decodable, Equatable, Sendable {
     let type: String
-    let defaultValue: ScopeValue?
+    let defaultValue: JSONValue?
 
     enum CodingKeys: String, CodingKey {
         case type
@@ -11,7 +11,7 @@ struct ViewStateDefinition: Decodable, Equatable, Sendable {
         case defaultValue
     }
 
-    init(type: String, defaultValue: ScopeValue?) {
+    init(type: String, defaultValue: JSONValue?) {
         self.type = type
         self.defaultValue = defaultValue
     }
@@ -19,16 +19,16 @@ struct ViewStateDefinition: Decodable, Equatable, Sendable {
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         type = try container.decode(String.self, forKey: .type)
-        defaultValue = try container.decodeIfPresent(ScopeValue.self, forKey: .default)
-            ?? container.decodeIfPresent(ScopeValue.self, forKey: .defaultValue)
+        defaultValue = try container.decodeIfPresent(JSONValue.self, forKey: .default)
+            ?? container.decodeIfPresent(JSONValue.self, forKey: .defaultValue)
     }
 
-    func resolvedValue(in context: (any ExprContext)?) -> ScopeValue {
+    func resolvedValue(in context: (any ExprContext)?) -> JSONValue {
         let fallback = defaultValue ?? defaultValueForType(type)
-        return ScopeValueResolver.resolve(fallback, in: context)
+        return ExpressionUtil.evaluateNestedExpressions(fallback, in: context)
     }
 
-    private func defaultValueForType(_ rawType: String) -> ScopeValue {
+    private func defaultValueForType(_ rawType: String) -> JSONValue {
         switch rawType.lowercased() {
         case "number", "numeric":
             return .int(0)

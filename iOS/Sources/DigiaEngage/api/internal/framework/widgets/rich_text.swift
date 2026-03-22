@@ -67,7 +67,7 @@ private struct DigiaRichTextSpanViewModel: Identifiable {
         font = TextStyleUtil.font(
             textStyle: style,
             appConfigStore: payload.appConfigStore,
-            fontFactory: DigiaRuntime.shared.fontFactory
+            fontFactory: SDKInstance.shared.fontFactory
         )
         if let gradient = Self.gradient(for: style?.gradient, payload: payload) {
             foreground = AnyShapeStyle(gradient)

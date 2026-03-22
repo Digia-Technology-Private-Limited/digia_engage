@@ -8,5 +8,5 @@ struct FlexProps: Codable, Equatable, Sendable {
     let crossAxisAlignment: String?
     let mainAxisSize: String?
     let isScrollable: Bool?
-    let dataSource: ScopeValue?
+    let dataSource: JSONValue?
 }

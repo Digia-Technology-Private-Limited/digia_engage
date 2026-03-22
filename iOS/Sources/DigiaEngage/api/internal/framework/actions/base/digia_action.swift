@@ -2,7 +2,6 @@ import Foundation
 
 enum ActionType: String, CaseIterable, Codable, Sendable {
     case callRestApi = "Action.callRestApi"
-    case controlObject = "Action.controlObject"
     case copyToClipBoard = "Action.copyToClipBoard"
     case delay = "Action.delay"
     case navigateBack = "Action.pop"
@@ -12,7 +11,6 @@ enum ActionType: String, CaseIterable, Codable, Sendable {
     case postMessage = "Action.handleDigiaMessage"
     case rebuildState = "Action.rebuildState"
     case setState = "Action.setState"
-    case executeCallback = "Action.executeCallback"
     case shareContent = "Action.share"
     case showBottomSheet = "Action.showBottomSheet"
     case showDialog = "Action.openDialog"
@@ -25,7 +23,6 @@ enum ActionType: String, CaseIterable, Codable, Sendable {
 
 enum DigiaActionModel: Sendable {
     case callRestApi(CallRestApiAction)
-    case controlObject(ControlObjectAction)
     case copyToClipBoard(CopyToClipBoardAction)
     case delay(DelayAction)
     case navigateBack(NavigateBackAction)
@@ -35,7 +32,6 @@ enum DigiaActionModel: Sendable {
     case postMessage(PostMessageAction)
     case rebuildState(RebuildStateAction)
     case setState(SetStateAction)
-    case executeCallback(ExecuteCallbackAction)
     case shareContent(ShareContentAction)
     case showBottomSheet(ShowBottomSheetAction)
     case showDialog(ShowDialogAction)
@@ -50,7 +46,6 @@ extension DigiaActionModel {
     var actionType: ActionType {
         switch self {
         case .callRestApi: return .callRestApi
-        case .controlObject: return .controlObject
         case .copyToClipBoard: return .copyToClipBoard
         case .delay: return .delay
         case .navigateBack: return .navigateBack
@@ -60,7 +55,6 @@ extension DigiaActionModel {
         case .postMessage: return .postMessage
         case .rebuildState: return .rebuildState
         case .setState: return .setState
-        case .executeCallback: return .executeCallback
         case .shareContent: return .shareContent
         case .showBottomSheet: return .showBottomSheet
         case .showDialog: return .showDialog
@@ -75,7 +69,6 @@ extension DigiaActionModel {
     var disableActionIf: ExprOr<Bool>? {
         switch self {
         case let .callRestApi(action): return action.disableActionIf
-        case let .controlObject(action): return action.disableActionIf
         case let .copyToClipBoard(action): return action.disableActionIf
         case let .delay(action): return action.disableActionIf
         case let .navigateBack(action): return action.disableActionIf
@@ -85,7 +78,6 @@ extension DigiaActionModel {
         case let .postMessage(action): return action.disableActionIf
         case let .rebuildState(action): return action.disableActionIf
         case let .setState(action): return action.disableActionIf
-        case let .executeCallback(action): return action.disableActionIf
         case let .shareContent(action): return action.disableActionIf
         case let .showBottomSheet(action): return action.disableActionIf
         case let .showDialog(action): return action.disableActionIf

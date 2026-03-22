@@ -90,7 +90,9 @@ fun DigiaSlot(placementKey: String, modifier: Modifier = Modifier) {
 
     if (!isUiReady || !isRenderEngineReady || payload == null) return
 
-    val componentId = payload.content["componentId"] as? String ?: return
+    val componentId = payload.content["viewId"] as? String
+        ?: payload.content["componentId"] as? String
+        ?: return
     val args = payload.content["args"].toStringAnyMap()
 
     Box(modifier = modifier) {

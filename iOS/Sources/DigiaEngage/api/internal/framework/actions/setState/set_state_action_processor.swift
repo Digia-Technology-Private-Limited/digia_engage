@@ -3,7 +3,7 @@ import Foundation
 struct SetStateAction: Sendable {
     let actionType: ActionType = .setState
     let disableActionIf: ExprOr<Bool>?
-    let data: [String: ScopeValue]
+    let data: [String: JSONValue]
 }
 
 @MainActor
@@ -19,21 +19,21 @@ struct SetStateProcessor {
             throw ActionExecutionError.unsupportedContext(processorType)
         }
 
-        let rebuild = (ScopeValueResolver.resolveAny(action.data["rebuild"], in: context.scopeContext) as? Bool) ?? false
-        var updates: [String: ScopeValue] = [:]
+        let rebuild = (ExpressionUtil.evaluateNestedExpressionsToAny(action.data["rebuild"], in: context.scopeContext) as? Bool) ?? false
+        var updates: [String: JSONValue] = [:]
         for item in updateArray {
             guard case let .object(update)? = Optional(item) else { continue }
             guard let stateName = update.string("stateName") ?? update.string("key") else { continue }
-            let value = ScopeValueResolver.resolve(update["newValue"] ?? update["value"] ?? .null, in: context.scopeContext)
+            let value = ExpressionUtil.evaluateNestedExpressions(update["newValue"] ?? update["value"] ?? .null, in: context.scopeContext)
             updates[stateName] = value
         }
 
         targetStore.setValues(updates, notify: rebuild)
     }
 
-    private func targetStore(for action: SetStateAction, context: ActionProcessorContext) -> LocalStateStore? {
+    private func targetStore(for action: SetStateAction, context: ActionProcessorContext) -> StateContext? {
         if let name = action.data.string("stateContextName") {
-            return DigiaRuntime.shared.localStateStore(named: name)
+            return SDKInstance.shared.localStateStore(named: name)
         }
         return context.localStateStore
     }

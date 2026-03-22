@@ -14,8 +14,6 @@ enum ActionFactory {
         switch decoded {
         case .callRestApi:
             return .callRestApi(CallRestApiAction(disableActionIf: step.disableActionIf, data: data))
-        case .controlObject:
-            return .controlObject(ControlObjectAction(disableActionIf: step.disableActionIf, data: data))
         case .copyToClipBoard:
             return .copyToClipBoard(CopyToClipBoardAction(disableActionIf: step.disableActionIf, data: data))
         case .delay:
@@ -38,8 +36,6 @@ enum ActionFactory {
             return .rebuildState(RebuildStateAction(disableActionIf: step.disableActionIf, data: data))
         case .setState:
             return .setState(SetStateAction(disableActionIf: step.disableActionIf, data: data))
-        case .executeCallback:
-            return .executeCallback(ExecuteCallbackAction(disableActionIf: step.disableActionIf, data: data))
         case .shareContent:
             return .shareContent(ShareContentAction(disableActionIf: step.disableActionIf, data: data))
         case .showBottomSheet:
@@ -60,7 +56,7 @@ enum ActionFactory {
     }
 }
 
-private extension ScopeValue {
+private extension JSONValue {
     var stringValue: String? {
         guard case let .string(value) = self else { return nil }
         return value

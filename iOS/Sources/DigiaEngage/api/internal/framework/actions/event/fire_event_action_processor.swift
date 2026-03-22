@@ -3,7 +3,7 @@ import Foundation
 struct FireEventAction: Sendable {
     let actionType: ActionType = .fireEvent
     let disableActionIf: ExprOr<Bool>?
-    let data: [String: ScopeValue]
+    let data: [String: JSONValue]
 }
 
 @MainActor
@@ -11,7 +11,7 @@ struct FireEventProcessor {
     let processorType: ActionType = .fireEvent
 
     func execute(action: FireEventAction, context _: ActionProcessorContext) async throws {
-        guard let payload = DigiaRuntime.shared.controller.activePayload else {
+        guard let payload = SDKInstance.shared.controller.activePayload else {
             throw ActionExecutionError.unsupportedContext(processorType)
         }
 
@@ -25,7 +25,7 @@ struct FireEventProcessor {
                 case "dismissed": event = .dismissed
                 default: event = .clicked(elementID: object.string("elementId") ?? name)
                 }
-                DigiaRuntime.shared.controller.onEvent?(event, payload)
+                SDKInstance.shared.controller.onEvent?(event, payload)
             }
             return
         }
@@ -39,6 +39,6 @@ struct FireEventProcessor {
         case "dismissed": mappedEvent = .dismissed
         default: mappedEvent = .clicked(elementID: action.data.string("elementId"))
         }
-        DigiaRuntime.shared.controller.onEvent?(mappedEvent, payload)
+        SDKInstance.shared.controller.onEvent?(mappedEvent, payload)
     }
 }

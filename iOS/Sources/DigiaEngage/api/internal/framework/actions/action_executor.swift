@@ -1,4 +1,3 @@
-import DigiaExpr
 import Foundation
 
 @MainActor
@@ -8,9 +7,7 @@ final class ActionExecutor {
         appConfig: AppConfigStore,
         scopeContext: ExprContext,
         triggerType: String?,
-        widgetHierarchy: [String],
-        currentEntityId: String?,
-        localStateStore: LocalStateStore?
+        localStateStore: StateContext?
     ) {
         guard let actionFlow, !actionFlow.isEmpty else { return }
         Task { @MainActor in
@@ -19,8 +16,6 @@ final class ActionExecutor {
                 appConfig: appConfig,
                 scopeContext: scopeContext,
                 triggerType: triggerType,
-                widgetHierarchy: widgetHierarchy,
-                currentEntityId: currentEntityId,
                 localStateStore: localStateStore
             )
         }
@@ -31,9 +26,7 @@ final class ActionExecutor {
         appConfig: AppConfigStore,
         scopeContext: ExprContext,
         triggerType: String?,
-        widgetHierarchy: [String],
-        currentEntityId: String?,
-        localStateStore: LocalStateStore?
+        localStateStore: StateContext?
     ) async {
         guard let actionFlow, !actionFlow.isEmpty else { return }
         for step in actionFlow.steps {
@@ -44,8 +37,6 @@ final class ActionExecutor {
                 }
                 let context = ActionProcessorContext(
                     appConfig: appConfig,
-                    widgetHierarchy: widgetHierarchy,
-                    currentEntityId: currentEntityId,
                     scopeContext: scopeContext,
                     localStateStore: localStateStore,
                     actionExecutor: self
@@ -61,8 +52,6 @@ final class ActionExecutor {
         switch action {
         case let .callRestApi(model):
             try await CallRestApiProcessor().execute(action: model, context: context)
-        case let .controlObject(model):
-            try await ControlObjectProcessor().execute(action: model, context: context)
         case let .copyToClipBoard(model):
             try await CopyToClipBoardProcessor().execute(action: model, context: context)
         case let .delay(model):
@@ -81,8 +70,6 @@ final class ActionExecutor {
             try await RebuildStateProcessor().execute(action: model, context: context)
         case let .setState(model):
             try await SetStateProcessor().execute(action: model, context: context)
-        case let .executeCallback(model):
-            try await ExecuteCallbackProcessor().execute(action: model, context: context)
         case let .shareContent(model):
             try await ShareContentProcessor().execute(action: model, context: context)
         case let .showBottomSheet(model):

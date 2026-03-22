@@ -3,7 +3,7 @@ import Foundation
 struct OpenUrlAction: Sendable {
     let actionType: ActionType = .openUrl
     let disableActionIf: ExprOr<Bool>?
-    let data: [String: ScopeValue]
+    let data: [String: JSONValue]
 }
 
 @MainActor
@@ -11,10 +11,10 @@ struct OpenUrlProcessor {
     let processorType: ActionType = .openUrl
 
     func execute(action: OpenUrlAction, context: ActionProcessorContext) async throws {
-        guard let rawURL = ScopeValueResolver.resolveAny(action.data["url"], in: context.scopeContext) as? String,
+        guard let rawURL = ExpressionUtil.evaluateNestedExpressionsToAny(action.data["url"], in: context.scopeContext) as? String,
               let url = URL(string: rawURL),
               url.scheme != nil
         else { throw ActionExecutionError.unsupportedContext(processorType) }
-        DigiaRuntime.shared.openURL(url)
+        SDKInstance.shared.openURL(url)
     }
 }

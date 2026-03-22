@@ -4,7 +4,7 @@ import SwiftUI
 import Testing
 
 @MainActor
-@Suite("DigiaEngage")
+@Suite("DigiaEngage", .serialized)
 struct DigiaEngageTests {
     @Test("defaults config to production error logging and debug flavor")
     func defaultsConfig() {
@@ -22,20 +22,24 @@ struct DigiaEngageTests {
     }
 
     @Test("initialize is idempotent")
-    func initializeIsIdempotent() {
+    func initializeIsIdempotent() async {
         let first = DigiaConfig(apiKey: "first")
         let second = DigiaConfig(apiKey: "second", environment: .sandbox)
-        DigiaRuntime.shared.resetForTesting()
+        SDKInstance.shared.resetForTesting()
 
-        Digia.initialize(first)
-        Digia.initialize(second)
+        // Seed config synchronously to avoid a network-call suspension point that would
+        // allow concurrent tests to interfere via resetForTesting().
+        SDKInstance.shared.markInitializedForTesting(with: first)
 
-        #expect(DigiaRuntime.shared.config == first)
+        // A second initialize call should hit the guard and return immediately (no await inside).
+        try? await Digia.initialize(second)
+
+        #expect(SDKInstance.shared.config == first)
     }
 
     @Test("register replaces and tears down the previous plugin")
     func registerReplacesPlugin() {
-        DigiaRuntime.shared.resetForTesting()
+        SDKInstance.shared.resetForTesting()
         let first = TestPlugin(identifier: "first")
         let second = TestPlugin(identifier: "second")
 
@@ -50,52 +54,52 @@ struct DigiaEngageTests {
 
     @Test("setCurrentScreen forwards the screen name to the active plugin")
     func setCurrentScreenForwardsToPlugin() {
-        DigiaRuntime.shared.resetForTesting()
+        SDKInstance.shared.resetForTesting()
         let plugin = TestPlugin(identifier: "plugin")
         Digia.register(plugin)
 
         Digia.setCurrentScreen("checkout")
 
-        #expect(DigiaRuntime.shared.currentScreen == "checkout")
+        #expect(SDKInstance.shared.currentScreen == "checkout")
         #expect(plugin.forwardedScreens == ["checkout"])
     }
 
     @Test("onCampaignTriggered routes inline payloads into the inline controller")
     func routesInlinePayloadsIntoInlineController() {
-        DigiaRuntime.shared.resetForTesting()
+        SDKInstance.shared.resetForTesting()
 
         let payload = InAppPayload(
             id: "campaign-inline",
             content: InAppPayloadContent(
                 type: "inline",
-                placementId: "hero_banner",
+                placementKey: "hero_banner",
                 title: "Inline title"
             )
         )
 
-        DigiaRuntime.shared.onCampaignTriggered(payload)
+        SDKInstance.shared.onCampaignTriggered(payload)
 
-        #expect(DigiaRuntime.shared.inlineController.getCampaign("hero_banner") == payload)
-        #expect(DigiaRuntime.shared.controller.activePayload == nil)
+        #expect(SDKInstance.shared.inlineController.getCampaign("hero_banner") == payload)
+        #expect(SDKInstance.shared.controller.activePayload == nil)
     }
 
     @Test("onCampaignTriggered routes modal payloads into the overlay controller")
     func routesModalPayloadsIntoOverlayController() {
-        DigiaRuntime.shared.resetForTesting()
+        SDKInstance.shared.resetForTesting()
 
         let payload = InAppPayload(
             id: "campaign-modal",
             content: InAppPayloadContent(type: "dialog", title: "Modal title")
         )
 
-        DigiaRuntime.shared.onCampaignTriggered(payload)
+        SDKInstance.shared.onCampaignTriggered(payload)
 
-        #expect(DigiaRuntime.shared.controller.activePayload == payload)
+        #expect(SDKInstance.shared.controller.activePayload == payload)
     }
 
     @Test("onCampaignInvalidated clears matching modal and inline payloads")
     func invalidationClearsMatchingPayloads() {
-        DigiaRuntime.shared.resetForTesting()
+        SDKInstance.shared.resetForTesting()
 
         let modal = InAppPayload(
             id: "campaign-modal",
@@ -103,37 +107,52 @@ struct DigiaEngageTests {
         )
         let inline = InAppPayload(
             id: "campaign-inline",
-            content: InAppPayloadContent(type: "inline", placementId: "hero_banner")
+            content: InAppPayloadContent(type: "inline", placementKey: "hero_banner")
         )
 
-        DigiaRuntime.shared.onCampaignTriggered(modal)
-        DigiaRuntime.shared.onCampaignTriggered(inline)
-        DigiaRuntime.shared.onCampaignInvalidated("campaign-modal")
-        DigiaRuntime.shared.onCampaignInvalidated("campaign-inline")
+        SDKInstance.shared.onCampaignTriggered(modal)
+        SDKInstance.shared.onCampaignTriggered(inline)
+        SDKInstance.shared.onCampaignInvalidated("campaign-modal")
+        SDKInstance.shared.onCampaignInvalidated("campaign-inline")
 
-        #expect(DigiaRuntime.shared.controller.activePayload == nil)
-        #expect(DigiaRuntime.shared.inlineController.getCampaign("hero_banner") == nil)
+        #expect(SDKInstance.shared.controller.activePayload == nil)
+        #expect(SDKInstance.shared.inlineController.getCampaign("hero_banner") == nil)
     }
 
     @Test("slot placeholder registration is delegated to the active plugin")
     func placeholderRegistrationDelegatesToPlugin() {
-        DigiaRuntime.shared.resetForTesting()
+        SDKInstance.shared.resetForTesting()
         let plugin = TestPlugin(identifier: "plugin")
         plugin.placeholderIDToReturn = 42
         Digia.register(plugin)
 
-        let id = DigiaRuntime.shared.registerPlaceholderForSlot(
-            screenName: "home",
+        let id = SDKInstance.shared.registerPlaceholderForSlot(
             propertyID: "hero_banner"
         )
 
         #expect(id == 42)
         #expect(plugin.placeholderRegistrations.count == 1)
-        #expect(plugin.placeholderRegistrations.first?.0 == "home")
-        #expect(plugin.placeholderRegistrations.first?.1 == "hero_banner")
+        #expect(plugin.placeholderRegistrations.first == "hero_banner")
 
-        DigiaRuntime.shared.deregisterPlaceholderForSlot(42)
+        SDKInstance.shared.deregisterPlaceholderForSlot(42)
         #expect(plugin.deregisteredPlaceholderIDs == [42])
+    }
+
+    @Test("payload content decodes placementKey directly")
+    func payloadContentDecodesPlacementKey() throws {
+        let data = Data("""
+        {
+          "type": "inline",
+          "placementKey": "hero_banner",
+          "viewId": "hero_component",
+          "args": { "name": "Ada" }
+        }
+        """.utf8)
+
+        let decoded = try JSONDecoder().decode(InAppPayloadContent.self, from: data)
+
+        #expect(decoded.placementKey == "hero_banner")
+        #expect(decoded.args == ["name": .string("Ada")])
     }
 
     @Test("release local-first config resolver loads the typed app config fixture")
@@ -166,7 +185,7 @@ struct DigiaEngageTests {
     }
 
     @Test("initialize stores the resolved release app config in the runtime store")
-    func initializeStoresResolvedReleaseAppConfig() throws {
+    func initializeStoresResolvedReleaseAppConfig() async throws {
         guard let fixtureURL = Bundle.module.url(
             forResource: "app_config_fixture",
             withExtension: "json"
@@ -175,7 +194,7 @@ struct DigiaEngageTests {
             return
         }
 
-        DigiaRuntime.shared.resetForTesting()
+        SDKInstance.shared.resetForTesting()
 
         let config = DigiaConfig(
             apiKey: "prod_123",
@@ -186,12 +205,12 @@ struct DigiaEngageTests {
             )
         )
 
-        Digia.initialize(config)
+        try await Digia.initialize(config)
 
-        #expect(DigiaRuntime.shared.appConfigStore.appConfig?.initialRoute == "samples-list-page")
-        #expect(DigiaRuntime.shared.appConfigStore.isPage("samples-list-page") == true)
-        #expect(DigiaRuntime.shared.appConfigStore.page("samples-list-page")?.slug == "samples-list-page")
-        #expect(DigiaRuntime.shared.appConfigStore.component("hero-card")?.uid == "hero-card")
+        #expect(SDKInstance.shared.appConfigStore.appConfig?.initialRoute == "samples-list-page")
+        #expect(SDKInstance.shared.appConfigStore.isPage("samples-list-page") == true)
+        #expect(SDKInstance.shared.appConfigStore.page("samples-list-page")?.slug == "samples-list-page")
+        #expect(SDKInstance.shared.appConfigStore.component("hero-card")?.uid == "hero-card")
     }
 
     @Test("render payload resolves theme token colors from the typed app config")
@@ -466,23 +485,13 @@ struct DigiaEngageTests {
         #expect(props.errorImage?.errorSrc == "error_shorthand")
     }
 
-    @Test("vw data decodes widget, state, and component categories")
+    @Test("vw data decodes widget and component categories")
     func vwDataDecodesAllCategories() throws {
         let widget: VWData = try decode("""
         {
           "category": "widget",
           "type": "digia/text",
           "props": { "text": "Hello" }
-        }
-        """)
-
-        let state: VWData = try decode("""
-        {
-          "category": "state",
-          "initStateDefs": { "title": "Checkout" },
-          "children": [
-            { "category": "widget", "type": "digia/text", "props": { "text": "${title}" } }
-          ]
         }
         """)
 
@@ -498,13 +507,6 @@ struct DigiaEngageTests {
             #expect(node.type == "digia/text")
         } else {
             Issue.record("Expected widget node")
-        }
-
-        if case let .state(node) = state {
-            #expect(node.initStateDefs["title"] == .string("Checkout"))
-            #expect(node.childGroups["children"]?.count == 1)
-        } else {
-            Issue.record("Expected state node")
         }
 
         if case let .component(node) = component {
@@ -777,7 +779,7 @@ private final class TestPlugin: DigiaCEPPlugin {
     var teardownCount = 0
     var forwardedScreens: [String] = []
     var placeholderIDToReturn: Int?
-    var placeholderRegistrations: [(String, String)] = []
+    var placeholderRegistrations: [String] = []
     var deregisteredPlaceholderIDs: [Int] = []
 
     init(identifier: String) {
@@ -792,8 +794,8 @@ private final class TestPlugin: DigiaCEPPlugin {
         forwardedScreens.append(name)
     }
 
-    func registerPlaceholder(screenName: String, propertyID: String) -> Int? {
-        placeholderRegistrations.append((screenName, propertyID))
+    func registerPlaceholder(propertyID: String) -> Int? {
+        placeholderRegistrations.append(propertyID)
         return placeholderIDToReturn
     }
 

@@ -37,7 +37,7 @@ struct ActionFactoryAndRoutingTests {
         #expect(ActionProcessorFactory.processorType(for: action) == .callRestApi)
     }
 
-    private func decodeStep(type: String, data: [String: ScopeValue]? = nil) throws -> ActionStep {
+    private func decodeStep(type: String, data: [String: JSONValue]? = nil) throws -> ActionStep {
         let step = ActionStep(type: type, data: data, disableActionIf: nil)
         let encoded = try JSONEncoder().encode(step)
         return try JSONDecoder().decode(ActionStep.self, from: encoded)

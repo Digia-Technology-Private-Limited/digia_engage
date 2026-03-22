@@ -57,7 +57,7 @@ struct ImageProps: Codable, Equatable, Sendable {
             return ErrorImageProps(errorEnabled: nil, errorSrc: value)
         }
 
-        guard let scope = try? container.decodeIfPresent(ScopeValue.self, forKey: .errorImage) else {
+        guard let scope = try? container.decodeIfPresent(JSONValue.self, forKey: .errorImage) else {
             return nil
         }
 

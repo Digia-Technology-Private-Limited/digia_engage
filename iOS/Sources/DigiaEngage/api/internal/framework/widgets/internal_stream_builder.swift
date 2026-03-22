@@ -19,7 +19,7 @@ struct InternalStreamBuilder<Content: View>: View {
                 value = initialData ?? controller.currentValue
                 streamState = value == nil ? "loading" : "listening"
                 token = controller.subscribe { nextValue in
-                    let emitted = ScopeValueResolver.scopeValue(from: nextValue).anyValue
+                    let emitted = ExpressionUtil.jsonValue(from: nextValue).anyValue
                     DispatchQueue.main.async {
                         value = emitted
                         streamState = "listening"

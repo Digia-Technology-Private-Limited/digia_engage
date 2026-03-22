@@ -7,7 +7,7 @@ enum DigiaFallbackMode {
 }
 
 @MainActor
-struct DigiaFallbackExperienceView: View {
+struct FallbackExperienceView: View {
     let payload: InAppPayload
     let mode: DigiaFallbackMode
     let onDismiss: () -> Void
@@ -28,7 +28,7 @@ struct DigiaFallbackExperienceView: View {
             Text("type: \(payload.content.type)")
                 .font(.caption)
 
-            if let placement = payload.content.placementId {
+            if let placement = payload.content.placementKey {
                 Text("placement: \(placement)")
                     .font(.caption)
             }

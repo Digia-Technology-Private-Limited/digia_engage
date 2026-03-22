@@ -1,7 +1,7 @@
 import Foundation
 
 struct TextFormFieldProps: Decodable, Equatable, Sendable {
-    let controller: ScopeValue?
+    let controller: JSONValue?
     let initialValue: ExprOr<String>?
     let autoFocus: ExprOr<Bool>?
     let enabled: ExprOr<Bool>?
@@ -46,7 +46,7 @@ struct TextInputFormatterRule: Decodable, Equatable, Sendable {
 struct TextFieldValidationRule: Decodable, Equatable, Sendable {
     let type: String?
     let errorMessage: ExprOr<String>?
-    let data: ScopeValue?
+    let data: JSONValue?
 }
 
 struct TextFieldIconConstraints: Decodable, Equatable, Sendable {

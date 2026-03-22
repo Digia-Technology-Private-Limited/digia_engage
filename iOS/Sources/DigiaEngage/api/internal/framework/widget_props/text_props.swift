@@ -33,75 +33,75 @@ struct TextProps: Codable, Equatable, Sendable {
 
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
-        // Decode through ScopeValue first to avoid deep nested decoder crashes on large payloads.
-        if let textScope = try container.decodeIfPresent(ScopeValue.self, forKey: .text) {
-            text = ExprOr<String>.fromScopeValue(textScope)
+        // Decode through JSONValue first to avoid deep nested decoder crashes on large payloads.
+        if let textScope = try container.decodeIfPresent(JSONValue.self, forKey: .text) {
+            text = ExprOr<String>.fromJSONValue(textScope)
         } else {
             text = nil
         }
 
-        if let textStyleScope = try container.decodeIfPresent(ScopeValue.self, forKey: .textStyle) {
-            textStyle = TextStyleProps(scopeValue: textStyleScope)
+        if let textStyleScope = try container.decodeIfPresent(JSONValue.self, forKey: .textStyle) {
+            textStyle = TextStyleProps(JSONValue: textStyleScope)
         } else {
             textStyle = nil
         }
 
-        if let maxLinesScope = try container.decodeIfPresent(ScopeValue.self, forKey: .maxLines) {
-            maxLines = ExprOr<Int>.fromScopeValue(maxLinesScope)
+        if let maxLinesScope = try container.decodeIfPresent(JSONValue.self, forKey: .maxLines) {
+            maxLines = ExprOr<Int>.fromJSONValue(maxLinesScope)
         } else {
             maxLines = nil
         }
 
-        if let alignmentScope = try container.decodeIfPresent(ScopeValue.self, forKey: .alignment) {
-            alignment = ExprOr<String>.fromScopeValue(alignmentScope)
+        if let alignmentScope = try container.decodeIfPresent(JSONValue.self, forKey: .alignment) {
+            alignment = ExprOr<String>.fromJSONValue(alignmentScope)
         } else {
             alignment = nil
         }
 
-        if let overflowScope = try container.decodeIfPresent(ScopeValue.self, forKey: .overflow) {
-            overflow = ExprOr<String>.fromScopeValue(overflowScope)
+        if let overflowScope = try container.decodeIfPresent(JSONValue.self, forKey: .overflow) {
+            overflow = ExprOr<String>.fromJSONValue(overflowScope)
         } else {
             overflow = nil
         }
     }
 
-    init(scopeValue: ScopeValue?) {
-        let object = scopeValue?.duiObjectValue ?? [:]
-        text = ExprOr<String>.fromScopeValue(object["text"])
-        textStyle = TextStyleProps(scopeValue: object["textStyle"])
-        maxLines = ExprOr<Int>.fromScopeValue(object["maxLines"])
-        alignment = ExprOr<String>.fromScopeValue(object["alignment"])
-        overflow = ExprOr<String>.fromScopeValue(object["overflow"])
+    init(JSONValue: JSONValue?) {
+        let object = JSONValue?.duiObjectValue ?? [:]
+        text = ExprOr<String>.fromJSONValue(object["text"])
+        textStyle = TextStyleProps(JSONValue: object["textStyle"])
+        maxLines = ExprOr<Int>.fromJSONValue(object["maxLines"])
+        alignment = ExprOr<String>.fromJSONValue(object["alignment"])
+        overflow = ExprOr<String>.fromJSONValue(object["overflow"])
     }
 }
 
 extension TextStyleProps {
-    init?(scopeValue: ScopeValue?) {
-        guard let object = scopeValue?.duiObjectValue else { return nil }
+    init?(JSONValue: JSONValue?) {
+        guard let object = JSONValue?.duiObjectValue else { return nil }
         self.init(
-            fontToken: FontTokenProps(scopeValue: object["fontToken"]),
+            fontToken: FontTokenProps(JSONValue: object["fontToken"]),
             textColor: object["textColor"]?.duiStringValue,
             textBackgroundColor: object["textBackgroundColor"]?.duiStringValue,
             textDecoration: object["textDecoration"]?.duiStringValue,
             textDecorationColor: object["textDecorationColor"]?.duiStringValue,
-            gradient: TextGradientProps(scopeValue: object["gradient"])
+            gradient: TextGradientProps(JSONValue: object["gradient"])
         )
     }
 }
 
 extension FontTokenProps {
-    init?(scopeValue: ScopeValue?) {
-        guard let object = scopeValue?.duiObjectValue else { return nil }
+    init?(JSONValue: JSONValue?) {
+        guard let object = JSONValue?.duiObjectValue else { return nil }
         self.init(
             value: object["value"]?.duiStringValue,
-            font: FontDescriptorProps(scopeValue: object["font"])
+            font: FontDescriptorProps(JSONValue: object["font"])
         )
     }
 }
 
 extension FontDescriptorProps {
-    init?(scopeValue: ScopeValue?) {
-        guard let object = scopeValue?.duiObjectValue else { return nil }
+    init?(JSONValue: JSONValue?) {
+        guard let object = JSONValue?.duiObjectValue else { return nil }
 
         let familyValue = Self.resolveFamily(from: object)
 
@@ -125,7 +125,7 @@ extension FontDescriptorProps {
         )
     }
 
-    private static func resolveFamily(from object: [String: ScopeValue]) -> String? {
+    private static func resolveFamily(from object: [String: JSONValue]) -> String? {
         if let direct = object["fontFamily"]?.duiStringValue {
             return direct
         }
@@ -154,20 +154,20 @@ extension FontDescriptorProps {
 }
 
 extension TextGradientProps {
-    init?(scopeValue: ScopeValue?) {
-        guard let object = scopeValue?.duiObjectValue else { return nil }
+    init?(JSONValue: JSONValue?) {
+        guard let object = JSONValue?.duiObjectValue else { return nil }
         self.init(
             type: object["type"]?.duiStringValue,
             begin: object["begin"]?.duiStringValue,
             end: object["end"]?.duiStringValue,
-            colorList: object["colorList"]?.duiArrayValue?.compactMap(TextGradientStop.init(scopeValue:))
+            colorList: object["colorList"]?.duiArrayValue?.compactMap(TextGradientStop.init(JSONValue:))
         )
     }
 }
 
 extension TextGradientStop {
-    init?(scopeValue: ScopeValue?) {
-        guard let object = scopeValue?.duiObjectValue else { return nil }
+    init?(JSONValue: JSONValue?) {
+        guard let object = JSONValue?.duiObjectValue else { return nil }
         self.init(
             color: object["color"]?.duiStringValue,
             stop: object["stop"]?.duiDoubleLikeValue
@@ -176,7 +176,7 @@ extension TextGradientStop {
 }
 
 extension ExprOr where Value == String {
-    static func fromScopeValue(_ value: ScopeValue?) -> ExprOr<String>? {
+    static func fromJSONValue(_ value: JSONValue?) -> ExprOr<String>? {
         switch value {
         case let .string(raw):
             return .value(raw)
@@ -198,7 +198,7 @@ extension ExprOr where Value == String {
 }
 
 extension ExprOr where Value == Int {
-    static func fromScopeValue(_ value: ScopeValue?) -> ExprOr<Int>? {
+    static func fromJSONValue(_ value: JSONValue?) -> ExprOr<Int>? {
         switch value {
         case let .int(number):
             return .value(number)
@@ -220,7 +220,7 @@ extension ExprOr where Value == Int {
     }
 }
 
-extension ScopeValue {
+extension JSONValue {
     var duiStringValue: String? {
         if case let .string(value) = self { return value }
         return nil
@@ -255,12 +255,12 @@ extension ScopeValue {
         }
     }
 
-    var duiObjectValue: [String: ScopeValue]? {
+    var duiObjectValue: [String: JSONValue]? {
         if case let .object(value) = self { return value }
         return nil
     }
 
-    var duiArrayValue: [ScopeValue]? {
+    var duiArrayValue: [JSONValue]? {
         if case let .array(value) = self { return value }
         return nil
     }

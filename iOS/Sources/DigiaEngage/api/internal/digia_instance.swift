@@ -1,6 +1,4 @@
 import Foundation
-import SDWebImage
-import SDWebImageSVGCoder
 #if canImport(UIKit)
 import UIKit
 #endif
@@ -9,21 +7,20 @@ import AppKit
 #endif
 
 @MainActor
-final class DigiaRuntime: ObservableObject, DigiaCEPDelegate {
-    static let shared = DigiaRuntime()
-    private static var imageCodersConfigured = false
+final class SDKInstance: ObservableObject, DigiaCEPDelegate {
+    static let shared = SDKInstance()
 
     @Published private(set) var config: DigiaConfig?
     @Published private(set) var currentScreen: String?
     @Published private(set) var sdkState: SDKState = .notInitialized
     @Published private(set) var isHostMounted = false
-    @Published private(set) var appState: [String: ScopeValue] = [:]
+    @Published private(set) var appState: [String: JSONValue] = [:]
 
     private var activePlugin: DigiaCEPPlugin?
     private(set) var fontFactory: DUIFontFactory = DefaultFontFactory()
-    private var messageSubscribers: [String: [UUID: @Sendable (ScopeValue?) -> Void]] = [:]
+    private var messageSubscribers: [String: [UUID: @Sendable (JSONValue?) -> Void]] = [:]
     private var appStateStore: AppStateStore?
-    private var localStateStores: [String: LocalStateStore] = [:]
+    private var localStateStores: [String: StateContext] = [:]
 
     let appConfigStore = AppConfigStore()
     let controller = DigiaOverlayController()
@@ -38,11 +35,6 @@ final class DigiaRuntime: ObservableObject, DigiaCEPDelegate {
     private(set) var lastBottomSheetDismissed = false
 
     private init() {
-        if !Self.imageCodersConfigured {
-            SDImageCodersManager.shared.addCoder(SDImageSVGCoder.shared)
-            Self.imageCodersConfigured = true
-        }
-
         controller.onEvent = { [weak self] event, payload in
             self?.activePlugin?.notifyEvent(event, payload: payload)
         }
@@ -52,31 +44,20 @@ final class DigiaRuntime: ObservableObject, DigiaCEPDelegate {
         }
     }
 
-    func initialize(_ config: DigiaConfig) {
+    func initialize(_ config: DigiaConfig) async throws {
         guard self.config == nil else { return }
         self.config = config
 
-        if let appConfig = try? DigiaConfigResolver(config: config).getConfig() {
-            appConfigStore.update(appConfig)
-            navigationController.setInitialRoute(appConfig.initialRoute)
-            do {
-                try initializeAppState(from: appConfig, namespace: config.apiKey)
-            } catch {
-                appConfigStore.setError(String(describing: error))
-            }
+        let resolver = DigiaConfigResolver(config: config)
+        let appConfig: DigiaAppConfig
+        if let cached = try? resolver.getConfig() {
+            appConfig = cached
         } else {
-            appConfigStore.setLoading()
-            Task { @MainActor in
-                do {
-                    let appConfig = try await DigiaConfigResolver(config: config).getConfigAsync()
-                    self.appConfigStore.update(appConfig)
-                    self.navigationController.setInitialRoute(appConfig.initialRoute)
-                    try self.initializeAppState(from: appConfig, namespace: config.apiKey)
-                } catch {
-                    self.appConfigStore.setError(String(describing: error))
-                }
-            }
+            appConfig = try await resolver.getConfigAsync()
         }
+        appConfigStore.update(appConfig)
+        navigationController.setInitialRoute(appConfig.initialRoute)
+        try initializeAppState(from: appConfig, namespace: config.apiKey)
 
         sdkState = .ready
     }
@@ -96,8 +77,8 @@ final class DigiaRuntime: ObservableObject, DigiaCEPDelegate {
         fontFactory = factory
     }
 
-    func registerPlaceholderForSlot(screenName: String, propertyID: String) -> Int? {
-        activePlugin?.registerPlaceholder(screenName: screenName, propertyID: propertyID)
+    func registerPlaceholderForSlot(propertyID: String) -> Int? {
+        activePlugin?.registerPlaceholder(propertyID: propertyID)
     }
 
     func deregisterPlaceholderForSlot(_ id: Int) {
@@ -114,10 +95,10 @@ final class DigiaRuntime: ObservableObject, DigiaCEPDelegate {
 
     func onCampaignTriggered(_ payload: InAppPayload) {
         let displayType = payload.content.type.lowercased()
-        let placementID = payload.content.placementId
+        let placementKey = payload.content.placementKey
 
-        if displayType == "inline", let placementID {
-            inlineController.setCampaign(placementID, payload: payload)
+        if displayType == "inline", let placementKey {
+            inlineController.setCampaign(placementKey, payload: payload)
         } else {
             controller.show(payload)
         }
@@ -128,6 +109,13 @@ final class DigiaRuntime: ObservableObject, DigiaCEPDelegate {
             controller.dismiss()
         }
         inlineController.removeCampaign(campaignID)
+    }
+
+    /// Sets the stored config directly, simulating a completed initialization, without any
+    /// network calls or async work. Intended for tests that need to pre-seed state synchronously
+    /// before verifying guard-level idempotency (avoids suspension-point race conditions).
+    func markInitializedForTesting(with config: DigiaConfig) {
+        self.config = config
     }
 
     func resetForTesting() {
@@ -159,7 +147,7 @@ final class DigiaRuntime: ObservableObject, DigiaCEPDelegate {
     }
 
     @discardableResult
-    func addMessageListener(name: String, listener: @escaping @Sendable (ScopeValue?) -> Void) -> UUID {
+    func addMessageListener(name: String, listener: @escaping @Sendable (JSONValue?) -> Void) -> UUID {
         let token = UUID()
         var listeners = messageSubscribers[name, default: [:]]
         listeners[token] = listener
@@ -173,13 +161,13 @@ final class DigiaRuntime: ObservableObject, DigiaCEPDelegate {
         messageSubscribers[name] = listeners
     }
 
-    func publishMessage(name: String, payload: ScopeValue?) {
+    func publishMessage(name: String, payload: JSONValue?) {
         messageSubscribers[name]?.values.forEach { listener in
             listener(payload)
         }
     }
 
-    func setAppState(key: String, value: ScopeValue) throws {
+    func setAppState(key: String, value: JSONValue) throws {
         guard let appStateStore else {
             throw AppStateStoreError.missingKey(key)
         }
@@ -191,17 +179,17 @@ final class DigiaRuntime: ObservableObject, DigiaCEPDelegate {
         }
     }
 
-    func registerLocalStateStore(_ store: LocalStateStore) {
+    func registerStateContext(_ store: StateContext) {
         guard let namespace = store.namespace, !namespace.isEmpty else { return }
         localStateStores[namespace] = store
     }
 
-    func unregisterLocalStateStore(_ store: LocalStateStore) {
+    func unregisterStateContext(_ store: StateContext) {
         guard let namespace = store.namespace, localStateStores[namespace] === store else { return }
         localStateStores.removeValue(forKey: namespace)
     }
 
-    func localStateStore(named namespace: String) -> LocalStateStore? {
+    func localStateStore(named namespace: String) -> StateContext? {
         localStateStores[namespace]
     }
 

@@ -5,6 +5,7 @@ let package = Package(
     name: "DigiaEngage",
     platforms: [
         .iOS(.v16),
+        .macOS(.v13),
     ],
     products: [
         .library(
@@ -14,8 +15,6 @@ let package = Package(
     ],
     dependencies: [
         .package(url: "git@github.com:Digia-Technology-Private-Limited/digia_expr_swift.git", branch: "main"),
-        .package(url: "https://github.com/SDWebImage/SDWebImageSwiftUI.git", from: "3.1.3"),
-        .package(url: "https://github.com/SDWebImage/SDWebImageSVGCoder.git", from: "1.7.1"),
         .package(url: "https://github.com/airbnb/lottie-spm.git", from: "4.5.0"),
         .package(url: "https://github.com/AndreaMiotto/PartialSheet.git", from: "3.1.1"),
         .package(url: "https://github.com/elai950/AlertToast.git", from: "1.3.9"),
@@ -26,8 +25,6 @@ let package = Package(
             name: "DigiaEngage",
             dependencies: [
                 .product(name: "DigiaExpr", package: "digia_expr_swift"),
-                .product(name: "SDWebImageSwiftUI", package: "SDWebImageSwiftUI"),
-                .product(name: "SDWebImageSVGCoder", package: "SDWebImageSVGCoder"),
                 .product(name: "Lottie", package: "lottie-spm"),
                 .product(name: "PartialSheet", package: "PartialSheet", condition: .when(platforms: [.iOS])),
                 .product(name: "AlertToast", package: "AlertToast", condition: .when(platforms: [.iOS])),

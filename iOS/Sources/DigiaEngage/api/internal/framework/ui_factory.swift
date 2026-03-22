@@ -8,8 +8,8 @@ final class DUIFactory {
 
     private init() {}
 
-    func createPage(_ id: String, pageArgs: [String: ScopeValue] = [:]) -> AnyView {
-        guard let page = DigiaRuntime.shared.appConfigStore.page(id),
+    func createPage(_ id: String, pageArgs: [String: JSONValue] = [:]) -> AnyView {
+        guard let page = SDKInstance.shared.appConfigStore.page(id),
               let root = page.layout?.renderRoot else {
             return AnyView(EmptyView())
         }
@@ -27,11 +27,10 @@ final class DUIFactory {
 
     func createComponent(
         _ id: String,
-        args: [String: ScopeValue] = [:],
-        parentStore: LocalStateStore? = nil,
-        parentHierarchy: [String] = []
+        args: [String: JSONValue] = [:],
+        parentStore: StateContext? = nil
     ) -> AnyView {
-        guard let component = DigiaRuntime.shared.appConfigStore.component(id),
+        guard let component = SDKInstance.shared.appConfigStore.component(id),
               let root = component.layout?.renderRoot else {
             return AnyView(EmptyView())
         }
@@ -43,8 +42,7 @@ final class DUIFactory {
                 root: root,
                 registry: widgetRegistry,
                 args: args,
-                parentStore: parentStore,
-                parentHierarchy: parentHierarchy
+                parentStore: parentStore
             )
         )
     }

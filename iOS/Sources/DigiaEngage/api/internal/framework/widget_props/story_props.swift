@@ -14,8 +14,8 @@ struct StoryIndicatorProps: Decodable, Equatable, Sendable {
 }
 
 struct StoryProps: Decodable, Equatable, Sendable {
-    let dataSource: ScopeValue?
-    let controller: ScopeValue?
+    let dataSource: JSONValue?
+    let controller: JSONValue?
     let onSlideDown: ActionFlow?
     let onSlideStart: ActionFlow?
     let onLeftTap: ActionFlow?

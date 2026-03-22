@@ -1,5 +1,4 @@
 import DigiaExpr
-import SDWebImageSwiftUI
 import SwiftUI
 #if canImport(UIKit)
 import UIKit
@@ -64,8 +63,7 @@ private struct InternalImageView: View {
         if let aspect {
             current = AnyView(current.aspectRatio(aspect, contentMode: contentMode))
         } else {
-            // Reserve some vertical space even before the first successful load.
-            current = AnyView(current.aspectRatio(1, contentMode: contentMode))
+            current = AnyView(current.aspectRatio(contentMode: contentMode))
         }
 
         current = AnyView(
@@ -90,45 +88,11 @@ private struct InternalImageView: View {
         }
 
         if source.hasPrefix("http"), let url = URL(string: source) {
-            return AnyView(
-                WebImage(url: url)
-                    .onSuccess { image, _, _ in
-                        loadFailed = false
-                        #if canImport(UIKit)
-                        let size = image.size
-                        if size.height > 0 {
-                            let ratio = size.width / size.height
-                            intrinsicAspectRatio = ratio
-                            Self.aspectRatioCache[source] = ratio
-                        }
-                        #endif
-                    }
-                    .onFailure { _ in
-                        loadFailed = true
-                    }
-                    .resizable()
-            )
+            return AnyView(remoteImageView(url: url))
         }
 
         if let resourceURL = bundleResourceURL(for: source) {
-            return AnyView(
-                WebImage(url: resourceURL)
-                    .onSuccess { image, _, _ in
-                        loadFailed = false
-                        #if canImport(UIKit)
-                        let size = image.size
-                        if size.height > 0 {
-                            let ratio = size.width / size.height
-                            intrinsicAspectRatio = ratio
-                            Self.aspectRatioCache[source] = ratio
-                        }
-                        #endif
-                    }
-                    .onFailure { _ in
-                        loadFailed = true
-                    }
-                    .resizable()
-            )
+            return AnyView(remoteImageView(url: resourceURL))
         }
 
         if let svgColor = payload.evalColor(props.svgColor) {
@@ -149,7 +113,14 @@ private struct InternalImageView: View {
         case "asset":
             if let src = props.placeholderSrc, !src.isEmpty {
                 if let resourceURL = bundleResourceURL(for: src) {
-                    WebImage(url: resourceURL).resizable()
+                    AsyncImage(url: resourceURL) { phase in
+                        switch phase {
+                        case .success(let image):
+                            image.resizable()
+                        default:
+                            Rectangle().fill(Color.clear)
+                        }
+                    }
                 } else {
                     Image(src, bundle: .module).resizable()
                 }
@@ -158,7 +129,14 @@ private struct InternalImageView: View {
             }
         case "network":
             if let src = props.placeholderSrc, let url = URL(string: src), src.hasPrefix("http") {
-                WebImage(url: url).resizable()
+                AsyncImage(url: url) { phase in
+                    switch phase {
+                    case .success(let image):
+                        image.resizable()
+                    default:
+                        Rectangle().fill(Color.clear)
+                    }
+                }
             } else {
                 Rectangle().fill(Color.clear)
             }
@@ -178,7 +156,7 @@ private struct InternalImageView: View {
     private func errorView() -> AnyView {
         if let errorSrc = props.errorImage?.errorSrc, !errorSrc.isEmpty {
             if let resourceURL = bundleResourceURL(for: errorSrc) {
-                return AnyView(WebImage(url: resourceURL).resizable())
+                return AnyView(remoteImageView(url: resourceURL))
             }
             return AnyView(Image(errorSrc, bundle: .module).resizable())
         }
@@ -216,5 +194,25 @@ private struct InternalImageView: View {
             withExtension: fileExtension,
             subdirectory: subdirectory == "." ? nil : subdirectory
         )
+    }
+
+    private func remoteImageView(url: URL) -> some View {
+        AsyncImage(url: url) { phase in
+            switch phase {
+            case .success(let image):
+                image
+                    .resizable()
+                    .onAppear {
+                        loadFailed = false
+                    }
+            case .failure:
+                Color.clear
+                    .onAppear {
+                        loadFailed = true
+                    }
+            default:
+                Color.clear
+            }
+        }
     }
 }

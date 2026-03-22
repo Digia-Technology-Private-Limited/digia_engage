@@ -1,5 +1,4 @@
 import Foundation
-import Darwin
 
 private struct DynamicCodingKey: CodingKey {
     var stringValue: String
@@ -11,26 +10,13 @@ private struct DynamicCodingKey: CodingKey {
 
 enum VWData: Decodable, Equatable, Sendable {
     case widget(VWNodeData)
-    case state(VWStateData)
     case component(VWComponentData)
 
     init(from decoder: Decoder) throws {
-        let depth = VWDataDecodeDepth.enter()
-        defer { VWDataDecodeDepth.exit() }
-        if depth > VWDataDecodeDepth.maxDepth {
-            throw DecodingError.dataCorrupted(
-                DecodingError.Context(
-                    codingPath: [],
-                    debugDescription: "VWData exceeded max decode recursion depth (\(VWDataDecodeDepth.maxDepth))."
-                )
-            )
-        }
-
         let container = try decoder.container(keyedBy: CodingKeys.self)
-        switch try container.decodeIfPresent(String.self, forKey: .category) ?? "widget" {
-        case "state":
-            self = .state(try VWStateData(from: decoder))
-        case "component":
+        let raw = try container.decodeIfPresent(String.self, forKey: .category)
+        switch NodeType.fromString(raw) {
+        case .component:
             self = .component(try VWComponentData(from: decoder))
         default:
             self = .widget(try VWNodeData(from: decoder))
@@ -40,8 +26,6 @@ enum VWData: Decodable, Equatable, Sendable {
     var refName: String? {
         switch self {
         case let .widget(data):
-            return data.refName
-        case let .state(data):
             return data.refName
         case let .component(data):
             return data.refName
@@ -53,32 +37,6 @@ enum VWData: Decodable, Equatable, Sendable {
     }
 }
 
-private enum VWDataDecodeDepth {
-    private static let key: pthread_key_t = {
-        var k = pthread_key_t()
-        pthread_key_create(&k, nil)
-        return k
-    }()
-
-    static var maxDepth: Int {
-        return 512
-    }
-
-    static func enter() -> Int {
-        let current = pthread_getspecific(key)
-        let depth = (current == nil) ? 0 : Int(bitPattern: current)
-        let next = depth + 1
-        pthread_setspecific(key, UnsafeMutableRawPointer(bitPattern: next))
-        return next
-    }
-
-    static func exit() {
-        let current = pthread_getspecific(key)
-        let depth = (current == nil) ? 0 : Int(bitPattern: current)
-        let next = max(0, depth - 1)
-        pthread_setspecific(key, UnsafeMutableRawPointer(bitPattern: next))
-    }
-}
 
 struct VWNodeData: Decodable, Equatable, Sendable {
     let category: String
@@ -86,8 +44,10 @@ struct VWNodeData: Decodable, Equatable, Sendable {
     let props: WidgetNodeProps
     let commonProps: CommonProps?
     let parentProps: ParentProps?
-    let childGroups: [String: [VWData]]
-    let repeatData: ScopeValue?
+    /// Children stored as raw JSONValue to avoid recursive JSONDecoder stack frames.
+    /// The registry decodes each child one level at a time when building the widget tree.
+    let childGroups: [String: [JSONValue]]
+    let repeatData: JSONValue?
     let refName: String?
 
     init(
@@ -96,8 +56,8 @@ struct VWNodeData: Decodable, Equatable, Sendable {
         props: WidgetNodeProps,
         commonProps: CommonProps?,
         parentProps: ParentProps?,
-        childGroups: [String: [VWData]],
-        repeatData: ScopeValue?,
+        childGroups: [String: [JSONValue]],
+        repeatData: JSONValue?,
         refName: String?
     ) {
         self.category = category
@@ -117,9 +77,9 @@ struct VWNodeData: Decodable, Equatable, Sendable {
         commonProps = try container.decodeIfPresent(CommonProps.self, forKey: .containerProps)
         parentProps = try container.decodeIfPresent(ParentProps.self, forKey: .parentProps)
 
-        if let repeatValue = try container.decodeIfPresent(ScopeValue.self, forKey: .repeatData) {
+        if let repeatValue = try container.decodeIfPresent(JSONValue.self, forKey: .repeatData) {
             repeatData = repeatValue
-        } else if let dataRefValue = try container.decodeIfPresent(ScopeValue.self, forKey: .dataRef) {
+        } else if let dataRefValue = try container.decodeIfPresent(JSONValue.self, forKey: .dataRef) {
             repeatData = dataRefValue
         } else {
             repeatData = nil
@@ -157,11 +117,11 @@ struct VWNodeData: Decodable, Equatable, Sendable {
         case "digia/stack":
             return .stack(try container.decode(StackProps.self, forKey: .props))
         case "digia/text":
-            // Prefer ScopeValue-based decode to avoid decoder recursion issues on large payloads.
-            if let textScope = try container.decodeIfPresent(ScopeValue.self, forKey: .props) {
-                return .text(TextProps(scopeValue: textScope))
+            // Prefer JSONValue-based decode to avoid decoder recursion issues on large payloads.
+            if let textScope = try container.decodeIfPresent(JSONValue.self, forKey: .props) {
+                return .text(TextProps(JSONValue: textScope))
             }
-            return .text(TextProps(scopeValue: nil))
+            return .text(TextProps(JSONValue: nil))
         case "digia/richText":
             return .richText(try container.decode(RichTextProps.self, forKey: .props))
         case "digia/button":
@@ -202,49 +162,11 @@ struct VWNodeData: Decodable, Equatable, Sendable {
     }
 }
 
-struct VWStateData: Decodable, Equatable, Sendable {
-    let category: String
-    let initStateDefs: [String: ScopeValue]
-    let childGroups: [String: [VWData]]
-    let parentProps: ParentProps?
-    let refName: String?
-
-    init(
-        category: String,
-        initStateDefs: [String: ScopeValue],
-        childGroups: [String: [VWData]],
-        parentProps: ParentProps?,
-        refName: String?
-    ) {
-        self.category = category
-        self.initStateDefs = initStateDefs
-        self.childGroups = childGroups
-        self.parentProps = parentProps
-        self.refName = refName
-    }
-
-    init(from decoder: Decoder) throws {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-        category = try container.decodeIfPresent(String.self, forKey: .category) ?? "state"
-        initStateDefs = try container.decodeIfPresent([String: ScopeValue].self, forKey: .initStateDefs) ?? [:]
-        childGroups = try ChildGroups(from: decoder).value
-        parentProps = try container.decodeIfPresent(ParentProps.self, forKey: .parentProps)
-        refName = try container.decodeIfPresent(String.self, forKey: .varName) ?? container.decodeIfPresent(String.self, forKey: .refName)
-    }
-
-    private enum CodingKeys: String, CodingKey {
-        case category
-        case initStateDefs
-        case parentProps
-        case varName
-        case refName
-    }
-}
 
 struct VWComponentData: Decodable, Equatable, Sendable {
     let category: String
     let id: String
-    let args: [String: ScopeValue]?
+    let args: [String: JSONValue]?
     let commonProps: CommonProps?
     let parentProps: ParentProps?
     let refName: String?
@@ -262,7 +184,7 @@ struct VWComponentData: Decodable, Equatable, Sendable {
     init(
         category: String,
         id: String,
-        args: [String: ScopeValue]?,
+        args: [String: JSONValue]?,
         commonProps: CommonProps?,
         parentProps: ParentProps?,
         refName: String?
@@ -279,7 +201,7 @@ struct VWComponentData: Decodable, Equatable, Sendable {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         category = try container.decodeIfPresent(String.self, forKey: .category) ?? "component"
         id = try container.decode(String.self, forKey: .componentId)
-        args = try container.decodeIfPresent([String: ScopeValue].self, forKey: .componentArgs)
+        args = try container.decodeIfPresent([String: JSONValue].self, forKey: .componentArgs)
         commonProps = try container.decodeIfPresent(CommonProps.self, forKey: .containerProps)
         parentProps = try container.decodeIfPresent(ParentProps.self, forKey: .parentProps)
         refName = try container.decodeIfPresent(String.self, forKey: .varName) ?? container.decodeIfPresent(String.self, forKey: .refName)
@@ -327,11 +249,11 @@ enum WidgetNodeProps: Equatable, Sendable {
         case "digia/stack":
             decoded = .stack(try container.decodeIfPresent(StackProps.self, forKey: key) ?? StackProps(childAlignment: nil, fit: nil))
         case "digia/text":
-            // Work around deep nested decoder crashes by decoding text props through ScopeValue.
-            if let textScope = try container.decodeIfPresent(ScopeValue.self, forKey: key) {
-                decoded = .text(TextProps(scopeValue: textScope))
+            // Work around deep nested decoder crashes by decoding text props through JSONValue.
+            if let textScope = try container.decodeIfPresent(JSONValue.self, forKey: key) {
+                decoded = .text(TextProps(JSONValue: textScope))
             } else {
-                decoded = .text(TextProps(scopeValue: nil))
+                decoded = .text(TextProps(JSONValue: nil))
             }
         case "digia/richText":
             decoded = .richText(try container.decode(RichTextProps.self, forKey: key))
@@ -375,7 +297,7 @@ enum WidgetNodeProps: Equatable, Sendable {
 }
 
 private struct ChildGroups: Decodable, Equatable, Sendable {
-    let value: [String: [VWData]]
+    let value: [String: [JSONValue]]
 
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
@@ -404,20 +326,20 @@ private struct ChildGroups: Decodable, Equatable, Sendable {
     private static func decodeGroupValue(
         from container: KeyedDecodingContainer<CodingKeys>,
         key: CodingKeys
-    ) throws -> [String: [VWData]] {
+    ) throws -> [String: [JSONValue]] {
         let groupDecoder = try container.superDecoder(forKey: key)
 
-        // Decide whether this group is a dictionary-of-arrays or a flat array, without
-        // forcing multiple deep decode attempts (which can blow the stack on huge payloads).
+        // Decode children as JSONValue (not VWData) to avoid recursive JSONDecoder stack
+        // frames for deeply nested widget trees. The registry decodes VWData lazily.
         if let keyed = try? groupDecoder.container(keyedBy: DynamicCodingKey.self) {
-            var result: [String: [VWData]] = [:]
+            var result: [String: [JSONValue]] = [:]
             result.reserveCapacity(keyed.allKeys.count)
             for k in keyed.allKeys {
                 var arrayContainer = try keyed.nestedUnkeyedContainer(forKey: k)
-                var items: [VWData] = []
+                var items: [JSONValue] = []
                 items.reserveCapacity(arrayContainer.count ?? 0)
                 while !arrayContainer.isAtEnd {
-                    items.append(try arrayContainer.decode(VWData.self))
+                    items.append(try arrayContainer.decode(JSONValue.self))
                 }
                 result[k.stringValue] = items
             }
@@ -425,10 +347,10 @@ private struct ChildGroups: Decodable, Equatable, Sendable {
         }
 
         if var unkeyed = try? groupDecoder.unkeyedContainer() {
-            var items: [VWData] = []
+            var items: [JSONValue] = []
             items.reserveCapacity(unkeyed.count ?? 0)
             while !unkeyed.isAtEnd {
-                items.append(try unkeyed.decode(VWData.self))
+                items.append(try unkeyed.decode(JSONValue.self))
             }
             return ["children": items]
         }

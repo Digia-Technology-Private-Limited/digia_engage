@@ -1,10 +1,9 @@
-import DigiaExpr
 import Foundation
 
 struct SetAppStateAction: Sendable {
     let actionType: ActionType = .setAppState
     let disableActionIf: ExprOr<Bool>?
-    let data: [String: ScopeValue]
+    let data: [String: JSONValue]
 }
 
 @MainActor
@@ -14,7 +13,7 @@ struct SetAppStateProcessor {
     func execute(action: SetAppStateAction, context: ActionProcessorContext) async throws {
         if let key = action.data.string("stateKey") ?? action.data.string("key") {
             let value = resolveDynamicValue(action.data["value"] ?? .null, context: context.scopeContext)
-            try DigiaRuntime.shared.setAppState(key: key, value: value)
+            try SDKInstance.shared.setAppState(key: key, value: value)
             return
         }
 
@@ -26,7 +25,7 @@ struct SetAppStateProcessor {
                     ?? updateObject.string("key") else { continue }
                 let value = resolveDynamicValue(updateObject["newValue"] ?? updateObject["value"] ?? .null, context: context.scopeContext)
                 do {
-                    try DigiaRuntime.shared.setAppState(key: key, value: value)
+                    try SDKInstance.shared.setAppState(key: key, value: value)
                 } catch {
                     continue
                 }
@@ -37,8 +36,8 @@ struct SetAppStateProcessor {
         throw ActionExecutionError.unsupportedContext(processorType)
     }
 
-    private func resolveDynamicValue(_ value: ScopeValue, context: (any ExprContext)?) -> ScopeValue {
-        let resolved = ScopeValueResolver.resolve(value, in: context)
+    private func resolveDynamicValue(_ value: JSONValue, context: (any ExprContext)?) -> JSONValue {
+        let resolved = ExpressionUtil.evaluateNestedExpressions(value, in: context)
         if resolved != value {
             return resolved
         }
@@ -49,7 +48,7 @@ struct SetAppStateProcessor {
         }
         let inner = String(raw.dropFirst(2).dropLast()).trimmingCharacters(in: .whitespacesAndNewlines)
         if let number = NSExpression(format: inner).expressionValue(with: nil, context: nil) {
-            return ScopeValueResolver.scopeValue(from: number)
+            return ExpressionUtil.jsonValue(from: number)
         }
         return resolved
     }

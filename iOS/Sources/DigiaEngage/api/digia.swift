@@ -2,31 +2,32 @@ import Foundation
 
 @MainActor
 public enum Digia {
-    public static func initialize(_ config: DigiaConfig) {
-        DigiaRuntime.shared.initialize(config)
+    /// Initializes the Digia SDK.
+    public static func initialize(_ config: DigiaConfig) async throws {
+        try await SDKInstance.shared.initialize(config)
     }
 
     public static func register(_ plugin: DigiaCEPPlugin) {
-        DigiaRuntime.shared.register(plugin)
+        SDKInstance.shared.register(plugin)
     }
 
     public static func setCurrentScreen(_ name: String) {
-        DigiaRuntime.shared.setCurrentScreen(name)
+        SDKInstance.shared.setCurrentScreen(name)
     }
 
     public static func registerFontFactory(_ factory: DUIFontFactory) {
-        DigiaRuntime.shared.registerFontFactory(factory)
+        SDKInstance.shared.registerFontFactory(factory)
     }
 
     @discardableResult
     public static func onMessage(
         _ name: String,
-        listener: @escaping @Sendable (ScopeValue?) -> Void
+        listener: @escaping @Sendable (JSONValue?) -> Void
     ) -> UUID {
-        DigiaRuntime.shared.addMessageListener(name: name, listener: listener)
+        SDKInstance.shared.addMessageListener(name: name, listener: listener)
     }
 
     public static func removeMessageListener(_ name: String, token: UUID) {
-        DigiaRuntime.shared.removeMessageListener(name: name, token: token)
+        SDKInstance.shared.removeMessageListener(name: name, token: token)
     }
 }

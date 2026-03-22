@@ -3,7 +3,7 @@ import Foundation
 struct DelayAction: Sendable {
     let actionType: ActionType = .delay
     let disableActionIf: ExprOr<Bool>?
-    let data: [String: ScopeValue]
+    let data: [String: JSONValue]
 }
 
 @MainActor

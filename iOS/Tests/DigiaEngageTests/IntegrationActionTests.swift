@@ -3,12 +3,12 @@ import Foundation
 import Testing
 
 @MainActor
-@Suite("Integration Actions")
+@Suite("Integration Actions", .serialized)
 struct IntegrationActionTests {
     @Test("postMessage publishes payload to Digia public listener")
     func postMessagePublishes() async throws {
-        DigiaRuntime.shared.resetForTesting()
-        let received = ScopeValueBox()
+        SDKInstance.shared.resetForTesting()
+        let received = JSONValueBox()
         let token = Digia.onMessage("checkout") { payload in
             received.value = payload
         }
@@ -25,13 +25,13 @@ struct IntegrationActionTests {
 
     @Test("share action stores the share request")
     func shareActionStoresRequest() async throws {
-        DigiaRuntime.shared.resetForTesting()
+        SDKInstance.shared.resetForTesting()
         try await ShareContentProcessor().execute(
             action: ShareContentAction(disableActionIf: nil, data: ["message": .string("Shared from Action"), "subject": .string("TEST")]),
             context: context()
         )
-        #expect(DigiaRuntime.shared.lastShareRequest?.message == "Shared from Action")
-        #expect(DigiaRuntime.shared.lastShareRequest?.subject == "TEST")
+        #expect(SDKInstance.shared.lastShareRequest?.message == "Shared from Action")
+        #expect(SDKInstance.shared.lastShareRequest?.subject == "TEST")
     }
 
     @Test("callRestApi executes nested onSuccess action flow")
@@ -42,7 +42,7 @@ struct IntegrationActionTests {
         try Data(#"{"hello":"world"}"#.utf8).write(to: responseURL)
         defer { try? FileManager.default.removeItem(at: fixtureDir) }
 
-        DigiaRuntime.shared.resetForTesting()
+        SDKInstance.shared.resetForTesting()
         let configPath = try makeTempConfigFile("""
         {
           "appSettings": { "initialRoute": "home" },
@@ -59,7 +59,7 @@ struct IntegrationActionTests {
           "theme": { "colors": { "light": {} } }
         }
         """)
-        Digia.initialize(
+        try await Digia.initialize(
             DigiaConfig(
                 apiKey: "rest_test",
                 flavor: .release(initStrategy: .localFirst, appConfigPath: configPath, functionsPath: "unused")
@@ -81,21 +81,17 @@ struct IntegrationActionTests {
                     ])
                 ]
             ),
-            context: context(appConfig: DigiaRuntime.shared.appConfigStore)
+            context: context(appConfig: SDKInstance.shared.appConfigStore)
         )
 
-        #expect(DigiaRuntime.shared.controller.activeToast?.message == "world")
+        #expect(SDKInstance.shared.controller.activeToast?.message == "world")
     }
 
     private func context(appConfig: AppConfigStore = AppConfigStore()) -> ActionProcessorContext {
-        ActionProcessorContext(
-            appConfig: appConfig,
-            widgetHierarchy: [],
-            currentEntityId: nil
-        )
+        ActionProcessorContext(appConfig: appConfig)
     }
 }
 
-private final class ScopeValueBox: @unchecked Sendable {
-    var value: ScopeValue?
+private final class JSONValueBox: @unchecked Sendable {
+    var value: JSONValue?
 }

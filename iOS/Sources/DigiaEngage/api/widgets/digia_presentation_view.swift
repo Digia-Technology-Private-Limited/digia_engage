@@ -5,10 +5,10 @@ struct DigiaPresentationView: View {
     let presentation: DigiaViewPresentation
 
     var body: some View {
-        if DigiaRuntime.shared.appConfigStore.component(presentation.viewID) != nil {
-            DUIFactory.shared.createComponent(presentation.viewID)
-        } else if DigiaRuntime.shared.appConfigStore.page(presentation.viewID) != nil {
-            DUIFactory.shared.createPage(presentation.viewID)
+        if SDKInstance.shared.appConfigStore.component(presentation.viewID) != nil {
+            DUIFactory.shared.createComponent(presentation.viewID, args: presentation.args)
+        } else if SDKInstance.shared.appConfigStore.page(presentation.viewID) != nil {
+            DUIFactory.shared.createPage(presentation.viewID, pageArgs: presentation.args)
         } else {
             VStack(alignment: .leading, spacing: 12) {
                 if let title = presentation.title {

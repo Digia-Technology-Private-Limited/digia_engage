@@ -3,12 +3,12 @@ import SwiftUI
 @MainActor
 final class VWComponentHost: VirtualLeafStatelessWidget<Void> {
     let componentId: String
-    let args: [String: ScopeValue]
+    let args: [String: JSONValue]
     let registry: VirtualWidgetRegistry
 
     init(
         componentId: String,
-        args: [String: ScopeValue],
+        args: [String: JSONValue],
         commonProps: CommonProps?,
         parentProps: ParentProps?,
         parent: VirtualWidget?,
@@ -28,22 +28,10 @@ final class VWComponentHost: VirtualLeafStatelessWidget<Void> {
     }
 
     override func render(_ payload: RenderPayload) -> AnyView {
-        // Prevent component self-recursion (direct or indirect) from causing stack overflows.
-        if payload.widgetHierarchy.contains(componentId) {
-            #if DEBUG
-            NSLog(
-                "[DigiaEngage] Recursive component reference blocked for id=%@ hierarchy=%@",
-                componentId,
-                payload.widgetHierarchy.joined(separator: " -> ")
-            )
-            #endif
-            return empty()
-        }
         return DUIFactory.shared.createComponent(
             componentId,
             args: args,
-            parentStore: payload.localStateStore,
-            parentHierarchy: payload.widgetHierarchy
+            parentStore: payload.localStateStore
         )
     }
 }

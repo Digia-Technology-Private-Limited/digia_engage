@@ -6,7 +6,7 @@ final class VWButton: VirtualLeafStatelessWidget<ButtonProps> {
         let isDisabled = (payload.eval(props.isDisabled) ?? false) || props.onClick == nil
         let style = isDisabled ? props.disabledStyle : props.defaultStyle
         let disabledStyle = props.disabledStyle
-        let fontFactory = DigiaRuntime.shared.fontFactory
+        let fontFactory = SDKInstance.shared.fontFactory
         let font = TextStyleUtil.font(
             textStyle: props.text?.textStyle,
             appConfigStore: payload.appConfigStore,

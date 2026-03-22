@@ -1,12 +1,12 @@
 import Foundation
 
-public indirect enum ScopeValue: Codable, Equatable, Sendable {
+public indirect enum JSONValue: Codable, Equatable, Sendable {
     case string(String)
     case int(Int)
     case double(Double)
     case bool(Bool)
-    case array([ScopeValue])
-    case object([String: ScopeValue])
+    case array([JSONValue])
+    case object([String: JSONValue])
     case null
 
     public init(from decoder: Decoder) throws {
@@ -14,22 +14,22 @@ public indirect enum ScopeValue: Codable, Equatable, Sendable {
         // This avoids deep type-mismatch error construction/backtracking in JSONDecoder,
         // which can crash on very large / deeply nested payloads.
         if let keyed = try? decoder.container(keyedBy: DynamicCodingKey.self) {
-            var object: [String: ScopeValue] = [:]
+            var object: [String: JSONValue] = [:]
             object.reserveCapacity(keyed.allKeys.count)
             for key in keyed.allKeys {
                 let valueDecoder = try keyed.superDecoder(forKey: key)
-                object[key.stringValue] = try ScopeValue(from: valueDecoder)
+                object[key.stringValue] = try JSONValue(from: valueDecoder)
             }
             self = .object(object)
             return
         }
 
         if var unkeyed = try? decoder.unkeyedContainer() {
-            var array: [ScopeValue] = []
+            var array: [JSONValue] = []
             array.reserveCapacity(unkeyed.count ?? 0)
             while !unkeyed.isAtEnd {
                 let valueDecoder = try unkeyed.superDecoder()
-                array.append(try ScopeValue(from: valueDecoder))
+                array.append(try JSONValue(from: valueDecoder))
             }
             self = .array(array)
             return
@@ -58,7 +58,7 @@ public indirect enum ScopeValue: Codable, Equatable, Sendable {
         }
 
         throw DecodingError.dataCorrupted(
-            DecodingError.Context(codingPath: [], debugDescription: "Unsupported JSON value for ScopeValue")
+            DecodingError.Context(codingPath: [], debugDescription: "Unsupported JSON value for JSONValue")
         )
     }
 

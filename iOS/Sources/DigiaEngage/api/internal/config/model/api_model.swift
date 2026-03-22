@@ -5,8 +5,8 @@ struct APIModel: Decodable, Equatable, Sendable {
     let name: String?
     let url: String
     let method: String
-    let headers: [String: ScopeValue]?
-    let body: ScopeValue?
+    let headers: [String: JSONValue]?
+    let body: JSONValue?
     let bodyType: String?
     let variables: [String: ViewStateDefinition]?
 
@@ -15,8 +15,8 @@ struct APIModel: Decodable, Equatable, Sendable {
         name: String?,
         url: String,
         method: String,
-        headers: [String: ScopeValue]?,
-        body: ScopeValue?,
+        headers: [String: JSONValue]?,
+        body: JSONValue?,
         bodyType: String?,
         variables: [String: ViewStateDefinition]?
     ) {

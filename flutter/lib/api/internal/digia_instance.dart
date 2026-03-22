@@ -149,12 +149,14 @@ class DigiaInstance with WidgetsBindingObserver implements DigiaCEPDelegate {
     }
 
     final displayType =
-        (payload.content['command'] as String? ?? 'SHOW_INLINE');
-    final placementId = payload.content['placementId'] as String?;
+        (payload.content['command'] as String? ?? '').trim().toUpperCase();
+    final placementKey = payload.content['placementKey'] as String?;
 
-    if (displayType == 'SHOW_INLINE' && placementId != null) {
+    if (displayType == 'SHOW_INLINE' &&
+        placementKey != null &&
+        placementKey.isNotEmpty) {
       // Store inline campaign for DigiaSlot to render.
-      inlineController.setCampaign(placementId, payload);
+      inlineController.setCampaign(placementKey, payload);
     } else {
       // Modal campaigns: route to DigiaHost via the shared controller.
       _controller.show(payload);
@@ -217,8 +219,10 @@ class InlineCampaignController extends ChangeNotifier {
 
   /// Server-driven removal — called from [DigiaInstance.onCampaignInvalidated].
   /// Matches by placement key (which equals the payloadId stored by the server).
-  void removeCampaign(String placementId) {
-    _campaigns.removeWhere((key, payload) => key == placementId);
+  void removeCampaign(String campaignId) {
+    _campaigns.removeWhere(
+      (key, payload) => key == campaignId || payload.id == campaignId,
+    );
     notifyListeners();
   }
 

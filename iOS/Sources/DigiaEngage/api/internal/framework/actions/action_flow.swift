@@ -38,10 +38,10 @@ struct ActionFlow: Codable, Equatable, Sendable {
 
 struct ActionStep: Codable, Equatable, Sendable {
     let type: String
-    let data: [String: ScopeValue]?
+    let data: [String: JSONValue]?
     let disableActionIf: ExprOr<Bool>?
 
-    init(type: String, data: [String: ScopeValue]? = nil, disableActionIf: ExprOr<Bool>? = nil) {
+    init(type: String, data: [String: JSONValue]? = nil, disableActionIf: ExprOr<Bool>? = nil) {
         self.type = type
         self.data = data
         self.disableActionIf = disableActionIf

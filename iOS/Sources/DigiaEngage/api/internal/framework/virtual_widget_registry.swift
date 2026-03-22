@@ -95,15 +95,12 @@ final class DefaultVirtualWidgetRegistry: VirtualWidgetRegistry {
                 return VWUnsupported(type: node.type, detail: detail, commonProps: node.commonProps, parentProps: node.parentProps, parent: parent, refName: node.refName)
             }
 
-        case let .state(state):
-            return VWStateContainer(initStateDefs: state.initStateDefs, parentProps: state.parentProps, childGroups: try createChildGroups(state.childGroups, parent, self), parent: parent, refName: state.refName)
-
         case let .component(component):
             return VWComponentHost(componentId: component.id, args: component.args ?? [:], commonProps: component.commonProps, parentProps: component.parentProps, parent: parent, refName: component.refName, registry: self)
         }
     }
 
-    private func attachChildGroupsIfNeeded(_ nodeGroups: [String: [VWData]], to widget: VirtualWidget) throws {
+    private func attachChildGroupsIfNeeded(_ nodeGroups: [String: [JSONValue]], to widget: VirtualWidget) throws {
         guard !nodeGroups.isEmpty else { return }
         let groups = try createChildGroups(nodeGroups, widget, self)
         (widget as? ChildGroupsAssignable)?.childGroups = groups

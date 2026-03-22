@@ -20,11 +20,9 @@ func validConfigJSON(version: Int) -> String {
 }
 
 @MainActor
-func context(appConfig: AppConfigStore = AppConfigStore(), localStateStore: LocalStateStore? = nil) -> ActionProcessorContext {
+func context(appConfig: AppConfigStore = AppConfigStore(), localStateStore: StateContext? = nil) -> ActionProcessorContext {
     ActionProcessorContext(
         appConfig: appConfig,
-        widgetHierarchy: [],
-        currentEntityId: nil,
         localStateStore: localStateStore
     )
 }

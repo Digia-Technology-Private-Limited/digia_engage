@@ -44,7 +44,7 @@ final class AppStateValueStream: DigiaValueStream, ExprInstance, @unchecked Send
     }
 }
 
-final class AppStateExprContext: ExprContext {
+final class AppStateExprContext: ScopeContext {
     let name: String = "appState"
     var enclosing: (any ExprContext)?
     private let values: [String: Any?]
@@ -71,5 +71,9 @@ final class AppStateExprContext: ExprContext {
         }
 
         return enclosing?.getValue(key) ?? ExprLookupResult(found: false, value: nil)
+    }
+
+    func copyAndExtend(newVariables: [String: Any?]) -> any ScopeContext {
+        DefaultScopeContext(name: name, variables: newVariables, enclosing: self)
     }
 }

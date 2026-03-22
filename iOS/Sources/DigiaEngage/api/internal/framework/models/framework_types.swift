@@ -1,6 +1,16 @@
 import DigiaExpr
 import Foundation
 
+/// Mirrors Flutter's NodeType enum in types.dart.
+enum NodeType: String {
+    case widget
+    case component
+
+    static func fromString(_ raw: String?) -> NodeType {
+        NodeType(rawValue: raw ?? "") ?? .widget
+    }
+}
+
 private struct ExpressionObject: Decodable {
     let expr: String
 }

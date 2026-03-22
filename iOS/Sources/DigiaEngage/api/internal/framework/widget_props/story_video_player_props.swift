@@ -6,8 +6,8 @@ struct StoryVideoPlayerProps: Decodable, Equatable, Sendable {
     let looping: ExprOr<Bool>?
     let fit: ExprOr<String>?
 
-    let dataSource: ScopeValue?
-    let controller: ScopeValue?
+    let dataSource: JSONValue?
+    let controller: JSONValue?
     let onComplete: ActionFlow?
     let onSlideDown: ActionFlow?
     let onSlideStart: ActionFlow?

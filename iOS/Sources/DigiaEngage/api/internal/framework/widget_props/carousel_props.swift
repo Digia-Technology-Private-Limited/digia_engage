@@ -26,7 +26,7 @@ struct CarouselProps: Decodable, Equatable, Sendable {
     let indicatorEffectType: String?
     let keepAlive: Bool?
     let onChanged: ActionFlow?
-    let dataSource: ScopeValue?
+    let dataSource: JSONValue?
 
     private enum CodingKeys: String, CodingKey {
         case width
@@ -97,6 +97,6 @@ struct CarouselProps: Decodable, Equatable, Sendable {
             ?? container.decodeIfPresent(String.self, forKey: .indicatorEffectType)
         keepAlive = try container.decodeIfPresent(Bool.self, forKey: .keepAlive)
         onChanged = try container.decodeIfPresent(ActionFlow.self, forKey: .onChanged)
-        dataSource = try container.decodeIfPresent(ScopeValue.self, forKey: .dataSource)
+        dataSource = try container.decodeIfPresent(JSONValue.self, forKey: .dataSource)
     }
 }

@@ -8,7 +8,7 @@ final class VWText: VirtualLeafStatelessWidget<TextProps> {
     override func render(_ payload: RenderPayload) -> AnyView {
         guard let text = payload.eval(props.text) else { return empty() }
 
-        let fontFactory = DigiaRuntime.shared.fontFactory
+        let fontFactory = SDKInstance.shared.fontFactory
         let font = TextStyleUtil.font(
             textStyle: props.textStyle,
             appConfigStore: payload.appConfigStore,
