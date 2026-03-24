@@ -91,14 +91,15 @@ final class VWContainer: VirtualStatelessWidget<ContainerProps> {
         if let border = props.border,
            let borderWidth = border.borderWidth,
            borderWidth > 0 {
+            let strokeConfiguration = DigiaBorderStrokeConfiguration.resolve(border: border)
             current = AnyView(
                 current.overlay {
                     shape.stroke(
                         payload.evalColor(border.borderColor) ?? .black,
                         style: StrokeStyle(
                             lineWidth: borderWidth,
-                            lineCap: To.strokeCap(border.borderType?.strokeCap),
-                            dash: (border.borderType?.borderPattern == "solid" ? [] : (border.borderType?.dashPattern ?? [3, 1]).map { CGFloat($0) })
+                            lineCap: strokeConfiguration.lineCap,
+                            dash: strokeConfiguration.dashPattern
                         )
                     )
                 }

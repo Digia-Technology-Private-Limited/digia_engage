@@ -285,13 +285,14 @@ private struct DigiaDecorationView: View {
             if let border,
                let borderWidth = border.borderWidth,
                borderWidth > 0 {
+                let strokeConfiguration = DigiaBorderStrokeConfiguration.resolve(border: border)
                 shape
                     .stroke(
                         borderColor(border),
                         style: StrokeStyle(
                             lineWidth: borderWidth,
-                            lineCap: To.strokeCap(border.borderType?.strokeCap),
-                            dash: borderDashPattern(border)
+                            lineCap: strokeConfiguration.lineCap,
+                            dash: strokeConfiguration.dashPattern
                         )
                     )
             }
@@ -301,11 +302,39 @@ private struct DigiaDecorationView: View {
     private func borderColor(_ border: BorderStyle) -> Color {
         payload.evalColor(border.borderColor) ?? .black
     }
+}
 
-    private func borderDashPattern(_ border: BorderStyle) -> [CGFloat] {
-        guard border.borderType?.borderPattern != "solid" else {
-            return []
+struct DigiaBorderStrokeConfiguration: Equatable {
+    let lineCap: CGLineCap
+    let dashPattern: [CGFloat]
+
+    static func resolve(border: BorderStyle) -> DigiaBorderStrokeConfiguration {
+        let borderPattern = border.borderType?.borderPattern?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .lowercased()
+        let borderWidth = CGFloat(border.borderWidth ?? 0)
+
+        switch borderPattern {
+        case "dotted":
+            // Flutter's BorderWithPattern dotted implementation draws circular
+            // dots spaced by (dot + 2 * dotSpacing). The closest StrokeStyle
+            // approximation is a round-capped dash where the painted segment
+            // is `thickness` and the gap is `2 * thickness`.
+            let thickness = max(borderWidth, 1)
+            return DigiaBorderStrokeConfiguration(
+                lineCap: .round,
+                dashPattern: [thickness, thickness * 2]
+            )
+        case "dashed":
+            return DigiaBorderStrokeConfiguration(
+                lineCap: To.strokeCap(border.borderType?.strokeCap),
+                dashPattern: (border.borderType?.dashPattern ?? [3, 1]).map { CGFloat($0) }
+            )
+        default:
+            return DigiaBorderStrokeConfiguration(
+                lineCap: To.strokeCap(border.borderType?.strokeCap),
+                dashPattern: []
+            )
         }
-        return (border.borderType?.dashPattern ?? [3, 1]).map { CGFloat($0) }
     }
 }

@@ -71,17 +71,33 @@ final class VWFlex: VirtualStatelessWidget<FlexProps> {
         }
 
         if props.isScrollable == true {
-            let scrollView = AnyView(
+            let scrollContent: AnyView
+            switch direction {
+            case .horizontal:
+                // Keep the row content at intrinsic width; viewport sizing is adjusted
+                // below based on mainAxisSize to mirror Flutter behavior.
+                scrollContent = AnyView(content.fixedSize(horizontal: true, vertical: false))
+            case .vertical:
+                scrollContent = AnyView(content.fixedSize(horizontal: false, vertical: true))
+            }
+
+            var scrollView = AnyView(
                 ScrollView(direction == .vertical ? .vertical : .horizontal, showsIndicators: false) {
-                    framed
+                    scrollContent
                 }
             )
-            // Match Flutter's SingleChildScrollView behavior:
-            // A horizontal scrollable Row with mainAxisSize "min" should report its CONTENT
-            // width to the parent (like Flutter), not expand to fill available parent width.
-            if direction == .horizontal && mainAxisSize != "max" {
-                return AnyView(scrollView.fixedSize(horizontal: true, vertical: false))
+
+            // For static (non data-driven) horizontal rows with mainAxisSize=min,
+            // preserve intrinsic viewport width to match Flutter shrink-wrapping.
+            // Data-driven rows (e.g., swipe strips/carousels) should keep the
+            // available viewport width so horizontal scrolling remains usable.
+            let hasResolvedDataSource = resolveDataSource(payload: payload) != nil
+            if direction == .horizontal,
+               props.mainAxisSize == "min",
+               !hasResolvedDataSource {
+                scrollView = AnyView(scrollView.fixedSize(horizontal: true, vertical: false))
             }
+
             return scrollView
         }
 

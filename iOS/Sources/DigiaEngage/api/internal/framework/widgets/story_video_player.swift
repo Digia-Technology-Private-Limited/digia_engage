@@ -1,6 +1,7 @@
 import AVFoundation
 import AVKit
 import SwiftUI
+import UIKit
 
 @MainActor
 final class VWStoryVideoPlayer: VirtualLeafStatelessWidget<StoryVideoPlayerProps> {
@@ -101,8 +102,12 @@ private struct DigiaStoryVideoPlayerView: View {
             if model.isLoading {
                 ProgressView()
             } else if let player = model.player {
-                VideoPlayer(player: player)
-                    .aspectRatio(contentMode: To.imageContentMode(fit))
+                DigiaStoryAVPlayerLayerView(
+                    player: player,
+                    videoGravity: videoGravity(for: fit)
+                )
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .clipped()
             } else {
                 EmptyView()
             }
@@ -136,5 +141,44 @@ private struct DigiaStoryVideoPlayerView: View {
     private func registerIfNeeded(player: AVPlayer) {
         guard let bridge = storyPlaybackBridge else { return }
         bridge.videoDidBecomeReady(player: player, duration: model.currentDuration() ?? 0.1, autoPlay: autoPlay)
+    }
+
+    private func videoGravity(for fit: String?) -> AVLayerVideoGravity {
+        switch fit?.lowercased() {
+        case "cover":
+            return .resizeAspectFill
+        case "fill":
+            return .resize
+        case "contain", "fitwidth", "fitheight", "scaledown", "none":
+            return .resizeAspect
+        default:
+            return .resizeAspect
+        }
+    }
+}
+
+private struct DigiaStoryAVPlayerLayerView: UIViewRepresentable {
+    let player: AVPlayer
+    let videoGravity: AVLayerVideoGravity
+
+    func makeUIView(context _: Context) -> DigiaStoryPlayerLayerContainer {
+        let view = DigiaStoryPlayerLayerContainer()
+        view.playerLayer.videoGravity = videoGravity
+        return view
+    }
+
+    func updateUIView(_ uiView: DigiaStoryPlayerLayerContainer, context _: Context) {
+        uiView.playerLayer.player = player
+        uiView.playerLayer.videoGravity = videoGravity
+    }
+}
+
+private final class DigiaStoryPlayerLayerContainer: UIView {
+    override class var layerClass: AnyClass {
+        AVPlayerLayer.self
+    }
+
+    var playerLayer: AVPlayerLayer {
+        layer as! AVPlayerLayer
     }
 }

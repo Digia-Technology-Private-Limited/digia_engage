@@ -12,26 +12,27 @@ final class VWImage: VirtualLeafStatelessWidget<ImageProps> {
     }
 
     override func render(_ payload: RenderPayload) -> AnyView {
-        let explicitWidth = WidgetUtil.dimension(
+        let widthConstraint = WidgetUtil.dimension(
             for: commonProps?.style?.width,
             raw: commonProps?.style?.widthRaw,
             payload: payload
-        ).value
-        let explicitHeight = WidgetUtil.dimension(
+        )
+        let heightConstraint = WidgetUtil.dimension(
             for: commonProps?.style?.height,
             raw: commonProps?.style?.heightRaw,
             payload: payload
-        ).value
+        )
 
         return AnyView(
             InternalImageView(
                 props: props,
                 payload: payload,
-                explicitWidth: explicitWidth,
-                explicitHeight: explicitHeight,
-                hasExplicitWidth: commonProps?.style?.widthRaw != nil || commonProps?.style?.width != nil,
-                hasExplicitHeight: commonProps?.style?.heightRaw != nil || commonProps?.style?.height != nil
+                widthConstraint: widthConstraint,
+                heightConstraint: heightConstraint
             )
+            // Remote image views can swallow touches from clickable parent containers.
+            // Match Flutter by letting parent onClick handlers receive taps.
+            .allowsHitTesting(false)
         )
     }
 }
@@ -39,10 +40,8 @@ final class VWImage: VirtualLeafStatelessWidget<ImageProps> {
 private struct InternalImageView: View {
     let props: ImageProps
     let payload: RenderPayload
-    let explicitWidth: CGFloat?
-    let explicitHeight: CGFloat?
-    let hasExplicitWidth: Bool
-    let hasExplicitHeight: Bool
+    let widthConstraint: ResolvedDimension
+    let heightConstraint: ResolvedDimension
 
     @State private var loadFailed = false
     @State private var intrinsicAspectRatio: CGFloat?
@@ -80,55 +79,73 @@ private struct InternalImageView: View {
         alignment: Alignment
     ) -> AnyView {
         let fit = props.fit?.lowercased() ?? "none"
-        let hasFixedFrame = explicitWidth != nil || explicitHeight != nil
+        let hasBoundedWidth = widthConstraint.value != nil || widthConstraint.isFill || widthConstraint.percent != nil
+        let hasBoundedHeight = heightConstraint.value != nil || heightConstraint.isFill || heightConstraint.percent != nil
+        let shouldUseBoundedFrame = hasBoundedWidth && hasBoundedHeight
+        let shouldStretchToFillFrame = VWImage.shouldStretchToFillFrame(
+            fit: fit,
+            hasExplicitWidth: hasBoundedWidth,
+            hasExplicitHeight: hasBoundedHeight
+        )
         let explicitAspect = payload.eval(props.aspectRatio).map { CGFloat($0) }
         let cachedAspect = source.flatMap { Self.aspectRatioCache[$0] }
         let aspect = explicitAspect ?? intrinsicAspectRatio ?? cachedAspect
-        let shouldUseFillFrame = VWImage.shouldStretchToFillFrame(
-            fit: fit,
-            hasExplicitWidth: hasExplicitWidth,
-            hasExplicitHeight: hasExplicitHeight
-        )
-        let resolvedFrame = resolvedFrame(aspect: aspect)
         let contentMode: ContentMode = (fit == "cover") ? .fill : .fit
         let shouldClip = (fit == "cover" || fit == "fitwidth" || fit == "fitheight" || fit == "none" || fit == "fill")
 
         var current: AnyView = baseImage(source: source)
 
-        if shouldUseFillFrame {
-            current = applyExplicitFrame(
-                to: current,
-                alignment: alignment,
-                width: resolvedFrame.width,
-                height: resolvedFrame.height
+        if shouldUseBoundedFrame {
+            current = contentSizedView(
+                from: current,
+                aspect: aspect,
+                contentMode: contentMode,
+                shouldStretchToFillFrame: shouldStretchToFillFrame
             )
-        } else if hasFixedFrame {
-            let aspectSizedCurrent: AnyView
-            if let aspect {
-                aspectSizedCurrent = AnyView(current.aspectRatio(aspect, contentMode: contentMode))
-            } else {
-                aspectSizedCurrent = AnyView(current.aspectRatio(contentMode: contentMode))
-            }
-
-            current = applyExplicitFrame(
-                to: aspectSizedCurrent,
-                alignment: alignment,
-                width: resolvedFrame.width,
-                height: resolvedFrame.height
-            )
-        } else if let aspect {
-            current = AnyView(
-                current.aspectRatio(aspect, contentMode: contentMode)
-            )
-        } else {
-            current = AnyView(current.aspectRatio(contentMode: contentMode))
-        }
-
-        if !hasFixedFrame {
             current = AnyView(
                 current.frame(
-                    maxWidth: hasExplicitWidth ? .infinity : nil,
-                    maxHeight: hasExplicitHeight ? .infinity : nil,
+                    maxWidth: hasBoundedWidth ? .infinity : nil,
+                    maxHeight: hasBoundedHeight ? .infinity : nil,
+                    alignment: alignment
+                )
+            )
+        } else if let frame = resolvedFixedFrame(aspect: aspect) {
+            current = contentSizedView(
+                from: current,
+                aspect: aspect,
+                contentMode: contentMode,
+                shouldStretchToFillFrame: false
+            )
+            current = AnyView(
+                current.frame(
+                    width: frame.width,
+                    height: frame.height,
+                    alignment: alignment
+                )
+            )
+        } else {
+            current = contentSizedView(
+                from: current,
+                aspect: aspect,
+                contentMode: contentMode,
+                shouldStretchToFillFrame: false
+            )
+            current = AnyView(
+                current.frame(
+                    maxWidth: hasBoundedWidth ? .infinity : nil,
+                    maxHeight: hasBoundedHeight ? .infinity : nil,
+                    alignment: alignment
+                )
+            )
+        }
+
+        // Apply explicit dimensions before clipping so `fit: cover` (and similar
+        // modes) clip against the final frame, matching Flutter's behavior.
+        if widthConstraint.value != nil || heightConstraint.value != nil {
+            current = AnyView(
+                current.frame(
+                    width: widthConstraint.value,
+                    height: heightConstraint.value,
                     alignment: alignment
                 )
             )
@@ -141,49 +158,44 @@ private struct InternalImageView: View {
         return current
     }
 
-    private func applyExplicitFrame(
-        to view: AnyView,
-        alignment: Alignment,
-        width: CGFloat?,
-        height: CGFloat?
+    private func contentSizedView(
+        from view: AnyView,
+        aspect: CGFloat?,
+        contentMode: ContentMode,
+        shouldStretchToFillFrame: Bool
     ) -> AnyView {
-        var current = AnyView(
-            view.frame(
-                width: width,
-                height: height,
-                alignment: alignment
-            )
-        )
+        if shouldStretchToFillFrame {
+            return view
+        }
 
-        current = AnyView(
-            current.frame(
-                maxWidth: hasExplicitWidth && explicitWidth == nil ? .infinity : nil,
-                maxHeight: hasExplicitHeight && explicitHeight == nil ? .infinity : nil,
-                alignment: alignment
-            )
-        )
+        if let aspect {
+            return AnyView(view.aspectRatio(aspect, contentMode: contentMode))
+        }
 
-        return current
+        return AnyView(view.aspectRatio(contentMode: contentMode))
     }
 
-    private func resolvedFrame(aspect: CGFloat?) -> (width: CGFloat?, height: CGFloat?) {
+    private func resolvedFixedFrame(aspect: CGFloat?) -> (width: CGFloat?, height: CGFloat?)? {
+        let fixedWidth = widthConstraint.value
+        let fixedHeight = heightConstraint.value
+
+        guard fixedWidth != nil || fixedHeight != nil else { return nil }
+
         guard let aspect, aspect.isFinite, aspect > 0 else {
-            return (explicitWidth, explicitHeight)
+            return (fixedWidth, fixedHeight)
         }
 
-        if let explicitWidth, let explicitHeight {
-            return (explicitWidth, explicitHeight)
+        if let fixedWidth, fixedHeight == nil,
+           heightConstraint.percent == nil, !heightConstraint.isFill {
+            return (fixedWidth, fixedWidth / aspect)
         }
 
-        if let explicitWidth {
-            return (explicitWidth, explicitWidth / aspect)
+        if let fixedHeight, fixedWidth == nil,
+           widthConstraint.percent == nil, !widthConstraint.isFill {
+            return (fixedHeight * aspect, fixedHeight)
         }
 
-        if let explicitHeight {
-            return (explicitHeight * aspect, explicitHeight)
-        }
-
-        return (nil, nil)
+        return (fixedWidth, fixedHeight)
     }
 
     private func baseImage(source: String?) -> AnyView {

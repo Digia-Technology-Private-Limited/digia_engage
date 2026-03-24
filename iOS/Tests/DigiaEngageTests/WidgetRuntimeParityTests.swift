@@ -1,5 +1,6 @@
 import Foundation
 import AVFoundation
+import CoreGraphics
 @testable import DigiaEngage
 import Testing
 
@@ -31,6 +32,44 @@ struct WidgetRuntimeParityTests {
         #expect(props.style?.border?.borderColor == .value("#111111"))
         #expect(props.style?.border?.borderType?.borderPattern == "dashed")
         #expect(props.style?.border?.borderType?.dashPattern == [4, 2])
+    }
+
+    @Test("container border styling resolves dotted borders like Flutter")
+    func containerBorderStylingMatchesFlutterDottedBehavior() throws {
+        let dotted: BorderStyle = try decode("""
+        {
+          "borderWidth": 2,
+          "borderColor": "#111111",
+          "strokeAlign": "center",
+          "borderType": {
+            "borderPattern": "dotted",
+            "dashPattern": [20, 20],
+            "strokeCap": "butt"
+          }
+        }
+        """)
+
+        let dottedConfiguration = DigiaBorderStrokeConfiguration.resolve(border: dotted)
+        #expect(dottedConfiguration.lineCap == .round)
+        #expect(dottedConfiguration.dashPattern.count == 2)
+        #expect(abs(dottedConfiguration.dashPattern[0] - 2) < 0.0001)
+        #expect(abs(dottedConfiguration.dashPattern[1] - 4) < 0.0001)
+
+        let dashed: BorderStyle = try decode("""
+        {
+          "borderWidth": 2,
+          "borderColor": "#111111",
+          "borderType": {
+            "borderPattern": "dashed",
+            "dashPattern": [4, 2],
+            "strokeCap": "square"
+          }
+        }
+        """)
+
+        let dashedConfiguration = DigiaBorderStrokeConfiguration.resolve(border: dashed)
+        #expect(dashedConfiguration.lineCap == .square)
+        #expect(dashedConfiguration.dashPattern == [4, 2])
     }
 
     @Test("parent props decode expansion type and evaluatable positioned values")

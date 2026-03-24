@@ -7,6 +7,7 @@ struct DUIComponentView: View {
     let root: VWData
     let registry: VirtualWidgetRegistry
     let args: [String: JSONValue]
+    let resolvedArgs: [String: JSONValue]
     let parentStore: StateContext?
 
     @ObservedObject private var runtime = SDKInstance.shared
@@ -25,15 +26,19 @@ struct DUIComponentView: View {
         self.root = root
         self.registry = registry
         self.args = args
+        let defaultArgs = component.argDefs?.mapValues { $0.resolvedValue(in: nil) } ?? [:]
+        let mergedArgs = defaultArgs.merging(args) { _, provided in provided }
+        self.resolvedArgs = mergedArgs
         self.parentStore = parentStore
-        let initialState = component.initStateDefs?.mapValues { $0.resolvedValue(in: nil) } ?? [:]
+        let initialStateContext = BasicExprContext(variables: mergedArgs.mapValues(\.anyValue))
+        let initialState = component.initStateDefs?.mapValues { $0.resolvedValue(in: initialStateContext) } ?? [:]
         _stateStore = StateObject(wrappedValue: StateContext(namespace: component.uid ?? componentID, initialState: initialState, parent: parentStore))
     }
 
     var body: some View {
         let baseContext = StateScopeContext(
             stateContext: stateStore,
-            variables: args.mapValues(\.anyValue),
+            variables: resolvedArgs.mapValues(\.anyValue),
             enclosing: AppStateExprContext(
                 values: runtime.appState.mapValues(\.anyValue),
                 streams: runtime.appStateStreams.mapValues { $0 as Any }

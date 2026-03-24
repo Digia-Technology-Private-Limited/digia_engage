@@ -354,6 +354,197 @@ struct WidgetRenderingViewInspectorTests {
     #endif
 
     #if canImport(UIKit)
+    @Test("horizontal scrollable row keeps the viewport width")
+    func horizontalScrollableRowKeepsViewportWidth() {
+        let items: [VWContainer] = (0..<3).map { _ in
+            VWContainer(
+                props: ContainerProps(
+                    color: nil,
+                    padding: nil,
+                    margin: nil,
+                    width: .value(120),
+                    height: .value(40),
+                    minWidth: nil,
+                    minHeight: nil,
+                    maxWidth: nil,
+                    maxHeight: nil,
+                    childAlignment: nil,
+                    borderRadius: nil,
+                    border: nil,
+                    shape: nil,
+                    elevation: nil,
+                    decorationImage: nil,
+                    shadow: nil,
+                    gradiant: nil
+                ),
+                commonProps: nil,
+                parentProps: nil,
+                childGroups: nil,
+                parent: nil,
+                refName: nil
+            )
+        }
+
+        let row = VWFlex(
+            direction: .horizontal,
+            props: FlexProps(
+                spacing: 16,
+                startSpacing: 0,
+                endSpacing: 16,
+                mainAxisAlignment: "start",
+                crossAxisAlignment: "center",
+                mainAxisSize: "max",
+                isScrollable: true,
+                dataSource: nil
+            ),
+            commonProps: nil,
+            parentProps: nil,
+            childGroups: ["children": items],
+            parent: nil,
+            refName: nil
+        )
+
+        let rendered = row.toWidget(RenderPayload(appConfigStore: AppConfigStore()))
+        let host = UIHostingController(rootView: rendered)
+        let size = host.sizeThatFits(in: CGSize(width: 200, height: 200))
+
+        #expect(abs(size.width - 200) < 0.5)
+        #expect(abs(size.height - 40) < 0.5)
+    }
+
+    @Test("horizontal scrollable row with min main axis shrinks to content width")
+    func horizontalScrollableRowWithMinMainAxisShrinksToContent() {
+        let items: [VWContainer] = (0..<2).map { _ in
+            VWContainer(
+                props: ContainerProps(
+                    color: nil,
+                    padding: nil,
+                    margin: nil,
+                    width: .value(120),
+                    height: .value(40),
+                    minWidth: nil,
+                    minHeight: nil,
+                    maxWidth: nil,
+                    maxHeight: nil,
+                    childAlignment: nil,
+                    borderRadius: nil,
+                    border: nil,
+                    shape: nil,
+                    elevation: nil,
+                    decorationImage: nil,
+                    shadow: nil,
+                    gradiant: nil
+                ),
+                commonProps: nil,
+                parentProps: nil,
+                childGroups: nil,
+                parent: nil,
+                refName: nil
+            )
+        }
+
+        let row = VWFlex(
+            direction: .horizontal,
+            props: FlexProps(
+                spacing: 12,
+                startSpacing: 0,
+                endSpacing: 0,
+                mainAxisAlignment: "spaceBetween",
+                crossAxisAlignment: "center",
+                mainAxisSize: "min",
+                isScrollable: true,
+                dataSource: nil
+            ),
+            commonProps: CommonProps(
+                visibility: nil,
+                align: nil,
+                style: CommonStyle(
+                    padding: .edges(left: 12, top: 12, right: 12, bottom: 12),
+                    margin: nil,
+                    bgColor: nil,
+                    borderRadius: nil,
+                    height: nil,
+                    width: nil,
+                    heightRaw: nil,
+                    widthRaw: nil,
+                    clipBehavior: nil,
+                    border: nil
+                ),
+                onClick: nil
+            ),
+            parentProps: nil,
+            childGroups: ["children": items],
+            parent: nil,
+            refName: nil
+        )
+
+        let rendered = row.toWidget(RenderPayload(appConfigStore: AppConfigStore()))
+        let host = UIHostingController(rootView: rendered)
+        let size = host.sizeThatFits(in: CGSize(width: 400, height: 200))
+
+        // Content width should stay near intrinsic width:
+        // (2 * 120) + spacing(12) + padding.horizontal(24) = 276
+        #expect(size.width > 250)
+        #expect(size.width < 320)
+        #expect(abs(size.height - 64) < 1.0)
+    }
+
+    @Test("horizontal scrollable data-driven row with min main axis keeps viewport width")
+    func horizontalScrollableDataDrivenRowWithMinMainAxisKeepsViewportWidth() {
+        let item = VWContainer(
+            props: ContainerProps(
+                color: nil,
+                padding: nil,
+                margin: nil,
+                width: .value(120),
+                height: .value(40),
+                minWidth: nil,
+                minHeight: nil,
+                maxWidth: nil,
+                maxHeight: nil,
+                childAlignment: nil,
+                borderRadius: nil,
+                border: nil,
+                shape: nil,
+                elevation: nil,
+                decorationImage: nil,
+                shadow: nil,
+                gradiant: nil
+            ),
+            commonProps: nil,
+            parentProps: nil,
+            childGroups: nil,
+            parent: nil,
+            refName: nil
+        )
+
+        let row = VWFlex(
+            direction: .horizontal,
+            props: FlexProps(
+                spacing: 12,
+                startSpacing: 0,
+                endSpacing: 0,
+                mainAxisAlignment: "start",
+                crossAxisAlignment: "center",
+                mainAxisSize: "min",
+                isScrollable: true,
+                dataSource: .array([.string("one"), .string("two"), .string("three")])
+            ),
+            commonProps: nil,
+            parentProps: nil,
+            childGroups: ["children": [item]],
+            parent: nil,
+            refName: nil
+        )
+
+        let rendered = row.toWidget(RenderPayload(appConfigStore: AppConfigStore()))
+        let host = UIHostingController(rootView: rendered)
+        let size = host.sizeThatFits(in: CGSize(width: 400, height: 200))
+
+        #expect(abs(size.width - 400) < 0.5)
+        #expect(abs(size.height - 40) < 0.5)
+    }
+
     @Test("stack sizes from non-positioned children only")
     func stackIgnoresPositionedChildrenForSizing() {
         let content = VWContainer(
@@ -483,6 +674,7 @@ struct WidgetRenderingViewInspectorTests {
         #expect(abs(size.height - 300) < 0.5)
         #expect(abs(size.width - 195) < 0.5)
     }
+
     #endif
 
     @Test("timer widget renders child with initial tick value")
