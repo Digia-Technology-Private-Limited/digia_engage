@@ -25,9 +25,9 @@ final class VWContainer: VirtualStatelessWidget<ContainerProps> {
         let minHeight = payload.eval(props.minHeight).map { CGFloat($0) }
         let maxWidth = payload.eval(props.maxWidth).map { CGFloat($0) }
         let maxHeight = payload.eval(props.maxHeight).map { CGFloat($0) }
-        let borderBorderRadius = payload.eval(props.border?.borderRadius)
+        let borderBorderRadius = WidgetUtil.resolveCornerRadius(props.border?.borderRadius, payload: payload)
         let cornerRadius: CornerRadiusProps? = props.borderRadius
-            ?? borderBorderRadius.map { CornerRadiusProps(uniform: $0) }
+            ?? borderBorderRadius
         let shape: AnyShape
         if props.shape == "circle" {
             shape = AnyShape(Circle())
@@ -65,8 +65,8 @@ final class VWContainer: VirtualStatelessWidget<ContainerProps> {
             )
         }
 
-        let resolvedMinWidth = width ?? max(minWidth ?? 0, fallbackMinWidth ?? 0)
-        let resolvedMinHeight = height ?? max(minHeight ?? 0, fallbackMinHeight ?? 0)
+        let resolvedMinWidth = max(minWidth ?? 0, fallbackMinWidth ?? 0)
+        let resolvedMinHeight = max(minHeight ?? 0, fallbackMinHeight ?? 0)
         let resolvedMaxWidth = width ?? maxWidth ?? (childAlignment != nil ? .infinity : (shouldFillWidth ? .infinity : nil))
         let resolvedMaxHeight = height ?? maxHeight ?? (shouldFillHeight ? .infinity : nil)
 
@@ -109,6 +109,10 @@ final class VWContainer: VirtualStatelessWidget<ContainerProps> {
     }
 
     private var shouldFillAvailableWidth: Bool {
+        if parent is VWGridView {
+            return true
+        }
+
         if let flexParent = parent as? VWFlex,
            flexParent.direction == .horizontal,
            parentProps?.expansion?.type == DigiaFlexFitType.tight.rawValue {
@@ -138,6 +142,10 @@ final class VWContainer: VirtualStatelessWidget<ContainerProps> {
     }
 
     private var shouldFillAvailableHeight: Bool {
+        if parent is VWGridView {
+            return true
+        }
+
         if let flexParent = parent as? VWFlex,
            flexParent.direction == .vertical,
            parentProps?.expansion?.type == DigiaFlexFitType.tight.rawValue {
@@ -219,8 +227,8 @@ final class VWContainer: VirtualStatelessWidget<ContainerProps> {
 
     private func gradientView(payload: RenderPayload) -> LinearGradient? {
         guard let gradient = props.gradiant else { return nil }
-        let startPoint = To.unitPoint(gradient.begin) ?? .topLeading
-        let endPoint = To.unitPoint(gradient.end) ?? .bottomTrailing
+        let startPoint = To.unitPoint(gradient.begin) ?? .leading
+        let endPoint = To.unitPoint(gradient.end) ?? .trailing
 
         if let colorList = gradient.colorList, !colorList.isEmpty {
             let resolved = colorList.compactMap { item -> (Color, Double?)? in
@@ -247,23 +255,35 @@ final class VWContainer: VirtualStatelessWidget<ContainerProps> {
     @ViewBuilder
     private func decorationImageView(_ props: DecorationImageProps, source: String) -> some View {
         if source.hasPrefix("http"), let url = URL(string: source) {
-            AsyncImage(url: url) { phase in
-                switch phase {
-                case .success(let image):
-                    image
-                        .resizable()
-                        .aspectRatio(contentMode: To.imageContentMode(props.fit))
-                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: To.alignment(props.alignment) ?? .center)
-                default:
-                    Color.clear
-                }
-            }
+            DigiaCachedImageView(url: url)
+                .aspectRatio(contentMode: To.imageContentMode(props.fit))
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: To.alignment(props.alignment) ?? .center)
+        } else if let resourceURL = bundleResourceURL(for: source) {
+            DigiaCachedImageView(url: resourceURL)
+                .aspectRatio(contentMode: To.imageContentMode(props.fit))
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: To.alignment(props.alignment) ?? .center)
         } else {
-            Image(source)
+            Image(source, bundle: DigiaResourceBundle.module)
                 .resizable()
                 .aspectRatio(contentMode: To.imageContentMode(props.fit))
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: To.alignment(props.alignment) ?? .center)
         }
+    }
+
+    private func bundleResourceURL(for source: String) -> URL? {
+        let normalized = source.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !normalized.isEmpty else { return nil }
+
+        let nsPath = normalized as NSString
+        let fileExtension = nsPath.pathExtension.isEmpty ? nil : nsPath.pathExtension
+        let resourceName = fileExtension == nil ? normalized : nsPath.deletingPathExtension
+        let subdirectory = nsPath.deletingLastPathComponent
+
+        return DigiaResourceBundle.module.url(
+            forResource: resourceName,
+            withExtension: fileExtension,
+            subdirectory: subdirectory == "." ? nil : subdirectory
+        )
     }
 
     @ViewBuilder

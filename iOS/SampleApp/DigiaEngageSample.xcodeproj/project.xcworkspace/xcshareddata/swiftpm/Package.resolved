@@ -13,10 +13,10 @@
     {
       "identity" : "digia_expr_swift",
       "kind" : "remoteSourceControl",
-      "location" : "git@github.com:Digia-Technology-Private-Limited/digia_expr_swift.git",
+      "location" : "https://github.com/Digia-Technology-Private-Limited/digia_expr_swift.git",
       "state" : {
-        "branch" : "main",
-        "revision" : "2c91e8fd02aa0b5c528668a1632fd598a7f58116"
+        "revision" : "965d4f953f4809e09f3613ac073264af56fb11aa",
+        "version" : "0.1.0"
       }
     },
     {

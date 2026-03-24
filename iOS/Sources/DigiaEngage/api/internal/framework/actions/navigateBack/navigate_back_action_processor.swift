@@ -25,16 +25,12 @@ struct NavigateBackProcessor {
         // If a modal is active, dismiss it (with result) rather than popping the page stack.
         if overlayController.activeDialog != nil {
             overlayController.dismissDialog(result: result)
-            #if canImport(UIKit)
             ViewControllerUtil.dismissPresented()
-            #endif
             return
         }
         if overlayController.activeBottomSheet != nil {
             overlayController.dismissBottomSheet(result: result)
-            #if canImport(UIKit)
             ViewControllerUtil.dismissPresented()
-            #endif
             return
         }
 
@@ -42,12 +38,10 @@ struct NavigateBackProcessor {
         if maybe && navController.path.isEmpty { return }
         navController.pop(result: result)
 
-        #if canImport(UIKit)
         // Fallback for UIKit-embedded navigation (e.g. when DigiaInitialRouteScreen
         // is not used and a UINavigationController owns the stack).
         if navController.path.isEmpty {
             ViewControllerUtil.popNavigation()
         }
-        #endif
     }
 }

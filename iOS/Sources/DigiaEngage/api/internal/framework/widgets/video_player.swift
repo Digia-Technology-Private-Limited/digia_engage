@@ -1,6 +1,7 @@
 import AVFoundation
 import AVKit
 import SwiftUI
+import UIKit
 
 @MainActor
 final class VWVideoPlayer: VirtualLeafStatelessWidget<VideoPlayerProps> {
@@ -165,24 +166,18 @@ private struct DigiaVideoPlayerView: View {
 
     @ViewBuilder
     private func playerView(player: AVPlayer) -> some View {
-        #if canImport(UIKit)
         if showControls {
-            DigiaAVPlayerControllerView(player: player, showControls: true)
+            DigiaAVPlayerControllerView(player: player, showControls: true, autoPlay: autoPlay)
         } else {
-            DigiaAVPlayerLayerView(player: player)
+            DigiaAVPlayerLayerView(player: player, autoPlay: autoPlay)
         }
-        #else
-        VideoPlayer(player: player)
-        #endif
     }
 }
-
-#if canImport(UIKit)
-import UIKit
 
 private struct DigiaAVPlayerControllerView: UIViewControllerRepresentable {
     let player: AVPlayer
     let showControls: Bool
+    let autoPlay: Bool
 
     func makeUIViewController(context _: Context) -> AVPlayerViewController {
         let controller = AVPlayerViewController()
@@ -195,11 +190,19 @@ private struct DigiaAVPlayerControllerView: UIViewControllerRepresentable {
     func updateUIViewController(_ controller: AVPlayerViewController, context _: Context) {
         controller.player = player
         controller.showsPlaybackControls = showControls
+        if autoPlay {
+            DispatchQueue.main.async {
+                player.play()
+            }
+        } else {
+            player.pause()
+        }
     }
 }
 
 private struct DigiaAVPlayerLayerView: UIViewRepresentable {
     let player: AVPlayer
+    let autoPlay: Bool
 
     func makeUIView(context _: Context) -> DigiaPlayerLayerContainer {
         let view = DigiaPlayerLayerContainer()
@@ -209,6 +212,13 @@ private struct DigiaAVPlayerLayerView: UIViewRepresentable {
 
     func updateUIView(_ uiView: DigiaPlayerLayerContainer, context _: Context) {
         uiView.playerLayer.player = player
+        if autoPlay {
+            DispatchQueue.main.async {
+                player.play()
+            }
+        } else {
+            player.pause()
+        }
     }
 }
 
@@ -221,4 +231,3 @@ private final class DigiaPlayerLayerContainer: UIView {
         layer as! AVPlayerLayer
     }
 }
-#endif

@@ -1,10 +1,5 @@
 import Foundation
-#if canImport(UIKit)
 import UIKit
-#endif
-#if os(macOS)
-import AppKit
-#endif
 
 @MainActor
 final class SDKInstance: ObservableObject, DigiaCEPDelegate {
@@ -195,21 +190,12 @@ final class SDKInstance: ObservableObject, DigiaCEPDelegate {
 
     func openURL(_ url: URL) {
         lastOpenedURL = url
-        #if canImport(UIKit)
         UIApplication.shared.open(url)
-        #elseif os(macOS)
-        NSWorkspace.shared.open(url)
-        #endif
     }
 
     func copyToClipboard(_ text: String) {
         clipboardString = text
-        #if canImport(UIKit)
         UIPasteboard.general.string = text
-        #elseif os(macOS)
-        NSPasteboard.general.clearContents()
-        NSPasteboard.general.setString(text, forType: .string)
-        #endif
     }
 
     func share(message: String, subject: String?) {

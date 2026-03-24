@@ -1,7 +1,5 @@
 import SwiftUI
-#if canImport(UIKit)
 import UIKit
-#endif
 
 @MainActor
 enum TextStyleUtil {
@@ -40,78 +38,30 @@ enum TextStyleUtil {
         return fontFactory.getDefaultFont(size: size, weight: weight, italic: italic)
     }
 
-#if canImport(UIKit)
     static func uiFont(
         textStyle: TextStyleProps?,
-        appConfigStore: AppConfigStore
+        appConfigStore: AppConfigStore,
+        fontFactory: DUIFontFactory
     ) -> UIFont {
-        uiFont(descriptor: resolvedFontDescriptor(textStyle: textStyle, appConfigStore: appConfigStore))
+        uiFont(
+            descriptor: resolvedFontDescriptor(textStyle: textStyle, appConfigStore: appConfigStore),
+            fontFactory: fontFactory
+        )
     }
 
     static func uiFont(
-        descriptor: FontDescriptorProps?
+        descriptor: FontDescriptorProps?,
+        fontFactory: DUIFontFactory
     ) -> UIFont {
         let size = descriptor?.size ?? 17
-        let weight = uiFontWeight(descriptor?.weight)
+        let weight = To.fontWeight(descriptor?.weight)
         let italic = descriptor?.isItalic == true || descriptor?.style == true
 
-        let baseFont: UIFont
-        if let family = descriptor?.fontFamily, !family.isEmpty,
-           let custom = uiCustomFont(family: family, size: size, weight: To.fontWeight(descriptor?.weight)) {
-            baseFont = custom
-        } else {
-            baseFont = .systemFont(ofSize: size, weight: weight)
+        if let family = descriptor?.fontFamily, !family.isEmpty {
+            return fontFactory.getUIFont(family, size: size, weight: weight, italic: italic)
         }
-
-        guard italic else { return baseFont }
-        guard let italicDescriptor = baseFont.fontDescriptor.withSymbolicTraits(.traitItalic) else {
-            return .italicSystemFont(ofSize: size)
-        }
-        return UIFont(descriptor: italicDescriptor, size: size)
+        return fontFactory.getDefaultUIFont(size: size, weight: weight, italic: italic)
     }
-
-    private static func uiCustomFont(family: String, size: Double, weight: Font.Weight) -> UIFont? {
-        let normalizedFamily = family.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-        let familyToUse: String
-
-        switch normalizedFamily {
-        case "inter":
-            familyToUse = "Inter"
-        case "space grotesk", "spacegrotesk":
-            familyToUse = "Poppins"
-        case "poppins":
-            familyToUse = "Poppins"
-        default:
-            familyToUse = "Poppins"
-        }
-
-        let customName = DigiaBundledFontRegistrar.customName(family: familyToUse, weight: weight)
-        return UIFont(name: customName, size: size)
-    }
-
-    private static func uiFontWeight(_ value: String?) -> UIFont.Weight {
-        switch value {
-        case "thin":
-            return .thin
-        case "extralight", "extraLight", "extra-light":
-            return .ultraLight
-        case "light":
-            return .light
-        case "medium":
-            return .medium
-        case "semibold", "semiBold", "semi-bold":
-            return .semibold
-        case "bold":
-            return .bold
-        case "extrabold", "extraBold", "extra-bold":
-            return .heavy
-        case "black":
-            return .black
-        default:
-            return .regular
-        }
-    }
-#endif
 
     static func lineHeight(
         textStyle: TextStyleProps?,

@@ -1,4 +1,3 @@
-import DigiaExpr
 import Foundation
 import SwiftUI
 
@@ -72,11 +71,18 @@ final class VWFlex: VirtualStatelessWidget<FlexProps> {
         }
 
         if props.isScrollable == true {
-            return AnyView(
+            let scrollView = AnyView(
                 ScrollView(direction == .vertical ? .vertical : .horizontal, showsIndicators: false) {
                     framed
                 }
             )
+            // Match Flutter's SingleChildScrollView behavior:
+            // A horizontal scrollable Row with mainAxisSize "min" should report its CONTENT
+            // width to the parent (like Flutter), not expand to fill available parent width.
+            if direction == .horizontal && mainAxisSize != "max" {
+                return AnyView(scrollView.fixedSize(horizontal: true, vertical: false))
+            }
+            return scrollView
         }
 
         return framed
@@ -146,8 +152,8 @@ final class VWFlex: VirtualStatelessWidget<FlexProps> {
         case let .array(values):
             return values.map(\.anyValue)
         case let .string(value):
-            guard Expression.hasExpression(value) || Expression.isExpression(value),
-                  let resolved = try? Expression.eval(value, payload.scopeContext) else {
+            guard ExpressionUtil.hasExpression(value),
+                  let resolved = ExpressionUtil.evaluateAny(value, context: payload.scopeContext) else {
                 return nil
             }
             return resolved as? [Any]

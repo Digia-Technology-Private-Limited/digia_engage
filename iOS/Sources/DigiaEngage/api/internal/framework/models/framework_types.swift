@@ -1,4 +1,3 @@
-import DigiaExpr
 import Foundation
 
 /// Mirrors Flutter's NodeType enum in types.dart.
@@ -52,14 +51,14 @@ extension ExprOr where Value == String {
     func resolve(in context: (any ExprContext)?) -> String? {
         switch self {
         case let .value(value):
-            if Expression.hasExpression(value) || Expression.isExpression(value) {
-                if let resolved = try? Expression.eval(value, context) {
+            if ExpressionUtil.hasExpression(value) {
+                if let resolved = ExpressionUtil.evaluateAny(value, context: context) {
                     return resolved as? String ?? String(describing: resolved)
                 }
             }
             return value
         case let .expression(expression):
-            if let resolved = try? Expression.eval(expression, context) {
+            if let resolved = ExpressionUtil.evaluateAny(expression, context: context) {
                 return resolved as? String ?? String(describing: resolved)
             }
             return nil
@@ -73,7 +72,7 @@ extension ExprOr where Value == Bool {
         case let .value(value):
             return value
         case let .expression(expression):
-            if let resolved = try? Expression.eval(expression, context) {
+            if let resolved = ExpressionUtil.evaluateAny(expression, context: context) {
                 if let value = resolved as? Bool { return value }
                 if let value = resolved as? String { return Bool(value) }
             }
@@ -88,7 +87,7 @@ extension ExprOr where Value == Int {
         case let .value(value):
             return value
         case let .expression(expression):
-            if let resolved = try? Expression.eval(expression, context) {
+            if let resolved = ExpressionUtil.evaluateAny(expression, context: context) {
                 if let value = resolved as? Int { return value }
                 if let value = resolved as? Double { return Int(value) }
                 if let value = resolved as? String { return Int(value) }
@@ -104,7 +103,7 @@ extension ExprOr where Value == Double {
         case let .value(value):
             return value
         case let .expression(expression):
-            if let resolved = try? Expression.eval(expression, context) {
+            if let resolved = ExpressionUtil.evaluateAny(expression, context: context) {
                 if let value = resolved as? Double { return value }
                 if let value = resolved as? Int { return Double(value) }
                 if let value = resolved as? String { return Double(value) }

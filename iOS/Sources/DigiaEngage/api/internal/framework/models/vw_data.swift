@@ -86,7 +86,7 @@ struct VWNodeData: Decodable, Equatable, Sendable {
         }
 
         refName = try container.decodeIfPresent(String.self, forKey: .varName) ?? container.decodeIfPresent(String.self, forKey: .refName)
-        props = try Self.decodeProps(type: type, from: container)
+        props = try WidgetNodeProps.decode(type: type, from: container, forKey: .props)
 
         childGroups = try ChildGroups(from: decoder).value
     }
@@ -101,64 +101,6 @@ struct VWNodeData: Decodable, Equatable, Sendable {
         case dataRef
         case varName
         case refName
-    }
-
-    private static func decodeProps(
-        type: String,
-        from container: KeyedDecodingContainer<CodingKeys>
-    ) throws -> WidgetNodeProps {
-        switch type {
-        case "fw/scaffold", "digia/scaffold":
-            return .scaffold(try container.decode(ScaffoldProps.self, forKey: .props))
-        case "digia/container":
-            return .container(try container.decode(ContainerProps.self, forKey: .props))
-        case "digia/column", "digia/row":
-            return .flex(try container.decode(FlexProps.self, forKey: .props))
-        case "digia/stack":
-            return .stack(try container.decode(StackProps.self, forKey: .props))
-        case "digia/text":
-            // Prefer JSONValue-based decode to avoid decoder recursion issues on large payloads.
-            if let textScope = try container.decodeIfPresent(JSONValue.self, forKey: .props) {
-                return .text(TextProps(JSONValue: textScope))
-            }
-            return .text(TextProps(JSONValue: nil))
-        case "digia/richText":
-            return .richText(try container.decode(RichTextProps.self, forKey: .props))
-        case "digia/button":
-            return .button(try container.decode(ButtonProps.self, forKey: .props))
-        case "digia/gridView":
-            return .gridView(try container.decode(GridViewProps.self, forKey: .props))
-        case "digia/streamBuilder":
-            return .streamBuilder(try container.decode(StreamBuilderProps.self, forKey: .props))
-        case "digia/image":
-            return .image(try container.decode(ImageProps.self, forKey: .props))
-        case "digia/lottie":
-            return .lottie(try container.decode(LottieProps.self, forKey: .props))
-        case "fw/sized_box":
-            return .sizedBox(try container.decodeIfPresent(SizedBoxProps.self, forKey: .props) ?? SizedBoxProps(width: nil, height: nil))
-        case "digia/conditionalBuilder":
-            return .conditionalBuilder(try container.decodeIfPresent(ConditionalBuilderProps.self, forKey: .props) ?? ConditionalBuilderProps())
-        case "digia/conditionalItem":
-            return .conditionalItem(try container.decode(ConditionalItemProps.self, forKey: .props))
-        case "digia/linearProgressBar":
-            return .linearProgressBar(try container.decode(LinearProgressBarProps.self, forKey: .props))
-        case "digia/circularProgressBar":
-            return .circularProgressBar(try container.decode(CircularProgressBarProps.self, forKey: .props))
-        case "digia/carousel":
-            return .carousel(try container.decode(CarouselProps.self, forKey: .props))
-        case "digia/wrap":
-            return .wrap(try container.decode(WrapProps.self, forKey: .props))
-        case "digia/story":
-            return .story(try container.decode(StoryProps.self, forKey: .props))
-        case "digia/storyVideoPlayer":
-            return .storyVideoPlayer(try container.decode(StoryVideoPlayerProps.self, forKey: .props))
-        case "digia/textFormField":
-            return .textFormField(try container.decode(TextFormFieldProps.self, forKey: .props))
-        case "digia/videoPlayer":
-            return .videoPlayer(try container.decode(VideoPlayerProps.self, forKey: .props))
-        default:
-            return .unsupported
-        }
     }
 }
 
@@ -216,21 +158,27 @@ enum WidgetNodeProps: Equatable, Sendable {
     case text(TextProps)
     case richText(RichTextProps)
     case button(ButtonProps)
+    case avatar(AvatarProps)
     case gridView(GridViewProps)
     case streamBuilder(StreamBuilderProps)
     case image(ImageProps)
+    case opacity(OpacityProps)
     case lottie(LottieProps)
     case sizedBox(SizedBoxProps)
     case conditionalBuilder(ConditionalBuilderProps)
     case conditionalItem(ConditionalItemProps)
     case linearProgressBar(LinearProgressBarProps)
     case circularProgressBar(CircularProgressBarProps)
+    case styledHorizontalDivider(StyledDividerProps)
+    case styledVerticalDivider(StyledDividerProps)
     case carousel(CarouselProps)
     case wrap(WrapProps)
     case story(StoryProps)
     case storyVideoPlayer(StoryVideoPlayerProps)
+    case scratchCard(ScratchCardProps)
     case textFormField(TextFormFieldProps)
     case videoPlayer(VideoPlayerProps)
+    case timer(TimerProps)
     case unsupported
 
     static func decode(
@@ -259,12 +207,16 @@ enum WidgetNodeProps: Equatable, Sendable {
             decoded = .richText(try container.decode(RichTextProps.self, forKey: key))
         case "digia/button":
             decoded = .button(try container.decode(ButtonProps.self, forKey: key))
+        case "digia/avatar":
+            decoded = .avatar(try container.decode(AvatarProps.self, forKey: key))
         case "digia/gridView":
             decoded = .gridView(try container.decode(GridViewProps.self, forKey: key))
         case "digia/streamBuilder":
             decoded = .streamBuilder(try container.decode(StreamBuilderProps.self, forKey: key))
         case "digia/image":
             decoded = .image(try container.decode(ImageProps.self, forKey: key))
+        case "digia/opacity":
+            decoded = .opacity(try container.decode(OpacityProps.self, forKey: key))
         case "digia/lottie":
             decoded = .lottie(try container.decode(LottieProps.self, forKey: key))
         case "fw/sized_box":
@@ -277,6 +229,10 @@ enum WidgetNodeProps: Equatable, Sendable {
             decoded = .linearProgressBar(try container.decode(LinearProgressBarProps.self, forKey: key))
         case "digia/circularProgressBar":
             decoded = .circularProgressBar(try container.decode(CircularProgressBarProps.self, forKey: key))
+        case "digia/horizontalDivider", "digia/styledHorizontalDivider":
+            decoded = .styledHorizontalDivider(try container.decodeIfPresent(StyledDividerProps.self, forKey: key) ?? StyledDividerProps())
+        case "digia/verticalDivider", "digia/styledVerticalDivider":
+            decoded = .styledVerticalDivider(try container.decodeIfPresent(StyledDividerProps.self, forKey: key) ?? StyledDividerProps())
         case "digia/carousel":
             decoded = .carousel(try container.decode(CarouselProps.self, forKey: key))
         case "digia/wrap":
@@ -285,10 +241,14 @@ enum WidgetNodeProps: Equatable, Sendable {
             decoded = .story(try container.decode(StoryProps.self, forKey: key))
         case "digia/storyVideoPlayer":
             decoded = .storyVideoPlayer(try container.decode(StoryVideoPlayerProps.self, forKey: key))
+        case "digia/scratchCard":
+            decoded = .scratchCard(try container.decode(ScratchCardProps.self, forKey: key))
         case "digia/textFormField":
             decoded = .textFormField(try container.decode(TextFormFieldProps.self, forKey: key))
         case "digia/videoPlayer":
             decoded = .videoPlayer(try container.decode(VideoPlayerProps.self, forKey: key))
+        case "digia/timer":
+            decoded = .timer(try container.decode(TimerProps.self, forKey: key))
         default:
             decoded = .unsupported
         }

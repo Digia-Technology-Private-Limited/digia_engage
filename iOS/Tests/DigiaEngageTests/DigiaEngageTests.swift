@@ -677,6 +677,70 @@ struct DigiaEngageTests {
         #expect(widget.shouldFillWidthInParentFlex() == true)
     }
 
+    @Test("image fill only stretches when both dimensions are explicit")
+    func imageFillOnlyStretchesWhenBothDimensionsAreExplicit() {
+        #expect(VWImage.shouldStretchToFillFrame(fit: "fill", hasExplicitWidth: true, hasExplicitHeight: true) == true)
+        #expect(VWImage.shouldStretchToFillFrame(fit: "fill", hasExplicitWidth: true, hasExplicitHeight: false) == false)
+        #expect(VWImage.shouldStretchToFillFrame(fit: "fill", hasExplicitWidth: false, hasExplicitHeight: true) == false)
+        #expect(VWImage.shouldStretchToFillFrame(fit: "cover", hasExplicitWidth: true, hasExplicitHeight: true) == false)
+    }
+
+    @Test("button does not fill width in centered column when only height is set")
+    func buttonDoesNotFillWidthInCenteredColumnWhenOnlyHeightIsSet() {
+        let parent = VWFlex(
+            direction: .vertical,
+            props: FlexProps(
+                spacing: nil,
+                startSpacing: nil,
+                endSpacing: nil,
+                mainAxisAlignment: nil,
+                crossAxisAlignment: "center",
+                mainAxisSize: nil,
+                isScrollable: nil,
+                dataSource: nil
+            ),
+            commonProps: nil,
+            parentProps: nil,
+            childGroups: nil,
+            parent: nil,
+            refName: nil
+        )
+        let widget = VWButton(
+            props: ButtonProps(
+                buttonState: nil,
+                isDisabled: .value(false),
+                disabledStyle: nil,
+                defaultStyle: ButtonVisualStyle(
+                    backgroundColor: nil,
+                    padding: nil,
+                    elevation: nil,
+                    alignment: nil,
+                    height: .value(56),
+                    width: nil,
+                    disabledTextColor: nil,
+                    disabledIconColor: nil,
+                    shadowColor: nil
+                ),
+                text: ButtonTextProps(
+                    text: .value("Claim Now"),
+                    textStyle: nil,
+                    maxLines: nil,
+                    overflow: nil
+                ),
+                leadingIcon: nil,
+                trailingIcon: nil,
+                shape: nil,
+                onClick: ActionFlow(steps: [])
+            ),
+            commonProps: nil,
+            parentProps: nil,
+            parent: parent,
+            refName: nil
+        )
+
+        #expect(widget.shouldFillWidthInParentFlex() == false)
+    }
+
     @Test("registry assigns actual container as child parent")
     func registryAssignsActualContainerAsChildParent() throws {
         let node: VWData = try decode("""

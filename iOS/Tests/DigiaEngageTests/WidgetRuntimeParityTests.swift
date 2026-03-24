@@ -107,6 +107,66 @@ struct WidgetRuntimeParityTests {
         #expect(props.indicatorEffectType == "worm")
     }
 
+    @Test("divider props decode styled and legacy variants")
+    func dividerPropsDecodeStyledAndLegacyVariants() throws {
+        let styled: StyledDividerProps = try decode("""
+        {
+          "thickness": 2,
+          "indent": 12,
+          "endIndent": 8,
+          "height": 18,
+          "colorType": {
+            "color": "#123456",
+            "gradiant": {
+              "type": "linear",
+              "begin": "topLeft",
+              "end": "bottomRight",
+              "center": "center",
+              "radius": 0.75,
+              "colorList": [
+                { "color": "#111111", "stop": 0.0 },
+                { "color": "#ffffff", "stop": 1.0 }
+              ]
+            }
+          },
+          "borderPattern": {
+            "value": "dashed",
+            "strokeCap": "round",
+            "dashPattern": [4, 2]
+          }
+        }
+        """)
+
+        #expect(styled.thickness == .value(2))
+        #expect(styled.indent == .value(12))
+        #expect(styled.endIndent == .value(8))
+        #expect(styled.size.height == .value(18))
+        #expect(styled.color == .value("#123456"))
+        #expect(styled.gradient?.type == "linear")
+        #expect(styled.gradient?.colorList?.count == 2)
+        #expect(styled.borderPattern == "dashed")
+        #expect(styled.strokeCap == "round")
+        #expect(styled.dashPattern == [4, 2])
+
+        let legacy: StyledDividerProps = try decode("""
+        {
+          "thickness": 3,
+          "lineStyle": "dotted",
+          "width": 20,
+          "indent": 4,
+          "endIndent": 6,
+          "color": "#abcdef"
+        }
+        """)
+
+        #expect(legacy.thickness == .value(3))
+        #expect(legacy.lineStyle == "dotted")
+        #expect(legacy.size.width == .value(20))
+        #expect(legacy.indent == .value(4))
+        #expect(legacy.endIndent == .value(6))
+        #expect(legacy.color == .value("#abcdef"))
+    }
+
     @Test("wrap props decode layout and data source settings")
     func wrapPropsDecodeLayoutAndDataSourceSettings() throws {
         let props: WrapProps = try decode("""
@@ -196,6 +256,107 @@ struct WidgetRuntimeParityTests {
         #expect(props.aspectRatio == .value(1.77))
         #expect(props.autoPlay == .value(false))
         #expect(props.looping == .value(true))
+    }
+
+    @Test("timer props decode countdown configuration")
+    func timerPropsDecodeCountdownConfiguration() throws {
+        let props: TimerProps = try decode("""
+        {
+          "duration": 10,
+          "initialValue": 12,
+          "updateInterval": 2,
+          "timerType": "countDown",
+          "onTick": {
+            "steps": []
+          },
+          "onTimerEnd": {
+            "steps": []
+          }
+        }
+        """)
+
+        #expect(props.duration == .value(10))
+        #expect(props.initialValue == .value(12))
+        #expect(props.updateInterval == .value(2))
+        #expect(props.isCountDown == true)
+        #expect(props.onTick?.steps.isEmpty == true)
+        #expect(props.onTimerEnd?.steps.isEmpty == true)
+    }
+
+    @Test("scratch card props decode interaction and animation settings")
+    func scratchCardPropsDecodeInteractionAndAnimationSettings() throws {
+        let props: ScratchCardProps = try decode("""
+        {
+          "width": "150",
+          "height": "120",
+          "brushSize": 25,
+          "revealFullAtPercent": 50,
+          "isScratchingEnabled": true,
+          "gridResolution": 10,
+          "enableTapToScratch": false,
+          "brushColor": "#000000",
+          "brushOpacity": 1,
+          "brushShape": "circle",
+          "enableHapticFeedback": false,
+          "revealAnimationType": "fade",
+          "animationDurationMs": 300,
+          "enableProgressAnimation": false,
+          "onScratchComplete": {
+            "steps": []
+          }
+        }
+        """)
+
+        #expect(props.width == "150")
+        #expect(props.height == "120")
+        #expect(props.brushSize == .value(25))
+        #expect(props.revealFullAtPercent == .value(50))
+        #expect(props.isScratchingEnabled == .value(true))
+        #expect(props.gridResolution == .value(10))
+        #expect(props.enableTapToScratch == .value(false))
+        #expect(props.brushColor == .value("#000000"))
+        #expect(props.brushOpacity == .value(1))
+        #expect(props.brushShape == .value("circle"))
+        #expect(props.enableHapticFeedback == .value(false))
+        #expect(props.revealAnimationType == .value("fade"))
+        #expect(props.animationDurationMs == .value(300))
+        #expect(props.enableProgressAnimation == .value(false))
+        #expect(props.onScratchComplete?.steps.isEmpty == true)
+    }
+
+    @Test("timer controller publishes countdown ticks and completion")
+    func timerControllerPublishesCountdownTicks() async throws {
+        let controller = DigiaTimerController(
+            initialValue: 2,
+            updateInterval: 0.01,
+            isCountDown: true,
+            duration: 2
+        )
+        let recorder = TimerRecorder()
+        let tickToken = controller.subscribe { value in
+            guard let value = value as? Int else { return }
+            Task {
+                await recorder.recordTick(value)
+            }
+        }
+        let completionToken = controller.subscribeCompletion { value in
+            Task {
+                await recorder.recordCompletion(value)
+            }
+        }
+
+        controller.start()
+        try await Task.sleep(for: .milliseconds(80))
+
+        controller.unsubscribe(tickToken)
+        controller.unsubscribeCompletion(completionToken)
+        controller.dispose()
+
+        let ticks = await recorder.ticks
+        let completionValue = await recorder.completionValue
+
+        #expect(ticks == [2, 1, 0])
+        #expect(completionValue == 0)
     }
 
     @MainActor
@@ -313,6 +474,19 @@ struct WidgetRuntimeParityTests {
         #expect(model.player == nil)
         #expect(model.errorMessage == "Unsupported video URL")
         #expect(abs(model.aspectRatio - (16.0 / 9.0)) < 0.0001)
+    }
+}
+
+private actor TimerRecorder {
+    private(set) var ticks: [Int] = []
+    private(set) var completionValue: Int?
+
+    func recordTick(_ value: Int) {
+        ticks.append(value)
+    }
+
+    func recordCompletion(_ value: Int) {
+        completionValue = value
     }
 }
 

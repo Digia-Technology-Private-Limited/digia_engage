@@ -2,7 +2,7 @@ import SwiftUI
 
 struct DigiaDeterminateLinearBar: View {
     let progress: CGFloat
-    let width: CGFloat
+    let width: CGFloat?
     let thickness: CGFloat
     let radius: CGFloat
     let tint: Color
@@ -13,16 +13,18 @@ struct DigiaDeterminateLinearBar: View {
     @State private var displayedProgress: CGFloat = 0
 
     var body: some View {
-        ZStack(alignment: reversed ? .trailing : .leading) {
-            RoundedRectangle(cornerRadius: radius)
-                .fill(background)
-                .frame(width: width, height: thickness)
-            RoundedRectangle(cornerRadius: radius)
-                .fill(tint)
-                .frame(width: width * displayedProgress, height: thickness)
+        resolvedTrack(width: width, thickness: thickness) { availableWidth in
+            ZStack(alignment: reversed ? .trailing : .leading) {
+                RoundedRectangle(cornerRadius: radius)
+                    .fill(background)
+                    .frame(width: availableWidth, height: thickness)
+                RoundedRectangle(cornerRadius: radius)
+                    .fill(tint)
+                    .frame(width: availableWidth * displayedProgress, height: thickness)
+            }
+            .frame(width: availableWidth, height: thickness)
+            .clipShape(RoundedRectangle(cornerRadius: radius))
         }
-        .frame(width: width, height: thickness)
-        .clipShape(RoundedRectangle(cornerRadius: radius))
         .onAppear {
             updateProgress()
         }
@@ -43,7 +45,7 @@ struct DigiaDeterminateLinearBar: View {
 }
 
 struct DigiaIndeterminateLinearBar: View {
-    let width: CGFloat
+    let width: CGFloat?
     let thickness: CGFloat
     let radius: CGFloat
     let tint: Color
@@ -53,23 +55,44 @@ struct DigiaIndeterminateLinearBar: View {
     @State private var phase: CGFloat = -0.4
 
     var body: some View {
-        ZStack(alignment: .leading) {
-            RoundedRectangle(cornerRadius: radius)
-                .fill(background)
-                .frame(width: width, height: thickness)
+        resolvedTrack(width: width, thickness: thickness) { availableWidth in
+            ZStack(alignment: .leading) {
+                RoundedRectangle(cornerRadius: radius)
+                    .fill(background)
+                    .frame(width: availableWidth, height: thickness)
 
-            RoundedRectangle(cornerRadius: radius)
-                .fill(tint)
-                .frame(width: max(width * 0.35, thickness * 2), height: thickness)
-                .offset(x: (reversed ? -1 : 1) * phase * width)
+                RoundedRectangle(cornerRadius: radius)
+                    .fill(tint)
+                    .frame(width: max(availableWidth * 0.35, thickness * 2), height: thickness)
+                    .offset(x: (reversed ? -1 : 1) * phase * availableWidth)
+            }
+            .frame(width: availableWidth, height: thickness, alignment: .leading)
+            .clipShape(RoundedRectangle(cornerRadius: radius))
         }
-        .frame(width: width, height: thickness, alignment: .leading)
-        .clipped()
         .onAppear {
             withAnimation(.linear(duration: 1.1).repeatForever(autoreverses: false)) {
                 phase = reversed ? 1.2 : 1.2
             }
         }
+    }
+}
+
+@ViewBuilder
+private func resolvedTrack<Content: View>(
+    width: CGFloat?,
+    thickness: CGFloat,
+    @ViewBuilder content: @escaping (CGFloat) -> Content
+) -> some View {
+    if let width {
+        content(width)
+            .frame(width: width, height: thickness, alignment: .leading)
+    } else {
+        GeometryReader { proxy in
+            let availableWidth = max(proxy.size.width, 0)
+            content(availableWidth)
+                .frame(width: availableWidth, height: thickness, alignment: .leading)
+        }
+        .frame(maxWidth: .infinity, minHeight: thickness, maxHeight: thickness, alignment: .leading)
     }
 }
 

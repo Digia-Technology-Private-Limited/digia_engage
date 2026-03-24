@@ -4,7 +4,7 @@ struct CommonStyle: Decodable, Equatable, Sendable {
     let padding: Spacing?
     let margin: Spacing?
     let bgColor: ExprOr<String>?
-    let borderRadius: ExprOr<Double>?
+    let borderRadius: JSONValue?
     let height: ExprOr<Double>?
     let width: ExprOr<Double>?
     let heightRaw: String?
@@ -16,7 +16,7 @@ struct CommonStyle: Decodable, Equatable, Sendable {
         padding: Spacing? = nil,
         margin: Spacing? = nil,
         bgColor: ExprOr<String>? = nil,
-        borderRadius: ExprOr<Double>? = nil,
+        borderRadius: JSONValue? = nil,
         height: ExprOr<Double>? = nil,
         width: ExprOr<Double>? = nil,
         heightRaw: String? = nil,
@@ -43,7 +43,7 @@ struct CommonStyle: Decodable, Equatable, Sendable {
         bgColor = try container.decodeIfPresent(ExprOr<String>.self, forKey: .bgColor)
             ?? container.decodeIfPresent(ExprOr<String>.self, forKey: .backgroundColor)
         border = try container.decodeIfPresent(BorderStyle.self, forKey: .border)
-        borderRadius = try container.decodeIfPresent(ExprOr<Double>.self, forKey: .borderRadius)
+        borderRadius = try container.decodeIfPresent(JSONValue.self, forKey: .borderRadius)
             ?? border?.borderRadius
         height = try container.decodeIfPresent(ExprOr<Double>.self, forKey: .height)
         width = try container.decodeIfPresent(ExprOr<Double>.self, forKey: .width)
@@ -67,7 +67,7 @@ struct CommonStyle: Decodable, Equatable, Sendable {
 
 struct BorderStyle: Decodable, Equatable, Sendable {
     let borderWidth: Double?
-    let borderRadius: ExprOr<Double>?
+    let borderRadius: JSONValue?
     let borderColor: ExprOr<String>?
     let strokeAlign: String?
     let borderType: BorderType?

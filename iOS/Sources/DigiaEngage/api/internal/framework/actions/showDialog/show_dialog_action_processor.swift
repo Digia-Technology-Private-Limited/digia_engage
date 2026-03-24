@@ -1,8 +1,6 @@
 import Foundation
-#if canImport(UIKit)
 import SwiftUI
 import UIKit
-#endif
 
 struct ShowDialogAction: Sendable {
     let actionType: ActionType = .showDialog
@@ -46,7 +44,6 @@ struct ShowDialogProcessor {
         )
         SDKInstance.shared.controller.showDialog(presentation)
 
-        #if canImport(UIKit)
         let overlayController = SDKInstance.shared.controller
         let root = ZStack {
             if barrierDismissible {
@@ -91,7 +88,6 @@ struct ShowDialogProcessor {
                 localStateStore: context.localStateStore
             )
         }
-        #endif
     }
 }
 

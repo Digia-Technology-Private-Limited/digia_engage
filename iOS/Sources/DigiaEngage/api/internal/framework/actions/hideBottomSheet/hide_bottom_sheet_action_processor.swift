@@ -16,8 +16,6 @@ struct HideBottomSheetProcessor {
         }
         SDKInstance.shared.controller.dismissBottomSheet(result: result)
         SDKInstance.shared.didDismissBottomSheet()
-        #if canImport(UIKit)
         ViewControllerUtil.dismissPresented()
-        #endif
     }
 }

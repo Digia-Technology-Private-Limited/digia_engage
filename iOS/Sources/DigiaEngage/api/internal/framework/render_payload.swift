@@ -1,20 +1,19 @@
-import DigiaExpr
 import SwiftUI
 
 @MainActor
 struct RenderPayload {
-    let appConfigStore: AppConfigStore
+    let resources: ResourceProvider
     let scopeContext: any ScopeContext
     let actionExecutor: ActionExecutor
     let localStateStore: StateContext?
 
     init(
-        appConfigStore: AppConfigStore,
+        resources: ResourceProvider,
         scopeContext: (any ScopeContext)? = nil,
         actionExecutor: ActionExecutor = ActionExecutor(),
         localStateStore: StateContext? = nil
     ) {
-        self.appConfigStore = appConfigStore
+        self.resources = resources
         let rootContext: any ScopeContext = scopeContext ?? AppStateExprContext(
             values: SDKInstance.shared.appState.mapValues(\.anyValue),
             streams: SDKInstance.shared.appStateStreams.mapValues { $0 as Any }
@@ -25,11 +24,12 @@ struct RenderPayload {
     }
 
     func resolveColor(_ value: String?) -> Color? {
+        resources.getColor(value)
+    }
+
+    func evalColor(_ value: String?, scopeContext incoming: (any ExprContext)? = nil) -> Color? {
         guard let value else { return nil }
-        if let color = Color(hex: value) {
-            return color
-        }
-        return appConfigStore.themeColor(named: value).flatMap(Color.init(hex:))
+        return resolveColor(ExprOr<String>.value(value).resolve(in: chainContext(incoming)))
     }
 
     func eval(_ value: ExprOr<String>?, scopeContext incoming: (any ExprContext)? = nil) -> String? {
@@ -68,7 +68,7 @@ struct RenderPayload {
     ) {
         actionExecutor.execute(
             actionFlow,
-            appConfig: appConfigStore,
+            appConfig: resources.appConfigStore,
             scopeContext: overrideContext ?? scopeContext,
             triggerType: triggerType,
             localStateStore: localStateStore
@@ -84,7 +84,7 @@ struct RenderPayload {
         localStateStore: StateContext? = nil
     ) -> RenderPayload {
         RenderPayload(
-            appConfigStore: appConfigStore,
+            resources: resources,
             scopeContext: scopeContext ?? self.scopeContext,
             actionExecutor: actionExecutor,
             localStateStore: localStateStore ?? self.localStateStore

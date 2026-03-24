@@ -3,19 +3,11 @@ import SwiftUI
 @MainActor
 final class VWButton: VirtualLeafStatelessWidget<ButtonProps> {
     override func render(_ payload: RenderPayload) -> AnyView {
-        let isDisabled = (payload.eval(props.isDisabled) ?? false) || props.onClick == nil
+        let isDisabled = payload.eval(props.isDisabled) ?? (props.onClick == nil)
         let style = isDisabled ? props.disabledStyle : props.defaultStyle
         let disabledStyle = props.disabledStyle
-        let fontFactory = SDKInstance.shared.fontFactory
-        let font = TextStyleUtil.font(
-            textStyle: props.text?.textStyle,
-            appConfigStore: payload.appConfigStore,
-            fontFactory: fontFactory
-        )
-        let resolvedLineHeight = TextStyleUtil.lineHeight(
-            textStyle: props.text?.textStyle,
-            appConfigStore: payload.appConfigStore
-        )
+        let font = payload.resources.font(textStyle: props.text?.textStyle)
+        let resolvedLineHeight = payload.resources.lineHeight(textStyle: props.text?.textStyle)
 
         // Match Flutter's background resolution:
         // - Disabled uses disabledStyle.backgroundColor when provided
@@ -47,7 +39,14 @@ final class VWButton: VirtualLeafStatelessWidget<ButtonProps> {
         let alignment = To.alignment(style?.alignment) ?? .center
         let resolvedWidth = width.map { max($0, Self.minimumSize.width) }
         let resolvedHeight = height.map { max($0, Self.minimumSize.height) }
-        let shouldFillWidth = resolvedWidth == nil && shouldFillWidthInParentFlex()
+        // Match Flutter button sizing:
+        // - explicit fill width strings still expand
+        // - otherwise a button only fills when the parent column stretches children
+        let widthIsFillPercent = widthSpecifiedAsFill(style: style)
+        let shouldFillWidth = resolvedWidth == nil && (
+            widthIsFillPercent ||
+            shouldFillWidthInParentFlex()
+        )
 
         return AnyView(
             Button {
@@ -179,9 +178,21 @@ final class VWButton: VirtualLeafStatelessWidget<ButtonProps> {
         }
     }
 
+    /// Returns true when the style's width is specified as a fill percentage (e.g. "100%").
+    private func widthSpecifiedAsFill(style: ButtonVisualStyle?) -> Bool {
+        guard case .expression(let raw) = style?.width else { return false }
+        let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        return trimmed == "100%" || trimmed == "fill"
+    }
+
+    /// Matches Flutter's behavior where a button in a vertical Column fills width
+    /// only when the parent stretches children across the cross axis.
     func shouldFillWidthInParentFlex() -> Bool {
         guard let flexParent = parent as? VWFlex else { return false }
-        return flexParent.direction == .vertical && flexParent.props.crossAxisAlignment == "stretch"
+        if flexParent.direction == .vertical {
+            return flexParent.props.crossAxisAlignment == "stretch"
+        }
+        return false
     }
 
     private static let minimumSize = CGSize(width: 64, height: 40)

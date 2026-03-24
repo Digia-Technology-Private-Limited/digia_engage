@@ -1,5 +1,5 @@
 {
-  "originHash" : "c94b9adb4abe583f3f43eef228e6c6aa2c3b543d94bd2a6192538d23e7a798c5",
+  "originHash" : "b343f18060be3dd5c3913601bd17140562cfdd05045b47b5fe74a39632adb2bb",
   "pins" : [
     {
       "identity" : "alerttoast",
@@ -13,10 +13,10 @@
     {
       "identity" : "digia_expr_swift",
       "kind" : "remoteSourceControl",
-      "location" : "git@github.com:Digia-Technology-Private-Limited/digia_expr_swift.git",
+      "location" : "https://github.com/Digia-Technology-Private-Limited/digia_expr_swift.git",
       "state" : {
-        "branch" : "main",
-        "revision" : "2c91e8fd02aa0b5c528668a1632fd598a7f58116"
+        "revision" : "965d4f953f4809e09f3613ac073264af56fb11aa",
+        "version" : "0.1.0"
       }
     },
     {
@@ -35,6 +35,33 @@
       "state" : {
         "revision" : "6c61890976181274ea7baf6a4c297418346db799",
         "version" : "3.1.1"
+      }
+    },
+    {
+      "identity" : "sdwebimage",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/SDWebImage/SDWebImage.git",
+      "state" : {
+        "revision" : "2de3a496eaf6df9a1312862adcfd54acd73c39c0",
+        "version" : "5.21.7"
+      }
+    },
+    {
+      "identity" : "sdwebimagesvgcoder",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/SDWebImage/SDWebImageSVGCoder.git",
+      "state" : {
+        "revision" : "85b5d58ad02c207c496fa34426dc6560d6ae32f0",
+        "version" : "1.8.0"
+      }
+    },
+    {
+      "identity" : "sdwebimageswiftui",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/SDWebImage/SDWebImageSwiftUI.git",
+      "state" : {
+        "revision" : "0e331457ca9af2f0b08bcaa138a91ffb907b004f",
+        "version" : "3.1.4"
       }
     },
     {

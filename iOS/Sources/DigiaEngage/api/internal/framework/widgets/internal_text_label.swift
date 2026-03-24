@@ -1,5 +1,4 @@
 import SwiftUI
-#if canImport(UIKit)
 import UIKit
 
 @MainActor
@@ -35,4 +34,3 @@ struct InternalTextLabel: UIViewRepresentable {
         return CGSize(width: resolvedWidth, height: fitted.height)
     }
 }
-#endif

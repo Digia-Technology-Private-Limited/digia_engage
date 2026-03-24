@@ -47,13 +47,9 @@ public struct DigiaInitialRouteScreen: View {
 private extension View {
     @ViewBuilder
     func digiaHideHostNavigationBar() -> some View {
-#if os(iOS)
         self
             .navigationBarBackButtonHidden(true)
             .toolbar(.hidden, for: .navigationBar)
             .digiaKeepSwipeBackGestureEnabled()
-#else
-        self
-#endif
     }
 }

@@ -1,31 +1,18 @@
 import SwiftUI
-#if canImport(UIKit)
 import UIKit
-#endif
 
 @MainActor
 final class VWText: VirtualLeafStatelessWidget<TextProps> {
     override func render(_ payload: RenderPayload) -> AnyView {
         guard let text = payload.eval(props.text) else { return empty() }
 
-        let fontFactory = SDKInstance.shared.fontFactory
-        let font = TextStyleUtil.font(
-            textStyle: props.textStyle,
-            appConfigStore: payload.appConfigStore,
-            fontFactory: fontFactory
-        )
-        let resolvedLineHeight = TextStyleUtil.lineHeight(
-            textStyle: props.textStyle,
-            appConfigStore: payload.appConfigStore
-        )
-        let resolvedFontSize = TextStyleUtil.fontSize(
-            textStyle: props.textStyle,
-            appConfigStore: payload.appConfigStore
-        )
-        let textColor = payload.resolveColor(props.textStyle?.textColor) ?? .primary
-        let backgroundColor = payload.resolveColor(props.textStyle?.textBackgroundColor)
+        let font = payload.resources.font(textStyle: props.textStyle)
+        let resolvedLineHeight = payload.resources.lineHeight(textStyle: props.textStyle)
+        let resolvedFontSize = payload.resources.fontSize(textStyle: props.textStyle)
+        let textColor = payload.evalColor(props.textStyle?.textColor) ?? .primary
+        let backgroundColor = payload.evalColor(props.textStyle?.textBackgroundColor)
         let decoration = props.textStyle?.textDecoration?.lowercased()
-        let decorationColor = payload.resolveColor(props.textStyle?.textDecorationColor) ?? textColor
+        let decorationColor = payload.evalColor(props.textStyle?.textDecorationColor) ?? textColor
         let lineLimit = payload.eval(props.maxLines)
         let alignment = payload.eval(props.alignment)
         let overflow = payload.eval(props.overflow)
@@ -35,13 +22,8 @@ final class VWText: VirtualLeafStatelessWidget<TextProps> {
         let shouldExpandToAvailableWidth = commonProps?.style?.widthRaw == "100%" ||
             commonProps?.style?.width != nil ||
             lineLimit == 1 ||
-            shouldExpandForParentStretch ||
-            alignment == "center" ||
-            alignment == "end" ||
-            alignment == "right" ||
-            alignment == "justify"
+            shouldExpandForParentStretch
 
-#if canImport(UIKit)
         if !hasGradient, overflow != "marquee" {
             return renderUIKitText(
                 text: text,
@@ -58,7 +40,6 @@ final class VWText: VirtualLeafStatelessWidget<TextProps> {
                 expandToAvailableWidth: shouldExpandToAvailableWidth
             )
         }
-#endif
 
         return renderSwiftUIText(
             text: text,
@@ -158,7 +139,6 @@ final class VWText: VirtualLeafStatelessWidget<TextProps> {
         return current
     }
 
-#if canImport(UIKit)
     private func renderUIKitText(
         text: String,
         payload: RenderPayload,
@@ -182,7 +162,7 @@ final class VWText: VirtualLeafStatelessWidget<TextProps> {
         }
 
         var attributes: [NSAttributedString.Key: Any] = [
-            .font: TextStyleUtil.uiFont(textStyle: props.textStyle, appConfigStore: payload.appConfigStore),
+            .font: payload.resources.uiFont(textStyle: props.textStyle),
             .foregroundColor: UIColor(textColor),
             .paragraphStyle: paragraph,
         ]
@@ -263,7 +243,6 @@ final class VWText: VirtualLeafStatelessWidget<TextProps> {
             return .byWordWrapping
         }
     }
-#endif
 
     private func applySharedDecorations(
         to view: AnyView,

@@ -9,25 +9,11 @@ enum WidgetUtil {
     ) -> AnyView {
         guard let style else { return child }
 
+        let borderRadius = resolveCornerRadius(style.borderRadius, payload: payload)
         var current = child
 
         if let padding = style.padding?.edgeInsets {
             current = AnyView(current.padding(padding))
-        }
-
-        current = AnyView(
-            current.background(
-                DigiaDecorationView(
-                    payload: payload,
-                    backgroundColor: payload.evalColor(style.bgColor),
-                    border: style.border,
-                    borderRadius: payload.eval(style.borderRadius)
-                )
-            )
-        )
-
-        if let borderRadius = payload.eval(style.borderRadius), borderRadius > 0 {
-            current = AnyView(current.clipShape(RoundedRectangle(cornerRadius: borderRadius, style: .continuous)))
         }
 
         current = applySizing(
@@ -36,7 +22,22 @@ enum WidgetUtil {
             child: current
         )
 
-        if style.clipBehavior != nil {
+        current = AnyView(
+            current.background(
+                DigiaDecorationView(
+                    payload: payload,
+                    backgroundColor: payload.evalColor(style.bgColor),
+                    border: style.border,
+                    borderRadius: borderRadius
+                )
+            )
+        )
+
+        if let borderRadius {
+            current = AnyView(current.clipShape(shape(for: borderRadius)))
+        }
+
+        if let clipBehavior = style.clipBehavior, clipBehavior != "none" {
             current = AnyView(current.clipped())
         }
 
@@ -146,6 +147,89 @@ enum WidgetUtil {
 
         return ResolvedDimension()
     }
+
+    static func resolveCornerRadius(
+        _ rawValue: JSONValue?,
+        payload: RenderPayload
+    ) -> CornerRadiusProps? {
+        guard let rawValue else { return nil }
+        let resolvedValue = ExpressionUtil.evaluateNestedExpressionsToAny(rawValue, in: payload.scopeContext)
+        return cornerRadius(from: resolvedValue)
+    }
+
+    static func shape(for cornerRadius: CornerRadiusProps) -> AnyShape {
+        if cornerRadius.isUniform {
+            return AnyShape(RoundedRectangle(cornerRadius: cornerRadius.uniformValue, style: .continuous))
+        }
+        return AnyShape(DigiaRoundedRect(cornerRadius: cornerRadius))
+    }
+
+    private static func cornerRadius(from rawValue: Any?) -> CornerRadiusProps? {
+        switch rawValue {
+        case let value as Double:
+            return CornerRadiusProps(uniform: value)
+        case let value as Int:
+            return CornerRadiusProps(uniform: Double(value))
+        case let value as NSNumber:
+            return CornerRadiusProps(uniform: value.doubleValue)
+        case let value as String:
+            let parts = value
+                .split(separator: ",")
+                .compactMap { Double($0.trimmingCharacters(in: .whitespacesAndNewlines)) }
+            switch parts.count {
+            case 1:
+                return CornerRadiusProps(uniform: parts[0])
+            case 4:
+                return CornerRadiusProps(
+                    topLeft: parts[0],
+                    topRight: parts[1],
+                    bottomRight: parts[2],
+                    bottomLeft: parts[3]
+                )
+            default:
+                return nil
+            }
+        case let values as [Any?]:
+            let parts = values.compactMap(doubleValue)
+            switch parts.count {
+            case 1:
+                return CornerRadiusProps(uniform: parts[0])
+            case 4:
+                return CornerRadiusProps(
+                    topLeft: parts[0],
+                    topRight: parts[1],
+                    bottomRight: parts[2],
+                    bottomLeft: parts[3]
+                )
+            default:
+                return nil
+            }
+        case let object as [String: Any?]:
+            return CornerRadiusProps(
+                topLeft: doubleValue(object["topLeft"]) ?? 0,
+                topRight: doubleValue(object["topRight"]) ?? 0,
+                bottomRight: doubleValue(object["bottomRight"]) ?? 0,
+                bottomLeft: doubleValue(object["bottomLeft"]) ?? 0
+            )
+        default:
+            return nil
+        }
+    }
+
+    private static func doubleValue(_ rawValue: Any?) -> Double? {
+        switch rawValue {
+        case let value as Double:
+            return value
+        case let value as Int:
+            return Double(value)
+        case let value as NSNumber:
+            return value.doubleValue
+        case let value as String:
+            return Double(value.trimmingCharacters(in: .whitespacesAndNewlines))
+        default:
+            return nil
+        }
+    }
 }
 
 struct ResolvedDimension: Equatable {
@@ -188,21 +272,21 @@ private struct DigiaDecorationView: View {
     let payload: RenderPayload
     let backgroundColor: Color?
     let border: BorderStyle?
-    let borderRadius: Double?
+    let borderRadius: CornerRadiusProps?
 
     var body: some View {
-        let radius = CGFloat(borderRadius ?? border?.borderRadius?.resolve(in: nil) ?? 0)
+        let shape = borderRadius.map { WidgetUtil.shape(for: $0) } ?? AnyShape(RoundedRectangle(cornerRadius: 0, style: .continuous))
         ZStack {
             if let backgroundColor {
-                RoundedRectangle(cornerRadius: radius, style: .continuous)
+                shape
                     .fill(backgroundColor)
             }
 
             if let border,
                let borderWidth = border.borderWidth,
                borderWidth > 0 {
-                RoundedRectangle(cornerRadius: radius, style: .continuous)
-                    .strokeBorder(
+                shape
+                    .stroke(
                         borderColor(border),
                         style: StrokeStyle(
                             lineWidth: borderWidth,

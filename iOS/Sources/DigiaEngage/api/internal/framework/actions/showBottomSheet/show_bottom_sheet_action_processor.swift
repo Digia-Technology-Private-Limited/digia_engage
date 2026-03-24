@@ -1,8 +1,6 @@
 import Foundation
-#if canImport(UIKit)
 import SwiftUI
 import UIKit
-#endif
 
 struct ShowBottomSheetAction: Sendable {
     let actionType: ActionType = .showBottomSheet
@@ -38,7 +36,6 @@ struct ShowBottomSheetProcessor {
         )
         SDKInstance.shared.controller.showBottomSheet(presentation)
 
-        #if canImport(UIKit)
         let overlayController = SDKInstance.shared.controller
         let root = ZStack(alignment: .bottom) {
             Color.black.opacity(0.35)
@@ -78,7 +75,6 @@ struct ShowBottomSheetProcessor {
                 localStateStore: context.localStateStore
             )
         }
-        #endif
     }
 }
 

@@ -7,19 +7,56 @@ final class VWStack: VirtualStatelessWidget<StackProps> {
         guard !children.isEmpty else { return empty() }
 
         let alignment = stackAlignment
-        var stack = AnyView(
-            ZStack(alignment: alignment) {
-                ForEach(Array(children.enumerated()), id: \.offset) { _, child in
-                    self.positioned(child: child, payload: payload)
-                }
-            }
+        let nonPositionedChildren = children.filter { positionedProps(for: $0) == nil }
+        let visibleChildren = AnyView(
+            layer(
+                children: children,
+                payload: payload,
+                alignment: alignment
+            )
         )
 
-        if props.fit == "expand" {
-            stack = AnyView(stack.frame(maxWidth: .infinity, maxHeight: .infinity, alignment: alignment))
+        let stack: AnyView
+        if nonPositionedChildren.isEmpty {
+            stack = visibleChildren
+        } else {
+            // Match Flutter Stack sizing: only non-positioned children affect layout,
+            // while all children still render in original order.
+            stack = AnyView(
+                layer(
+                    children: nonPositionedChildren,
+                    payload: payload,
+                    alignment: alignment
+                )
+                .hidden()
+                .overlay(alignment: alignment) {
+                    self.layer(
+                        children: children,
+                        payload: payload,
+                        alignment: alignment
+                    )
+                }
+            )
         }
 
-        return stack
+        var resolvedStack = stack
+        if props.fit == "expand" {
+            resolvedStack = AnyView(resolvedStack.frame(maxWidth: .infinity, maxHeight: .infinity, alignment: alignment))
+        }
+
+        return AnyView(resolvedStack.clipped())
+    }
+
+    private func layer(
+        children: [VirtualWidget],
+        payload: RenderPayload,
+        alignment: Alignment
+    ) -> some View {
+        ZStack(alignment: alignment) {
+            ForEach(Array(children.enumerated()), id: \.offset) { _, child in
+                self.positioned(child: child, payload: payload)
+            }
+        }
     }
 
     private func positioned(child: VirtualWidget, payload: RenderPayload) -> some View {
@@ -62,10 +99,14 @@ final class VWStack: VirtualStatelessWidget<StackProps> {
             view
                 .frame(width: width, height: height, alignment: .topLeading)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: alignment)
-                .padding(.leading, left ?? 0)
-                .padding(.trailing, right ?? 0)
-                .padding(.top, top ?? 0)
-                .padding(.bottom, bottom ?? 0)
+                .padding(.leading, max(left ?? 0, 0))
+                .padding(.trailing, max(right ?? 0, 0))
+                .padding(.top, max(top ?? 0, 0))
+                .padding(.bottom, max(bottom ?? 0, 0))
+                .offset(
+                    x: min(left ?? 0, 0) - min(right ?? 0, 0),
+                    y: min(top ?? 0, 0) - min(bottom ?? 0, 0)
+                )
         )
     }
 

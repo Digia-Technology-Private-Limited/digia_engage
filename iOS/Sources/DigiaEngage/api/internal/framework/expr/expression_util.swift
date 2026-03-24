@@ -4,6 +4,10 @@ import Foundation
 // Module-wide typealiases so other files don't need to import DigiaExpr directly.
 typealias ExprContext = DigiaExpr.ExprContext
 typealias BasicExprContext = DigiaExpr.BasicExprContext
+typealias ExprLookupResult = DigiaExpr.ExprLookupResult
+typealias ExprValue = DigiaExpr.ExprValue
+typealias ExprInstance = DigiaExpr.ExprInstance
+typealias ExpressionError = DigiaExpr.ExpressionError
 
 /// Mirrors Flutter's ExpressionUtil from expression_util.dart.
 /// Also absorbs JSONValueResolver (Flutter's evaluateNestedExpressions).
@@ -27,6 +31,11 @@ enum ExpressionUtil {
             return evaluateExpression(str, context: context)
         }
         return value as? T
+    }
+
+    /// Evaluates an expression string and returns the raw untyped result.
+    static func evaluateAny(_ source: String, context: (any ExprContext)?) -> Any? {
+        try? Expression.eval(source, context)
     }
 
     // MARK: - JSONValue recursive resolution (from json_value_resolver.swift)

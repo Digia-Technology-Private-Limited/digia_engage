@@ -1,8 +1,6 @@
 import Lottie
 import SwiftUI
-#if canImport(UIKit)
 import UIKit
-#endif
 
 @MainActor
 final class VWLottie: VirtualLeafStatelessWidget<LottieProps> {
@@ -70,7 +68,6 @@ private struct LottieContainerView: View {
     }
 
     var body: some View {
-#if canImport(UIKit)
         LottieRepresentable(
             path: path,
             animate: animate,
@@ -81,13 +78,9 @@ private struct LottieContainerView: View {
             onComplete: onComplete
         )
         .frame(width: frameWidth, height: frameHeight, alignment: alignment)
-#else
-        Image(systemName: "exclamationmark.triangle").foregroundStyle(.red)
-#endif
     }
 }
 
-#if canImport(UIKit)
 private struct LottieRepresentable: UIViewRepresentable {
     let path: String
     let animate: Bool
@@ -217,4 +210,3 @@ private final class LottieHostView: UIView {
 private final class Coordinator {
     var onCompleteTriggered = false
 }
-#endif

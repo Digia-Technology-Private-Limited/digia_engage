@@ -1,4 +1,3 @@
-import DigiaExpr
 import SwiftUI
 
 @MainActor
@@ -60,8 +59,8 @@ final class VWCarousel: VirtualStatelessWidget<CarouselProps> {
         case let .array(values):
             return values.map(\.anyValue)
         case let .string(value):
-            guard Expression.hasExpression(value) || Expression.isExpression(value),
-                  let resolved = try? Expression.eval(value, payload.scopeContext) else {
+            guard ExpressionUtil.hasExpression(value),
+                  let resolved = ExpressionUtil.evaluateAny(value, context: payload.scopeContext) else {
                 return nil
             }
             return resolved as? [Any]
@@ -219,25 +218,37 @@ private struct DigiaCarouselView: View {
                 let delta = reverseScroll ? -1 : 1
 
                 if infiniteScroll {
+                    let oldReal = realPage
                     withAnimation(.easeInOut(duration: animDuration)) {
                         currentPage += delta
                     }
                     DispatchQueue.main.asyncAfter(deadline: .now() + animDuration) {
                         snapInfiniteLoop()
+                        let newReal = realPage
+                        if newReal != oldReal {
+                            onChanged(newReal)
+                        }
                     }
                 } else {
                     let next = currentPage + delta
                     let clamped = min(max(next, 0), pages.count - 1)
                     guard clamped != currentPage else { return }
+                    let oldReal = realPage
                     withAnimation(.easeInOut(duration: animDuration)) {
                         currentPage = clamped
+                    }
+                    DispatchQueue.main.asyncAfter(deadline: .now() + animDuration) {
+                        let newReal = realPage
+                        if newReal != oldReal {
+                            onChanged(newReal)
+                        }
                     }
                 }
             }
         }
         .frame(
             width: width,
-            height: resolvedHeight(
+            height: totalHeight(
                 containerWidth: width ?? (containerWidth > 0 ? containerWidth : fallbackContainerWidth)
             )
         )
@@ -248,13 +259,7 @@ private struct DigiaCarouselView: View {
     private var animDuration: Double { Double(animationDuration) / 1000.0 }
 
     private var fallbackContainerWidth: CGFloat {
-        #if canImport(UIKit)
         UIScreen.main.bounds.width
-        #elseif os(macOS)
-        390
-        #else
-        390
-        #endif
     }
 
     var realPage: Int {
@@ -379,6 +384,16 @@ private struct DigiaCarouselView: View {
         }
         return containerWidth * 0.5
     }
+
+    private func totalHeight(containerWidth: CGFloat) -> CGFloat {
+        let contentHeight = resolvedHeight(containerWidth: containerWidth)
+        guard showIndicator else { return contentHeight }
+        return contentHeight + CGFloat(dotSizeHeight * 2.5) + 8
+    }
+
+    private var dotSizeHeight: Double {
+        max(dotHeight, 0)
+    }
 }
 
 // MARK: - DigiaDragGestureModifier
@@ -421,33 +436,40 @@ private struct DigiaCarouselIndicator: View {
     let onDotTapped: (Int) -> Void
 
     private var step: CGFloat { CGFloat(dotSize.width + spacing) }
+    private var totalWidth: CGFloat { CGFloat(max(count - 1, 0)) * step + CGFloat(dotSize.width) }
+    private var usesCircleDots: Bool { abs(dotSize.width - dotSize.height) < 0.5 }
 
     var body: some View {
-        GeometryReader { geo in
-            let totalWidth = CGFloat(max(count - 1, 0)) * step + CGFloat(dotSize.width)
-            let x0 = (geo.size.width - totalWidth) / 2
-
-            ZStack(alignment: .leading) {
-                HStack(spacing: spacing) {
-                    ForEach(0..<count, id: \.self) { idx in
-                        Capsule()
-                            .fill(dotColor)
-                            .frame(width: dotSize.width, height: dotSize.height)
-                            .contentShape(Rectangle())
-                            .onTapGesture { onDotTapped(idx) }
-                    }
+        ZStack(alignment: .leading) {
+            HStack(spacing: spacing) {
+                ForEach(0..<count, id: \.self) { idx in
+                    inactiveDot
+                        .frame(width: dotSize.width, height: dotSize.height)
+                        .contentShape(Rectangle())
+                        .onTapGesture { onDotTapped(idx) }
                 }
-
-                activeOverlay(x0: x0)
-                    .allowsHitTesting(false)
             }
+
+            activeOverlay()
+                .allowsHitTesting(false)
         }
-        .frame(height: dotSize.height * 2.5)
+        .frame(width: totalWidth, height: dotSize.height * 2.5, alignment: .leading)
+        .frame(maxWidth: .infinity, alignment: .center)
         .animation(.easeInOut(duration: 0.22), value: pageProgress)
     }
 
+    private var inactiveDot: some View {
+        Group {
+            if usesCircleDots {
+                Circle().fill(dotColor)
+            } else {
+                Capsule().fill(dotColor)
+            }
+        }
+    }
+
     @ViewBuilder
-    private func activeOverlay(x0: CGFloat) -> some View {
+    private func activeOverlay() -> some View {
         let p = CGFloat(pageProgress)
         let i = max(0, min(Int(floor(p)), max(count - 1, 0)))
         let t = p - CGFloat(i) // 0..1
@@ -455,17 +477,16 @@ private struct DigiaCarouselIndicator: View {
         switch effectType {
         case .slide:
             // SlideEffect: active dot translates and can overshoot by `offset`.
-            let base = x0 + CGFloat(i) * step
+            let base = CGFloat(i) * step
             let travel = (t * step) + (sin(t * .pi) * CGFloat(offset))
-            Capsule()
-                .fill(activeDotColor)
+            activeDotFill
                 .frame(width: dotSize.width, height: dotSize.height)
                 .offset(x: base + travel)
 
         case .worm:
             // WormEffect: active dot stretches between pages.
-            let startX = x0 + CGFloat(i) * step
-            let endX = x0 + CGFloat(min(i + 1, count - 1)) * step
+            let startX = CGFloat(i) * step
+            let endX = CGFloat(min(i + 1, count - 1)) * step
             let leading = min(startX, startX + (endX - startX) * t)
             let trailing = max(startX + dotSize.width, startX + dotSize.width + (endX - startX) * t)
             Capsule()
@@ -475,7 +496,7 @@ private struct DigiaCarouselIndicator: View {
 
         case .expanding:
             // ExpandingDotsEffect: active dot widens.
-            let base = x0 + p * step
+            let base = p * step
             Capsule()
                 .fill(activeDotColor)
                 .frame(width: dotSize.width * (1.0 + 0.8 * (1.0 - abs(2 * Double(t) - 1.0))),
@@ -483,54 +504,58 @@ private struct DigiaCarouselIndicator: View {
                 .offset(x: base)
 
         case .scale:
-            let base = x0 + p * step
-            Capsule()
-                .fill(activeDotColor)
+            let base = p * step
+            activeDotFill
                 .frame(width: dotSize.width, height: dotSize.height)
                 .scaleEffect(1.0 + 0.35 * (1.0 - abs(2 * Double(t) - 1.0)))
                 .offset(x: base)
 
         case .jumping:
-            let base = x0 + p * step
-            Capsule()
-                .fill(activeDotColor)
+            let base = p * step
+            activeDotFill
                 .frame(width: dotSize.width, height: dotSize.height)
                 .offset(x: base, y: -CGFloat(6.0 * sin(Double(t) * .pi)))
 
         case .swap:
             // SwapEffect: two dots swap; approximate by fading between current and next.
-            let currentX = x0 + CGFloat(i) * step
-            let nextX = x0 + CGFloat(min(i + 1, count - 1)) * step
-            Capsule()
-                .fill(activeDotColor)
+            let currentX = CGFloat(i) * step
+            let nextX = CGFloat(min(i + 1, count - 1)) * step
+            activeDotFill
                 .frame(width: dotSize.width, height: dotSize.height)
                 .opacity(1 - Double(t))
                 .offset(x: currentX)
-            Capsule()
-                .fill(activeDotColor)
+            activeDotFill
                 .frame(width: dotSize.width, height: dotSize.height)
                 .opacity(Double(t))
                 .offset(x: nextX)
 
         case .scrolling:
             // ScrollingDotsEffect: windowed indicator; approximate by same base dots + moving active dot.
-            let base = x0 + p * step
-            Capsule()
-                .fill(activeDotColor)
+            let base = p * step
+            activeDotFill
                 .frame(width: dotSize.width, height: dotSize.height)
                 .offset(x: base)
 
         case .circleAroundDot:
-            let base = x0 + p * step
+            let base = p * step
             ZStack {
-                Capsule()
-                    .fill(activeDotColor)
+                activeDotFill
                     .frame(width: dotSize.width, height: dotSize.height)
                 Circle()
                     .stroke(activeDotColor, lineWidth: 2)
                     .frame(width: dotSize.height + dotSize.height * 1.5, height: dotSize.height + dotSize.height * 1.5)
             }
             .offset(x: base)
+        }
+    }
+
+    private var activeDotFill: some View {
+        Group {
+            if usesCircleDots {
+                Circle().fill(activeDotColor)
+            } else {
+                Capsule().fill(activeDotColor)
+            }
         }
     }
 }

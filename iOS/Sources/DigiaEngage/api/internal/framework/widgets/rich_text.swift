@@ -16,7 +16,11 @@ final class VWRichText: VirtualLeafStatelessWidget<RichTextProps> {
 
         guard !spans.isEmpty else { return empty() }
 
-        var current = AnyView(
+        if let inlineText = inlineText(from: spans, payload: payload) {
+            return configured(view: inlineText, payload: payload)
+        }
+
+        return configured(view: AnyView(
             DigiaWrappingFlowLayout(spacing: 0, lineSpacing: 0) {
                 ForEach(Array(spans.enumerated()), id: \.offset) { _, span in
                     DigiaRichTextSpanView(span: span) {
@@ -24,7 +28,11 @@ final class VWRichText: VirtualLeafStatelessWidget<RichTextProps> {
                     }
                 }
             }
-        )
+        ), payload: payload)
+    }
+
+    private func configured(view: AnyView, payload: RenderPayload) -> AnyView {
+        var current = view
 
         if payload.eval(props.overflow) == "fade" {
             current = AnyView(
@@ -44,6 +52,31 @@ final class VWRichText: VirtualLeafStatelessWidget<RichTextProps> {
 
         return current
     }
+
+    private func inlineText(
+        from spans: [DigiaRichTextSpanViewModel],
+        payload: RenderPayload
+    ) -> AnyView? {
+        guard spans.allSatisfy(\.supportsInlineText) else { return nil }
+
+        let combined = spans.reduce(nil as Text?) { partial, span in
+            let segment = span.inlineText()
+            if let partial {
+                return partial + segment
+            }
+            return segment
+        }
+
+        guard let combined else { return nil }
+
+        var current = AnyView(combined)
+        current = AnyView(current.lineLimit(payload.eval(props.maxLines)))
+        if payload.eval(props.overflow) == "ellipsis" {
+            current = AnyView(current.truncationMode(.tail))
+        }
+
+        return AnyView(current.multilineTextAlignment(To.textAlignment(payload.eval(props.alignment))))
+    }
 }
 
 @MainActor
@@ -51,11 +84,13 @@ private struct DigiaRichTextSpanViewModel: Identifiable {
     let id = UUID()
     let text: String
     let font: Font
+    let textColor: Color
     let foreground: AnyShapeStyle
     let backgroundColor: Color?
     let decoration: String?
     let decorationColor: Color
     let action: ActionFlow?
+    let usesGradient: Bool
 
     init(
         text: String,
@@ -64,20 +99,42 @@ private struct DigiaRichTextSpanViewModel: Identifiable {
         payload: RenderPayload
     ) {
         self.text = text
-        font = TextStyleUtil.font(
-            textStyle: style,
-            appConfigStore: payload.appConfigStore,
-            fontFactory: SDKInstance.shared.fontFactory
-        )
+        font = payload.resources.font(textStyle: style)
+        let resolvedTextColor = payload.evalColor(style?.textColor) ?? .primary
+        textColor = resolvedTextColor
         if let gradient = Self.gradient(for: style?.gradient, payload: payload) {
             foreground = AnyShapeStyle(gradient)
+            usesGradient = true
         } else {
-            foreground = AnyShapeStyle(payload.resolveColor(style?.textColor) ?? .primary)
+            foreground = AnyShapeStyle(resolvedTextColor)
+            usesGradient = false
         }
-        backgroundColor = payload.resolveColor(style?.textBackgroundColor)
+        backgroundColor = payload.evalColor(style?.textBackgroundColor)
         decoration = style?.textDecoration?.lowercased()
-        decorationColor = payload.resolveColor(style?.textDecorationColor) ?? payload.resolveColor(style?.textColor) ?? .primary
+        decorationColor = payload.evalColor(style?.textDecorationColor) ?? resolvedTextColor
         self.action = action
+    }
+
+    var supportsInlineText: Bool {
+        action == nil &&
+        !usesGradient &&
+        backgroundColor == nil &&
+        decoration != "overline"
+    }
+
+    func inlineText() -> Text {
+        var current = Text(text)
+            .font(font)
+            .foregroundColor(textColor)
+
+        if decoration == "underline" {
+            current = current.underline(true, color: decorationColor)
+        }
+        if decoration == "linethrough" || decoration == "strikethrough" {
+            current = current.strikethrough(true, color: decorationColor)
+        }
+
+        return current
     }
 
     private static func gradient(for gradient: TextGradientProps?, payload: RenderPayload) -> LinearGradient? {

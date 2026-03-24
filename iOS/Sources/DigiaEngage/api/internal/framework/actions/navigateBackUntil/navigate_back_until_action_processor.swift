@@ -25,8 +25,6 @@ struct NavigateBackUntilProcessor {
             }
             return false
         }
-        #if canImport(UIKit)
         ViewControllerUtil.popToRoot()
-        #endif
     }
 }

@@ -1,7 +1,5 @@
 import Foundation
-#if canImport(UIKit)
 import UIKit
-#endif
 
 struct ShareContentAction: Sendable {
     let actionType: ActionType = .shareContent
@@ -20,7 +18,6 @@ struct ShareContentProcessor {
         }
         let subject = ExpressionUtil.evaluateNestedExpressionsToAny(action.data["subject"], in: context.scopeContext) as? String
         SDKInstance.shared.share(message: message, subject: subject)
-        #if canImport(UIKit)
         // UIActivityViewController requires an active scene + presenting controller; skip when the SDK
         // is invoked without a host UI (for example, during unit tests).
         if NSClassFromString("XCTestCase") == nil, ViewControllerUtil.topViewController() != nil {
@@ -28,6 +25,5 @@ struct ShareContentProcessor {
             controller.setValue(subject, forKey: "subject")
             ViewControllerUtil.present(controller)
         }
-        #endif
     }
 }

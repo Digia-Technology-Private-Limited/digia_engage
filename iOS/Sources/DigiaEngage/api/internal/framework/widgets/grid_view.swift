@@ -1,4 +1,3 @@
-import DigiaExpr
 import SwiftUI
 
 @MainActor
@@ -44,8 +43,8 @@ final class VWGridView: VirtualStatelessWidget<GridViewProps> {
         case let .array(values):
             return values.map(\.anyValue)
         case let .string(value):
-            guard Expression.hasExpression(value) || Expression.isExpression(value),
-                  let resolved = try? Expression.eval(value, payload.scopeContext) else {
+            guard ExpressionUtil.hasExpression(value),
+                  let resolved = ExpressionUtil.evaluateAny(value, context: payload.scopeContext) else {
                 return nil
             }
             return resolved as? [Any]

@@ -16,8 +16,6 @@ struct DismissDialogProcessor {
         }
         SDKInstance.shared.controller.dismissDialog(result: result)
         SDKInstance.shared.didDismissDialog()
-        #if canImport(UIKit)
         ViewControllerUtil.dismissPresented()
-        #endif
     }
 }

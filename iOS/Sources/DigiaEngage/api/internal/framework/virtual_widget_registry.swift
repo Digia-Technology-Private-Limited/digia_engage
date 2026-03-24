@@ -38,6 +38,8 @@ final class DefaultVirtualWidgetRegistry: VirtualWidgetRegistry {
                 return VWRichText(props: props, commonProps: node.commonProps, parentProps: node.parentProps, parent: parent, refName: node.refName)
             case let .button(props):
                 return VWButton(props: props, commonProps: node.commonProps, parentProps: node.parentProps, parent: parent, refName: node.refName)
+            case let .avatar(props):
+                return VWAvatar(props: props, commonProps: node.commonProps, parentProps: node.parentProps, parent: parent, refName: node.refName)
             case let .gridView(props):
                 let widget = VWGridView(props: props, commonProps: node.commonProps, parentProps: node.parentProps, childGroups: nil, parent: parent, refName: node.refName)
                 try attachChildGroupsIfNeeded(node.childGroups, to: widget)
@@ -48,6 +50,10 @@ final class DefaultVirtualWidgetRegistry: VirtualWidgetRegistry {
                 return widget
             case let .image(props):
                 return VWImage(props: props, commonProps: node.commonProps, parentProps: node.parentProps, parent: parent, refName: node.refName)
+            case let .opacity(props):
+                let widget = VWOpacity(props: props, commonProps: node.commonProps, parentProps: node.parentProps, childGroups: nil, parent: parent, refName: node.refName)
+                try attachChildGroupsIfNeeded(node.childGroups, to: widget)
+                return widget
             case let .lottie(props):
                 return VWLottie(props: props, commonProps: node.commonProps, parentProps: node.parentProps, parent: parent, refName: node.refName)
             case let .sizedBox(props):
@@ -65,6 +71,10 @@ final class DefaultVirtualWidgetRegistry: VirtualWidgetRegistry {
                 return VWLinearProgressBar(props: props, commonProps: node.commonProps, parentProps: node.parentProps, parent: parent, refName: node.refName)
             case let .circularProgressBar(props):
                 return VWCircularProgressBar(props: props, commonProps: node.commonProps, parentProps: node.parentProps, parent: parent, refName: node.refName)
+            case let .styledHorizontalDivider(props):
+                return VWStyledHorizontalDivider(props: props, commonProps: node.commonProps, parentProps: node.parentProps, parent: parent, refName: node.refName)
+            case let .styledVerticalDivider(props):
+                return VWStyledVerticalDivider(props: props, commonProps: node.commonProps, parentProps: node.parentProps, parent: parent, refName: node.refName)
             case let .carousel(props):
                 let widget = VWCarousel(props: props, commonProps: node.commonProps, parentProps: node.parentProps, childGroups: nil, parent: parent, refName: node.refName)
                 try attachChildGroupsIfNeeded(node.childGroups, to: widget)
@@ -79,12 +89,20 @@ final class DefaultVirtualWidgetRegistry: VirtualWidgetRegistry {
                 return widget
             case let .storyVideoPlayer(props):
                 return VWStoryVideoPlayer(props: props, commonProps: node.commonProps, parentProps: node.parentProps, parent: parent, refName: node.refName)
+            case let .scratchCard(props):
+                let widget = VWScratchCard(props: props, commonProps: node.commonProps, parentProps: node.parentProps, childGroups: nil, parent: parent, refName: node.refName)
+                try attachChildGroupsIfNeeded(node.childGroups, to: widget)
+                return widget
             case let .textFormField(props):
                 let widget = VWTextFormField(props: props, commonProps: node.commonProps, parentProps: node.parentProps, childGroups: nil, parent: parent, refName: node.refName)
                 try attachChildGroupsIfNeeded(node.childGroups, to: widget)
                 return widget
             case let .videoPlayer(props):
                 return VWVideoPlayer(props: props, commonProps: node.commonProps, parentProps: node.parentProps, parent: parent, refName: node.refName)
+            case let .timer(props):
+                let widget = VWTimer(props: props, commonProps: node.commonProps, parentProps: node.parentProps, childGroups: nil, parent: parent, refName: node.refName)
+                try attachChildGroupsIfNeeded(node.childGroups, to: widget)
+                return widget
             case .unsupported:
                 let detail: String?
                 if node.type == "digia/unsupported", case let .string(reason)? = node.repeatData {

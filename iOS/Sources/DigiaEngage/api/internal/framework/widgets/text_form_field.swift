@@ -1,9 +1,6 @@
 import Combine
-import DigiaExpr
 import SwiftUI
-#if canImport(UIKit)
 import UIKit
-#endif
 
 @MainActor
 final class DigiaTextEditingController: ObservableObject {
@@ -227,7 +224,7 @@ private struct DigiaTextFormFieldView: View {
             ZStack(alignment: placeholderAlignment) {
                 fieldBackground
 
-                HStack(spacing: 8) {
+                HStack(spacing: 0) {
                     if let prefix {
                         prefix
                             .frame(
@@ -240,26 +237,30 @@ private struct DigiaTextFormFieldView: View {
                             )
                     }
 
-                    fieldInput
+                    ZStack(alignment: placeholderAlignment) {
+                        HStack(spacing: 0) {
+                            fieldInput
 
-                    if let suffix {
-                        suffix
-                            .frame(
-                                minWidth: suffixConstraints.minWidth,
-                                idealWidth: suffixConstraints.maxWidth,
-                                maxWidth: suffixConstraints.maxWidth,
-                                minHeight: suffixConstraints.minHeight,
-                                idealHeight: suffixConstraints.maxHeight,
-                                maxHeight: suffixConstraints.maxHeight
-                            )
-                    }
-                }
-                .padding(resolvedContentPadding)
-
-                if model.text.isEmpty, let hintText, !hintText.isEmpty {
-                    textLine(hintText, style: hintStyle)
+                            if let suffix {
+                                suffix
+                                    .frame(
+                                        minWidth: suffixConstraints.minWidth,
+                                        idealWidth: suffixConstraints.maxWidth,
+                                        maxWidth: suffixConstraints.maxWidth,
+                                        minHeight: suffixConstraints.minHeight,
+                                        idealHeight: suffixConstraints.maxHeight,
+                                        maxHeight: suffixConstraints.maxHeight
+                                    )
+                            }
+                        }
                         .padding(resolvedContentPadding)
-                        .allowsHitTesting(false)
+
+                        if model.text.isEmpty, let hintText, !hintText.isEmpty {
+                            textLine(hintText, style: hintStyle)
+                                .padding(resolvedContentPadding)
+                                .allowsHitTesting(false)
+                        }
+                    }
                 }
             }
 
@@ -293,7 +294,6 @@ private struct DigiaTextFormFieldView: View {
 
     private var fieldInput: some View {
         Group {
-            #if canImport(UIKit)
             DigiaPlatformTextInput(
                 text: $model.text,
                 isFocused: $model.isFocused,
@@ -301,15 +301,6 @@ private struct DigiaTextFormFieldView: View {
                 onUserInput: model.handleUserInput(_:),
                 onSubmit: model.submitCurrentText
             )
-            #else
-            DigiaFallbackTextInput(
-                text: $model.text,
-                isFocused: $model.isFocused,
-                configuration: platformConfiguration,
-                onUserInput: model.handleUserInput(_:),
-                onSubmit: model.submitCurrentText
-            )
-            #endif
         }
         .frame(maxWidth: .infinity, alignment: alignmentFrame)
     }
@@ -480,20 +471,12 @@ private final class DigiaTextFormFieldModel: ObservableObject {
 private struct ResolvedTextStyle {
     let font: Font
     let color: Color
-    #if canImport(UIKit)
     let uiFont: UIFont
-    #endif
 
     init(payload: RenderPayload, textStyle: TextStyleProps?, fallbackColor: Color) {
-        font = TextStyleUtil.font(
-            textStyle: textStyle,
-            appConfigStore: payload.appConfigStore,
-            fontFactory: SDKInstance.shared.fontFactory
-        )
-        color = payload.resolveColor(textStyle?.textColor) ?? fallbackColor
-        #if canImport(UIKit)
-        uiFont = TextStyleUtil.uiFont(textStyle: textStyle, appConfigStore: payload.appConfigStore)
-        #endif
+        font = payload.resources.font(textStyle: textStyle)
+        color = payload.evalColor(textStyle?.textColor) ?? fallbackColor
+        uiFont = payload.resources.uiFont(textStyle: textStyle)
     }
 }
 
@@ -658,7 +641,6 @@ private struct DigiaTextInputConfiguration {
     }
 }
 
-#if canImport(UIKit)
 private struct DigiaPlatformTextInput: UIViewRepresentable {
     @Binding var text: String
     @Binding var isFocused: Bool
@@ -940,35 +922,3 @@ private struct DigiaPlatformTextInput: UIViewRepresentable {
         }
     }
 }
-#else
-private struct DigiaFallbackTextInput: View {
-    @Binding var text: String
-    @Binding var isFocused: Bool
-
-    let configuration: DigiaTextInputConfiguration
-    let onUserInput: (String) -> Void
-    let onSubmit: () -> Void
-
-    var body: some View {
-        Group {
-            if configuration.maxLines > 1 {
-                TextEditor(text: $text)
-            } else if configuration.obscureText {
-                SecureField("", text: $text)
-            } else {
-                TextField("", text: $text)
-            }
-        }
-        .onChange(of: text) { nextValue in
-            let filtered = configuration.filteredText(from: nextValue)
-            if filtered != nextValue {
-                text = filtered
-            }
-            onUserInput(filtered)
-        }
-        .onSubmit {
-            onSubmit()
-        }
-    }
-}
-#endif

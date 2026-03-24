@@ -1,4 +1,3 @@
-#if canImport(UIKit)
 import SwiftUI
 import UIKit
 
@@ -52,4 +51,3 @@ enum ViewControllerUtil {
         }
     }
 }
-#endif
