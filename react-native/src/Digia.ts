@@ -15,7 +15,7 @@
  * ```
  */
 
-import { nativeDigiaModule } from './NativeDigiaModule';
+import { nativeDigiaModule } from './NativeDigiaEngage';
 import type { DigiaConfig, DigiaDelegate, DigiaPlugin, InAppPayload } from './types';
 
 class DigiaClass implements DigiaDelegate {
