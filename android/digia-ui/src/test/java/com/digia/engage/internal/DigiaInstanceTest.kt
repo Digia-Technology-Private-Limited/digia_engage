@@ -74,14 +74,13 @@ class DigiaInstanceTest {
     }
 
     @Test
-    fun `matching screen nudge payload shows overlay`() = runTest(testDispatcher) {
+    fun `nudge payload shows overlay`() = runTest(testDispatcher) {
         val plugin = FakePlugin()
         DigiaInstance.initForTest()
         DigiaInstance.register(plugin)
-        DigiaInstance.setCurrentScreen("home")
 
         plugin.delegate!!.onCampaignTriggered(
-            nudgePayload(id = "exp-1", screenId = "home", command = "SHOW_DIALOG"),
+            nudgePayload(id = "exp-1", command = "SHOW_DIALOG"),
         )
         testScheduler.advanceUntilIdle()
 
@@ -89,33 +88,16 @@ class DigiaInstanceTest {
     }
 
     @Test
-    fun `mismatched screen payload is dropped`() = runTest(testDispatcher) {
-        val plugin = FakePlugin()
-        DigiaInstance.initForTest()
-        DigiaInstance.register(plugin)
-        DigiaInstance.setCurrentScreen("checkout")
-
-        plugin.delegate!!.onCampaignTriggered(
-            nudgePayload(id = "exp-1", screenId = "home", command = "SHOW_DIALOG"),
-        )
-        testScheduler.advanceUntilIdle()
-
-        assertNull(DigiaInstance.controller.activePayload.value)
-    }
-
-    @Test
     fun `inline payload stores slot by placement key`() = runTest(testDispatcher) {
         val plugin = FakePlugin()
         DigiaInstance.initForTest()
         DigiaInstance.register(plugin)
-        DigiaInstance.setCurrentScreen("home")
 
         plugin.delegate!!.onCampaignTriggered(
             inlinePayload(
                 id = "slot-1",
-                screenId = "home",
                 placementKey = "hero_banner",
-                componentId = "hero_component",
+                viewId = "hero_component",
             ),
         )
         testScheduler.advanceUntilIdle()
@@ -129,11 +111,10 @@ class DigiaInstanceTest {
         val plugin = FakePlugin()
         DigiaInstance.initForTest()
         DigiaInstance.register(plugin)
-        DigiaInstance.setCurrentScreen("home")
         DigiaInstance.setSdkStateForTest(SDKState.INITIALIZING)
 
         plugin.delegate!!.onCampaignTriggered(
-            nudgePayload(id = "pending-1", screenId = "home", command = "SHOW_BOTTOM_SHEET"),
+            nudgePayload(id = "pending-1", command = "SHOW_BOTTOM_SHEET"),
         )
         testScheduler.advanceUntilIdle()
         assertNull(DigiaInstance.controller.activePayload.value)
@@ -150,10 +131,9 @@ class DigiaInstanceTest {
         val plugin = FakePlugin()
         DigiaInstance.initForTest()
         DigiaInstance.register(plugin)
-        DigiaInstance.setCurrentScreen("home")
 
         plugin.delegate!!.onCampaignTriggered(
-            nudgePayload(id = "dialog-1", screenId = "home", command = "SHOW_DIALOG"),
+            nudgePayload(id = "dialog-1", command = "SHOW_DIALOG"),
         )
         testScheduler.advanceUntilIdle()
 
@@ -171,10 +151,9 @@ class DigiaInstanceTest {
         val plugin = FakePlugin()
         DigiaInstance.initForTest()
         DigiaInstance.register(plugin)
-        DigiaInstance.setCurrentScreen("home")
 
         plugin.delegate!!.onCampaignTriggered(
-            nudgePayload(id = "dialog-1", screenId = "home", command = "SHOW_DIALOG"),
+            nudgePayload(id = "dialog-1", command = "SHOW_DIALOG"),
         )
         testScheduler.advanceUntilIdle()
 
@@ -189,17 +168,15 @@ class DigiaInstanceTest {
         val plugin = FakePlugin()
         DigiaInstance.initForTest()
         DigiaInstance.register(plugin)
-        DigiaInstance.setCurrentScreen("home")
 
         plugin.delegate!!.onCampaignTriggered(
-            nudgePayload(id = "dialog-1", screenId = "home", command = "SHOW_DIALOG"),
+            nudgePayload(id = "dialog-1", command = "SHOW_DIALOG"),
         )
         plugin.delegate!!.onCampaignTriggered(
             inlinePayload(
                 id = "slot-1",
-                screenId = "home",
                 placementKey = "hero",
-                componentId = "comp-1",
+                viewId = "comp-1",
             ),
         )
         testScheduler.advanceUntilIdle()
@@ -246,30 +223,26 @@ class DigiaInstanceTest {
 
     private fun nudgePayload(
         id: String,
-        screenId: String,
         command: String,
     ): InAppPayload = InAppPayload(
         id = id,
         content = mapOf(
             "command" to command,
             "viewId" to "welcome_modal",
-            "screenId" to screenId,
             "args" to mapOf("title" to "Hello"),
         ),
     )
 
     private fun inlinePayload(
         id: String,
-        screenId: String,
         placementKey: String,
-        componentId: String,
+        viewId: String,
     ): InAppPayload = InAppPayload(
         id = id,
         content = mapOf(
             "command" to "SHOW_INLINE",
-            "screenId" to screenId,
             "placementKey" to placementKey,
-            "componentId" to componentId,
+            "viewId" to viewId,
             "args" to mapOf("style" to "compact"),
         ),
     )

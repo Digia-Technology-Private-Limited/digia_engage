@@ -1,0 +1,227 @@
+import SwiftUI
+
+@MainActor
+enum WidgetUtil {
+    static func wrapInContainer(
+        payload: RenderPayload,
+        style: CommonStyle?,
+        child: AnyView
+    ) -> AnyView {
+        guard let style else { return child }
+
+        var current = child
+
+        if let padding = style.padding?.edgeInsets {
+            current = AnyView(current.padding(padding))
+        }
+
+        current = AnyView(
+            current.background(
+                DigiaDecorationView(
+                    payload: payload,
+                    backgroundColor: payload.evalColor(style.bgColor),
+                    border: style.border,
+                    borderRadius: payload.eval(style.borderRadius)
+                )
+            )
+        )
+
+        if let borderRadius = payload.eval(style.borderRadius), borderRadius > 0 {
+            current = AnyView(current.clipShape(RoundedRectangle(cornerRadius: borderRadius, style: .continuous)))
+        }
+
+        current = applySizing(
+            payload: payload,
+            style: style,
+            child: current
+        )
+
+        if style.clipBehavior != nil {
+            current = AnyView(current.clipped())
+        }
+
+        return current
+    }
+
+    static func wrapInAlign(
+        value: String?,
+        child: AnyView
+    ) -> AnyView {
+        guard let alignment = To.alignment(value) else { return child }
+        return AnyView(child.frame(maxWidth: .infinity, maxHeight: .infinity, alignment: alignment))
+    }
+
+    static func applyMargin(
+        style: CommonStyle?,
+        child: AnyView
+    ) -> AnyView {
+        guard let margin = style?.margin?.edgeInsets else { return child }
+        return AnyView(child.padding(margin))
+    }
+
+    static func wrapInTapGesture(
+        payload: RenderPayload,
+        actionFlow: ActionFlow?,
+        child: AnyView
+    ) -> AnyView {
+        guard let actionFlow, !actionFlow.isEmpty else { return child }
+        return AnyView(
+            child.contentShape(Rectangle()).onTapGesture {
+                payload.executeAction(actionFlow, triggerType: "onTap")
+            }
+        )
+    }
+
+    static func applySizing(
+        payload: RenderPayload,
+        style: CommonStyle,
+        child: AnyView
+    ) -> AnyView {
+        let width = dimension(for: style.width, raw: style.widthRaw, payload: payload)
+        let height = dimension(for: style.height, raw: style.heightRaw, payload: payload)
+
+        var current = child
+
+        if width.isIntrinsic || height.isIntrinsic {
+            current = AnyView(
+                current.fixedSize(
+                    horizontal: width.isIntrinsic,
+                    vertical: height.isIntrinsic
+                )
+            )
+        }
+
+        if width.isFill || height.isFill {
+            current = AnyView(
+                current.frame(
+                    maxWidth: width.isFill ? .infinity : nil,
+                    maxHeight: height.isFill ? .infinity : nil,
+                    alignment: .topLeading
+                )
+            )
+        }
+
+        if width.value != nil || height.value != nil {
+            current = AnyView(current.frame(width: width.value, height: height.value, alignment: .topLeading))
+        }
+
+        if width.percent != nil || height.percent != nil {
+            current = AnyView(
+                DigiaRelativeFrameView(
+                    widthPercent: width.percent,
+                    heightPercent: height.percent,
+                    child: current
+                )
+            )
+        }
+
+        return current
+    }
+
+    static func dimension(
+        for expr: ExprOr<Double>?,
+        raw: String?,
+        payload: RenderPayload
+    ) -> ResolvedDimension {
+        if let raw {
+            let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+            if trimmed == "intrinsic" {
+                return ResolvedDimension(isIntrinsic: true)
+            }
+            if trimmed == "100%" {
+                return ResolvedDimension(isFill: true)
+            }
+            if trimmed.hasSuffix("%"),
+               let percent = Double(trimmed.dropLast()) {
+                return ResolvedDimension(percent: percent / 100)
+            }
+            if let value = payload.eval(expr) ?? Double(trimmed) {
+                return ResolvedDimension(value: value)
+            }
+        }
+
+        if let value = payload.eval(expr) {
+            return ResolvedDimension(value: value)
+        }
+
+        return ResolvedDimension()
+    }
+}
+
+struct ResolvedDimension: Equatable {
+    let value: CGFloat?
+    let isIntrinsic: Bool
+    let isFill: Bool
+    let percent: CGFloat?
+
+    init(
+        value: Double? = nil,
+        isIntrinsic: Bool = false,
+        isFill: Bool = false,
+        percent: CGFloat? = nil
+    ) {
+        self.value = value.map { CGFloat($0) }
+        self.isIntrinsic = isIntrinsic
+        self.isFill = isFill
+        self.percent = percent
+    }
+}
+
+private struct DigiaRelativeFrameView: View {
+    let widthPercent: CGFloat?
+    let heightPercent: CGFloat?
+    let child: AnyView
+
+    var body: some View {
+        GeometryReader { proxy in
+            child.frame(
+                width: widthPercent.map { proxy.size.width * $0 },
+                height: heightPercent.map { proxy.size.height * $0 },
+                alignment: .topLeading
+            )
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        }
+    }
+}
+
+private struct DigiaDecorationView: View {
+    let payload: RenderPayload
+    let backgroundColor: Color?
+    let border: BorderStyle?
+    let borderRadius: Double?
+
+    var body: some View {
+        let radius = CGFloat(borderRadius ?? border?.borderRadius?.resolve(in: nil) ?? 0)
+        ZStack {
+            if let backgroundColor {
+                RoundedRectangle(cornerRadius: radius, style: .continuous)
+                    .fill(backgroundColor)
+            }
+
+            if let border,
+               let borderWidth = border.borderWidth,
+               borderWidth > 0 {
+                RoundedRectangle(cornerRadius: radius, style: .continuous)
+                    .strokeBorder(
+                        borderColor(border),
+                        style: StrokeStyle(
+                            lineWidth: borderWidth,
+                            lineCap: To.strokeCap(border.borderType?.strokeCap),
+                            dash: borderDashPattern(border)
+                        )
+                    )
+            }
+        }
+    }
+
+    private func borderColor(_ border: BorderStyle) -> Color {
+        payload.evalColor(border.borderColor) ?? .black
+    }
+
+    private func borderDashPattern(_ border: BorderStyle) -> [CGFloat] {
+        guard border.borderType?.borderPattern != "solid" else {
+            return []
+        }
+        return (border.borderType?.dashPattern ?? [3, 1]).map { CGFloat($0) }
+    }
+}

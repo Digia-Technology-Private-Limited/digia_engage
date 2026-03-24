@@ -1,7 +1,13 @@
 # digia_engage
 
-Core Digia SDK repository.
+Monorepo for the Digia Engage SDKs.
 
-## Structure
-- `android/` - Native Android SDK (`digia_engage`)
-- `flutter/` - Flutter SDK package (`digia_engage`)
+## Stacks
+- `android/` - Native Android SDK
+- `flutter/` - Flutter SDK
+- `iOS/` - Swift SDK
+- `react-native/` - React Native SDK
+
+---
+
+Built with ❤️ by the Digia team

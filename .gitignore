@@ -1,0 +1,11 @@
+.DS_Store
+.cursor/
+.claude/
+.vscode/
+
+**/AGENTS.md
+**/agents.md
+**/CLAUDE.md
+**/claude.md
+
+docs/

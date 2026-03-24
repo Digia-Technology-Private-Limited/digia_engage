@@ -5,10 +5,7 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   await Digia.initialize(
-    DigiaConfig(
-      apiKey: 'YOUR_DIGIA_API_KEY',
-      flavor: Flavor.debug(),
-    ),
+    DigiaConfig(apiKey: 'YOUR_DIGIA_API_KEY', flavor: Flavor.debug()),
   );
 
   // Register your CEP plugin (e.g. MoEngage, CleverTap) when ready.

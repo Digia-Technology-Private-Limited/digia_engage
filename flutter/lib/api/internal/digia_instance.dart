@@ -67,17 +67,17 @@ class DigiaInstance with WidgetsBindingObserver implements DigiaCEPDelegate {
 
     // Set up the UI factory with custom resources and providers
     DUIFactory().initialize(
-        // pageConfigProvider: pageConfigProvider,
-        // icons: icons,
-        // images: {
-        //   ...(DigiaUIManager().assetImages.asMap().map((k, v) => MapEntry(
-        //       v.assetData.localPath,
-        //       NetworkImage(
-        //           '${v.assetData.image?.baseUrl}${v.assetData.image?.path}')))),
-        //   ...?images
-        // },
-        // fontFactory: fontFactory,
-        );
+      // pageConfigProvider: pageConfigProvider,
+      // icons: icons,
+      // images: {
+      //   ...(DigiaUIManager().assetImages.asMap().map((k, v) => MapEntry(
+      //       v.assetData.localPath,
+      //       NetworkImage(
+      //           '${v.assetData.image?.baseUrl}${v.assetData.image?.path}')))),
+      //   ...?images
+      // },
+      // fontFactory: fontFactory,
+    );
 
     // Apply environment variables from DigiaUIApp if provided
     // if (widget.environmentVariables != null) {
@@ -95,8 +95,10 @@ class DigiaInstance with WidgetsBindingObserver implements DigiaCEPDelegate {
       _activePlugin?.notifyEvent(event, payload);
     };
 
-    _logIfVerbose('Digia initialized with apiKey=${config.apiKey}, '
-        'environment=${config.environment.name}');
+    _logIfVerbose(
+      'Digia initialized with apiKey=${config.apiKey}, '
+      'environment=${config.environment.name}',
+    );
   }
 
   void register(DigiaCEPPlugin plugin) {
@@ -149,8 +151,9 @@ class DigiaInstance with WidgetsBindingObserver implements DigiaCEPDelegate {
     }
 
     final type = (payload.content['type'] as String?)?.trim().toLowerCase();
-    final command =
-        (payload.content['command'] as String?)?.trim().toUpperCase();
+    final command = (payload.content['command'] as String?)
+        ?.trim()
+        .toUpperCase();
 
     if ((type == null || type.isEmpty) &&
         (command == null || command.isEmpty)) {
@@ -231,8 +234,10 @@ class InlineCampaignController extends ChangeNotifier {
 
   /// Server-driven removal — called from [DigiaInstance.onCampaignInvalidated].
   /// Matches by placement key (which equals the payloadId stored by the server).
-  void removeCampaign(String placementId) {
-    _campaigns.removeWhere((key, payload) => key == placementId);
+  void removeCampaign(String campaignId) {
+    _campaigns.removeWhere(
+      (key, payload) => key == campaignId || payload.id == campaignId,
+    );
     notifyListeners();
   }
 
