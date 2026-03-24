@@ -11,7 +11,7 @@ struct ContainerProps: Decodable, Equatable, Sendable {
     let maxWidth: ExprOr<Double>?
     let maxHeight: ExprOr<Double>?
     let childAlignment: String?
-    let borderRadius: ExprOr<Double>?
+    let borderRadius: CornerRadiusProps?
     let border: BorderStyle?
     let shape: String?
     let elevation: Double?

@@ -1,0 +1,16 @@
+.DS_Store
+.cursor/
+.claude/
+.vscode/
+
+**/AGENTS.md
+**/agents.md
+**/CLAUDE.md
+**/claude.md
+
+android/docs/
+iOS/.skillshare/
+iOS/PLAN*.md
+react-native/NATIVE_UI_GUIDE.md
+PARITY_AUDIT_ios_vs_flutter.md
+widget_parity_flutter_ios.md

@@ -95,12 +95,6 @@ struct ShowDialogProcessor {
     }
 }
 
-private extension [String: JSONValue] {
-    func asActionFlow() -> ActionFlow? {
-        nil // not used here — action data drives this
-    }
-}
-
 private extension JSONValue {
     func asActionFlow() -> ActionFlow? {
         guard case let .object(object) = self,

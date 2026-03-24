@@ -116,6 +116,16 @@ struct CornerRadiusProps: Decodable, Equatable, Sendable {
         self.bottomLeft = bottomLeft
     }
 
+    init(uniform value: Double) {
+        self.init(topLeft: value, topRight: value, bottomRight: value, bottomLeft: value)
+    }
+
+    var isUniform: Bool {
+        topLeft == topRight && topRight == bottomRight && bottomRight == bottomLeft
+    }
+
+    var uniformValue: Double { topLeft }
+
     init(from decoder: Decoder) throws {
         let singleValue = try decoder.singleValueContainer()
 

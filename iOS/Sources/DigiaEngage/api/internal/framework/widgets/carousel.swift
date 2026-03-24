@@ -217,11 +217,21 @@ private struct DigiaCarouselView: View {
                                     on: .main, in: .common).autoconnect()) { _ in
                 guard autoPlay, pages.count > 1 else { return }
                 let delta = reverseScroll ? -1 : 1
-                withAnimation(.easeInOut(duration: animDuration)) {
-                    currentPage += delta
-                }
-                DispatchQueue.main.asyncAfter(deadline: .now() + animDuration) {
-                    snapInfiniteLoop()
+
+                if infiniteScroll {
+                    withAnimation(.easeInOut(duration: animDuration)) {
+                        currentPage += delta
+                    }
+                    DispatchQueue.main.asyncAfter(deadline: .now() + animDuration) {
+                        snapInfiniteLoop()
+                    }
+                } else {
+                    let next = currentPage + delta
+                    let clamped = min(max(next, 0), pages.count - 1)
+                    guard clamped != currentPage else { return }
+                    withAnimation(.easeInOut(duration: animDuration)) {
+                        currentPage = clamped
+                    }
                 }
             }
         }
@@ -365,7 +375,7 @@ private struct DigiaCarouselView: View {
     private func resolvedHeight(containerWidth: CGFloat) -> CGFloat {
         if let height { return height }
         if let aspectRatio, aspectRatio > 0 {
-            return containerWidth * CGFloat(aspectRatio)
+            return containerWidth / CGFloat(aspectRatio)
         }
         return containerWidth * 0.5
     }

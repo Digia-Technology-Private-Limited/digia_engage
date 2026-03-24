@@ -257,8 +257,10 @@ final class VWText: VirtualLeafStatelessWidget<TextProps> {
         switch overflow {
         case "ellipsis":
             return .byTruncatingTail
-        default:
+        case "clip", "visible":
             return .byClipping
+        default:
+            return .byWordWrapping
         }
     }
 #endif

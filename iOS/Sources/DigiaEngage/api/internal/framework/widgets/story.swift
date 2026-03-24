@@ -561,10 +561,14 @@ private struct DigiaStoryView: View {
             switch phase {
             case .active:
                 coordinator.resume()
-            case .background, .inactive:
+            case .background:
                 coordinator.pause()
+            case .inactive:
+                // .inactive fires for Control Center, notification banners, etc.
+                // Don't pause for these transient events — only pause on true background.
+                break
             @unknown default:
-                coordinator.pause()
+                break
             }
         }
     }
@@ -620,13 +624,14 @@ private struct DigiaStoryIndicatorView: View {
     let indicator: ResolvedStoryIndicator
 
     var body: some View {
+        let r = CGFloat(indicator.borderRadius)
         HStack(spacing: indicator.horizontalGap) {
             ForEach(Array(0..<max(totalItems, 0)), id: \.self) { index in
                 GeometryReader { proxy in
                     ZStack(alignment: .leading) {
-                        Capsule(style: .continuous)
+                        RoundedRectangle(cornerRadius: r, style: .continuous)
                             .fill(backgroundColor(for: index))
-                        Capsule(style: .continuous)
+                        RoundedRectangle(cornerRadius: r, style: .continuous)
                             .fill(foregroundColor(for: index))
                             .frame(width: proxy.size.width * CGFloat(fillAmount(for: index)))
                     }

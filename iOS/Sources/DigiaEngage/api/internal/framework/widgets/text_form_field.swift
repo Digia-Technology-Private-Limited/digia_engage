@@ -598,7 +598,7 @@ private struct DigiaTextFieldBorderShape: Shape {
     func path(in rect: CGRect) -> Path {
         switch border.kind {
         case .outline:
-            return DigiaRoundedRectangle(cornerRadius: border.cornerRadius).path(in: rect)
+            return DigiaRoundedRect(cornerRadius: border.cornerRadius).path(in: rect)
         case .underline:
             var path = Path()
             path.move(to: CGPoint(x: rect.minX, y: rect.maxY))
@@ -608,29 +608,6 @@ private struct DigiaTextFieldBorderShape: Shape {
     }
 }
 
-private struct DigiaRoundedRectangle: Shape {
-    let cornerRadius: CornerRadiusProps
-
-    func path(in rect: CGRect) -> Path {
-        let topLeft = min(cornerRadius.topLeft, min(rect.width, rect.height) / 2)
-        let topRight = min(cornerRadius.topRight, min(rect.width, rect.height) / 2)
-        let bottomRight = min(cornerRadius.bottomRight, min(rect.width, rect.height) / 2)
-        let bottomLeft = min(cornerRadius.bottomLeft, min(rect.width, rect.height) / 2)
-
-        var path = Path()
-        path.move(to: CGPoint(x: rect.minX + topLeft, y: rect.minY))
-        path.addLine(to: CGPoint(x: rect.maxX - topRight, y: rect.minY))
-        path.addArc(center: CGPoint(x: rect.maxX - topRight, y: rect.minY + topRight), radius: topRight, startAngle: .degrees(-90), endAngle: .degrees(0), clockwise: false)
-        path.addLine(to: CGPoint(x: rect.maxX, y: rect.maxY - bottomRight))
-        path.addArc(center: CGPoint(x: rect.maxX - bottomRight, y: rect.maxY - bottomRight), radius: bottomRight, startAngle: .degrees(0), endAngle: .degrees(90), clockwise: false)
-        path.addLine(to: CGPoint(x: rect.minX + bottomLeft, y: rect.maxY))
-        path.addArc(center: CGPoint(x: rect.minX + bottomLeft, y: rect.maxY - bottomLeft), radius: bottomLeft, startAngle: .degrees(90), endAngle: .degrees(180), clockwise: false)
-        path.addLine(to: CGPoint(x: rect.minX, y: rect.minY + topLeft))
-        path.addArc(center: CGPoint(x: rect.minX + topLeft, y: rect.minY + topLeft), radius: topLeft, startAngle: .degrees(180), endAngle: .degrees(270), clockwise: false)
-        path.closeSubpath()
-        return path
-    }
-}
 
 private struct DigiaTextInputConfiguration {
     let enabled: Bool

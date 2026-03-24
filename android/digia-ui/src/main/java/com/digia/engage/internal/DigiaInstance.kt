@@ -214,23 +214,15 @@ internal object DigiaInstance : DigiaCEPDelegate {
         val type = (payload.content["type"] as? String)?.trim()?.lowercase()
         val command = (payload.content["command"] as? String)?.trim()?.uppercase()
 
-        if (type.isNullOrBlank() && command.isNullOrBlank()) {
-            logWarning("campaign dropped: neither 'type' nor 'command' is set: ${payload.id}")
-            return
-        }
-
-        val viewId = (payload.content["viewId"] as? String)?.trim()
-        if (viewId.isNullOrBlank()) {
+        if (((payload.content["viewId"] as? String)?.trim()).isNullOrBlank()) {
             logWarning("campaign dropped: 'viewId' is required: ${payload.id}")
             return
         }
 
-        if (type == "inline") {
+        if (type == "inline" || command == "SHOW_INLINE") {
             val placementKey = (payload.content["placementKey"] as? String)?.trim()
             if (placementKey.isNullOrBlank()) {
-                logWarning(
-                        "inline payload dropped: 'placementKey' is required when 'type' is set: ${payload.id}"
-                )
+                logWarning("inline payload dropped: 'placementKey' is required: ${payload.id}")
                 return
             }
             displayCoordinator.routeInline(placementKey, payload)
@@ -244,17 +236,7 @@ internal object DigiaInstance : DigiaCEPDelegate {
                 }
                 displayCoordinator.routeNudge(payload)
             }
-            "SHOW_INLINE" -> {
-                val placementKey = payload.content["placementKey"] as? String
-                val componentId = payload.content["componentId"] as? String
-                if (placementKey.isNullOrBlank() || componentId.isNullOrBlank()) {
-                    logWarning(
-                            "inline payload dropped due to invalid placement/component id: ${payload.id}"
-                    )
-                    return
-                }
-                displayCoordinator.routeInline(placementKey, payload)
-            }
+            null -> logWarning("campaign dropped: neither 'type' nor 'command' is set: ${payload.id}")
             else ->
                     logWarning(
                             "campaign dropped due to unsupported command '$command': ${payload.id}"

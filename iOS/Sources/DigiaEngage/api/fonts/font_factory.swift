@@ -79,7 +79,7 @@ enum DigiaBundledFontRegistrar {
 
     static func registerIfNeeded() {
         for file in bundledFonts {
-            guard let url = Bundle.module.url(forResource: file, withExtension: nil, subdirectory: "Fonts") else { continue }
+            guard let url = DigiaResourceBundle.module.url(forResource: file, withExtension: nil, subdirectory: "Fonts") else { continue }
             CTFontManagerRegisterFontsForURL(url as CFURL, .process, nil)
         }
     }

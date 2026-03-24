@@ -181,12 +181,12 @@ private struct LottieRepresentable: UIViewRepresentable {
             return LottieAnimation.filepath(mainURL.path)
         }
 
-        if let moduleURL = Bundle.module.url(forResource: resourceName, withExtension: resourceExt) {
+        if let moduleURL = DigiaResourceBundle.module.url(forResource: resourceName, withExtension: resourceExt) {
             return LottieAnimation.filepath(moduleURL.path)
         }
 
         return LottieAnimation.named(resourceName, bundle: Bundle.main)
-            ?? LottieAnimation.named(resourceName, bundle: Bundle.module)
+            ?? LottieAnimation.named(resourceName, bundle: DigiaResourceBundle.module)
     }
 
     private func loopMode(repeatAnimation: Bool, reverseAnimation: Bool) -> LottieLoopMode {

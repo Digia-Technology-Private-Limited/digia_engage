@@ -25,8 +25,17 @@ final class VWContainer: VirtualStatelessWidget<ContainerProps> {
         let minHeight = payload.eval(props.minHeight).map { CGFloat($0) }
         let maxWidth = payload.eval(props.maxWidth).map { CGFloat($0) }
         let maxHeight = payload.eval(props.maxHeight).map { CGFloat($0) }
-        let radius = payload.eval(props.borderRadius) ?? payload.eval(props.border?.borderRadius) ?? 0
-        let shape = props.shape == "circle" ? AnyShape(Circle()) : AnyShape(RoundedRectangle(cornerRadius: radius, style: .continuous))
+        let borderBorderRadius = payload.eval(props.border?.borderRadius)
+        let cornerRadius: CornerRadiusProps? = props.borderRadius
+            ?? borderBorderRadius.map { CornerRadiusProps(uniform: $0) }
+        let shape: AnyShape
+        if props.shape == "circle" {
+            shape = AnyShape(Circle())
+        } else if let cr = cornerRadius {
+            shape = AnyShape(DigiaRoundedRect(cornerRadius: cr))
+        } else {
+            shape = AnyShape(RoundedRectangle(cornerRadius: 0, style: .continuous))
+        }
         let shouldFillWidth = width == nil && shouldFillAvailableWidth
         let shouldFillHeight = height == nil && shouldFillAvailableHeight
         let fallbackMinWidth: CGFloat? = child == nil && width == nil && hasVisibleDecoration ? 1 : nil
@@ -44,13 +53,8 @@ final class VWContainer: VirtualStatelessWidget<ContainerProps> {
             content = AnyView(content.padding(padding))
         }
 
-        let hasBoundedWidth = shouldFillWidth || width != nil || maxWidth != nil || minWidth != nil
         let hasBoundedHeight = shouldFillHeight || height != nil || maxHeight != nil || minHeight != nil
 
-        // Flutter parity: when alignment is set, Container expands (to incoming constraints)
-        // so the child can be positioned. In SwiftUI we can't read constraints directly,
-        // but maxWidth: .infinity is safe in the common bounded-width case (VStack/screen),
-        // while we remain conservative on height to avoid unbounded ScrollView growth.
         if let alignment = childAlignment {
             content = AnyView(
                 content.frame(
@@ -63,18 +67,7 @@ final class VWContainer: VirtualStatelessWidget<ContainerProps> {
 
         let resolvedMinWidth = width ?? max(minWidth ?? 0, fallbackMinWidth ?? 0)
         let resolvedMinHeight = height ?? max(minHeight ?? 0, fallbackMinHeight ?? 0)
-
-        // Layout semantics:
-        // - If width is specified, honor it.
-        // - Otherwise, if maxWidth is specified, honor that.
-        // - Otherwise expand only when the parent supplies tight fill constraints.
-        // Flutter parity: if childAlignment is set, default to filling available width.
         let resolvedMaxWidth = width ?? maxWidth ?? (childAlignment != nil ? .infinity : (shouldFillWidth ? .infinity : nil))
-
-        // For height, don't force .infinity by default; let the
-        // surrounding layout (Column/List/etc.) drive vertical sizing,
-        // unless an explicit height/maxHeight is provided or the parent is a
-        // stack/positioned layout that expands on the main axis.
         let resolvedMaxHeight = height ?? maxHeight ?? (shouldFillHeight ? .infinity : nil)
 
         var current = AnyView(
@@ -115,9 +108,6 @@ final class VWContainer: VirtualStatelessWidget<ContainerProps> {
         return current
     }
 
-    // These helpers are retained for future use if we need more
-    // nuanced behavior, but the core layout no longer relies on
-    // inspecting the concrete parent type.
     private var shouldFillAvailableWidth: Bool {
         if let flexParent = parent as? VWFlex,
            flexParent.direction == .horizontal,
@@ -228,16 +218,30 @@ final class VWContainer: VirtualStatelessWidget<ContainerProps> {
     }
 
     private func gradientView(payload: RenderPayload) -> LinearGradient? {
-        guard let colors = props.gradiant?.resolvedColors?.compactMap(payload.resolveColor),
-              !colors.isEmpty else {
-            return nil
+        guard let gradient = props.gradiant else { return nil }
+        let startPoint = To.unitPoint(gradient.begin) ?? .topLeading
+        let endPoint = To.unitPoint(gradient.end) ?? .bottomTrailing
+
+        if let colorList = gradient.colorList, !colorList.isEmpty {
+            let resolved = colorList.compactMap { item -> (Color, Double?)? in
+                guard let color = item.color.flatMap(payload.resolveColor) else { return nil }
+                return (color, item.stop)
+            }
+            guard !resolved.isEmpty else { return nil }
+            let hasPositions = resolved.contains { $0.1 != nil }
+            let stops: [Gradient.Stop] = resolved.enumerated().map { idx, pair in
+                let location: CGFloat = hasPositions
+                    ? CGFloat(pair.1 ?? (Double(idx) / Double(max(resolved.count - 1, 1))))
+                    : CGFloat(idx) / CGFloat(max(resolved.count - 1, 1))
+                return Gradient.Stop(color: pair.0, location: location)
+            }
+            return LinearGradient(gradient: Gradient(stops: stops), startPoint: startPoint, endPoint: endPoint)
         }
 
-        return LinearGradient(
-            colors: colors,
-            startPoint: To.unitPoint(props.gradiant?.begin) ?? .topLeading,
-            endPoint: To.unitPoint(props.gradiant?.end) ?? .bottomTrailing
-        )
+        guard let colors = gradient.colors?.compactMap(payload.resolveColor), !colors.isEmpty else {
+            return nil
+        }
+        return LinearGradient(colors: colors, startPoint: startPoint, endPoint: endPoint)
     }
 
     @ViewBuilder

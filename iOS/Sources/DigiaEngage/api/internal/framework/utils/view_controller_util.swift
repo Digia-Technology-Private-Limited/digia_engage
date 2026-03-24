@@ -4,10 +4,18 @@ import UIKit
 
 @MainActor
 enum ViewControllerUtil {
-    static func topViewController(base: UIViewController? = UIApplication.shared.connectedScenes
-        .compactMap { $0 as? UIWindowScene }
-        .flatMap { $0.windows }
-        .first(where: { $0.isKeyWindow })?.rootViewController) -> UIViewController? {
+    private static var rootViewController: UIViewController? {
+        let scenes = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
+        if let vc = scenes.first(where: { $0.activationState == .foregroundActive })?.keyWindow?.rootViewController {
+            return vc
+        }
+        if let vc = scenes.compactMap({ $0.keyWindow }).first?.rootViewController {
+            return vc
+        }
+        return scenes.flatMap { $0.windows }.first(where: { $0.isKeyWindow })?.rootViewController
+    }
+
+    static func topViewController(base: UIViewController? = rootViewController) -> UIViewController? {
         if let navigation = base as? UINavigationController {
             return topViewController(base: navigation.visibleViewController)
         }
