@@ -102,7 +102,7 @@ private struct DigiaRichTextSpanViewModel: Identifiable {
         font = payload.resources.font(textStyle: style)
         let resolvedTextColor = payload.evalColor(style?.textColor) ?? .primary
         textColor = resolvedTextColor
-        if let gradient = Self.gradient(for: style?.gradient, payload: payload) {
+        if let gradient = TextStyleUtil.makeTextGradient(from: style?.gradient, resolveColor: payload.resolveColor) {
             foreground = AnyShapeStyle(gradient)
             usesGradient = true
         } else {
@@ -137,25 +137,6 @@ private struct DigiaRichTextSpanViewModel: Identifiable {
         return current
     }
 
-    private static func gradient(for gradient: TextGradientProps?, payload: RenderPayload) -> LinearGradient? {
-        guard let gradient,
-              let stops = gradient.colorList,
-              !stops.isEmpty else {
-            return nil
-        }
-
-        let colors = stops.compactMap { stop in
-            stop.color.flatMap(payload.resolveColor)
-        }
-
-        guard !colors.isEmpty else { return nil }
-
-        return LinearGradient(
-            colors: colors,
-            startPoint: To.unitPoint(gradient.begin) ?? .top,
-            endPoint: To.unitPoint(gradient.end) ?? .bottom
-        )
-    }
 }
 
 @MainActor
@@ -171,27 +152,12 @@ private struct DigiaRichTextSpanView: View {
                 .fixedSize()
         )
 
-        if span.decoration == "underline" {
-            current = AnyView(current.underline(true, color: span.decorationColor))
-        }
-        if span.decoration == "linethrough" || span.decoration == "strikethrough" {
-            current = AnyView(current.strikethrough(true, color: span.decorationColor))
-        }
-
-        if let backgroundColor = span.backgroundColor {
-            current = AnyView(current.background(backgroundColor))
-        }
-
-        if span.decoration == "overline" {
-            current = AnyView(
-                current.overlay(alignment: .topLeading) {
-                    Rectangle()
-                        .fill(span.decorationColor)
-                        .frame(height: 1)
-                        .offset(y: -1)
-                }
-            )
-        }
+        current = TextStyleUtil.applyTextDecorations(
+            to: current,
+            backgroundColor: span.backgroundColor,
+            decoration: span.decoration,
+            decorationColor: span.decorationColor
+        )
 
         if let action = span.action, !action.isEmpty {
             current = AnyView(current.contentShape(Rectangle()).onTapGesture(perform: onTap))

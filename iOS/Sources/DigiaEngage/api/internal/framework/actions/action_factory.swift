@@ -55,10 +55,3 @@ enum ActionFactory {
         }
     }
 }
-
-private extension JSONValue {
-    var stringValue: String? {
-        guard case let .string(value) = self else { return nil }
-        return value
-    }
-}

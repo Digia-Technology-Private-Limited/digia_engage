@@ -158,16 +158,3 @@ struct CallRestApiProcessor {
         ]
     }
 }
-
-private extension JSONValue {
-    func asActionFlow() -> ActionFlow? {
-        guard case let .object(object) = self,
-              case let .array(steps)? = object["steps"] else { return nil }
-        let decodedSteps = steps.compactMap { item -> ActionStep? in
-            guard case let .object(obj) = item,
-                  let type = obj.string("type") else { return nil }
-            return ActionStep(type: type, data: obj.object("data"), disableActionIf: nil)
-        }
-        return ActionFlow(steps: decodedSteps)
-    }
-}

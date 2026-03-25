@@ -114,15 +114,7 @@ final class VWFlex: VirtualStatelessWidget<FlexProps> {
         }
 
         return dataSource.enumerated().map { index, item in
-            let flexObj: [String: Any?] = [
-                "currentItem": item,
-                "index": index,
-            ]
-            var scopedVariables = flexObj
-            if let refName {
-                scopedVariables[refName] = flexObj
-            }
-            let context = BasicExprContext(variables: scopedVariables)
+            let context = WidgetUtil.loopExprContext(item, index: index, refName: refName)
             return renderChild(childToRepeat, payload: payload.copyWithChainedContext(context))
         }
     }

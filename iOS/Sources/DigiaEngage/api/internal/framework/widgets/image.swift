@@ -11,28 +11,72 @@ final class VWImage: VirtualLeafStatelessWidget<ImageProps> {
         fit?.lowercased() == "fill" && hasExplicitWidth && hasExplicitHeight
     }
 
+    override func toWidget(_ payload: RenderPayload) -> AnyView {
+        toWidget(payload, skipContainerSizing: true)
+    }
+
     override func render(_ payload: RenderPayload) -> AnyView {
-        let widthConstraint = WidgetUtil.dimension(
-            for: commonProps?.style?.width,
-            raw: commonProps?.style?.widthRaw,
-            payload: payload
-        )
-        let heightConstraint = WidgetUtil.dimension(
-            for: commonProps?.style?.height,
-            raw: commonProps?.style?.heightRaw,
-            payload: payload
-        )
+        let constraints = resolvedConstraints(payload)
+        let widthConstraint = constraints.width
+        let heightConstraint = constraints.height
+
+        // wrapInContainer applies padding *around* the rendered image and then
+        // frames the total to width×height. To match Flutter's Container layout
+        // (where the child receives the inner size after padding is subtracted),
+        // pass padding-adjusted dimensions to InternalImageView so the image
+        // sizes itself to the inner area rather than the outer container size.
+        let paddingInsets = commonProps?.style?.padding?.edgeInsets
+        let hPad = (paddingInsets?.leading ?? 0) + (paddingInsets?.trailing ?? 0)
+        let vPad = (paddingInsets?.top ?? 0) + (paddingInsets?.bottom ?? 0)
+
+        let adjustedWidth: ResolvedDimension = widthConstraint.value.map { w in
+            ResolvedDimension(value: Double(max(0, w - hPad)))
+        } ?? widthConstraint
+
+        let adjustedHeight: ResolvedDimension = heightConstraint.value.map { h in
+            ResolvedDimension(value: Double(max(0, h - vPad)))
+        } ?? heightConstraint
 
         return AnyView(
             InternalImageView(
                 props: props,
                 payload: payload,
-                widthConstraint: widthConstraint,
-                heightConstraint: heightConstraint
+                widthConstraint: adjustedWidth,
+                heightConstraint: adjustedHeight
             )
             // Remote image views can swallow touches from clickable parent containers.
             // Match Flutter by letting parent onClick handlers receive taps.
             .allowsHitTesting(false)
+        )
+    }
+
+    private func resolvedConstraints(_ payload: RenderPayload) -> (
+        width: ResolvedDimension,
+        height: ResolvedDimension
+    ) {
+        let ownWidthConstraint = WidgetUtil.dimension(
+            for: commonProps?.style?.width,
+            raw: commonProps?.style?.widthRaw,
+            payload: payload
+        )
+        let ownHeightConstraint = WidgetUtil.dimension(
+            for: commonProps?.style?.height,
+            raw: commonProps?.style?.heightRaw,
+            payload: payload
+        )
+
+        guard let parentContainer = parent as? VWContainer else {
+            return (ownWidthConstraint, ownHeightConstraint)
+        }
+
+        let parentWidthConstraint = payload.eval(parentContainer.props.width)
+            .map { ResolvedDimension(value: $0) }
+        let parentHeightConstraint = payload.eval(parentContainer.props.height)
+            .map { ResolvedDimension(value: $0) }
+
+        return (
+            parentWidthConstraint ?? ownWidthConstraint,
+            parentHeightConstraint ?? ownHeightConstraint
         )
     }
 }
@@ -96,12 +140,18 @@ private struct InternalImageView: View {
         var current: AnyView = baseImage(source: source)
 
         if shouldUseBoundedFrame {
-            current = contentSizedView(
-                from: current,
-                aspect: aspect,
-                contentMode: contentMode,
-                shouldStretchToFillFrame: shouldStretchToFillFrame
-            )
+            // Only apply aspect-ratio scaling when we have a known ratio.
+            // Without one (image not yet loaded), skip the modifier so the
+            // resizable image fills the bounded frame rather than collapsing
+            // to 0 while waiting for the intrinsic size to be resolved.
+            if aspect != nil || shouldStretchToFillFrame {
+                current = contentSizedView(
+                    from: current,
+                    aspect: aspect,
+                    contentMode: contentMode,
+                    shouldStretchToFillFrame: shouldStretchToFillFrame
+                )
+            }
             current = AnyView(
                 current.frame(
                     maxWidth: hasBoundedWidth ? .infinity : nil,
@@ -293,19 +343,7 @@ private struct InternalImageView: View {
     }
 
     private func bundleResourceURL(for source: String) -> URL? {
-        let normalized = source.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !normalized.isEmpty else { return nil }
-
-        let nsPath = normalized as NSString
-        let fileExtension = nsPath.pathExtension.isEmpty ? nil : nsPath.pathExtension
-        let resourceName = fileExtension == nil ? normalized : nsPath.deletingPathExtension
-        let subdirectory = nsPath.deletingLastPathComponent
-
-        return DigiaResourceBundle.module.url(
-            forResource: resourceName,
-            withExtension: fileExtension,
-            subdirectory: subdirectory == "." ? nil : subdirectory
-        )
+        DigiaResourceBundle.module.resourceURL(forDigiaAsset: source)
     }
 
     private func resolvedTintColor(for source: String) -> Color? {
@@ -346,8 +384,3 @@ private struct InternalImageView: View {
     }
 }
 
-private extension String {
-    var nonEmpty: String? {
-        isEmpty ? nil : self
-    }
-}

@@ -113,4 +113,51 @@ enum TextStyleUtil {
             descriptor.isItalic != nil ||
             descriptor.style != nil
     }
+
+    static func applyTextDecorations(
+        to view: AnyView,
+        backgroundColor: Color?,
+        decoration: String?,
+        decorationColor: Color
+    ) -> AnyView {
+        var current = view
+        if decoration == "underline" {
+            current = AnyView(current.underline(true, color: decorationColor))
+        }
+        if decoration == "linethrough" || decoration == "strikethrough" {
+            current = AnyView(current.strikethrough(true, color: decorationColor))
+        }
+        if let backgroundColor {
+            current = AnyView(current.background(backgroundColor))
+        }
+        if decoration == "overline" {
+            current = AnyView(
+                current.overlay(alignment: .topLeading) {
+                    Rectangle()
+                        .fill(decorationColor)
+                        .frame(height: 1)
+                        .offset(y: -1)
+                }
+            )
+        }
+        return current
+    }
+
+    static func makeTextGradient(
+        from gradient: TextGradientProps?,
+        resolveColor: (String?) -> Color?
+    ) -> LinearGradient? {
+        guard let gradient,
+              let stops = gradient.colorList,
+              !stops.isEmpty else {
+            return nil
+        }
+        let colors = stops.compactMap { resolveColor($0.color) }
+        guard !colors.isEmpty else { return nil }
+        return LinearGradient(
+            colors: colors,
+            startPoint: To.unitPoint(gradient.begin) ?? .top,
+            endPoint: To.unitPoint(gradient.end) ?? .bottom
+        )
+    }
 }

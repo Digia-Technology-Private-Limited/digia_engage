@@ -99,8 +99,8 @@ struct AppSettings: Decodable, Equatable {
 struct PageDefinition: Decodable, Equatable {
     let uid: String?
     let slug: String?
-    let inputArgs: [String: ViewStateDefinition]?
-    let initStateDefs: [String: ViewStateDefinition]?
+    let inputArgs: [String: Variable]?
+    let initStateDefs: [String: Variable]?
     let layout: LayoutDefinition?
     let actions: PageActions?
 
@@ -120,11 +120,11 @@ struct PageDefinition: Decodable, Equatable {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         uid = try container.decodeIfPresent(String.self, forKey: .uid)
         slug = try container.decodeIfPresent(String.self, forKey: .slug)
-        inputArgs = try container.decodeIfPresent([String: ViewStateDefinition].self, forKey: .inputArgs)
-            ?? container.decodeIfPresent([String: ViewStateDefinition].self, forKey: .pageArgDefs)
-            ?? container.decodeIfPresent([String: ViewStateDefinition].self, forKey: .argDefs)
-        initStateDefs = try container.decodeIfPresent([String: ViewStateDefinition].self, forKey: .variables)
-            ?? container.decodeIfPresent([String: ViewStateDefinition].self, forKey: .initStateDefs)
+        inputArgs = try container.decodeIfPresent([String: Variable].self, forKey: .inputArgs)
+            ?? container.decodeIfPresent([String: Variable].self, forKey: .pageArgDefs)
+            ?? container.decodeIfPresent([String: Variable].self, forKey: .argDefs)
+        initStateDefs = try container.decodeIfPresent([String: Variable].self, forKey: .variables)
+            ?? container.decodeIfPresent([String: Variable].self, forKey: .initStateDefs)
         layout = try container.decodeIfPresent(LayoutDefinition.self, forKey: .layout)
         actions = try container.decodeIfPresent(PageActions.self, forKey: .actions)
     }
@@ -136,8 +136,8 @@ struct PageDefinition: Decodable, Equatable {
 
 struct ComponentDefinition: Decodable, Equatable {
     let uid: String?
-    let argDefs: [String: ViewStateDefinition]?
-    let initStateDefs: [String: ViewStateDefinition]?
+    let argDefs: [String: Variable]?
+    let initStateDefs: [String: Variable]?
     let layout: LayoutDefinition?
 
     enum CodingKeys: String, CodingKey {

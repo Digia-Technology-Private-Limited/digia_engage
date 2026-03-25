@@ -77,26 +77,3 @@ struct ShowBottomSheetProcessor {
         }
     }
 }
-
-private extension JSONValue {
-    var stringValue: String? {
-        guard case let .string(value) = self else { return nil }
-        return value
-    }
-
-    var objectValue: [String: JSONValue]? {
-        guard case let .object(value) = self else { return nil }
-        return value
-    }
-
-    func asActionFlow() -> ActionFlow? {
-        guard case let .object(object) = self,
-              case let .array(steps)? = object["steps"] else { return nil }
-        let decodedSteps = steps.compactMap { item -> ActionStep? in
-            guard case let .object(obj) = item,
-                  let type = obj.string("type") else { return nil }
-            return ActionStep(type: type, data: obj.object("data"), disableActionIf: nil)
-        }
-        return ActionFlow(steps: decodedSteps)
-    }
-}

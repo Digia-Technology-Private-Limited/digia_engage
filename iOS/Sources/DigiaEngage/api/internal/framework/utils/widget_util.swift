@@ -5,7 +5,8 @@ enum WidgetUtil {
     static func wrapInContainer(
         payload: RenderPayload,
         style: CommonStyle?,
-        child: AnyView
+        child: AnyView,
+        skipSizing: Bool = false
     ) -> AnyView {
         guard let style else { return child }
 
@@ -16,11 +17,13 @@ enum WidgetUtil {
             current = AnyView(current.padding(padding))
         }
 
-        current = applySizing(
-            payload: payload,
-            style: style,
-            child: current
-        )
+        if !skipSizing {
+            current = applySizing(
+                payload: payload,
+                style: style,
+                child: current
+            )
+        }
 
         current = AnyView(
             current.background(
@@ -229,6 +232,20 @@ enum WidgetUtil {
         default:
             return nil
         }
+    }
+
+    /// Creates a `ScopeContext` for a single loop iteration.
+    /// Used by repeating widgets (Flex, Wrap) to scope `currentItem` and `index`.
+    static func loopExprContext(_ item: Any?, index: Int, refName: String?) -> any ScopeContext {
+        let loopObject: [String: Any?] = [
+            "currentItem": item,
+            "index": index,
+        ]
+        var variables = loopObject
+        if let refName {
+            variables[refName] = loopObject
+        }
+        return BasicExprContext(variables: variables)
     }
 }
 

@@ -5,7 +5,7 @@ import UIKit
 ///
 /// Implement this protocol to supply custom fonts from your app's bundle.
 /// Digia Engage uses this factory whenever it needs to render a font family name
-/// from the design config (e.g. `"Inter"`, `"Poppins"`).
+/// from the design config (e.g. `"Inter"`, `"Roboto"`).
 ///
 /// **Usage:**
 /// ```swift

@@ -65,8 +65,8 @@ final class VWContainer: VirtualStatelessWidget<ContainerProps> {
             )
         }
 
-        let resolvedMinWidth = max(minWidth ?? 0, fallbackMinWidth ?? 0)
-        let resolvedMinHeight = max(minHeight ?? 0, fallbackMinHeight ?? 0)
+        let resolvedMinWidth = max(minWidth ?? width ?? 0, fallbackMinWidth ?? 0)
+        let resolvedMinHeight = max(minHeight ?? height ?? 0, fallbackMinHeight ?? 0)
         let resolvedMaxWidth = width ?? maxWidth ?? (childAlignment != nil ? .infinity : (shouldFillWidth ? .infinity : nil))
         let resolvedMaxHeight = height ?? maxHeight ?? (shouldFillHeight ? .infinity : nil)
 
@@ -184,19 +184,10 @@ final class VWContainer: VirtualStatelessWidget<ContainerProps> {
 
     @ViewBuilder
     private func containerBackground(payload: RenderPayload, shape: AnyShape) -> some View {
-        ZStack {
-            if let gradient = gradientView(payload: payload) {
-                shape.fill(gradient)
-            } else if let color = payload.evalColor(props.color) {
-                shape.fill(color)
-            }
-
-            if let decorationImage = props.decorationImage,
-               let source = decorationImage.source, !source.isEmpty {
-                decorationImageView(decorationImage, source: source)
-                    .opacity(payload.eval(decorationImage.opacity) ?? 1)
-                    .clipShape(shape)
-            }
+        if let gradient = gradientView(payload: payload) {
+            shape.fill(gradient)
+        } else if let color = payload.evalColor(props.color) {
+            shape.fill(color)
         }
     }
 
@@ -254,40 +245,6 @@ final class VWContainer: VirtualStatelessWidget<ContainerProps> {
     }
 
     @ViewBuilder
-    private func decorationImageView(_ props: DecorationImageProps, source: String) -> some View {
-        if source.hasPrefix("http"), let url = URL(string: source) {
-            DigiaCachedImageView(url: url)
-                .aspectRatio(contentMode: To.imageContentMode(props.fit))
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: To.alignment(props.alignment) ?? .center)
-        } else if let resourceURL = bundleResourceURL(for: source) {
-            DigiaCachedImageView(url: resourceURL)
-                .aspectRatio(contentMode: To.imageContentMode(props.fit))
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: To.alignment(props.alignment) ?? .center)
-        } else {
-            Image(source, bundle: DigiaResourceBundle.module)
-                .resizable()
-                .aspectRatio(contentMode: To.imageContentMode(props.fit))
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: To.alignment(props.alignment) ?? .center)
-        }
-    }
-
-    private func bundleResourceURL(for source: String) -> URL? {
-        let normalized = source.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !normalized.isEmpty else { return nil }
-
-        let nsPath = normalized as NSString
-        let fileExtension = nsPath.pathExtension.isEmpty ? nil : nsPath.pathExtension
-        let resourceName = fileExtension == nil ? normalized : nsPath.deletingPathExtension
-        let subdirectory = nsPath.deletingLastPathComponent
-
-        return DigiaResourceBundle.module.url(
-            forResource: resourceName,
-            withExtension: fileExtension,
-            subdirectory: subdirectory == "." ? nil : subdirectory
-        )
-    }
-
-    @ViewBuilder
     private func shadowLayer(payload: RenderPayload, shape: AnyShape, shadow: ShadowStyle) -> some View {
         let shadowColor = payload.evalColor(shadow.color) ?? Color.black.opacity(0.2)
         let blur = CGFloat(max(0, payload.eval(shadow.blur) ?? 0))
@@ -304,16 +261,3 @@ final class VWContainer: VirtualStatelessWidget<ContainerProps> {
     }
 }
 
-private struct AnyShape: Shape {
-    private let pathBuilder: @Sendable (CGRect) -> Path
-
-    init<S: Shape>(_ shape: S) {
-        pathBuilder = { rect in
-            shape.path(in: rect)
-        }
-    }
-
-    func path(in rect: CGRect) -> Path {
-        pathBuilder(rect)
-    }
-}

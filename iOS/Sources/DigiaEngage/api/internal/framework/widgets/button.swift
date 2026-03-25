@@ -202,16 +202,3 @@ final class VWButton: VirtualLeafStatelessWidget<ButtonProps> {
     private static let materialDisabledBackground = Color(red: 29 / 255, green: 27 / 255, blue: 32 / 255).opacity(0.12)
 }
 
-private struct AnyShape: Shape {
-    private let pathBuilder: @Sendable (CGRect) -> Path
-
-    init<S: Shape>(_ shape: S) {
-        pathBuilder = { rect in
-            shape.path(in: rect)
-        }
-    }
-
-    func path(in rect: CGRect) -> Path {
-        pathBuilder(rect)
-    }
-}

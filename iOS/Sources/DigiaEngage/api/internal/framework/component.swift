@@ -1,7 +1,7 @@
 import SwiftUI
 
 @MainActor
-struct DUIComponentView: View {
+struct DUIComponent: View {
     let componentID: String
     let component: ComponentDefinition
     let root: VWData

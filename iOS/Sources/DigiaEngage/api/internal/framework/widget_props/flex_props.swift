@@ -1,12 +1,12 @@
 import Foundation
 
 struct FlexProps: Codable, Equatable, Sendable {
-    let spacing: Double?
-    let startSpacing: Double?
-    let endSpacing: Double?
-    let mainAxisAlignment: String?
-    let crossAxisAlignment: String?
-    let mainAxisSize: String?
-    let isScrollable: Bool?
-    let dataSource: JSONValue?
+    var spacing: Double? = nil
+    var startSpacing: Double? = nil
+    var endSpacing: Double? = nil
+    var mainAxisAlignment: String? = nil
+    var crossAxisAlignment: String? = nil
+    var mainAxisSize: String? = nil
+    var isScrollable: Bool? = nil
+    var dataSource: JSONValue? = nil
 }

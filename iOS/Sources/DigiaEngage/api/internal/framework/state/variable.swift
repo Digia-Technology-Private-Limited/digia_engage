@@ -1,6 +1,6 @@
 import Foundation
 
-struct ViewStateDefinition: Decodable, Equatable, Sendable {
+struct Variable: Decodable, Equatable, Sendable {
     let type: String
     let defaultValue: JSONValue?
 

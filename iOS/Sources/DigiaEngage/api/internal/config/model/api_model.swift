@@ -8,7 +8,7 @@ struct APIModel: Decodable, Equatable, Sendable {
     let headers: [String: JSONValue]?
     let body: JSONValue?
     let bodyType: String?
-    let variables: [String: ViewStateDefinition]?
+    let variables: [String: Variable]?
 
     init(
         id: String,
@@ -18,7 +18,7 @@ struct APIModel: Decodable, Equatable, Sendable {
         headers: [String: JSONValue]?,
         body: JSONValue?,
         bodyType: String?,
-        variables: [String: ViewStateDefinition]?
+        variables: [String: Variable]?
     ) {
         self.id = id
         self.name = name

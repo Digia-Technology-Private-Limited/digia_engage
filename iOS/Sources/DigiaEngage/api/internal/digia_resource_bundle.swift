@@ -4,16 +4,13 @@ private final class DigiaResourceBundleLocator {}
 
 enum DigiaResourceBundle {
     static let module: Bundle = {
-        #if SWIFT_PACKAGE
-        return Bundle.module
-        #else
         let candidates = [
             Bundle(for: DigiaResourceBundleLocator.self),
             Bundle.main,
         ]
 
         for candidate in candidates {
-            for name in ["DigiaEngageResources", "DigiaEngage", "DigiaEngageReactNative"] {
+            for name in ["DigiaEngageResources", "DigiaEngage", "DigiaEngageReactNative", "DigiaEngage_DigiaEngage"] {
                 if let url = candidate.url(forResource: name, withExtension: "bundle"),
                    let bundle = Bundle(url: url) {
                     return bundle
@@ -22,6 +19,5 @@ enum DigiaResourceBundle {
         }
 
         return Bundle(for: DigiaResourceBundleLocator.self)
-        #endif
     }()
 }

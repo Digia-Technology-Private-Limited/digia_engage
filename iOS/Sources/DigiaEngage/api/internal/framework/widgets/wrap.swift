@@ -41,7 +41,7 @@ final class VWWrap: VirtualStatelessWidget<WrapProps> {
         if let repeatedItems = resolveDataSource(payload: payload) {
             guard let template = children.first else { return [] }
             return repeatedItems.enumerated().map { index, item in
-                template.toWidget(payload.copyWithChainedContext(createExprContext(item, index: index)))
+                template.toWidget(payload.copyWithChainedContext(WidgetUtil.loopExprContext(item, index: index, refName: refName)))
             }
         }
 
@@ -51,19 +51,6 @@ final class VWWrap: VirtualStatelessWidget<WrapProps> {
     private func resolveDataSource(payload: RenderPayload) -> [Any]? {
         guard let resolved = payload.evalAny(props.dataSource) else { return nil }
         return resolved as? [Any]
-    }
-
-    private func createExprContext(_ item: Any?, index: Int) -> any ScopeContext {
-        let wrapObject: [String: Any?] = [
-            "currentItem": item,
-            "index": index,
-        ]
-
-        var variables = wrapObject
-        if let refName {
-            variables[refName] = wrapObject
-        }
-        return BasicExprContext(variables: variables)
     }
 }
 

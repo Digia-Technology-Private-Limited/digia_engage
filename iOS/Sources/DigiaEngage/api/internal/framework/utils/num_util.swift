@@ -46,4 +46,9 @@ enum NumUtil {
             return nil
         }
     }
+
+    /// Converts a 0–100 percentage progress value to a 0–1 fraction, clamped.
+    static func normalizeProgress(_ value: Double) -> Double {
+        min(max(value / 100.0, 0), 1)
+    }
 }

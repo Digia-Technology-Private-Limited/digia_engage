@@ -373,7 +373,6 @@ struct WidgetRenderingViewInspectorTests {
                     border: nil,
                     shape: nil,
                     elevation: nil,
-                    decorationImage: nil,
                     shadow: nil,
                     gradiant: nil
                 ),
@@ -431,7 +430,6 @@ struct WidgetRenderingViewInspectorTests {
                     border: nil,
                     shape: nil,
                     elevation: nil,
-                    decorationImage: nil,
                     shadow: nil,
                     gradiant: nil
                 ),
@@ -507,7 +505,6 @@ struct WidgetRenderingViewInspectorTests {
                 border: nil,
                 shape: nil,
                 elevation: nil,
-                decorationImage: nil,
                 shadow: nil,
                 gradiant: nil
             ),
@@ -563,7 +560,6 @@ struct WidgetRenderingViewInspectorTests {
                 border: nil,
                 shape: nil,
                 elevation: nil,
-                decorationImage: nil,
                 shadow: nil,
                 gradiant: nil
             ),
@@ -590,7 +586,6 @@ struct WidgetRenderingViewInspectorTests {
                 border: nil,
                 shape: nil,
                 elevation: nil,
-                decorationImage: nil,
                 shadow: nil,
                 gradiant: nil
             ),
@@ -673,6 +668,78 @@ struct WidgetRenderingViewInspectorTests {
 
         #expect(abs(size.height - 300) < 0.5)
         #expect(abs(size.width - 195) < 0.5)
+    }
+
+    @Test("image uses parent container dimensions when present")
+    func imageUsesParentContainerDimensionsWhenPresent() throws {
+        let props = try JSONDecoder().decode(
+            ImageProps.self,
+            from: Data(
+                """
+                {
+                  "src": { "imageSrc": "" },
+                  "fit": "contain"
+                }
+                """.utf8
+            )
+        )
+
+        let parentContainer = VWContainer(
+            props: ContainerProps(
+                color: nil,
+                padding: nil,
+                margin: nil,
+                width: .value(40),
+                height: .value(40),
+                minWidth: nil,
+                minHeight: nil,
+                maxWidth: nil,
+                maxHeight: nil,
+                childAlignment: nil,
+                borderRadius: nil,
+                border: nil,
+                shape: nil,
+                elevation: nil,
+                shadow: nil,
+                gradiant: nil
+            ),
+            commonProps: nil,
+            parentProps: nil,
+            childGroups: nil,
+            parent: nil,
+            refName: nil
+        )
+
+        let image = VWImage(
+            props: props,
+            commonProps: CommonProps(
+                visibility: nil,
+                align: nil,
+                style: CommonStyle(
+                    padding: nil,
+                    margin: nil,
+                    bgColor: nil,
+                    borderRadius: nil,
+                    height: .value(24),
+                    width: .value(24),
+                    heightRaw: "24",
+                    widthRaw: "24",
+                    clipBehavior: nil,
+                    border: nil
+                ),
+                onClick: nil
+            ),
+            parentProps: nil,
+            parent: parentContainer,
+            refName: nil
+        )
+
+        let rendered = image.toWidget(RenderPayload(appConfigStore: AppConfigStore()))
+        let host = UIHostingController(rootView: rendered)
+        let size = host.sizeThatFits(in: CGSize(width: 500, height: 500))
+
+        #expect(abs(size.width - 40) < 0.5)
+        #expect(abs(size.height - 40) < 0.5)
     }
 
     #endif

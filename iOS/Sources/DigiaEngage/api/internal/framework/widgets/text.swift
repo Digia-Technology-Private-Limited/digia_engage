@@ -79,7 +79,7 @@ final class VWText: VirtualLeafStatelessWidget<TextProps> {
             .multilineTextAlignment(To.textAlignment(alignment))
 
         var current: AnyView
-        if let gradient = makeGradient(payload: payload) {
+        if let gradient = TextStyleUtil.makeTextGradient(from: props.textStyle?.gradient, resolveColor: payload.resolveColor) {
             current = AnyView(
                 base
                     .foregroundColor(.clear)
@@ -98,7 +98,7 @@ final class VWText: VirtualLeafStatelessWidget<TextProps> {
             }
         }
 
-        current = applySharedDecorations(
+        current = TextStyleUtil.applyTextDecorations(
             to: current,
             backgroundColor: backgroundColor,
             decoration: decoration,
@@ -154,8 +154,8 @@ final class VWText: VirtualLeafStatelessWidget<TextProps> {
         expandToAvailableWidth: Bool
     ) -> AnyView {
         let paragraph = NSMutableParagraphStyle()
-        paragraph.alignment = uiTextAlignment(for: alignment)
-        paragraph.lineBreakMode = uiLineBreakMode(for: overflow)
+        paragraph.alignment = To.uiTextAlignment(alignment)
+        paragraph.lineBreakMode = To.uiLineBreakMode(overflow)
         if let resolvedLineHeight {
             paragraph.minimumLineHeight = resolvedLineHeight
             paragraph.maximumLineHeight = resolvedLineHeight
@@ -190,7 +190,7 @@ final class VWText: VirtualLeafStatelessWidget<TextProps> {
             )
         )
 
-        current = applySharedDecorations(
+        current = TextStyleUtil.applyTextDecorations(
             to: current,
             backgroundColor: nil,
             decoration: decoration == "overline" ? "overline" : nil,
@@ -220,89 +220,4 @@ final class VWText: VirtualLeafStatelessWidget<TextProps> {
         return current
     }
 
-    private func uiTextAlignment(for value: String?) -> NSTextAlignment {
-        switch value {
-        case "right", "end", "centerRight", "centerEnd":
-            return .right
-        case "center", "topCenter", "bottomCenter":
-            return .center
-        case "justify":
-            return .justified
-        default:
-            return .left
-        }
-    }
-
-    private func uiLineBreakMode(for overflow: String?) -> NSLineBreakMode {
-        switch overflow {
-        case "ellipsis":
-            return .byTruncatingTail
-        case "clip", "visible":
-            return .byClipping
-        default:
-            return .byWordWrapping
-        }
-    }
-
-    private func applySharedDecorations(
-        to view: AnyView,
-        backgroundColor: Color?,
-        decoration: String?,
-        decorationColor: Color
-    ) -> AnyView {
-        var current = view
-
-        if decoration == "underline" {
-            current = AnyView(current.underline(true, color: decorationColor))
-        }
-        if decoration == "linethrough" || decoration == "strikethrough" {
-            current = AnyView(current.strikethrough(true, color: decorationColor))
-        }
-        if let backgroundColor {
-            current = AnyView(current.background(backgroundColor))
-        }
-        if decoration == "overline" {
-            current = AnyView(
-                current.overlay(alignment: .topLeading) {
-                    Rectangle()
-                        .fill(decorationColor)
-                        .frame(height: 1)
-                        .offset(y: -1)
-                }
-            )
-        }
-
-        return current
-    }
-
-    private func makeGradient(payload: RenderPayload) -> LinearGradient? {
-        guard let stops = props.textStyle?.gradient?.colorList,
-              !stops.isEmpty else {
-            return nil
-        }
-        let colors = stops.compactMap { stop in
-            stop.color.flatMap(payload.resolveColor)
-        }
-        guard !colors.isEmpty else { return nil }
-        return LinearGradient(
-            colors: colors,
-            startPoint: point(from: props.textStyle?.gradient?.begin) ?? .top,
-            endPoint: point(from: props.textStyle?.gradient?.end) ?? .bottom
-        )
-    }
-
-    private func point(from value: String?) -> UnitPoint? {
-        switch value {
-        case "topCenter": return .top
-        case "bottomCenter": return .bottom
-        case "center": return .center
-        case "centerLeft", "centerStart", "left": return .leading
-        case "centerRight", "centerEnd", "right": return .trailing
-        case "topLeft", "topStart": return .topLeading
-        case "topRight", "topEnd": return .topTrailing
-        case "bottomLeft", "bottomStart": return .bottomLeading
-        case "bottomRight", "bottomEnd": return .bottomTrailing
-        default: return nil
-        }
-    }
 }

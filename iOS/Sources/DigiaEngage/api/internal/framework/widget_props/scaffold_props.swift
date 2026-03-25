@@ -1,13 +1,13 @@
 import Foundation
 
 struct ScaffoldProps: Codable, Equatable, Sendable {
-    let scaffoldBackgroundColor: ExprOr<String>?
-    let enableSafeArea: ExprOr<Bool>?
-    let resizeToAvoidBottomInset: ExprOr<Bool>?
-    let body: String?
-    let appBar: String?
-    let drawer: String?
-    let endDrawer: String?
-    let bottomNavigationBar: String?
-    let persistentFooterButtons: [String]?
+    var scaffoldBackgroundColor: ExprOr<String>? = nil
+    var enableSafeArea: ExprOr<Bool>? = nil
+    var resizeToAvoidBottomInset: ExprOr<Bool>? = nil
+    var body: String? = nil
+    var appBar: String? = nil
+    var drawer: String? = nil
+    var endDrawer: String? = nil
+    var bottomNavigationBar: String? = nil
+    var persistentFooterButtons: [String]? = nil
 }

@@ -1,5 +1,7 @@
 import Foundation
 
+typealias JsonLike = [String: Any]
+
 /// Mirrors Flutter's NodeType enum in types.dart.
 enum NodeType: String {
     case widget

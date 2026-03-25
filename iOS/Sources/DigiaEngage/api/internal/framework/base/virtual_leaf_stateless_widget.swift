@@ -30,12 +30,21 @@ class VirtualLeafStatelessWidget<PropsType>: VirtualWidget, VirtualLeafStateless
     }
 
     func toWidget(_ payload: RenderPayload) -> AnyView {
+        toWidget(payload, skipContainerSizing: false)
+    }
+
+    func toWidget(_ payload: RenderPayload, skipContainerSizing: Bool) -> AnyView {
         if payload.eval(commonProps?.visibility) == false {
             return empty()
         }
 
         var current = render(payload)
-        current = WidgetUtil.wrapInContainer(payload: payload, style: commonProps?.style, child: current)
+        current = WidgetUtil.wrapInContainer(
+            payload: payload,
+            style: commonProps?.style,
+            child: current,
+            skipSizing: skipContainerSizing
+        )
         current = WidgetUtil.wrapInAlign(value: commonProps?.align, child: current)
         current = WidgetUtil.wrapInTapGesture(payload: payload, actionFlow: commonProps?.onClick, child: current)
         current = WidgetUtil.applyMargin(style: commonProps?.style, child: current)

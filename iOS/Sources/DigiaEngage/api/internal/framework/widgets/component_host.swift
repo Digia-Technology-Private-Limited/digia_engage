@@ -1,7 +1,7 @@
 import SwiftUI
 
 @MainActor
-final class VWComponentHost: VirtualLeafStatelessWidget<Void> {
+final class VWComponent: VirtualLeafStatelessWidget<Void> {
     let componentId: String
     let args: [String: JSONValue]
     let registry: VirtualWidgetRegistry

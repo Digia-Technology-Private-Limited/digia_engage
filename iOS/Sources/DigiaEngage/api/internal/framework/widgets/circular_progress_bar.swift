@@ -3,7 +3,7 @@ import SwiftUI
 @MainActor
 final class VWCircularProgressBar: VirtualLeafStatelessWidget<CircularProgressBarProps> {
     override func render(_ payload: RenderPayload) -> AnyView {
-        let progress = min(max((payload.eval(props.progressValue) ?? 0) / 100.0, 0), 1)
+        let progress = NumUtil.normalizeProgress(payload.eval(props.progressValue) ?? 0)
         let size = CGFloat(payload.eval(props.size) ?? 50)
         let thickness = CGFloat(payload.eval(props.thickness) ?? 5)
         let tint = payload.evalColor(props.indicatorColor) ?? .blue

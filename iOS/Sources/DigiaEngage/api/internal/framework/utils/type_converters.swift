@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 enum To {
     static func mainAxisAlignment(_ value: String?) -> DigiaMainAxisAlignment {
@@ -151,6 +152,30 @@ enum To {
             return .bottomTrailing
         default:
             return nil
+        }
+    }
+
+    static func uiTextAlignment(_ value: String?) -> NSTextAlignment {
+        switch value {
+        case "right", "end", "centerRight", "centerEnd":
+            return .right
+        case "center", "topCenter", "bottomCenter":
+            return .center
+        case "justify":
+            return .justified
+        default:
+            return .left
+        }
+    }
+
+    static func uiLineBreakMode(_ value: String?) -> NSLineBreakMode {
+        switch value {
+        case "ellipsis":
+            return .byTruncatingTail
+        case "clip", "visible":
+            return .byClipping
+        default:
+            return .byWordWrapping
         }
     }
 }

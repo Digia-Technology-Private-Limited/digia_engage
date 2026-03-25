@@ -1,30 +1,22 @@
 import Foundation
 
 struct ContainerProps: Decodable, Equatable, Sendable {
-    let color: ExprOr<String>?
-    let padding: Spacing?
-    let margin: Spacing?
-    let width: ExprOr<Double>?
-    let height: ExprOr<Double>?
-    let minWidth: ExprOr<Double>?
-    let minHeight: ExprOr<Double>?
-    let maxWidth: ExprOr<Double>?
-    let maxHeight: ExprOr<Double>?
-    let childAlignment: String?
-    let borderRadius: CornerRadiusProps?
-    let border: BorderStyle?
-    let shape: String?
-    let elevation: Double?
-    let decorationImage: DecorationImageProps?
-    let shadow: [ShadowStyle]?
-    let gradiant: GradientStyle?
-}
-
-struct DecorationImageProps: Decodable, Equatable, Sendable {
-    let source: String?
-    let fit: String?
-    let alignment: String?
-    let opacity: ExprOr<Double>?
+    var color: ExprOr<String>? = nil
+    var padding: Spacing? = nil
+    var margin: Spacing? = nil
+    var width: ExprOr<Double>? = nil
+    var height: ExprOr<Double>? = nil
+    var minWidth: ExprOr<Double>? = nil
+    var minHeight: ExprOr<Double>? = nil
+    var maxWidth: ExprOr<Double>? = nil
+    var maxHeight: ExprOr<Double>? = nil
+    var childAlignment: String? = nil
+    var borderRadius: CornerRadiusProps? = nil
+    var border: BorderStyle? = nil
+    var shape: String? = nil
+    var elevation: Double? = nil
+    var shadow: [ShadowStyle]? = nil
+    var gradiant: GradientStyle? = nil
 }
 
 struct ShadowStyle: Decodable, Equatable, Sendable {

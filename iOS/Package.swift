@@ -31,9 +31,6 @@ let package = Package(
                 .product(name: "SDWebImageSVGCoder", package: "SDWebImageSVGCoder"),
                 .product(name: "PartialSheet", package: "PartialSheet"),
                 .product(name: "AlertToast", package: "AlertToast"),
-            ],
-            resources: [
-                .process("Resources")
             ]
         ),
         .testTarget(

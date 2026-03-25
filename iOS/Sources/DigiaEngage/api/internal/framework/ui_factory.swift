@@ -36,7 +36,7 @@ final class DUIFactory {
         }
 
         return AnyView(
-            DUIComponentView(
+            DUIComponent(
                 componentID: id,
                 component: component,
                 root: root,

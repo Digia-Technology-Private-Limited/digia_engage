@@ -57,23 +57,7 @@ struct DividerBorderPatternProps: Decodable, Equatable, Sendable {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         value = try container.decodeIfPresent(String.self, forKey: .value)
         strokeCap = try container.decodeIfPresent(String.self, forKey: .strokeCap)
-        dashPattern = DividerBorderPatternProps.decodeDashPattern(from: container)
-    }
-
-    private static func decodeDashPattern(
-        from container: KeyedDecodingContainer<CodingKeys>
-    ) -> [Double]? {
-        if let values = try? container.decodeIfPresent([Double].self, forKey: .dashPattern) {
-            return values
-        }
-
-        if let stringValue = try? container.decodeIfPresent(String.self, forKey: .dashPattern) {
-            return stringValue
-                .split(separator: ",")
-                .compactMap { Double($0.trimmingCharacters(in: .whitespacesAndNewlines)) }
-        }
-
-        return nil
+        dashPattern = decodeDashPattern(from: container, forKey: .dashPattern)
     }
 }
 

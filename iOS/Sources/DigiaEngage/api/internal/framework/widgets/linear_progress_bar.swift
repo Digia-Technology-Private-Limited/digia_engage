@@ -3,7 +3,7 @@ import SwiftUI
 @MainActor
 final class VWLinearProgressBar: VirtualLeafStatelessWidget<LinearProgressBarProps> {
     override func render(_ payload: RenderPayload) -> AnyView {
-        let progress = min(max((payload.eval(props.progressValue) ?? 0) / 100.0, 0), 1)
+        let progress = NumUtil.normalizeProgress(payload.eval(props.progressValue) ?? 0)
         let width = payload.eval(props.width).map { CGFloat($0) }
         let thickness = CGFloat(payload.eval(props.thickness) ?? 5)
         let radius = CGFloat(payload.eval(props.borderRadius) ?? 0)
