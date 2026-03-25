@@ -148,15 +148,29 @@ class DigiaInstance with WidgetsBindingObserver implements DigiaCEPDelegate {
       );
     }
 
-    final displayType =
-        (payload.content['command'] as String? ?? 'SHOW_INLINE');
-    final placementId = payload.content['placementId'] as String?;
+    final type = (payload.content['type'] as String?)?.trim().toLowerCase();
+    final command =
+        (payload.content['command'] as String?)?.trim().toUpperCase();
 
-    if (displayType == 'SHOW_INLINE' && placementId != null) {
-      // Store inline campaign for DigiaSlot to render.
-      inlineController.setCampaign(placementId, payload);
+    if ((type == null || type.isEmpty) &&
+        (command == null || command.isEmpty)) {
+      debugPrint(
+        '[Digia] WARNING: campaign dropped: neither type nor command is set: ${payload.id}',
+      );
+      return;
+    }
+
+    if (type == 'inline') {
+      final placementKey = payload.content['placementKey'] as String?;
+      if (placementKey == null || placementKey.isEmpty) {
+        debugPrint(
+          '[Digia] WARNING: inline payload dropped: placementKey is required when type is set: ${payload.id}',
+        );
+        return;
+      }
+      inlineController.setCampaign(placementKey, payload);
     } else {
-      // Modal campaigns: route to DigiaHost via the shared controller.
+      // Modal campaigns (SHOW_BOTTOM_SHEET / SHOW_DIALOG): route to DigiaHost.
       _controller.show(payload);
     }
   }

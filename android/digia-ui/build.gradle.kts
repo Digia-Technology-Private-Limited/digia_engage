@@ -3,11 +3,9 @@ plugins {
     id("org.jetbrains.kotlin.android")
     id("org.jetbrains.kotlin.plugin.compose") version "2.1.0"
     id("org.jetbrains.kotlin.plugin.serialization")
-    id("maven-publish")
+    id("com.vanniktech.maven.publish")
+    id("signing")
 }
-
-group = "com.digia"
-version = "1.0.0-beta.6"
 
 android {
     namespace = "com.digia.digiaui"
@@ -58,12 +56,6 @@ android {
             res.srcDirs("src/main/res")
             assets.srcDirs("src/main/assets")
             manifest.srcFile("src/main/AndroidManifest.xml")
-        }
-    }
-
-    publishing {
-        singleVariant("release") {
-            withSourcesJar()
         }
     }
 }
@@ -150,40 +142,13 @@ dependencies {
     debugImplementation("androidx.compose.ui:ui-test-manifest")
 }
 
-afterEvaluate {
-    publishing {
-        publications {
-            create<MavenPublication>("release") {
-                from(components["release"])
-                groupId = "com.digia"
-                artifactId = "digia-engage"
-                version = version
+val signingKeyId = findProperty("signingInMemoryKeyId") as String? ?: ""
+val signingPassword = findProperty("signingInMemoryKeyPassword") as String? ?: ""
+val keyFile = rootProject.file("private-key.asc")
 
-                pom {
-                    name.set("Digia UI Compose")
-                    description.set("Digia UI SDK for Android Compose - Server-driven UI framework")
-                    url.set("https://github.com/Digia-Technology-Private-Limited/digia_engage")
-
-                    licenses {
-                        license {
-                            name.set("MIT License")
-                            url.set("https://opensource.org/licenses/MIT")
-                        }
-                    }
-
-                    developers {
-                        developer {
-                            id.set("digia")
-                            name.set("Digia Team")
-                            email.set("support@digia.tech")
-                        }
-                    }
-                }
-            }
-        }
-
-        repositories {
-            mavenLocal()
-        }
+signing {
+    if (keyFile.exists()) {
+        useInMemoryPgpKeys(signingKeyId, keyFile.readText(), signingPassword)
+        sign(publishing.publications)
     }
 }
