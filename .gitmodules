@@ -1,3 +1,4 @@
 [submodule "iOS"]
 	path = iOS
 	url = git@github.com:Digia-Technology-Private-Limited/digia_engage_iOS.git
+	branch = main
