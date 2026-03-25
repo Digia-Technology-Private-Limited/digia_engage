@@ -6,7 +6,6 @@ final class SDKInstance: ObservableObject, DigiaCEPDelegate {
     static let shared = SDKInstance()
 
     @Published private(set) var config: DigiaConfig?
-    @Published private(set) var currentScreen: String?
     @Published private(set) var sdkState: SDKState = .notInitialized
     @Published private(set) var isHostMounted = false
     @Published private(set) var appState: [String: JSONValue] = [:]
@@ -63,11 +62,6 @@ final class SDKInstance: ObservableObject, DigiaCEPDelegate {
         plugin.setup(delegate: self)
     }
 
-    func setCurrentScreen(_ name: String) {
-        currentScreen = name
-        activePlugin?.forwardScreen(name)
-    }
-
     func registerFontFactory(_ factory: DUIFontFactory) {
         fontFactory = factory
     }
@@ -117,7 +111,6 @@ final class SDKInstance: ObservableObject, DigiaCEPDelegate {
         activePlugin?.teardown()
         activePlugin = nil
         config = nil
-        currentScreen = nil
         sdkState = .notInitialized
         isHostMounted = false
         fontFactory = DefaultFontFactory()

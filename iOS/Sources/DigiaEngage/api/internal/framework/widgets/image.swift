@@ -1,5 +1,4 @@
 import SwiftUI
-import UIKit
 
 @MainActor
 final class VWImage: VirtualLeafStatelessWidget<ImageProps> {
@@ -257,52 +256,39 @@ private struct InternalImageView: View {
             return errorView()
         }
 
+        precondition(source.hasPrefix("http"), "Only network image source is supported: \(source)")
+        guard let url = URL(string: source) else {
+            preconditionFailure("Invalid image URL: \(source)")
+        }
         let tintColor = resolvedTintColor(for: source)
-
-        if source.hasPrefix("http"), let url = URL(string: source) {
-            return AnyView(remoteImageView(url: url, source: source, tintColor: tintColor))
-        }
-
-        if let resourceURL = bundleResourceURL(for: source) {
-            return AnyView(remoteImageView(url: resourceURL, source: source, tintColor: tintColor))
-        }
-
-        if let tintColor {
-            return AnyView(
-                Image(source, bundle: DigiaResourceBundle.module)
-                    .renderingMode(.template)
-                    .resizable()
-                    .foregroundStyle(tintColor)
-            )
-        }
-
-        return AnyView(Image(source, bundle: DigiaResourceBundle.module).resizable())
+        return AnyView(remoteImageView(url: url, source: source, tintColor: tintColor))
     }
 
     @ViewBuilder
     private func placeholderContent() -> some View {
-        switch props.placeholder?.lowercased() {
-        case "asset":
-            if let src = props.placeholderSrc, !src.isEmpty {
-                if let resourceURL = bundleResourceURL(for: src) {
-                    DigiaCachedImageView(url: resourceURL)
+        if let placeholderType = props.placeholder?.lowercased(), !placeholderType.isEmpty {
+            switch placeholderType {
+            case "network":
+                if let src = props.placeholderSrc {
+                    let _ = precondition(src.hasPrefix("http"), "Only network placeholderSrc is supported: \(src)")
+                    if let url = URL(string: src) {
+                        DigiaCachedImageView(url: url)
+                    } else {
+                        preconditionFailure("Invalid placeholder URL: \(src)")
+                    }
                 } else {
-                    Image(src, bundle: DigiaResourceBundle.module).resizable()
+                    Rectangle().fill(Color.clear)
                 }
-            } else {
+            case "blurhash":
+                Rectangle().fill(Color.gray.opacity(0.2))
+            case "lottie":
                 Rectangle().fill(Color.clear)
+            case "asset":
+                preconditionFailure("Asset placeholder is not supported")
+            default:
+                preconditionFailure("Unsupported placeholder type: \(placeholderType)")
             }
-        case "network":
-            if let src = props.placeholderSrc, let url = URL(string: src), src.hasPrefix("http") {
-                DigiaCachedImageView(url: url)
-            } else {
-                Rectangle().fill(Color.clear)
-            }
-        case "blurhash":
-            Rectangle().fill(Color.gray.opacity(0.2))
-        case "lottie":
-            Rectangle().fill(Color.clear)
-        default:
+        } else {
             Rectangle().fill(Color.clear)
         }
     }
@@ -314,21 +300,11 @@ private struct InternalImageView: View {
     private func errorView() -> AnyView {
         if let errorSrc = props.errorImage?.errorSrc, !errorSrc.isEmpty {
             let tintColor = resolvedTintColor(for: errorSrc)
-            if errorSrc.hasPrefix("http"), let url = URL(string: errorSrc) {
-                return AnyView(DigiaCachedImageView(url: url, tintColor: tintColor))
+            precondition(errorSrc.hasPrefix("http"), "Only network errorSrc is supported: \(errorSrc)")
+            guard let url = URL(string: errorSrc) else {
+                preconditionFailure("Invalid error image URL: \(errorSrc)")
             }
-            if let resourceURL = bundleResourceURL(for: errorSrc) {
-                return AnyView(DigiaCachedImageView(url: resourceURL, tintColor: tintColor))
-            }
-            if let tintColor {
-                return AnyView(
-                    Image(errorSrc, bundle: DigiaResourceBundle.module)
-                        .renderingMode(.template)
-                        .resizable()
-                        .foregroundStyle(tintColor)
-                )
-            }
-            return AnyView(Image(errorSrc, bundle: DigiaResourceBundle.module).resizable())
+            return AnyView(DigiaCachedImageView(url: url, tintColor: tintColor))
         }
         if props.errorImage?.errorEnabled == false {
             return AnyView(EmptyView())
@@ -342,16 +318,9 @@ private struct InternalImageView: View {
         )
     }
 
-    private func bundleResourceURL(for source: String) -> URL? {
-        DigiaResourceBundle.module.resourceURL(forDigiaAsset: source)
-    }
-
     private func resolvedTintColor(for source: String) -> Color? {
         guard let tintColor = payload.evalColor(props.svgColor) else { return nil }
-        if source.hasPrefix("http") || source.contains(".") {
-            return isSVGSource(source) ? tintColor : nil
-        }
-        return tintColor
+        return isSVGSource(source) ? tintColor : nil
     }
 
     private func isSVGSource(_ source: String) -> Bool {
@@ -383,4 +352,3 @@ private struct InternalImageView: View {
         )
     }
 }
-

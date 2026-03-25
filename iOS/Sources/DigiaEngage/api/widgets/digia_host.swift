@@ -13,6 +13,7 @@ import SwiftUI
 public struct DigiaHost<Content: View>: View {
     private let content: Content
     @ObservedObject private var controller = SDKInstance.shared.controller
+    @ObservedObject private var navigation = SDKInstance.shared.navigationController
 
     public init(@ViewBuilder content: () -> Content) {
         self.content = content()
@@ -23,6 +24,35 @@ public struct DigiaHost<Content: View>: View {
             content
                 .onAppear { SDKInstance.shared.onHostMounted() }
                 .onDisappear { SDKInstance.shared.onHostUnmounted() }
+                .fullScreenCover(
+                    isPresented: Binding(
+                        get: { !navigation.path.isEmpty },
+                        set: { isPresented in if !isPresented { navigation.pop() } }
+                    )
+                ) {
+                    NavigationStack(
+                        path: Binding(
+                            get: { Array(navigation.path.dropFirst()) },
+                            set: { newTail in
+                                guard let first = navigation.path.first else { return }
+                                navigation.updatePath([first] + newTail)
+                            }
+                        )
+                    ) {
+                        if let first = navigation.path.first {
+                            DUIFactory.shared.createPage(
+                                first.pageID,
+                                pageArgs: navigation.args(for: first.id)
+                            )
+                            .navigationDestination(for: NavigationEntry.self) { entry in
+                                DUIFactory.shared.createPage(
+                                    entry.pageID,
+                                    pageArgs: navigation.args(for: entry.id)
+                                )
+                            }
+                        }
+                    }
+                }
 
             // Toast overlay (rendered natively)
             VStack {

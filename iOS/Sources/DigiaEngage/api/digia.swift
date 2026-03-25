@@ -11,10 +11,6 @@ public enum Digia {
         SDKInstance.shared.register(plugin)
     }
 
-    public static func setCurrentScreen(_ name: String) {
-        SDKInstance.shared.setCurrentScreen(name)
-    }
-
     public static func registerFontFactory(_ factory: DUIFontFactory) {
         SDKInstance.shared.registerFontFactory(factory)
     }

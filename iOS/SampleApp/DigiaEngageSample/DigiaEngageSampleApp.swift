@@ -7,7 +7,7 @@ struct DigiaEngageSampleApp: App {
         Task {
             try await Digia.initialize(
                 DigiaConfig(
-                    apiKey: "698b1b7979d23afa242dcc7d",
+                    apiKey: "69abfbcb79d23afa245a60ee",
                     logLevel: .verbose,
                     flavor: .debug()
                 )

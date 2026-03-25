@@ -46,7 +46,6 @@ struct DUIPageView: View {
         return (widget?.toWidget(payload) ?? AnyView(EmptyView()))
             .onAppear {
                 SDKInstance.shared.registerStateContext(self.stateStore)
-                Digia.setCurrentScreen(self.pageID)
                 if !self.didRunPageLoad {
                     self.didRunPageLoad = true
                     payload.executeAction(self.page.actions?.onPageLoadAction, triggerType: "onPageLoad")

@@ -32,15 +32,16 @@ final class VWLottie: VirtualLeafStatelessWidget<LottieProps> {
     }
 
     private func animationFlags(for animationType: String?) -> (Bool, Bool) {
-        switch animationType ?? "loop" {
+        let value = animationType ?? "loop"
+        switch value {
         case "boomerang":
             return (true, true)
         case "once":
             return (false, false)
         case "loop":
-            fallthrough
-        default:
             return (true, false)
+        default:
+            preconditionFailure("Unsupported animationType: \(value)")
         }
     }
 }
@@ -151,35 +152,16 @@ private struct LottieRepresentable: UIViewRepresentable {
     }
 
     private func loadAnimation(path: String, into host: LottieHostView, completion: @escaping () -> Void) {
-        if path.hasPrefix("http"), let url = URL(string: path) {
-            LottieAnimation.loadedFrom(url: url) { animation in
-                DispatchQueue.main.async {
-                    host.animationView.animation = animation
-                    completion()
-                }
+        precondition(path.hasPrefix("http"), "Only network lottiePath is supported: \(path)")
+        guard let url = URL(string: path) else {
+            preconditionFailure("Invalid lottie URL: \(path)")
+        }
+        LottieAnimation.loadedFrom(url: url) { animation in
+            DispatchQueue.main.async {
+                host.animationView.animation = animation
+                completion()
             }
-            return
         }
-
-        host.animationView.animation = localAnimation(path: path)
-        completion()
-    }
-
-    private func localAnimation(path: String) -> LottieAnimation? {
-        let pathURL = URL(fileURLWithPath: path)
-        let resourceName = pathURL.deletingPathExtension().lastPathComponent
-        let resourceExt = pathURL.pathExtension.isEmpty ? "json" : pathURL.pathExtension
-
-        if let mainURL = Bundle.main.url(forResource: resourceName, withExtension: resourceExt) {
-            return LottieAnimation.filepath(mainURL.path)
-        }
-
-        if let moduleURL = DigiaResourceBundle.module.url(forResource: resourceName, withExtension: resourceExt) {
-            return LottieAnimation.filepath(moduleURL.path)
-        }
-
-        return LottieAnimation.named(resourceName, bundle: Bundle.main)
-            ?? LottieAnimation.named(resourceName, bundle: DigiaResourceBundle.module)
     }
 
     private func loopMode(repeatAnimation: Bool, reverseAnimation: Bool) -> LottieLoopMode {
