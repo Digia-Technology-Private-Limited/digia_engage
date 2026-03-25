@@ -1,4 +1,0 @@
-module SDWebImage {
-    umbrella header "/Users/adityachoubey/Code/digia_engage/.build/index-build/checkouts/SDWebImage/SDWebImage/include/SDWebImage/SDWebImage.h"
-    export *
-}

@@ -1,4 +1,0 @@
-module SDWebImageSVGCoder {
-    umbrella "/Users/adityachoubey/Code/digia_engage/.build/index-build/checkouts/SDWebImageSVGCoder/SDWebImageSVGCoder/Classes"
-    export *
-}

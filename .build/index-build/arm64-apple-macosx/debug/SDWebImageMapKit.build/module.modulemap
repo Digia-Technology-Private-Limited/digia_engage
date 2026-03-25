@@ -1,4 +1,0 @@
-module SDWebImageMapKit {
-    umbrella header "/Users/adityachoubey/Code/digia_engage/.build/index-build/checkouts/SDWebImage/SDWebImageMapKit/include/SDWebImageMapKit/SDWebImageMapKit.h"
-    export *
-}
