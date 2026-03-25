@@ -1,0 +1,1181 @@
+{
+  "": {
+    "swift-dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/master.swiftdeps"
+  },
+  "/Users/adityachoubey/Code/digia_engage/iOS/Sources/DigiaEngage/DigiaEngage.swift": {
+    "dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/DigiaEngage.d",
+    "object": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/DigiaEngage.swift.o",
+    "swiftmodule": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/DigiaEngage~partial.swiftmodule",
+    "swift-dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/DigiaEngage.swiftdeps",
+    "diagnostics": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/DigiaEngage.dia"
+  },
+  "/Users/adityachoubey/Code/digia_engage/iOS/Sources/DigiaEngage/api/digia.swift": {
+    "dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/digia.d",
+    "object": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/digia.swift.o",
+    "swiftmodule": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/digia~partial.swiftmodule",
+    "swift-dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/digia.swiftdeps",
+    "diagnostics": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/digia.dia"
+  },
+  "/Users/adityachoubey/Code/digia_engage/iOS/Sources/DigiaEngage/api/fonts/font_factory.swift": {
+    "dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/font_factory.d",
+    "object": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/font_factory.swift.o",
+    "swiftmodule": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/font_factory~partial.swiftmodule",
+    "swift-dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/font_factory.swiftdeps",
+    "diagnostics": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/font_factory.dia"
+  },
+  "/Users/adityachoubey/Code/digia_engage/iOS/Sources/DigiaEngage/api/interfaces/digia_cep_delegate.swift": {
+    "dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/digia_cep_delegate.d",
+    "object": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/digia_cep_delegate.swift.o",
+    "swiftmodule": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/digia_cep_delegate~partial.swiftmodule",
+    "swift-dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/digia_cep_delegate.swiftdeps",
+    "diagnostics": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/digia_cep_delegate.dia"
+  },
+  "/Users/adityachoubey/Code/digia_engage/iOS/Sources/DigiaEngage/api/interfaces/digia_cep_plugin.swift": {
+    "dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/digia_cep_plugin.d",
+    "object": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/digia_cep_plugin.swift.o",
+    "swiftmodule": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/digia_cep_plugin~partial.swiftmodule",
+    "swift-dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/digia_cep_plugin.swiftdeps",
+    "diagnostics": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/digia_cep_plugin.dia"
+  },
+  "/Users/adityachoubey/Code/digia_engage/iOS/Sources/DigiaEngage/api/internal/config/app_config_store.swift": {
+    "dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/app_config_store.d",
+    "object": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/app_config_store.swift.o",
+    "swiftmodule": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/app_config_store~partial.swiftmodule",
+    "swift-dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/app_config_store.swiftdeps",
+    "diagnostics": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/app_config_store.dia"
+  },
+  "/Users/adityachoubey/Code/digia_engage/iOS/Sources/DigiaEngage/api/internal/config/app_state/app_state_store.swift": {
+    "dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/app_state_store.d",
+    "object": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/app_state_store.swift.o",
+    "swiftmodule": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/app_state_store~partial.swiftmodule",
+    "swift-dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/app_state_store.swiftdeps",
+    "diagnostics": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/app_state_store.dia"
+  },
+  "/Users/adityachoubey/Code/digia_engage/iOS/Sources/DigiaEngage/api/internal/config/config_error.swift": {
+    "dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/config_error.d",
+    "object": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/config_error.swift.o",
+    "swiftmodule": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/config_error~partial.swiftmodule",
+    "swift-dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/config_error.swiftdeps",
+    "diagnostics": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/config_error.dia"
+  },
+  "/Users/adityachoubey/Code/digia_engage/iOS/Sources/DigiaEngage/api/internal/config/config_factory.swift": {
+    "dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/config_factory.d",
+    "object": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/config_factory.swift.o",
+    "swiftmodule": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/config_factory~partial.swiftmodule",
+    "swift-dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/config_factory.swiftdeps",
+    "diagnostics": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/config_factory.dia"
+  },
+  "/Users/adityachoubey/Code/digia_engage/iOS/Sources/DigiaEngage/api/internal/config/config_resolver.swift": {
+    "dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/config_resolver.d",
+    "object": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/config_resolver.swift.o",
+    "swiftmodule": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/config_resolver~partial.swiftmodule",
+    "swift-dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/config_resolver.swiftdeps",
+    "diagnostics": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/config_resolver.dia"
+  },
+  "/Users/adityachoubey/Code/digia_engage/iOS/Sources/DigiaEngage/api/internal/config/model/api_model.swift": {
+    "dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/api_model.d",
+    "object": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/api_model.swift.o",
+    "swiftmodule": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/api_model~partial.swiftmodule",
+    "swift-dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/api_model.swiftdeps",
+    "diagnostics": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/api_model.dia"
+  },
+  "/Users/adityachoubey/Code/digia_engage/iOS/Sources/DigiaEngage/api/internal/config/model/digia_app_config.swift": {
+    "dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/digia_app_config.d",
+    "object": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/digia_app_config.swift.o",
+    "swiftmodule": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/digia_app_config~partial.swiftmodule",
+    "swift-dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/digia_app_config.swiftdeps",
+    "diagnostics": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/digia_app_config.dia"
+  },
+  "/Users/adityachoubey/Code/digia_engage/iOS/Sources/DigiaEngage/api/internal/config/source/asset.swift": {
+    "dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/asset.d",
+    "object": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/asset.swift.o",
+    "swiftmodule": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/asset~partial.swiftmodule",
+    "swift-dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/asset.swiftdeps",
+    "diagnostics": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/asset.dia"
+  },
+  "/Users/adityachoubey/Code/digia_engage/iOS/Sources/DigiaEngage/api/internal/config/source/base.swift": {
+    "dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/base.d",
+    "object": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/base.swift.o",
+    "swiftmodule": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/base~partial.swiftmodule",
+    "swift-dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/base.swiftdeps",
+    "diagnostics": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/base.dia"
+  },
+  "/Users/adityachoubey/Code/digia_engage/iOS/Sources/DigiaEngage/api/internal/config/source/cache.swift": {
+    "dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/cache.d",
+    "object": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/cache.swift.o",
+    "swiftmodule": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/cache~partial.swiftmodule",
+    "swift-dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/cache.swiftdeps",
+    "diagnostics": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/cache.dia"
+  },
+  "/Users/adityachoubey/Code/digia_engage/iOS/Sources/DigiaEngage/api/internal/config/source/delegated.swift": {
+    "dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/delegated.d",
+    "object": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/delegated.swift.o",
+    "swiftmodule": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/delegated~partial.swiftmodule",
+    "swift-dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/delegated.swiftdeps",
+    "diagnostics": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/delegated.dia"
+  },
+  "/Users/adityachoubey/Code/digia_engage/iOS/Sources/DigiaEngage/api/internal/config/source/fallback.swift": {
+    "dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/fallback.d",
+    "object": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/fallback.swift.o",
+    "swiftmodule": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/fallback~partial.swiftmodule",
+    "swift-dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/fallback.swiftdeps",
+    "diagnostics": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/fallback.dia"
+  },
+  "/Users/adityachoubey/Code/digia_engage/iOS/Sources/DigiaEngage/api/internal/config/source/network.swift": {
+    "dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/network.d",
+    "object": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/network.swift.o",
+    "swiftmodule": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/network~partial.swiftmodule",
+    "swift-dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/network.swiftdeps",
+    "diagnostics": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/network.dia"
+  },
+  "/Users/adityachoubey/Code/digia_engage/iOS/Sources/DigiaEngage/api/internal/config/source/network_file.swift": {
+    "dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/network_file.d",
+    "object": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/network_file.swift.o",
+    "swiftmodule": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/network_file~partial.swiftmodule",
+    "swift-dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/network_file.swiftdeps",
+    "diagnostics": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/network_file.dia"
+  },
+  "/Users/adityachoubey/Code/digia_engage/iOS/Sources/DigiaEngage/api/internal/digia_instance.swift": {
+    "dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/digia_instance.d",
+    "object": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/digia_instance.swift.o",
+    "swiftmodule": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/digia_instance~partial.swiftmodule",
+    "swift-dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/digia_instance.swiftdeps",
+    "diagnostics": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/digia_instance.dia"
+  },
+  "/Users/adityachoubey/Code/digia_engage/iOS/Sources/DigiaEngage/api/internal/digia_navigation_controller.swift": {
+    "dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/digia_navigation_controller.d",
+    "object": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/digia_navigation_controller.swift.o",
+    "swiftmodule": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/digia_navigation_controller~partial.swiftmodule",
+    "swift-dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/digia_navigation_controller.swiftdeps",
+    "diagnostics": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/digia_navigation_controller.dia"
+  },
+  "/Users/adityachoubey/Code/digia_engage/iOS/Sources/DigiaEngage/api/internal/digia_overlay_controller.swift": {
+    "dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/digia_overlay_controller.d",
+    "object": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/digia_overlay_controller.swift.o",
+    "swiftmodule": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/digia_overlay_controller~partial.swiftmodule",
+    "swift-dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/digia_overlay_controller.swiftdeps",
+    "diagnostics": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/digia_overlay_controller.dia"
+  },
+  "/Users/adityachoubey/Code/digia_engage/iOS/Sources/DigiaEngage/api/internal/framework/actions/action_data_util.swift": {
+    "dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/action_data_util.d",
+    "object": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/action_data_util.swift.o",
+    "swiftmodule": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/action_data_util~partial.swiftmodule",
+    "swift-dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/action_data_util.swiftdeps",
+    "diagnostics": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/action_data_util.dia"
+  },
+  "/Users/adityachoubey/Code/digia_engage/iOS/Sources/DigiaEngage/api/internal/framework/actions/action_errors.swift": {
+    "dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/action_errors.d",
+    "object": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/action_errors.swift.o",
+    "swiftmodule": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/action_errors~partial.swiftmodule",
+    "swift-dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/action_errors.swiftdeps",
+    "diagnostics": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/action_errors.dia"
+  },
+  "/Users/adityachoubey/Code/digia_engage/iOS/Sources/DigiaEngage/api/internal/framework/actions/action_executor.swift": {
+    "dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/action_executor.d",
+    "object": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/action_executor.swift.o",
+    "swiftmodule": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/action_executor~partial.swiftmodule",
+    "swift-dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/action_executor.swiftdeps",
+    "diagnostics": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/action_executor.dia"
+  },
+  "/Users/adityachoubey/Code/digia_engage/iOS/Sources/DigiaEngage/api/internal/framework/actions/action_factory.swift": {
+    "dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/action_factory.d",
+    "object": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/action_factory.swift.o",
+    "swiftmodule": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/action_factory~partial.swiftmodule",
+    "swift-dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/action_factory.swiftdeps",
+    "diagnostics": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/action_factory.dia"
+  },
+  "/Users/adityachoubey/Code/digia_engage/iOS/Sources/DigiaEngage/api/internal/framework/actions/action_flow.swift": {
+    "dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/action_flow.d",
+    "object": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/action_flow.swift.o",
+    "swiftmodule": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/action_flow~partial.swiftmodule",
+    "swift-dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/action_flow.swiftdeps",
+    "diagnostics": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/action_flow.dia"
+  },
+  "/Users/adityachoubey/Code/digia_engage/iOS/Sources/DigiaEngage/api/internal/framework/actions/base/action_processor_base.swift": {
+    "dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/action_processor_base.d",
+    "object": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/action_processor_base.swift.o",
+    "swiftmodule": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/action_processor_base~partial.swiftmodule",
+    "swift-dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/action_processor_base.swiftdeps",
+    "diagnostics": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/action_processor_base.dia"
+  },
+  "/Users/adityachoubey/Code/digia_engage/iOS/Sources/DigiaEngage/api/internal/framework/actions/base/digia_action.swift": {
+    "dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/digia_action.d",
+    "object": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/digia_action.swift.o",
+    "swiftmodule": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/digia_action~partial.swiftmodule",
+    "swift-dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/digia_action.swiftdeps",
+    "diagnostics": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/digia_action.dia"
+  },
+  "/Users/adityachoubey/Code/digia_engage/iOS/Sources/DigiaEngage/api/internal/framework/actions/callRestApi/call_rest_api_action_processor.swift": {
+    "dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/call_rest_api_action_processor.d",
+    "object": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/call_rest_api_action_processor.swift.o",
+    "swiftmodule": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/call_rest_api_action_processor~partial.swiftmodule",
+    "swift-dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/call_rest_api_action_processor.swiftdeps",
+    "diagnostics": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/call_rest_api_action_processor.dia"
+  },
+  "/Users/adityachoubey/Code/digia_engage/iOS/Sources/DigiaEngage/api/internal/framework/actions/copyToClipBoard/copy_to_clip_board_action_processor.swift": {
+    "dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/copy_to_clip_board_action_processor.d",
+    "object": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/copy_to_clip_board_action_processor.swift.o",
+    "swiftmodule": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/copy_to_clip_board_action_processor~partial.swiftmodule",
+    "swift-dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/copy_to_clip_board_action_processor.swiftdeps",
+    "diagnostics": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/copy_to_clip_board_action_processor.dia"
+  },
+  "/Users/adityachoubey/Code/digia_engage/iOS/Sources/DigiaEngage/api/internal/framework/actions/delay/delay_action_processor.swift": {
+    "dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/delay_action_processor.d",
+    "object": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/delay_action_processor.swift.o",
+    "swiftmodule": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/delay_action_processor~partial.swiftmodule",
+    "swift-dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/delay_action_processor.swiftdeps",
+    "diagnostics": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/delay_action_processor.dia"
+  },
+  "/Users/adityachoubey/Code/digia_engage/iOS/Sources/DigiaEngage/api/internal/framework/actions/dismissDialog/dismiss_dialog_action_processor.swift": {
+    "dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/dismiss_dialog_action_processor.d",
+    "object": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/dismiss_dialog_action_processor.swift.o",
+    "swiftmodule": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/dismiss_dialog_action_processor~partial.swiftmodule",
+    "swift-dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/dismiss_dialog_action_processor.swiftdeps",
+    "diagnostics": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/dismiss_dialog_action_processor.dia"
+  },
+  "/Users/adityachoubey/Code/digia_engage/iOS/Sources/DigiaEngage/api/internal/framework/actions/event/fire_event_action_processor.swift": {
+    "dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/fire_event_action_processor.d",
+    "object": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/fire_event_action_processor.swift.o",
+    "swiftmodule": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/fire_event_action_processor~partial.swiftmodule",
+    "swift-dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/fire_event_action_processor.swiftdeps",
+    "diagnostics": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/fire_event_action_processor.dia"
+  },
+  "/Users/adityachoubey/Code/digia_engage/iOS/Sources/DigiaEngage/api/internal/framework/actions/hideBottomSheet/hide_bottom_sheet_action_processor.swift": {
+    "dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/hide_bottom_sheet_action_processor.d",
+    "object": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/hide_bottom_sheet_action_processor.swift.o",
+    "swiftmodule": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/hide_bottom_sheet_action_processor~partial.swiftmodule",
+    "swift-dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/hide_bottom_sheet_action_processor.swiftdeps",
+    "diagnostics": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/hide_bottom_sheet_action_processor.dia"
+  },
+  "/Users/adityachoubey/Code/digia_engage/iOS/Sources/DigiaEngage/api/internal/framework/actions/navigateBack/navigate_back_action_processor.swift": {
+    "dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/navigate_back_action_processor.d",
+    "object": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/navigate_back_action_processor.swift.o",
+    "swiftmodule": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/navigate_back_action_processor~partial.swiftmodule",
+    "swift-dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/navigate_back_action_processor.swiftdeps",
+    "diagnostics": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/navigate_back_action_processor.dia"
+  },
+  "/Users/adityachoubey/Code/digia_engage/iOS/Sources/DigiaEngage/api/internal/framework/actions/navigateBackUntil/navigate_back_until_action_processor.swift": {
+    "dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/navigate_back_until_action_processor.d",
+    "object": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/navigate_back_until_action_processor.swift.o",
+    "swiftmodule": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/navigate_back_until_action_processor~partial.swiftmodule",
+    "swift-dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/navigate_back_until_action_processor.swiftdeps",
+    "diagnostics": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/navigate_back_until_action_processor.dia"
+  },
+  "/Users/adityachoubey/Code/digia_engage/iOS/Sources/DigiaEngage/api/internal/framework/actions/navigateToPage/navigate_to_page_action_processor.swift": {
+    "dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/navigate_to_page_action_processor.d",
+    "object": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/navigate_to_page_action_processor.swift.o",
+    "swiftmodule": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/navigate_to_page_action_processor~partial.swiftmodule",
+    "swift-dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/navigate_to_page_action_processor.swiftdeps",
+    "diagnostics": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/navigate_to_page_action_processor.dia"
+  },
+  "/Users/adityachoubey/Code/digia_engage/iOS/Sources/DigiaEngage/api/internal/framework/actions/openUrl/open_url_action_processor.swift": {
+    "dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/open_url_action_processor.d",
+    "object": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/open_url_action_processor.swift.o",
+    "swiftmodule": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/open_url_action_processor~partial.swiftmodule",
+    "swift-dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/open_url_action_processor.swiftdeps",
+    "diagnostics": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/open_url_action_processor.dia"
+  },
+  "/Users/adityachoubey/Code/digia_engage/iOS/Sources/DigiaEngage/api/internal/framework/actions/postMessage/post_message_action_processor.swift": {
+    "dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/post_message_action_processor.d",
+    "object": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/post_message_action_processor.swift.o",
+    "swiftmodule": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/post_message_action_processor~partial.swiftmodule",
+    "swift-dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/post_message_action_processor.swiftdeps",
+    "diagnostics": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/post_message_action_processor.dia"
+  },
+  "/Users/adityachoubey/Code/digia_engage/iOS/Sources/DigiaEngage/api/internal/framework/actions/rebuild_state/rebuild_state_action_processor.swift": {
+    "dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/rebuild_state_action_processor.d",
+    "object": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/rebuild_state_action_processor.swift.o",
+    "swiftmodule": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/rebuild_state_action_processor~partial.swiftmodule",
+    "swift-dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/rebuild_state_action_processor.swiftdeps",
+    "diagnostics": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/rebuild_state_action_processor.dia"
+  },
+  "/Users/adityachoubey/Code/digia_engage/iOS/Sources/DigiaEngage/api/internal/framework/actions/setState/set_state_action_processor.swift": {
+    "dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/set_state_action_processor.d",
+    "object": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/set_state_action_processor.swift.o",
+    "swiftmodule": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/set_state_action_processor~partial.swiftmodule",
+    "swift-dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/set_state_action_processor.swiftdeps",
+    "diagnostics": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/set_state_action_processor.dia"
+  },
+  "/Users/adityachoubey/Code/digia_engage/iOS/Sources/DigiaEngage/api/internal/framework/actions/set_app_state/set_app_state_action_processor.swift": {
+    "dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/set_app_state_action_processor.d",
+    "object": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/set_app_state_action_processor.swift.o",
+    "swiftmodule": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/set_app_state_action_processor~partial.swiftmodule",
+    "swift-dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/set_app_state_action_processor.swiftdeps",
+    "diagnostics": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/set_app_state_action_processor.dia"
+  },
+  "/Users/adityachoubey/Code/digia_engage/iOS/Sources/DigiaEngage/api/internal/framework/actions/share/share_content_action_processor.swift": {
+    "dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/share_content_action_processor.d",
+    "object": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/share_content_action_processor.swift.o",
+    "swiftmodule": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/share_content_action_processor~partial.swiftmodule",
+    "swift-dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/share_content_action_processor.swiftdeps",
+    "diagnostics": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/share_content_action_processor.dia"
+  },
+  "/Users/adityachoubey/Code/digia_engage/iOS/Sources/DigiaEngage/api/internal/framework/actions/showBottomSheet/show_bottom_sheet_action_processor.swift": {
+    "dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/show_bottom_sheet_action_processor.d",
+    "object": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/show_bottom_sheet_action_processor.swift.o",
+    "swiftmodule": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/show_bottom_sheet_action_processor~partial.swiftmodule",
+    "swift-dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/show_bottom_sheet_action_processor.swiftdeps",
+    "diagnostics": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/show_bottom_sheet_action_processor.dia"
+  },
+  "/Users/adityachoubey/Code/digia_engage/iOS/Sources/DigiaEngage/api/internal/framework/actions/showDialog/show_dialog_action_processor.swift": {
+    "dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/show_dialog_action_processor.d",
+    "object": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/show_dialog_action_processor.swift.o",
+    "swiftmodule": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/show_dialog_action_processor~partial.swiftmodule",
+    "swift-dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/show_dialog_action_processor.swiftdeps",
+    "diagnostics": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/show_dialog_action_processor.dia"
+  },
+  "/Users/adityachoubey/Code/digia_engage/iOS/Sources/DigiaEngage/api/internal/framework/actions/showToast/show_toast_action_processor.swift": {
+    "dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/show_toast_action_processor.d",
+    "object": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/show_toast_action_processor.swift.o",
+    "swiftmodule": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/show_toast_action_processor~partial.swiftmodule",
+    "swift-dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/show_toast_action_processor.swiftdeps",
+    "diagnostics": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/show_toast_action_processor.dia"
+  },
+  "/Users/adityachoubey/Code/digia_engage/iOS/Sources/DigiaEngage/api/internal/framework/base/virtual_leaf_stateless_widget.swift": {
+    "dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/virtual_leaf_stateless_widget.d",
+    "object": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/virtual_leaf_stateless_widget.swift.o",
+    "swiftmodule": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/virtual_leaf_stateless_widget~partial.swiftmodule",
+    "swift-dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/virtual_leaf_stateless_widget.swiftdeps",
+    "diagnostics": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/virtual_leaf_stateless_widget.dia"
+  },
+  "/Users/adityachoubey/Code/digia_engage/iOS/Sources/DigiaEngage/api/internal/framework/base/virtual_leaf_stateless_widget_protocol.swift": {
+    "dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/virtual_leaf_stateless_widget_protocol.d",
+    "object": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/virtual_leaf_stateless_widget_protocol.swift.o",
+    "swiftmodule": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/virtual_leaf_stateless_widget_protocol~partial.swiftmodule",
+    "swift-dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/virtual_leaf_stateless_widget_protocol.swiftdeps",
+    "diagnostics": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/virtual_leaf_stateless_widget_protocol.dia"
+  },
+  "/Users/adityachoubey/Code/digia_engage/iOS/Sources/DigiaEngage/api/internal/framework/base/virtual_stateless_widget.swift": {
+    "dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/virtual_stateless_widget.d",
+    "object": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/virtual_stateless_widget.swift.o",
+    "swiftmodule": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/virtual_stateless_widget~partial.swiftmodule",
+    "swift-dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/virtual_stateless_widget.swiftdeps",
+    "diagnostics": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/virtual_stateless_widget.dia"
+  },
+  "/Users/adityachoubey/Code/digia_engage/iOS/Sources/DigiaEngage/api/internal/framework/base/virtual_widget.swift": {
+    "dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/virtual_widget.d",
+    "object": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/virtual_widget.swift.o",
+    "swiftmodule": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/virtual_widget~partial.swiftmodule",
+    "swift-dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/virtual_widget.swiftdeps",
+    "diagnostics": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/virtual_widget.dia"
+  },
+  "/Users/adityachoubey/Code/digia_engage/iOS/Sources/DigiaEngage/api/internal/framework/builders.swift": {
+    "dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/builders.d",
+    "object": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/builders.swift.o",
+    "swiftmodule": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/builders~partial.swiftmodule",
+    "swift-dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/builders.swiftdeps",
+    "diagnostics": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/builders.dia"
+  },
+  "/Users/adityachoubey/Code/digia_engage/iOS/Sources/DigiaEngage/api/internal/framework/component.swift": {
+    "dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/component.d",
+    "object": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/component.swift.o",
+    "swiftmodule": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/component~partial.swiftmodule",
+    "swift-dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/component.swiftdeps",
+    "diagnostics": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/component.dia"
+  },
+  "/Users/adityachoubey/Code/digia_engage/iOS/Sources/DigiaEngage/api/internal/framework/expr/basic_expr_context+scope_context.swift": {
+    "dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/basic_expr_context+scope_context.d",
+    "object": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/basic_expr_context+scope_context.swift.o",
+    "swiftmodule": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/basic_expr_context+scope_context~partial.swiftmodule",
+    "swift-dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/basic_expr_context+scope_context.swiftdeps",
+    "diagnostics": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/basic_expr_context+scope_context.dia"
+  },
+  "/Users/adityachoubey/Code/digia_engage/iOS/Sources/DigiaEngage/api/internal/framework/expr/default_scope_context.swift": {
+    "dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/default_scope_context.d",
+    "object": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/default_scope_context.swift.o",
+    "swiftmodule": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/default_scope_context~partial.swiftmodule",
+    "swift-dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/default_scope_context.swiftdeps",
+    "diagnostics": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/default_scope_context.dia"
+  },
+  "/Users/adityachoubey/Code/digia_engage/iOS/Sources/DigiaEngage/api/internal/framework/expr/expression_util.swift": {
+    "dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/expression_util.d",
+    "object": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/expression_util.swift.o",
+    "swiftmodule": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/expression_util~partial.swiftmodule",
+    "swift-dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/expression_util.swiftdeps",
+    "diagnostics": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/expression_util.dia"
+  },
+  "/Users/adityachoubey/Code/digia_engage/iOS/Sources/DigiaEngage/api/internal/framework/expr/scope_context.swift": {
+    "dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/scope_context.d",
+    "object": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/scope_context.swift.o",
+    "swiftmodule": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/scope_context~partial.swiftmodule",
+    "swift-dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/scope_context.swiftdeps",
+    "diagnostics": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/scope_context.dia"
+  },
+  "/Users/adityachoubey/Code/digia_engage/iOS/Sources/DigiaEngage/api/internal/framework/models/common_props.swift": {
+    "dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/common_props.d",
+    "object": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/common_props.swift.o",
+    "swiftmodule": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/common_props~partial.swiftmodule",
+    "swift-dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/common_props.swiftdeps",
+    "diagnostics": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/common_props.dia"
+  },
+  "/Users/adityachoubey/Code/digia_engage/iOS/Sources/DigiaEngage/api/internal/framework/models/json_value.swift": {
+    "dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/json_value.d",
+    "object": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/json_value.swift.o",
+    "swiftmodule": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/json_value~partial.swiftmodule",
+    "swift-dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/json_value.swiftdeps",
+    "diagnostics": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/json_value.dia"
+  },
+  "/Users/adityachoubey/Code/digia_engage/iOS/Sources/DigiaEngage/api/internal/framework/models/parent_props.swift": {
+    "dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/parent_props.d",
+    "object": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/parent_props.swift.o",
+    "swiftmodule": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/parent_props~partial.swiftmodule",
+    "swift-dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/parent_props.swiftdeps",
+    "diagnostics": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/parent_props.dia"
+  },
+  "/Users/adityachoubey/Code/digia_engage/iOS/Sources/DigiaEngage/api/internal/framework/models/spacing.swift": {
+    "dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/spacing.d",
+    "object": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/spacing.swift.o",
+    "swiftmodule": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/spacing~partial.swiftmodule",
+    "swift-dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/spacing.swiftdeps",
+    "diagnostics": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/spacing.dia"
+  },
+  "/Users/adityachoubey/Code/digia_engage/iOS/Sources/DigiaEngage/api/internal/framework/models/types.swift": {
+    "dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/types.d",
+    "object": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/types.swift.o",
+    "swiftmodule": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/types~partial.swiftmodule",
+    "swift-dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/types.swiftdeps",
+    "diagnostics": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/types.dia"
+  },
+  "/Users/adityachoubey/Code/digia_engage/iOS/Sources/DigiaEngage/api/internal/framework/models/vw_data.swift": {
+    "dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/vw_data.d",
+    "object": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/vw_data.swift.o",
+    "swiftmodule": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/vw_data~partial.swiftmodule",
+    "swift-dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/vw_data.swiftdeps",
+    "diagnostics": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/vw_data.dia"
+  },
+  "/Users/adityachoubey/Code/digia_engage/iOS/Sources/DigiaEngage/api/internal/framework/models/widget_node_props.swift": {
+    "dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/widget_node_props.d",
+    "object": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/widget_node_props.swift.o",
+    "swiftmodule": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/widget_node_props~partial.swiftmodule",
+    "swift-dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/widget_node_props.swiftdeps",
+    "diagnostics": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/widget_node_props.dia"
+  },
+  "/Users/adityachoubey/Code/digia_engage/iOS/Sources/DigiaEngage/api/internal/framework/page.swift": {
+    "dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/page.d",
+    "object": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/page.swift.o",
+    "swiftmodule": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/page~partial.swiftmodule",
+    "swift-dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/page.swiftdeps",
+    "diagnostics": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/page.dia"
+  },
+  "/Users/adityachoubey/Code/digia_engage/iOS/Sources/DigiaEngage/api/internal/framework/render_payload.swift": {
+    "dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/render_payload.d",
+    "object": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/render_payload.swift.o",
+    "swiftmodule": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/render_payload~partial.swiftmodule",
+    "swift-dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/render_payload.swiftdeps",
+    "diagnostics": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/render_payload.dia"
+  },
+  "/Users/adityachoubey/Code/digia_engage/iOS/Sources/DigiaEngage/api/internal/framework/resource_provider.swift": {
+    "dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/resource_provider.d",
+    "object": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/resource_provider.swift.o",
+    "swiftmodule": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/resource_provider~partial.swiftmodule",
+    "swift-dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/resource_provider.swiftdeps",
+    "diagnostics": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/resource_provider.dia"
+  },
+  "/Users/adityachoubey/Code/digia_engage/iOS/Sources/DigiaEngage/api/internal/framework/state/digia_value_stream.swift": {
+    "dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/digia_value_stream.d",
+    "object": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/digia_value_stream.swift.o",
+    "swiftmodule": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/digia_value_stream~partial.swiftmodule",
+    "swift-dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/digia_value_stream.swiftdeps",
+    "diagnostics": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/digia_value_stream.dia"
+  },
+  "/Users/adityachoubey/Code/digia_engage/iOS/Sources/DigiaEngage/api/internal/framework/state/state_context.swift": {
+    "dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/state_context.d",
+    "object": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/state_context.swift.o",
+    "swiftmodule": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/state_context~partial.swiftmodule",
+    "swift-dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/state_context.swiftdeps",
+    "diagnostics": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/state_context.dia"
+  },
+  "/Users/adityachoubey/Code/digia_engage/iOS/Sources/DigiaEngage/api/internal/framework/state/state_scope_context.swift": {
+    "dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/state_scope_context.d",
+    "object": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/state_scope_context.swift.o",
+    "swiftmodule": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/state_scope_context~partial.swiftmodule",
+    "swift-dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/state_scope_context.swiftdeps",
+    "diagnostics": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/state_scope_context.dia"
+  },
+  "/Users/adityachoubey/Code/digia_engage/iOS/Sources/DigiaEngage/api/internal/framework/state/variable.swift": {
+    "dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/variable.d",
+    "object": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/variable.swift.o",
+    "swiftmodule": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/variable~partial.swiftmodule",
+    "swift-dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/variable.swiftdeps",
+    "diagnostics": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/variable.dia"
+  },
+  "/Users/adityachoubey/Code/digia_engage/iOS/Sources/DigiaEngage/api/internal/framework/ui_factory.swift": {
+    "dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/ui_factory.d",
+    "object": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/ui_factory.swift.o",
+    "swiftmodule": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/ui_factory~partial.swiftmodule",
+    "swift-dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/ui_factory.swiftdeps",
+    "diagnostics": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/ui_factory.dia"
+  },
+  "/Users/adityachoubey/Code/digia_engage/iOS/Sources/DigiaEngage/api/internal/framework/utils/color.swift": {
+    "dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/color.d",
+    "object": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/color.swift.o",
+    "swiftmodule": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/color~partial.swiftmodule",
+    "swift-dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/color.swiftdeps",
+    "diagnostics": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/color.dia"
+  },
+  "/Users/adityachoubey/Code/digia_engage/iOS/Sources/DigiaEngage/api/internal/framework/utils/color_util.swift": {
+    "dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/color_util.d",
+    "object": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/color_util.swift.o",
+    "swiftmodule": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/color_util~partial.swiftmodule",
+    "swift-dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/color_util.swiftdeps",
+    "diagnostics": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/color_util.dia"
+  },
+  "/Users/adityachoubey/Code/digia_engage/iOS/Sources/DigiaEngage/api/internal/framework/utils/date_util.swift": {
+    "dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/date_util.d",
+    "object": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/date_util.swift.o",
+    "swiftmodule": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/date_util~partial.swiftmodule",
+    "swift-dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/date_util.swiftdeps",
+    "diagnostics": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/date_util.dia"
+  },
+  "/Users/adityachoubey/Code/digia_engage/iOS/Sources/DigiaEngage/api/internal/framework/utils/debouncer.swift": {
+    "dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/debouncer.d",
+    "object": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/debouncer.swift.o",
+    "swiftmodule": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/debouncer~partial.swiftmodule",
+    "swift-dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/debouncer.swiftdeps",
+    "diagnostics": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/debouncer.dia"
+  },
+  "/Users/adityachoubey/Code/digia_engage/iOS/Sources/DigiaEngage/api/internal/framework/utils/functional_util.swift": {
+    "dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/functional_util.d",
+    "object": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/functional_util.swift.o",
+    "swiftmodule": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/functional_util~partial.swiftmodule",
+    "swift-dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/functional_util.swiftdeps",
+    "diagnostics": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/functional_util.dia"
+  },
+  "/Users/adityachoubey/Code/digia_engage/iOS/Sources/DigiaEngage/api/internal/framework/utils/json_util.swift": {
+    "dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/json_util.d",
+    "object": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/json_util.swift.o",
+    "swiftmodule": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/json_util~partial.swiftmodule",
+    "swift-dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/json_util.swiftdeps",
+    "diagnostics": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/json_util.dia"
+  },
+  "/Users/adityachoubey/Code/digia_engage/iOS/Sources/DigiaEngage/api/internal/framework/utils/navigation_util.swift": {
+    "dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/navigation_util.d",
+    "object": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/navigation_util.swift.o",
+    "swiftmodule": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/navigation_util~partial.swiftmodule",
+    "swift-dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/navigation_util.swiftdeps",
+    "diagnostics": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/navigation_util.dia"
+  },
+  "/Users/adityachoubey/Code/digia_engage/iOS/Sources/DigiaEngage/api/internal/framework/utils/network_util.swift": {
+    "dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/network_util.d",
+    "object": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/network_util.swift.o",
+    "swiftmodule": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/network_util~partial.swiftmodule",
+    "swift-dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/network_util.swiftdeps",
+    "diagnostics": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/network_util.dia"
+  },
+  "/Users/adityachoubey/Code/digia_engage/iOS/Sources/DigiaEngage/api/internal/framework/utils/num_util.swift": {
+    "dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/num_util.d",
+    "object": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/num_util.swift.o",
+    "swiftmodule": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/num_util~partial.swiftmodule",
+    "swift-dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/num_util.swiftdeps",
+    "diagnostics": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/num_util.dia"
+  },
+  "/Users/adityachoubey/Code/digia_engage/iOS/Sources/DigiaEngage/api/internal/framework/utils/object_util.swift": {
+    "dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/object_util.d",
+    "object": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/object_util.swift.o",
+    "swiftmodule": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/object_util~partial.swiftmodule",
+    "swift-dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/object_util.swiftdeps",
+    "diagnostics": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/object_util.dia"
+  },
+  "/Users/adityachoubey/Code/digia_engage/iOS/Sources/DigiaEngage/api/internal/framework/utils/shape_util.swift": {
+    "dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/shape_util.d",
+    "object": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/shape_util.swift.o",
+    "swiftmodule": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/shape_util~partial.swiftmodule",
+    "swift-dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/shape_util.swiftdeps",
+    "diagnostics": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/shape_util.dia"
+  },
+  "/Users/adityachoubey/Code/digia_engage/iOS/Sources/DigiaEngage/api/internal/framework/utils/swift_extensions.swift": {
+    "dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/swift_extensions.d",
+    "object": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/swift_extensions.swift.o",
+    "swiftmodule": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/swift_extensions~partial.swiftmodule",
+    "swift-dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/swift_extensions.swiftdeps",
+    "diagnostics": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/swift_extensions.dia"
+  },
+  "/Users/adityachoubey/Code/digia_engage/iOS/Sources/DigiaEngage/api/internal/framework/utils/textstyle_util.swift": {
+    "dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/textstyle_util.d",
+    "object": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/textstyle_util.swift.o",
+    "swiftmodule": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/textstyle_util~partial.swiftmodule",
+    "swift-dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/textstyle_util.swiftdeps",
+    "diagnostics": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/textstyle_util.dia"
+  },
+  "/Users/adityachoubey/Code/digia_engage/iOS/Sources/DigiaEngage/api/internal/framework/utils/type_converters.swift": {
+    "dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/type_converters.d",
+    "object": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/type_converters.swift.o",
+    "swiftmodule": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/type_converters~partial.swiftmodule",
+    "swift-dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/type_converters.swiftdeps",
+    "diagnostics": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/type_converters.dia"
+  },
+  "/Users/adityachoubey/Code/digia_engage/iOS/Sources/DigiaEngage/api/internal/framework/utils/view_controller_util.swift": {
+    "dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/view_controller_util.d",
+    "object": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/view_controller_util.swift.o",
+    "swiftmodule": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/view_controller_util~partial.swiftmodule",
+    "swift-dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/view_controller_util.swiftdeps",
+    "diagnostics": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/view_controller_util.dia"
+  },
+  "/Users/adityachoubey/Code/digia_engage/iOS/Sources/DigiaEngage/api/internal/framework/utils/widget_util.swift": {
+    "dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/widget_util.d",
+    "object": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/widget_util.swift.o",
+    "swiftmodule": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/widget_util~partial.swiftmodule",
+    "swift-dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/widget_util.swiftdeps",
+    "diagnostics": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/widget_util.dia"
+  },
+  "/Users/adityachoubey/Code/digia_engage/iOS/Sources/DigiaEngage/api/internal/framework/virtual_widget_registry.swift": {
+    "dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/virtual_widget_registry.d",
+    "object": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/virtual_widget_registry.swift.o",
+    "swiftmodule": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/virtual_widget_registry~partial.swiftmodule",
+    "swift-dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/virtual_widget_registry.swiftdeps",
+    "diagnostics": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/virtual_widget_registry.dia"
+  },
+  "/Users/adityachoubey/Code/digia_engage/iOS/Sources/DigiaEngage/api/internal/framework/widget_props/avatar_props.swift": {
+    "dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/avatar_props.d",
+    "object": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/avatar_props.swift.o",
+    "swiftmodule": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/avatar_props~partial.swiftmodule",
+    "swift-dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/avatar_props.swiftdeps",
+    "diagnostics": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/avatar_props.dia"
+  },
+  "/Users/adityachoubey/Code/digia_engage/iOS/Sources/DigiaEngage/api/internal/framework/widget_props/button_props.swift": {
+    "dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/button_props.d",
+    "object": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/button_props.swift.o",
+    "swiftmodule": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/button_props~partial.swiftmodule",
+    "swift-dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/button_props.swiftdeps",
+    "diagnostics": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/button_props.dia"
+  },
+  "/Users/adityachoubey/Code/digia_engage/iOS/Sources/DigiaEngage/api/internal/framework/widget_props/carousel_props.swift": {
+    "dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/carousel_props.d",
+    "object": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/carousel_props.swift.o",
+    "swiftmodule": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/carousel_props~partial.swiftmodule",
+    "swift-dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/carousel_props.swiftdeps",
+    "diagnostics": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/carousel_props.dia"
+  },
+  "/Users/adityachoubey/Code/digia_engage/iOS/Sources/DigiaEngage/api/internal/framework/widget_props/circular_progress_bar_props.swift": {
+    "dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/circular_progress_bar_props.d",
+    "object": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/circular_progress_bar_props.swift.o",
+    "swiftmodule": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/circular_progress_bar_props~partial.swiftmodule",
+    "swift-dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/circular_progress_bar_props.swiftdeps",
+    "diagnostics": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/circular_progress_bar_props.dia"
+  },
+  "/Users/adityachoubey/Code/digia_engage/iOS/Sources/DigiaEngage/api/internal/framework/widget_props/conditional_builder_props.swift": {
+    "dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/conditional_builder_props.d",
+    "object": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/conditional_builder_props.swift.o",
+    "swiftmodule": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/conditional_builder_props~partial.swiftmodule",
+    "swift-dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/conditional_builder_props.swiftdeps",
+    "diagnostics": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/conditional_builder_props.dia"
+  },
+  "/Users/adityachoubey/Code/digia_engage/iOS/Sources/DigiaEngage/api/internal/framework/widget_props/conditional_item_props.swift": {
+    "dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/conditional_item_props.d",
+    "object": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/conditional_item_props.swift.o",
+    "swiftmodule": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/conditional_item_props~partial.swiftmodule",
+    "swift-dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/conditional_item_props.swiftdeps",
+    "diagnostics": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/conditional_item_props.dia"
+  },
+  "/Users/adityachoubey/Code/digia_engage/iOS/Sources/DigiaEngage/api/internal/framework/widget_props/container_props.swift": {
+    "dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/container_props.d",
+    "object": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/container_props.swift.o",
+    "swiftmodule": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/container_props~partial.swiftmodule",
+    "swift-dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/container_props.swiftdeps",
+    "diagnostics": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/container_props.dia"
+  },
+  "/Users/adityachoubey/Code/digia_engage/iOS/Sources/DigiaEngage/api/internal/framework/widget_props/flex_props.swift": {
+    "dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/flex_props.d",
+    "object": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/flex_props.swift.o",
+    "swiftmodule": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/flex_props~partial.swiftmodule",
+    "swift-dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/flex_props.swiftdeps",
+    "diagnostics": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/flex_props.dia"
+  },
+  "/Users/adityachoubey/Code/digia_engage/iOS/Sources/DigiaEngage/api/internal/framework/widget_props/grid_view_props.swift": {
+    "dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/grid_view_props.d",
+    "object": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/grid_view_props.swift.o",
+    "swiftmodule": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/grid_view_props~partial.swiftmodule",
+    "swift-dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/grid_view_props.swiftdeps",
+    "diagnostics": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/grid_view_props.dia"
+  },
+  "/Users/adityachoubey/Code/digia_engage/iOS/Sources/DigiaEngage/api/internal/framework/widget_props/image_props.swift": {
+    "dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/image_props.d",
+    "object": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/image_props.swift.o",
+    "swiftmodule": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/image_props~partial.swiftmodule",
+    "swift-dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/image_props.swiftdeps",
+    "diagnostics": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/image_props.dia"
+  },
+  "/Users/adityachoubey/Code/digia_engage/iOS/Sources/DigiaEngage/api/internal/framework/widget_props/linear_progress_bar_props.swift": {
+    "dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/linear_progress_bar_props.d",
+    "object": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/linear_progress_bar_props.swift.o",
+    "swiftmodule": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/linear_progress_bar_props~partial.swiftmodule",
+    "swift-dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/linear_progress_bar_props.swiftdeps",
+    "diagnostics": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/linear_progress_bar_props.dia"
+  },
+  "/Users/adityachoubey/Code/digia_engage/iOS/Sources/DigiaEngage/api/internal/framework/widget_props/lottie_props.swift": {
+    "dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/lottie_props.d",
+    "object": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/lottie_props.swift.o",
+    "swiftmodule": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/lottie_props~partial.swiftmodule",
+    "swift-dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/lottie_props.swiftdeps",
+    "diagnostics": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/lottie_props.dia"
+  },
+  "/Users/adityachoubey/Code/digia_engage/iOS/Sources/DigiaEngage/api/internal/framework/widget_props/opacity_props.swift": {
+    "dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/opacity_props.d",
+    "object": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/opacity_props.swift.o",
+    "swiftmodule": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/opacity_props~partial.swiftmodule",
+    "swift-dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/opacity_props.swiftdeps",
+    "diagnostics": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/opacity_props.dia"
+  },
+  "/Users/adityachoubey/Code/digia_engage/iOS/Sources/DigiaEngage/api/internal/framework/widget_props/positioned_props.swift": {
+    "dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/positioned_props.d",
+    "object": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/positioned_props.swift.o",
+    "swiftmodule": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/positioned_props~partial.swiftmodule",
+    "swift-dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/positioned_props.swiftdeps",
+    "diagnostics": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/positioned_props.dia"
+  },
+  "/Users/adityachoubey/Code/digia_engage/iOS/Sources/DigiaEngage/api/internal/framework/widget_props/rich_text_props.swift": {
+    "dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/rich_text_props.d",
+    "object": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/rich_text_props.swift.o",
+    "swiftmodule": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/rich_text_props~partial.swiftmodule",
+    "swift-dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/rich_text_props.swiftdeps",
+    "diagnostics": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/rich_text_props.dia"
+  },
+  "/Users/adityachoubey/Code/digia_engage/iOS/Sources/DigiaEngage/api/internal/framework/widget_props/scaffold_props.swift": {
+    "dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/scaffold_props.d",
+    "object": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/scaffold_props.swift.o",
+    "swiftmodule": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/scaffold_props~partial.swiftmodule",
+    "swift-dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/scaffold_props.swiftdeps",
+    "diagnostics": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/scaffold_props.dia"
+  },
+  "/Users/adityachoubey/Code/digia_engage/iOS/Sources/DigiaEngage/api/internal/framework/widget_props/scratch_card_props.swift": {
+    "dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/scratch_card_props.d",
+    "object": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/scratch_card_props.swift.o",
+    "swiftmodule": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/scratch_card_props~partial.swiftmodule",
+    "swift-dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/scratch_card_props.swiftdeps",
+    "diagnostics": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/scratch_card_props.dia"
+  },
+  "/Users/adityachoubey/Code/digia_engage/iOS/Sources/DigiaEngage/api/internal/framework/widget_props/sized_box_props.swift": {
+    "dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/sized_box_props.d",
+    "object": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/sized_box_props.swift.o",
+    "swiftmodule": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/sized_box_props~partial.swiftmodule",
+    "swift-dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/sized_box_props.swiftdeps",
+    "diagnostics": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/sized_box_props.dia"
+  },
+  "/Users/adityachoubey/Code/digia_engage/iOS/Sources/DigiaEngage/api/internal/framework/widget_props/stack_props.swift": {
+    "dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/stack_props.d",
+    "object": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/stack_props.swift.o",
+    "swiftmodule": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/stack_props~partial.swiftmodule",
+    "swift-dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/stack_props.swiftdeps",
+    "diagnostics": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/stack_props.dia"
+  },
+  "/Users/adityachoubey/Code/digia_engage/iOS/Sources/DigiaEngage/api/internal/framework/widget_props/story_props.swift": {
+    "dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/story_props.d",
+    "object": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/story_props.swift.o",
+    "swiftmodule": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/story_props~partial.swiftmodule",
+    "swift-dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/story_props.swiftdeps",
+    "diagnostics": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/story_props.dia"
+  },
+  "/Users/adityachoubey/Code/digia_engage/iOS/Sources/DigiaEngage/api/internal/framework/widget_props/story_video_player_props.swift": {
+    "dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/story_video_player_props.d",
+    "object": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/story_video_player_props.swift.o",
+    "swiftmodule": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/story_video_player_props~partial.swiftmodule",
+    "swift-dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/story_video_player_props.swiftdeps",
+    "diagnostics": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/story_video_player_props.dia"
+  },
+  "/Users/adityachoubey/Code/digia_engage/iOS/Sources/DigiaEngage/api/internal/framework/widget_props/stream_builder_props.swift": {
+    "dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/stream_builder_props.d",
+    "object": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/stream_builder_props.swift.o",
+    "swiftmodule": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/stream_builder_props~partial.swiftmodule",
+    "swift-dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/stream_builder_props.swiftdeps",
+    "diagnostics": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/stream_builder_props.dia"
+  },
+  "/Users/adityachoubey/Code/digia_engage/iOS/Sources/DigiaEngage/api/internal/framework/widget_props/styled_divider_props.swift": {
+    "dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/styled_divider_props.d",
+    "object": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/styled_divider_props.swift.o",
+    "swiftmodule": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/styled_divider_props~partial.swiftmodule",
+    "swift-dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/styled_divider_props.swiftdeps",
+    "diagnostics": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/styled_divider_props.dia"
+  },
+  "/Users/adityachoubey/Code/digia_engage/iOS/Sources/DigiaEngage/api/internal/framework/widget_props/text_form_field_props.swift": {
+    "dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/text_form_field_props.d",
+    "object": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/text_form_field_props.swift.o",
+    "swiftmodule": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/text_form_field_props~partial.swiftmodule",
+    "swift-dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/text_form_field_props.swiftdeps",
+    "diagnostics": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/text_form_field_props.dia"
+  },
+  "/Users/adityachoubey/Code/digia_engage/iOS/Sources/DigiaEngage/api/internal/framework/widget_props/text_props.swift": {
+    "dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/text_props.d",
+    "object": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/text_props.swift.o",
+    "swiftmodule": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/text_props~partial.swiftmodule",
+    "swift-dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/text_props.swiftdeps",
+    "diagnostics": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/text_props.dia"
+  },
+  "/Users/adityachoubey/Code/digia_engage/iOS/Sources/DigiaEngage/api/internal/framework/widget_props/text_style_props.swift": {
+    "dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/text_style_props.d",
+    "object": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/text_style_props.swift.o",
+    "swiftmodule": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/text_style_props~partial.swiftmodule",
+    "swift-dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/text_style_props.swiftdeps",
+    "diagnostics": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/text_style_props.dia"
+  },
+  "/Users/adityachoubey/Code/digia_engage/iOS/Sources/DigiaEngage/api/internal/framework/widget_props/timer_props.swift": {
+    "dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/timer_props.d",
+    "object": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/timer_props.swift.o",
+    "swiftmodule": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/timer_props~partial.swiftmodule",
+    "swift-dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/timer_props.swiftdeps",
+    "diagnostics": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/timer_props.dia"
+  },
+  "/Users/adityachoubey/Code/digia_engage/iOS/Sources/DigiaEngage/api/internal/framework/widget_props/video_player_props.swift": {
+    "dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/video_player_props.d",
+    "object": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/video_player_props.swift.o",
+    "swiftmodule": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/video_player_props~partial.swiftmodule",
+    "swift-dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/video_player_props.swiftdeps",
+    "diagnostics": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/video_player_props.dia"
+  },
+  "/Users/adityachoubey/Code/digia_engage/iOS/Sources/DigiaEngage/api/internal/framework/widget_props/wrap_props.swift": {
+    "dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/wrap_props.d",
+    "object": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/wrap_props.swift.o",
+    "swiftmodule": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/wrap_props~partial.swiftmodule",
+    "swift-dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/wrap_props.swiftdeps",
+    "diagnostics": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/wrap_props.dia"
+  },
+  "/Users/adityachoubey/Code/digia_engage/iOS/Sources/DigiaEngage/api/internal/framework/widgets/avatar.swift": {
+    "dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/avatar.d",
+    "object": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/avatar.swift.o",
+    "swiftmodule": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/avatar~partial.swiftmodule",
+    "swift-dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/avatar.swiftdeps",
+    "diagnostics": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/avatar.dia"
+  },
+  "/Users/adityachoubey/Code/digia_engage/iOS/Sources/DigiaEngage/api/internal/framework/widgets/button.swift": {
+    "dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/button.d",
+    "object": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/button.swift.o",
+    "swiftmodule": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/button~partial.swiftmodule",
+    "swift-dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/button.swiftdeps",
+    "diagnostics": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/button.dia"
+  },
+  "/Users/adityachoubey/Code/digia_engage/iOS/Sources/DigiaEngage/api/internal/framework/widgets/carousel.swift": {
+    "dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/carousel.d",
+    "object": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/carousel.swift.o",
+    "swiftmodule": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/carousel~partial.swiftmodule",
+    "swift-dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/carousel.swiftdeps",
+    "diagnostics": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/carousel.dia"
+  },
+  "/Users/adityachoubey/Code/digia_engage/iOS/Sources/DigiaEngage/api/internal/framework/widgets/circular_progress_bar.swift": {
+    "dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/circular_progress_bar.d",
+    "object": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/circular_progress_bar.swift.o",
+    "swiftmodule": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/circular_progress_bar~partial.swiftmodule",
+    "swift-dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/circular_progress_bar.swiftdeps",
+    "diagnostics": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/circular_progress_bar.dia"
+  },
+  "/Users/adityachoubey/Code/digia_engage/iOS/Sources/DigiaEngage/api/internal/framework/widgets/component_host.swift": {
+    "dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/component_host.d",
+    "object": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/component_host.swift.o",
+    "swiftmodule": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/component_host~partial.swiftmodule",
+    "swift-dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/component_host.swiftdeps",
+    "diagnostics": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/component_host.dia"
+  },
+  "/Users/adityachoubey/Code/digia_engage/iOS/Sources/DigiaEngage/api/internal/framework/widgets/conditional_builder.swift": {
+    "dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/conditional_builder.d",
+    "object": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/conditional_builder.swift.o",
+    "swiftmodule": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/conditional_builder~partial.swiftmodule",
+    "swift-dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/conditional_builder.swiftdeps",
+    "diagnostics": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/conditional_builder.dia"
+  },
+  "/Users/adityachoubey/Code/digia_engage/iOS/Sources/DigiaEngage/api/internal/framework/widgets/conditional_item.swift": {
+    "dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/conditional_item.d",
+    "object": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/conditional_item.swift.o",
+    "swiftmodule": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/conditional_item~partial.swiftmodule",
+    "swift-dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/conditional_item.swiftdeps",
+    "diagnostics": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/conditional_item.dia"
+  },
+  "/Users/adityachoubey/Code/digia_engage/iOS/Sources/DigiaEngage/api/internal/framework/widgets/container.swift": {
+    "dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/container.d",
+    "object": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/container.swift.o",
+    "swiftmodule": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/container~partial.swiftmodule",
+    "swift-dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/container.swiftdeps",
+    "diagnostics": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/container.dia"
+  },
+  "/Users/adityachoubey/Code/digia_engage/iOS/Sources/DigiaEngage/api/internal/framework/widgets/digia_cached_image.swift": {
+    "dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/digia_cached_image.d",
+    "object": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/digia_cached_image.swift.o",
+    "swiftmodule": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/digia_cached_image~partial.swiftmodule",
+    "swift-dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/digia_cached_image.swiftdeps",
+    "diagnostics": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/digia_cached_image.dia"
+  },
+  "/Users/adityachoubey/Code/digia_engage/iOS/Sources/DigiaEngage/api/internal/framework/widgets/divider_with_pattern.swift": {
+    "dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/divider_with_pattern.d",
+    "object": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/divider_with_pattern.swift.o",
+    "swiftmodule": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/divider_with_pattern~partial.swiftmodule",
+    "swift-dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/divider_with_pattern.swiftdeps",
+    "diagnostics": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/divider_with_pattern.dia"
+  },
+  "/Users/adityachoubey/Code/digia_engage/iOS/Sources/DigiaEngage/api/internal/framework/widgets/flex.swift": {
+    "dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/flex.d",
+    "object": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/flex.swift.o",
+    "swiftmodule": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/flex~partial.swiftmodule",
+    "swift-dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/flex.swiftdeps",
+    "diagnostics": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/flex.dia"
+  },
+  "/Users/adityachoubey/Code/digia_engage/iOS/Sources/DigiaEngage/api/internal/framework/widgets/grid_view.swift": {
+    "dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/grid_view.d",
+    "object": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/grid_view.swift.o",
+    "swiftmodule": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/grid_view~partial.swiftmodule",
+    "swift-dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/grid_view.swiftdeps",
+    "diagnostics": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/grid_view.dia"
+  },
+  "/Users/adityachoubey/Code/digia_engage/iOS/Sources/DigiaEngage/api/internal/framework/widgets/image.swift": {
+    "dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/image.d",
+    "object": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/image.swift.o",
+    "swiftmodule": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/image~partial.swiftmodule",
+    "swift-dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/image.swiftdeps",
+    "diagnostics": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/image.dia"
+  },
+  "/Users/adityachoubey/Code/digia_engage/iOS/Sources/DigiaEngage/api/internal/framework/widgets/internal_flex_support.swift": {
+    "dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/internal_flex_support.d",
+    "object": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/internal_flex_support.swift.o",
+    "swiftmodule": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/internal_flex_support~partial.swiftmodule",
+    "swift-dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/internal_flex_support.swiftdeps",
+    "diagnostics": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/internal_flex_support.dia"
+  },
+  "/Users/adityachoubey/Code/digia_engage/iOS/Sources/DigiaEngage/api/internal/framework/widgets/internal_marquee.swift": {
+    "dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/internal_marquee.d",
+    "object": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/internal_marquee.swift.o",
+    "swiftmodule": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/internal_marquee~partial.swiftmodule",
+    "swift-dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/internal_marquee.swiftdeps",
+    "diagnostics": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/internal_marquee.dia"
+  },
+  "/Users/adityachoubey/Code/digia_engage/iOS/Sources/DigiaEngage/api/internal/framework/widgets/internal_progress_views.swift": {
+    "dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/internal_progress_views.d",
+    "object": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/internal_progress_views.swift.o",
+    "swiftmodule": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/internal_progress_views~partial.swiftmodule",
+    "swift-dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/internal_progress_views.swiftdeps",
+    "diagnostics": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/internal_progress_views.dia"
+  },
+  "/Users/adityachoubey/Code/digia_engage/iOS/Sources/DigiaEngage/api/internal/framework/widgets/internal_stream_builder.swift": {
+    "dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/internal_stream_builder.d",
+    "object": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/internal_stream_builder.swift.o",
+    "swiftmodule": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/internal_stream_builder~partial.swiftmodule",
+    "swift-dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/internal_stream_builder.swiftdeps",
+    "diagnostics": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/internal_stream_builder.dia"
+  },
+  "/Users/adityachoubey/Code/digia_engage/iOS/Sources/DigiaEngage/api/internal/framework/widgets/internal_text_label.swift": {
+    "dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/internal_text_label.d",
+    "object": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/internal_text_label.swift.o",
+    "swiftmodule": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/internal_text_label~partial.swiftmodule",
+    "swift-dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/internal_text_label.swiftdeps",
+    "diagnostics": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/internal_text_label.dia"
+  },
+  "/Users/adityachoubey/Code/digia_engage/iOS/Sources/DigiaEngage/api/internal/framework/widgets/linear_progress_bar.swift": {
+    "dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/linear_progress_bar.d",
+    "object": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/linear_progress_bar.swift.o",
+    "swiftmodule": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/linear_progress_bar~partial.swiftmodule",
+    "swift-dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/linear_progress_bar.swiftdeps",
+    "diagnostics": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/linear_progress_bar.dia"
+  },
+  "/Users/adityachoubey/Code/digia_engage/iOS/Sources/DigiaEngage/api/internal/framework/widgets/lottie.swift": {
+    "dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/lottie.d",
+    "object": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/lottie.swift.o",
+    "swiftmodule": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/lottie~partial.swiftmodule",
+    "swift-dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/lottie.swiftdeps",
+    "diagnostics": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/lottie.dia"
+  },
+  "/Users/adityachoubey/Code/digia_engage/iOS/Sources/DigiaEngage/api/internal/framework/widgets/opacity.swift": {
+    "dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/opacity.d",
+    "object": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/opacity.swift.o",
+    "swiftmodule": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/opacity~partial.swiftmodule",
+    "swift-dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/opacity.swiftdeps",
+    "diagnostics": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/opacity.dia"
+  },
+  "/Users/adityachoubey/Code/digia_engage/iOS/Sources/DigiaEngage/api/internal/framework/widgets/rich_text.swift": {
+    "dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/rich_text.d",
+    "object": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/rich_text.swift.o",
+    "swiftmodule": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/rich_text~partial.swiftmodule",
+    "swift-dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/rich_text.swiftdeps",
+    "diagnostics": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/rich_text.dia"
+  },
+  "/Users/adityachoubey/Code/digia_engage/iOS/Sources/DigiaEngage/api/internal/framework/widgets/scaffold.swift": {
+    "dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/scaffold.d",
+    "object": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/scaffold.swift.o",
+    "swiftmodule": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/scaffold~partial.swiftmodule",
+    "swift-dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/scaffold.swiftdeps",
+    "diagnostics": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/scaffold.dia"
+  },
+  "/Users/adityachoubey/Code/digia_engage/iOS/Sources/DigiaEngage/api/internal/framework/widgets/scratch_card.swift": {
+    "dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/scratch_card.d",
+    "object": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/scratch_card.swift.o",
+    "swiftmodule": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/scratch_card~partial.swiftmodule",
+    "swift-dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/scratch_card.swiftdeps",
+    "diagnostics": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/scratch_card.dia"
+  },
+  "/Users/adityachoubey/Code/digia_engage/iOS/Sources/DigiaEngage/api/internal/framework/widgets/sized_box.swift": {
+    "dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/sized_box.d",
+    "object": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/sized_box.swift.o",
+    "swiftmodule": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/sized_box~partial.swiftmodule",
+    "swift-dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/sized_box.swiftdeps",
+    "diagnostics": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/sized_box.dia"
+  },
+  "/Users/adityachoubey/Code/digia_engage/iOS/Sources/DigiaEngage/api/internal/framework/widgets/stack.swift": {
+    "dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/stack.d",
+    "object": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/stack.swift.o",
+    "swiftmodule": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/stack~partial.swiftmodule",
+    "swift-dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/stack.swiftdeps",
+    "diagnostics": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/stack.dia"
+  },
+  "/Users/adityachoubey/Code/digia_engage/iOS/Sources/DigiaEngage/api/internal/framework/widgets/story.swift": {
+    "dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/story.d",
+    "object": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/story.swift.o",
+    "swiftmodule": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/story~partial.swiftmodule",
+    "swift-dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/story.swiftdeps",
+    "diagnostics": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/story.dia"
+  },
+  "/Users/adityachoubey/Code/digia_engage/iOS/Sources/DigiaEngage/api/internal/framework/widgets/story_video_player.swift": {
+    "dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/story_video_player.d",
+    "object": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/story_video_player.swift.o",
+    "swiftmodule": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/story_video_player~partial.swiftmodule",
+    "swift-dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/story_video_player.swiftdeps",
+    "diagnostics": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/story_video_player.dia"
+  },
+  "/Users/adityachoubey/Code/digia_engage/iOS/Sources/DigiaEngage/api/internal/framework/widgets/stream_builder.swift": {
+    "dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/stream_builder.d",
+    "object": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/stream_builder.swift.o",
+    "swiftmodule": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/stream_builder~partial.swiftmodule",
+    "swift-dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/stream_builder.swiftdeps",
+    "diagnostics": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/stream_builder.dia"
+  },
+  "/Users/adityachoubey/Code/digia_engage/iOS/Sources/DigiaEngage/api/internal/framework/widgets/styled_horizontal_divider.swift": {
+    "dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/styled_horizontal_divider.d",
+    "object": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/styled_horizontal_divider.swift.o",
+    "swiftmodule": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/styled_horizontal_divider~partial.swiftmodule",
+    "swift-dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/styled_horizontal_divider.swiftdeps",
+    "diagnostics": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/styled_horizontal_divider.dia"
+  },
+  "/Users/adityachoubey/Code/digia_engage/iOS/Sources/DigiaEngage/api/internal/framework/widgets/styled_vertical_divider.swift": {
+    "dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/styled_vertical_divider.d",
+    "object": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/styled_vertical_divider.swift.o",
+    "swiftmodule": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/styled_vertical_divider~partial.swiftmodule",
+    "swift-dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/styled_vertical_divider.swiftdeps",
+    "diagnostics": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/styled_vertical_divider.dia"
+  },
+  "/Users/adityachoubey/Code/digia_engage/iOS/Sources/DigiaEngage/api/internal/framework/widgets/text.swift": {
+    "dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/text.d",
+    "object": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/text.swift.o",
+    "swiftmodule": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/text~partial.swiftmodule",
+    "swift-dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/text.swiftdeps",
+    "diagnostics": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/text.dia"
+  },
+  "/Users/adityachoubey/Code/digia_engage/iOS/Sources/DigiaEngage/api/internal/framework/widgets/text_form_field.swift": {
+    "dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/text_form_field.d",
+    "object": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/text_form_field.swift.o",
+    "swiftmodule": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/text_form_field~partial.swiftmodule",
+    "swift-dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/text_form_field.swiftdeps",
+    "diagnostics": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/text_form_field.dia"
+  },
+  "/Users/adityachoubey/Code/digia_engage/iOS/Sources/DigiaEngage/api/internal/framework/widgets/timer.swift": {
+    "dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/timer.d",
+    "object": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/timer.swift.o",
+    "swiftmodule": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/timer~partial.swiftmodule",
+    "swift-dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/timer.swiftdeps",
+    "diagnostics": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/timer.dia"
+  },
+  "/Users/adityachoubey/Code/digia_engage/iOS/Sources/DigiaEngage/api/internal/framework/widgets/unsupported.swift": {
+    "dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/unsupported.d",
+    "object": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/unsupported.swift.o",
+    "swiftmodule": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/unsupported~partial.swiftmodule",
+    "swift-dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/unsupported.swiftdeps",
+    "diagnostics": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/unsupported.dia"
+  },
+  "/Users/adityachoubey/Code/digia_engage/iOS/Sources/DigiaEngage/api/internal/framework/widgets/video_player.swift": {
+    "dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/video_player.d",
+    "object": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/video_player.swift.o",
+    "swiftmodule": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/video_player~partial.swiftmodule",
+    "swift-dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/video_player.swiftdeps",
+    "diagnostics": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/video_player.dia"
+  },
+  "/Users/adityachoubey/Code/digia_engage/iOS/Sources/DigiaEngage/api/internal/framework/widgets/wrap.swift": {
+    "dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/wrap.d",
+    "object": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/wrap.swift.o",
+    "swiftmodule": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/wrap~partial.swiftmodule",
+    "swift-dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/wrap.swiftdeps",
+    "diagnostics": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/wrap.dia"
+  },
+  "/Users/adityachoubey/Code/digia_engage/iOS/Sources/DigiaEngage/api/internal/network/internal_network_client.swift": {
+    "dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/internal_network_client.d",
+    "object": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/internal_network_client.swift.o",
+    "swiftmodule": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/internal_network_client~partial.swiftmodule",
+    "swift-dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/internal_network_client.swiftdeps",
+    "diagnostics": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/internal_network_client.dia"
+  },
+  "/Users/adityachoubey/Code/digia_engage/iOS/Sources/DigiaEngage/api/internal/network/network_types.swift": {
+    "dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/network_types.d",
+    "object": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/network_types.swift.o",
+    "swiftmodule": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/network_types~partial.swiftmodule",
+    "swift-dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/network_types.swiftdeps",
+    "diagnostics": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/network_types.dia"
+  },
+  "/Users/adityachoubey/Code/digia_engage/iOS/Sources/DigiaEngage/api/internal/sdk_state.swift": {
+    "dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/sdk_state.d",
+    "object": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/sdk_state.swift.o",
+    "swiftmodule": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/sdk_state~partial.swiftmodule",
+    "swift-dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/sdk_state.swiftdeps",
+    "diagnostics": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/sdk_state.dia"
+  },
+  "/Users/adityachoubey/Code/digia_engage/iOS/Sources/DigiaEngage/api/models/diagnostic_report.swift": {
+    "dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/diagnostic_report.d",
+    "object": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/diagnostic_report.swift.o",
+    "swiftmodule": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/diagnostic_report~partial.swiftmodule",
+    "swift-dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/diagnostic_report.swiftdeps",
+    "diagnostics": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/diagnostic_report.dia"
+  },
+  "/Users/adityachoubey/Code/digia_engage/iOS/Sources/DigiaEngage/api/models/digia_config.swift": {
+    "dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/digia_config.d",
+    "object": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/digia_config.swift.o",
+    "swiftmodule": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/digia_config~partial.swiftmodule",
+    "swift-dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/digia_config.swiftdeps",
+    "diagnostics": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/digia_config.dia"
+  },
+  "/Users/adityachoubey/Code/digia_engage/iOS/Sources/DigiaEngage/api/models/digia_experience_event.swift": {
+    "dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/digia_experience_event.d",
+    "object": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/digia_experience_event.swift.o",
+    "swiftmodule": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/digia_experience_event~partial.swiftmodule",
+    "swift-dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/digia_experience_event.swiftdeps",
+    "diagnostics": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/digia_experience_event.dia"
+  },
+  "/Users/adityachoubey/Code/digia_engage/iOS/Sources/DigiaEngage/api/models/in_app_payload.swift": {
+    "dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/in_app_payload.d",
+    "object": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/in_app_payload.swift.o",
+    "swiftmodule": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/in_app_payload~partial.swiftmodule",
+    "swift-dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/in_app_payload.swiftdeps",
+    "diagnostics": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/in_app_payload.dia"
+  },
+  "/Users/adityachoubey/Code/digia_engage/iOS/Sources/DigiaEngage/api/widgets/digia_host.swift": {
+    "dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/digia_host.d",
+    "object": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/digia_host.swift.o",
+    "swiftmodule": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/digia_host~partial.swiftmodule",
+    "swift-dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/digia_host.swiftdeps",
+    "diagnostics": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/digia_host.dia"
+  },
+  "/Users/adityachoubey/Code/digia_engage/iOS/Sources/DigiaEngage/api/widgets/digia_initial_route_screen.swift": {
+    "dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/digia_initial_route_screen.d",
+    "object": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/digia_initial_route_screen.swift.o",
+    "swiftmodule": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/digia_initial_route_screen~partial.swiftmodule",
+    "swift-dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/digia_initial_route_screen.swiftdeps",
+    "diagnostics": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/digia_initial_route_screen.dia"
+  },
+  "/Users/adityachoubey/Code/digia_engage/iOS/Sources/DigiaEngage/api/widgets/digia_presentation_view.swift": {
+    "dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/digia_presentation_view.d",
+    "object": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/digia_presentation_view.swift.o",
+    "swiftmodule": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/digia_presentation_view~partial.swiftmodule",
+    "swift-dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/digia_presentation_view.swiftdeps",
+    "diagnostics": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/digia_presentation_view.dia"
+  },
+  "/Users/adityachoubey/Code/digia_engage/iOS/Sources/DigiaEngage/api/widgets/digia_screen.swift": {
+    "dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/digia_screen.d",
+    "object": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/digia_screen.swift.o",
+    "swiftmodule": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/digia_screen~partial.swiftmodule",
+    "swift-dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/digia_screen.swiftdeps",
+    "diagnostics": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/digia_screen.dia"
+  },
+  "/Users/adityachoubey/Code/digia_engage/iOS/Sources/DigiaEngage/api/widgets/digia_slot.swift": {
+    "dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/digia_slot.d",
+    "object": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/digia_slot.swift.o",
+    "swiftmodule": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/digia_slot~partial.swiftmodule",
+    "swift-dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/digia_slot.swiftdeps",
+    "diagnostics": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/digia_slot.dia"
+  },
+  "/Users/adityachoubey/Code/digia_engage/iOS/Sources/DigiaEngage/api/widgets/fallback_experience_view.swift": {
+    "dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/fallback_experience_view.d",
+    "object": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/fallback_experience_view.swift.o",
+    "swiftmodule": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/fallback_experience_view~partial.swiftmodule",
+    "swift-dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/fallback_experience_view.swiftdeps",
+    "diagnostics": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/DigiaEngage.build/fallback_experience_view.dia"
+  }
+}

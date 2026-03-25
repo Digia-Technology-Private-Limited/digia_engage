@@ -1,0 +1,12 @@
+{
+  "": {
+    "swift-dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/_LottieStub.build/master.swiftdeps"
+  },
+  "/Users/adityachoubey/Code/digia_engage/.build/index-build/checkouts/lottie-spm/Sources/_LottieStub/Stub.swift": {
+    "dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/_LottieStub.build/Stub.d",
+    "object": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/_LottieStub.build/Stub.swift.o",
+    "swiftmodule": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/_LottieStub.build/Stub~partial.swiftmodule",
+    "swift-dependencies": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/_LottieStub.build/Stub.swiftdeps",
+    "diagnostics": "/Users/adityachoubey/Code/digia_engage/.build/index-build/arm64-apple-macosx/debug/_LottieStub.build/Stub.dia"
+  }
+}
