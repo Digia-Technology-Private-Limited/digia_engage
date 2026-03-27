@@ -217,7 +217,16 @@ This project is licensed under the Business Source License 1.1 (BSL 1.1) - see t
 
 For commercial licensing inquiries or exceptions, please contact admin@digia.tech.
 
+## Documentation
+
+Full documentation is available at [docs.digia.tech](https://docs.digia.tech):
+
+- [Digia Engage overview](https://docs.digia.tech/engagement/digia-engage) — SDK support matrix and how it works
+- [Flutter SDK guide](https://docs.digia.tech/engagement/digia-engage-flutter) — full installation and API reference
+- [MoEngage integration](https://docs.digia.tech/engagement/moengage-integration) — connect MoEngage self-handled in-app campaigns
+- [CleverTap integration](https://docs.digia.tech/engagement/clevertap-integration) — connect CleverTap In-App and Native Display
+
 ## Support
 
-- 📚 [Documentation](https://docs.digia.tech)
+- 📚 [Documentation](https://docs.digia.tech/engagement/digia-engage-flutter)
 - 📧 [Contact Support](mailto:admin@digia.tech)
