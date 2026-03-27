@@ -1,71 +1,48 @@
 /**
- * DigiaEngageModule (iOS stub)
+ * DigiaEngageModule.m
  *
- * iOS support is not yet implemented.  This stub registers the module so that
- * the JS layer does not crash when imported on iOS.  All methods are no-ops.
+ * ObjC bridge file that exports Swift implementations to the React Native
+ * runtime (both Old Architecture bridge and New Architecture TurboModules).
+ *
+ * All real logic lives in the Swift files alongside this one:
+ *   DigiaModule.swift           — NativeModule (RCTEventEmitter subclass)
+ *   RNEventBridgePlugin.swift   — DigiaCEPPlugin bridge
+ *   DigiaHostViewManager.swift  — ViewManager for <DigiaHostView>
+ *   DigiaSlotViewManager.swift  — ViewManager for <DigiaSlotView>
  */
+
 #import <React/RCTBridgeModule.h>
+#import <React/RCTEventEmitter.h>
 #import <React/RCTViewManager.h>
 
-// ── NativeModule stub ─────────────────────────────────────────────────────────
+// ── NativeModule ──────────────────────────────────────────────────────────────
 
-@interface DigiaEngageModule : NSObject <RCTBridgeModule>
-@end
+// RCT_EXTERN_MODULE wires the Swift class DigiaModule (which inherits
+// RCTEventEmitter) to the React Native bridge under the name "DigiaEngageModule".
 
-@implementation DigiaEngageModule
+RCT_EXTERN_MODULE(DigiaEngageModule, RCTEventEmitter)
 
-RCT_EXPORT_MODULE(DigiaEngageModule)
-
-RCT_EXPORT_METHOD(initialize:(NSString *)apiKey
+RCT_EXTERN_METHOD(initialize:(NSString *)apiKey
                   environment:(NSString *)environment
                   logLevel:(NSString *)logLevel
                   resolve:(RCTPromiseResolveBlock)resolve
                   reject:(RCTPromiseRejectBlock)reject)
-{
-    // iOS not yet implemented – resolve immediately so JS doesn't hang.
-    resolve(nil);
-}
 
-RCT_EXPORT_METHOD(setCurrentScreen:(NSString *)name)
-{
-    // no-op
-}
+RCT_EXTERN_METHOD(registerBridge)
 
-RCT_EXPORT_METHOD(openNavigation:(nullable NSString *)startPageId
-                  pageArgs:(NSDictionary *)pageArgs)
-{
-    // no-op
-}
+RCT_EXTERN_METHOD(setCurrentScreen:(NSString *)name)
 
-RCT_EXPORT_METHOD(triggerCampaign:(NSString *)campaignId
+RCT_EXTERN_METHOD(triggerCampaign:(NSString *)id
                   content:(NSDictionary *)content
                   cepContext:(NSDictionary *)cepContext)
-{
-    // no-op — iOS Digia SDK not yet available
-}
 
-RCT_EXPORT_METHOD(invalidateCampaign:(NSString *)campaignId)
-{
-    // no-op
-}
-
-@end
+RCT_EXTERN_METHOD(invalidateCampaign:(NSString *)campaignId)
 
 
-// ── ViewManager stub ──────────────────────────────────────────────────────────
+// ── ViewManagers ──────────────────────────────────────────────────────────────
 
-@interface DigiaHostViewManager : RCTViewManager
-@end
+RCT_EXTERN_MODULE(DigiaHostView, RCTViewManager)
 
-@implementation DigiaHostViewManager
+RCT_EXTERN_MODULE(DigiaSlotView, RCTViewManager)
 
-RCT_EXPORT_MODULE(DigiaHostView)
-
-- (UIView *)view {
-    // Return a transparent placeholder view
-    UIView *v = [[UIView alloc] init];
-    v.userInteractionEnabled = NO;
-    return v;
-}
-
-@end
+RCT_EXTERN__EXPORT_VIEW_PROPERTY(placementKey, NSString)

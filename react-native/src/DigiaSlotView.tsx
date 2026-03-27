@@ -6,7 +6,8 @@
  *
  * On Android this mounts a Jetpack Compose `DigiaSlot` composable that
  * observes the slot payload for the given placement key and renders the
- * matching campaign component. On iOS it is a transparent no-op.
+ * matching campaign component. On iOS this mounts the equivalent SwiftUI
+ * `DigiaSlot` view via UIHostingController.
  *
  * ─── Usage ───────────────────────────────────────────────────────────────────
  * ```tsx
@@ -56,16 +57,16 @@ interface DigiaSlotViewProps {
 }
 
 // Fabric (New Architecture) resolves view configs lazily — no UIManager
-// guard needed. requireNativeComponent is called unconditionally on Android.
+// guard needed. requireNativeComponent is called unconditionally on iOS and Android.
 const NativeDigiaSlotView =
-    Platform.OS === 'android'
+    Platform.OS === 'android' || Platform.OS === 'ios'
         ? requireNativeComponent<DigiaSlotViewProps>('DigiaSlotView')
         : null;
 
 // ── DigiaSlotView ─────────────────────────────────────────────────────────────
 
 export function DigiaSlotView({ placementKey, style }: DigiaSlotViewProps) {
-    if (Platform.OS === 'android' && NativeDigiaSlotView) {
+    if ((Platform.OS === 'android' || Platform.OS === 'ios') && NativeDigiaSlotView) {
         return (
             <NativeDigiaSlotView
                 placementKey={placementKey}
@@ -74,6 +75,6 @@ export function DigiaSlotView({ placementKey, style }: DigiaSlotViewProps) {
         );
     }
 
-    // iOS / other platforms: not yet implemented — render nothing.
+    // Other platforms: not yet implemented — render nothing.
     return null;
 }

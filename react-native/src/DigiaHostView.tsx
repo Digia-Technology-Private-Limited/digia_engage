@@ -27,7 +27,8 @@
  *
  * On Android this mounts a Jetpack Compose `DigiaHost` composable that
  * manages dialog + bottom-sheet presentation triggered by CEP plugins.
- * On iOS the view is a transparent no-op until iOS support is implemented.
+ * On iOS this mounts a SwiftUI `DigiaHost` via UIHostingController that
+ * manages the same overlay layer above React Native content.
  * ─────────────────────────────────────────────────────────────────────────────
  */
 
@@ -50,19 +51,20 @@ interface NativeDigiaHostViewProps {
 }
 
 // Fabric (New Architecture) resolves view configs lazily — no UIManager
-// guard needed. requireNativeComponent is called unconditionally on Android.
+// guard needed. requireNativeComponent is called unconditionally on iOS and Android.
 const NativeDigiaHostView =
-    Platform.OS === 'android'
+    Platform.OS === 'android' || Platform.OS === 'ios'
         ? requireNativeComponent<NativeDigiaHostViewProps>('DigiaHostView')
         : null;
 
 // ── DigiaHostView ─────────────────────────────────────────────────────────────
 
 export function DigiaHostView({ style }: DigiaHostViewProps) {
-    if (Platform.OS === 'android' && NativeDigiaHostView) {
-        // The native Compose DigiaHost renders dialogs / bottom sheets that
-        // float above the view hierarchy on their own — the host view only
-        // needs to be mounted in the tree, not take up any screen space.
+    if ((Platform.OS === 'android' || Platform.OS === 'ios') && NativeDigiaHostView) {
+        // The native DigiaHost (Compose on Android, SwiftUI on iOS) renders
+        // dialogs / bottom sheets that float above the view hierarchy on their
+        // own — the host view only needs to be mounted in the tree, not take up
+        // any screen space.
         return (
             <NativeDigiaHostView
                 style={StyleSheet.flatten([styles.host, style])}
@@ -70,7 +72,7 @@ export function DigiaHostView({ style }: DigiaHostViewProps) {
         );
     }
 
-    // iOS / other platforms: no-op, nothing to mount.
+    // Other platforms: no-op.
     return null;
 }
 
