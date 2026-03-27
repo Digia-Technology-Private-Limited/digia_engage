@@ -70,8 +70,8 @@ android {
 }
 
 dependencies {
-    // Digia Engage Android library (published to JitPack)
-    implementation 'com.github.Digia-Technology-Private-Limited:digia_engage:android.1.0.0-beta.7'
+    // Digia Engage Android library 
+    implementation 'tech.digia:engage:1.0.0-beta.03'
 
     // ── React Native ─────────────────────────────────────────────────────────
     // React Native is provided by the host app; mark as compileOnly so it is
