@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 
 import '../../src/framework/ui_factory.dart';
@@ -165,6 +166,39 @@ class _DigiaSlotContent extends StatelessWidget {
       return placeholder ?? const SizedBox.shrink();
     }
 
-    return DUIFactory().createComponent(viewId, content);
+    try {
+      return DUIFactory().createComponent(viewId, content);
+    } catch (e, stack) {
+      debugPrint('[Digia] DigiaSlot render error for "$viewId": $e\n$stack');
+      if (kDebugMode) {
+        return _DigiaSlotError(viewId: viewId, error: e);
+      }
+      return placeholder ?? const SizedBox.shrink();
+    }
+  }
+}
+
+class _DigiaSlotError extends StatelessWidget {
+  final String viewId;
+  final Object error;
+
+  const _DigiaSlotError({required this.viewId, required this.error});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        border: Border.all(color: const Color(0xFFD32F2F)),
+        color: const Color(0x1FD32F2F),
+      ),
+      padding: const EdgeInsets.all(8),
+      child: Text(
+        '[DigiaSlot($viewId)] Render error:\n$error',
+        style: const TextStyle(
+          color: Color(0xFFD32F2F),
+          fontSize: 12,
+        ),
+      ),
+    );
   }
 }

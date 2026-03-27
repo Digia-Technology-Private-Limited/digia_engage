@@ -7,6 +7,7 @@
 - Improved payload handling: inline campaigns now use `type: inline` + `placementKey` instead of `command: SHOW_INLINE` + `placementId`
 - Payloads missing both `type` and `command` are now dropped with a warning instead of silently ignored
 - `DigiaSlot` lookup updated to use `placementKey`
+- `DigiaSlot` and `DigiaHost` now handle render errors gracefully: collapse to `SizedBox.shrink()` in production, show an inline error box with console log in debug mode
 
 ## [1.0.0] - 2026-03-18
 
