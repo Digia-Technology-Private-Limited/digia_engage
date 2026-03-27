@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.1.0] - 2026-03-27
+
+### Changed
+
+- Improved payload handling: inline campaigns now use `type: inline` + `placementKey` instead of `command: SHOW_INLINE` + `placementId`
+- Payloads missing both `type` and `command` are now dropped with a warning instead of silently ignored
+- `DigiaSlot` lookup updated to use `placementKey`
+
 ## [1.0.0] - 2026-03-18
 
 ### Added
