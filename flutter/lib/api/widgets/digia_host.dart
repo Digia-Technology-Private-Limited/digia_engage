@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../../src/framework/ui_factory.dart';
@@ -120,22 +121,31 @@ class _DigiaHostState extends State<DigiaHost> {
         DigiaInstance.instance.navigator?.context ??
         context;
 
+    Widget safeView(BuildContext ctx) {
+      try {
+        return _buildView(ctx, viewId, args);
+      } catch (e, stack) {
+        debugPrint(
+            '[Digia] DigiaHost render error for "$viewId": $e\n$stack');
+        if (kDebugMode) {
+          return _DigiaModalError(viewId: viewId, error: e);
+        }
+        return const SizedBox.shrink();
+      }
+    }
+
     if (command == 'SHOW_BOTTOM_SHEET') {
-      DUIFactory()
-          .showBottomSheet(
-            navContext,
-            viewId,
-            args,
-            backgroundColor:
-                Theme.of(navContext).bottomSheetTheme.backgroundColor,
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
-            useSafeArea: true,
-          )
-          .then(fireAndDismiss);
+      presentBottomSheet(
+        context: navContext,
+        builder: safeView,
+        backgroundColor: Theme.of(navContext).bottomSheetTheme.backgroundColor,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+        useSafeArea: true,
+      ).then(fireAndDismiss);
     } else {
       presentDialog(
         context: navContext,
-        builder: (innerCtx) => _buildView(innerCtx, viewId, args),
+        builder: safeView,
         barrierDismissible: true,
       ).then(fireAndDismiss);
     }
@@ -160,6 +170,33 @@ Widget _buildView(
     return factory.createPage(viewId, args);
   }
   return factory.createComponent(viewId, args);
+}
+
+class _DigiaModalError extends StatelessWidget {
+  final String viewId;
+  final Object error;
+
+  const _DigiaModalError({required this.viewId, required this.error});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        border: Border.all(color: const Color(0xFFD32F2F)),
+        borderRadius: BorderRadius.circular(8),
+        color: const Color(0x1FD32F2F),
+      ),
+      padding: const EdgeInsets.all(12),
+      child: Text(
+        '[DigiaHost($viewId)] Render error:\n$error',
+        style: const TextStyle(
+          color: Color(0xFFD32F2F),
+          fontSize: 12,
+        ),
+      ),
+    );
+  }
 }
 
 Map<String, dynamic>? _toStringDynamicMap(Object? raw) {

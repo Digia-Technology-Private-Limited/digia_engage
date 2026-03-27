@@ -1,3 +1,4 @@
+[![pub.dev](https://img.shields.io/pub/v/digia_engage.svg)](https://pub.dev/packages/digia_engage)
 [![Flutter](https://img.shields.io/badge/Flutter-3.0+-blue.svg)](https://flutter.dev)
 [![License](https://img.shields.io/badge/license-BSL%201.1-green.svg)](LICENSE)
 [![Documentation](https://img.shields.io/badge/docs-digia.tech-blue.svg)](https://docs.digia.tech)
@@ -21,7 +22,7 @@
 
 ```yaml
 dependencies:
-  digia_engage: ^1.0.0
+  digia_engage: ^1.1.0
 ```
 
 ---
@@ -69,7 +70,7 @@ MaterialApp(
 
 ### 4. Add `DigiaSlot` where inline content should appear
 
-Place a slot anywhere in your page layout. Use the same placement key that was configured in Digia Studio.
+Place a slot anywhere in your page layout. Use the same `placementKey` that was configured in Digia Studio.
 
 ```dart
 Column(
@@ -79,6 +80,8 @@ Column(
   ],
 )
 ```
+
+> **1.1.0+** — Inline payloads must include `"type": "inline"` and `"placementKey": "<key>"`. Payloads missing both `type` and `command` are dropped with a warning.
 
 ---
 
@@ -214,7 +217,16 @@ This project is licensed under the Business Source License 1.1 (BSL 1.1) - see t
 
 For commercial licensing inquiries or exceptions, please contact admin@digia.tech.
 
+## Documentation
+
+Full documentation is available at [docs.digia.tech](https://docs.digia.tech):
+
+- [Digia Engage overview](https://docs.digia.tech/engagement/digia-engage) — SDK support matrix and how it works
+- [Flutter SDK guide](https://docs.digia.tech/engagement/digia-engage-flutter) — full installation and API reference
+- [MoEngage integration](https://docs.digia.tech/engagement/moengage-integration) — connect MoEngage self-handled in-app campaigns
+- [CleverTap integration](https://docs.digia.tech/engagement/clevertap-integration) — connect CleverTap In-App and Native Display
+
 ## Support
 
-- 📚 [Documentation](https://docs.digia.tech)
+- 📚 [Documentation](https://docs.digia.tech/engagement/digia-engage-flutter)
 - 📧 [Contact Support](mailto:admin@digia.tech)
