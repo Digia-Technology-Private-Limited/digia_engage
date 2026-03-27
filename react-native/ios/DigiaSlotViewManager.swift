@@ -12,6 +12,7 @@
  * - `placementKey` (String) — matches the placement key set in the Digia dashboard.
  */
 import SwiftUI
+import React
 import DigiaEngage
 
 @objc(DigiaSlotView)
@@ -36,7 +37,7 @@ final class DigiaSlotViewManager: RCTViewManager {
 /// Re-creates the SwiftUI view when placementKey changes.
 final class DigiaSlotUIView: UIView {
 
-    var placementKey: String = "" {
+    @objc var placementKey: String = "" {
         didSet {
             guard placementKey != oldValue else { return }
             remount()

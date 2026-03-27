@@ -26,12 +26,15 @@
  * CEP plugins (e.g. DigiaMoEngagePlugin) can report analytics.
  */
 import Foundation
+import React
 import DigiaEngage
 
 @objc(DigiaEngageModule)
 final class DigiaModule: RCTEventEmitter {
 
-    private lazy var rnPlugin = RNEventBridgePlugin(eventEmitter: self)
+    private lazy var rnPlugin: RNEventBridgePlugin = MainActor.assumeIsolated {
+        RNEventBridgePlugin(eventEmitter: self)
+    }
 
     // ────────────────────────────────────────────────────────────────────────
     // MARK: - RCTEventEmitter
@@ -119,13 +122,12 @@ final class DigiaModule: RCTEventEmitter {
         content contentMap: NSDictionary,
         cepContext cepContextMap: NSDictionary
     ) {
-        guard let delegate = rnPlugin.delegate else { return }
-
         let content = buildInAppPayloadContent(from: contentMap)
         let cepContext = (cepContextMap as? [String: String]) ?? [:]
         let payload = InAppPayload(id: id, content: content, cepContext: cepContext)
 
         Task { @MainActor in
+            guard let delegate = self.rnPlugin.delegate else { return }
             delegate.onCampaignTriggered(payload)
         }
     }
@@ -135,8 +137,8 @@ final class DigiaModule: RCTEventEmitter {
 
     @objc
     func invalidateCampaign(_ campaignId: String) {
-        guard let delegate = rnPlugin.delegate else { return }
         Task { @MainActor in
+            guard let delegate = self.rnPlugin.delegate else { return }
             delegate.onCampaignInvalidated(campaignId)
         }
     }
@@ -176,8 +178,8 @@ private extension JSONValue {
         switch rawValue {
         case let s as String:  self = .string(s)
         case let b as Bool:    self = .bool(b)
-        case let i as Int:     self = .number(Double(i))
-        case let d as Double:  self = .number(d)
+        case let i as Int:     self = .int(i)
+        case let d as Double:  self = .double(d)
         case let arr as [Any]:
             self = .array(arr.compactMap { JSONValue(rawValue: $0) })
         case let dict as [String: Any]:

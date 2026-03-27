@@ -16,10 +16,10 @@
  *    JS as DeviceEventEmitter events.
  */
 import Foundation
+import React
 import DigiaEngage
 
 @objc
-@MainActor
 internal final class RNEventBridgePlugin: NSObject, DigiaCEPPlugin {
 
     let identifier = "com.digia.rn.bridge"

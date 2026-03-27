@@ -20,7 +20,7 @@
 // RCT_EXTERN_MODULE wires the Swift class DigiaModule (which inherits
 // RCTEventEmitter) to the React Native bridge under the name "DigiaEngageModule".
 
-RCT_EXTERN_MODULE(DigiaEngageModule, RCTEventEmitter)
+@interface RCT_EXTERN_MODULE(DigiaEngageModule, RCTEventEmitter)
 
 RCT_EXTERN_METHOD(initialize:(NSString *)apiKey
                   environment:(NSString *)environment
@@ -38,11 +38,14 @@ RCT_EXTERN_METHOD(triggerCampaign:(NSString *)id
 
 RCT_EXTERN_METHOD(invalidateCampaign:(NSString *)campaignId)
 
+@end
+
 
 // ── ViewManagers ──────────────────────────────────────────────────────────────
 
-RCT_EXTERN_MODULE(DigiaHostView, RCTViewManager)
+@interface RCT_EXTERN_MODULE(DigiaHostView, RCTViewManager)
+@end
 
-RCT_EXTERN_MODULE(DigiaSlotView, RCTViewManager)
-
-RCT_EXTERN__EXPORT_VIEW_PROPERTY(placementKey, NSString)
+@interface RCT_EXTERN_MODULE(DigiaSlotView, RCTViewManager)
+RCT_EXPORT_VIEW_PROPERTY(placementKey, NSString)
+@end

@@ -11,6 +11,7 @@
  * Place <DigiaHostView> once at the root of your RN component tree.
  */
 import SwiftUI
+import React
 import DigiaEngage
 
 @objc(DigiaHostView)
@@ -53,6 +54,11 @@ final class DigiaHostUIView: UIView {
         let hc = UIHostingController(rootView: swiftUIView)
         hc.view.translatesAutoresizingMaskIntoConstraints = false
         hc.view.backgroundColor = .clear
+        // Disable touch interception so all taps pass through to React Native
+        // content below. The dialog/bottom-sheet overlays are presented as
+        // separate UIViewControllers (via ViewControllerUtil.present) so they
+        // independently capture touches when visible.
+        hc.view.isUserInteractionEnabled = false
 
         parentVC.addChild(hc)
         addSubview(hc.view)
@@ -90,6 +96,9 @@ private struct DigiaHostWrapperView: View {
         DigiaHost {
             EmptyView()
         }
-        .frame(width: 0, height: 0)   // zero-sized; overlays float above RN
+        // No frame constraint here — the view fills its parent (absoluteFill
+        // from JS). A non-zero frame is required so UIKit calls viewDidAppear
+        // on the UIHostingController, which in turn triggers SwiftUI onAppear
+        // and establishes the onChange(activePayload) subscription.
     }
 }
