@@ -24,9 +24,13 @@ Pod::Spec.new do |s|
   s.dependency 'React-Core'
 
   # ── Digia Engage iOS SDK ──────────────────────────────────────────────────
-  # Pulled from the GitHub Swift Package as a CocoaPods-compatible git source.
-  # Pin to the same version tag as the RN package itself.
-  s.dependency 'DigiaEngage'
+  # Published Swift Package: https://swiftpackageindex.com/Digia-Technology-Private-Limited/digia_engage_iOS
+  # Source: https://github.com/Digia-Technology-Private-Limited/digia_engage_iOS.git
+  #
+  # When integrating via CocoaPods, add the git source to your Podfile:
+  #   pod 'DigiaEngage', :git => 'https://github.com/Digia-Technology-Private-Limited/digia_engage_iOS.git',
+  #                       :tag => '1.0.0-beta.1'
+  s.dependency 'DigiaEngage', '1.0.0-beta.1'
 
   # ── New Architecture (Fabric / TurboModules) support ─────────────────────
   # install_modules_dependencies wires the pod into both Old Architecture
