@@ -6,10 +6,13 @@
  * The module is resolved lazily on first use (not at import time) so that
  * module evaluation before native initialisation doesn't throw.
  * Resolution order:
- *   1. TurboModuleRegistry.get()   — New Architecture / JSI path
- *   2. NativeModules               — bridge interop layer (RN 0.73+ New Arch
- *                                    with isTurboModule: false in ReactModuleInfo)
- *   3. null                        — non-Android environments; methods no-op
+ *   1. TurboModuleRegistry.get()   — New Architecture / JSI path.
+ *                                    On Android the module is a true TurboModule
+ *                                    (extends NativeDigiaEngageSpec); on iOS it is
+ *                                    wrapped via the interop layer.
+ *   2. NativeModules               — Old Architecture bridge path.
+ *   3. null                        — environments where the native module is
+ *                                    unavailable; methods no-op gracefully.
  *
  * Prefer using the high-level `Digia` singleton from `index.ts`.
  */
@@ -53,11 +56,11 @@ export interface Spec extends TurboModule {
 }
 
 // Try TurboModuleRegistry first (New Architecture / JSI).
-// Fall back to NativeModules (bridge interop layer — enabled by default in
-// RN 0.73+ New Architecture when the module is registered with
-// isTurboModule: false in ReactModuleInfo).
-// If neither resolves, warn in DEV and use no-op stubs so non-Android
-// environments (web, Storybook) don't crash.
+//   Android: true TurboModule when host has newArchEnabled=true.
+//   iOS:     interop-wrapped TurboModule on New Arch.
+// Fall back to NativeModules (Old Architecture bridge path).
+// If neither resolves, warn in DEV and use no-op stubs so environments
+// without the native module (web, Storybook) don't crash.
 let _resolved: Spec | null = null;
 function getModule(): Spec | null {
     if (_resolved !== null) return _resolved;

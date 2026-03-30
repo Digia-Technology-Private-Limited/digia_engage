@@ -4,6 +4,16 @@
  * ObjC bridge file that exports Swift implementations to the React Native
  * runtime (both Old Architecture bridge and New Architecture TurboModules).
  *
+ * Hybrid strategy (iOS):
+ * ──────────────────────
+ * • New Architecture: The module is automatically wrapped as a TurboModule
+ *   through React Native's interop layer.  install_modules_dependencies()
+ *   in the podspec links the New Architecture infrastructure, and RN wraps
+ *   the RCTEventEmitter-based Swift class for JSI access.
+ *
+ * • Old Architecture: The module is resolved via the classic bridge using
+ *   the RCT_EXTERN_MODULE / RCT_EXTERN_METHOD macros below.
+ *
  * All real logic lives in the Swift files alongside this one:
  *   DigiaModule.swift           — NativeModule (RCTEventEmitter subclass)
  *   RNEventBridgePlugin.swift   — DigiaCEPPlugin bridge
@@ -14,6 +24,10 @@
 #import <React/RCTBridgeModule.h>
 #import <React/RCTEventEmitter.h>
 #import <React/RCTViewManager.h>
+
+#ifdef RCT_NEW_ARCH_ENABLED
+#import <DigiaEngageSpec/DigiaEngageSpec.h>
+#endif
 
 // ── NativeModule ──────────────────────────────────────────────────────────────
 
