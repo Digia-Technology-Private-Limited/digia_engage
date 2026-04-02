@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.1.1] - 2026-04-02
+
+### Changed
+
+- Fixed FontAwesomeFlutter to 10.8.0
+
 ## [1.1.0] - 2026-03-27
 
 ### Changed
