@@ -6,7 +6,7 @@ Core Digia Engage SDK repository — server-driven in-app experiences for mobile
 
 | Platform | Directory | Version | Registry | Docs |
 |---|---|---|---|---|
-| Flutter | [`flutter/`](flutter/) | 1.1.0 | [pub.dev](https://pub.dev/packages/digia_engage) | [Flutter SDK guide](https://docs.digia.tech/engagement/digia-engage-flutter) |
+| Flutter | [`flutter/`](flutter/) | 1.1.1 | [pub.dev](https://pub.dev/packages/digia_engage) | [Flutter SDK guide](https://docs.digia.tech/engagement/digia-engage-flutter) |
 | iOS | [`iOS/`](iOS/) (submodule → [digia_engage_iOS](https://github.com/Digia-Technology-Private-Limited/digia_engage_iOS)) | Beta | [Swift Package Index](https://swiftpackageindex.com/Digia-Technology-Private-Limited/digia_engage_iOS) | — |
 | Android | [`android/`](android/) | 1.0.0-beta.03 | [Maven Central](https://central.sonatype.com/artifact/tech.digia/engage) | [Android SDK guide](https://docs.digia.tech/engagement/digia-engage-android) |
 | React Native | [`react-native/`](react-native/) | Beta | [npm](https://www.npmjs.com/package/@digia-engage/core) | — |
