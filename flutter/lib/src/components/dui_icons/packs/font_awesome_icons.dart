@@ -4690,7 +4690,7 @@ Map<String, IconData> fontAwesomeIcons = {
   /// Solid Handshake simple slash icon
   ///
   /// https://fontawesome.com/icons/handshake-simple-slash?style=solid
-  'handshakeSimpleSlash': FontAwesomeIcons.handshakeSimpleSlash,
+  'handshakeSimpleSlash': FontAwesomeIcons.handshakeSlash,
 
   /// Solid Handshake Slash icon
   ///
@@ -4770,7 +4770,7 @@ Map<String, IconData> fontAwesomeIcons = {
   /// Solid Headphones simple icon
   ///
   /// https://fontawesome.com/icons/headphones-simple?style=solid
-  'headphonesSimple': FontAwesomeIcons.headphonesSimple,
+  'headphonesSimple': FontAwesomeIcons.headphones,
 
   /// Solid Headset icon
   ///
@@ -9403,12 +9403,12 @@ Map<String, IconData> fontAwesomeIcons = {
   /// Solid User large icon
   ///
   /// https://fontawesome.com/icons/user-large?style=solid
-  'userLarge': FontAwesomeIcons.userLarge,
+  'userLarge': FontAwesomeIcons.user,
 
   /// Solid User large slash icon
   ///
   /// https://fontawesome.com/icons/user-large-slash?style=solid
-  'userLargeSlash': FontAwesomeIcons.userLargeSlash,
+  'userLargeSlash': FontAwesomeIcons.userSlash,
 
   /// Solid User Lock icon
   ///
