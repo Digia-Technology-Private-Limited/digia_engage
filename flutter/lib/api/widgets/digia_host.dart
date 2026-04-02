@@ -125,8 +125,7 @@ class _DigiaHostState extends State<DigiaHost> {
       try {
         return _buildView(ctx, viewId, args);
       } catch (e, stack) {
-        debugPrint(
-            '[Digia] DigiaHost render error for "$viewId": $e\n$stack');
+        debugPrint('[Digia] DigiaHost render error for "$viewId": $e\n$stack');
         if (kDebugMode) {
           return _DigiaModalError(viewId: viewId, error: e);
         }

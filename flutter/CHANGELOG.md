@@ -4,7 +4,7 @@
 
 ### Changed
 
-- Fixed FontAwesomeFlutter to 10.8.0
+- Fixed FontAwesomeFlutter issues
 
 ## [1.1.0] - 2026-03-27
 

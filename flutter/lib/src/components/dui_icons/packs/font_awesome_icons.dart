@@ -4687,11 +4687,6 @@ Map<String, IconData> fontAwesomeIcons = {
   /// https://fontawesome.com/icons/handshake-angle?style=solid
   'handshakeAngle': FontAwesomeIcons.handshakeAngle,
 
-  /// Solid Handshake simple icon
-  ///
-  /// https://fontawesome.com/icons/handshake-simple?style=solid
-  'handshakeSimple': FontAwesomeIcons.handshakeSimple,
-
   /// Solid Handshake simple slash icon
   ///
   /// https://fontawesome.com/icons/handshake-simple-slash?style=solid
@@ -9549,11 +9544,6 @@ Map<String, IconData> fontAwesomeIcons = {
   ///
   /// https://fontawesome.com/icons/vault?style=solid
   'vault': FontAwesomeIcons.vault,
-
-  /// Solid Vector Square icon
-  ///
-  /// https://fontawesome.com/icons/vector-square?style=solid
-  'vectorSquare': FontAwesomeIcons.vectorSquare,
 
   /// Solid Venus icon
   ///
