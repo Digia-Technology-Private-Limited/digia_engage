@@ -1,6 +1,6 @@
 {
   "name": "@digia-engage/core",
-  "version": "1.0.0-beta.5",
+  "version": "1.0.0-beta.6",
   "description": "React Native bridge for Digia Engage – renders native Android Compose UI inside React Native apps",
   "main": "lib/commonjs/index",
   "module": "lib/module/index",
@@ -31,7 +31,7 @@
   ],
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "lint": "eslint \"**/*.{js,ts,tsx}\"",
+    "lint": "eslint \"src/**/*.{js,ts,tsx}\"",
     "build": "bob build",
     "prepare": "bob build"
   },

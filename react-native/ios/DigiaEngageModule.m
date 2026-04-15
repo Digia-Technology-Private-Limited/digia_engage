@@ -32,6 +32,8 @@ RCT_EXTERN_METHOD(registerBridge)
 
 RCT_EXTERN_METHOD(setCurrentScreen:(NSString *)name)
 
+RCT_EXTERN_METHOD(createInitialPage)
+
 RCT_EXTERN_METHOD(triggerCampaign:(NSString *)id
                   content:(NSDictionary *)content
                   cepContext:(NSDictionary *)cepContext)
@@ -48,4 +50,5 @@ RCT_EXTERN_METHOD(invalidateCampaign:(NSString *)campaignId)
 
 @interface RCT_EXTERN_MODULE(DigiaSlotView, RCTViewManager)
 RCT_EXPORT_VIEW_PROPERTY(placementKey, NSString)
+RCT_EXPORT_VIEW_PROPERTY(onContentSizeChange, RCTDirectEventBlock)
 @end

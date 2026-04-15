@@ -109,7 +109,7 @@ class VWFlex(
                                 it.verticalScroll(rememberScrollState())
                             else it
                         },
-                    verticalArrangement = toMainAxisAlignmentVertical(props.mainAxisAlignment),
+                    verticalArrangement = columnMainAxisArrangement(),
                     horizontalAlignment = toHorizontalAlignment(props.crossAxisAlignment)
                 ) {
                     dataItems.forEachIndexed { index, item ->
@@ -128,7 +128,7 @@ class VWFlex(
                                 it.horizontalScroll(rememberScrollState())
                             else it
                         },
-                    horizontalArrangement = toMainAxisAlignmentHorizontal(props.mainAxisAlignment),
+                    horizontalArrangement = rowMainAxisArrangement(),
                     verticalAlignment = toVerticalAlignment(props.crossAxisAlignment)
                 ) {
                     dataItems.forEachIndexed { index, item ->
@@ -154,7 +154,7 @@ class VWFlex(
                             it.verticalScroll(rememberScrollState())
                         else it
                     },
-                    verticalArrangement = toMainAxisAlignmentVertical(props.mainAxisAlignment),
+                    verticalArrangement = columnMainAxisArrangement(),
                     horizontalAlignment = toHorizontalAlignment(props.crossAxisAlignment)
                 ) {
                     // Inside ColumnScope - Modifier.weight() is available
@@ -186,7 +186,7 @@ class VWFlex(
                             it.horizontalScroll(rememberScrollState())
                         else it
                     },
-                    horizontalArrangement = toMainAxisAlignmentHorizontal(props.mainAxisAlignment),
+                    horizontalArrangement = rowMainAxisArrangement(),
                     verticalAlignment = toVerticalAlignment(props.crossAxisAlignment)
                 ) {
                     // Inside RowScope - Modifier.weight() is available
@@ -254,6 +254,18 @@ class VWFlex(
             .buildModifier(payload)
     }
 
+    private fun columnMainAxisArrangement(): Arrangement.Vertical {
+        val spacing = props.spacing ?: 0.0
+        return if (spacing > 0.0) Arrangement.spacedBy(spacing.dp)
+        else toMainAxisAlignmentVertical(props.mainAxisAlignment)
+    }
+
+    private fun rowMainAxisArrangement(): Arrangement.Horizontal {
+        val spacing = props.spacing ?: 0.0
+        return if (spacing > 0.0) Arrangement.spacedBy(spacing.dp)
+        else toMainAxisAlignmentHorizontal(props.mainAxisAlignment)
+    }
+
     private fun toMainAxisAlignmentVertical(value: String?): Arrangement.Vertical {
         return when (value) {
             "start" -> Arrangement.Top
@@ -290,8 +302,8 @@ class VWFlex(
 
     private fun toVerticalAlignment(value: String?): Alignment.Vertical {
         return when (value) {
-            "top" -> Alignment.Top
-            "bottom" -> Alignment.Bottom
+            "top", "start" -> Alignment.Top
+            "bottom", "end" -> Alignment.Bottom
             "center" -> Alignment.CenterVertically
             else -> Alignment.CenterVertically
         }

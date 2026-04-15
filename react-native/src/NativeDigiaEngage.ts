@@ -50,6 +50,13 @@ export interface Spec extends TurboModule {
 
     /** Invalidate / dismiss a campaign by its ID. */
     invalidateCampaign(campaignId: string): void;
+
+    /**
+     * Presents full-screen Digia SDUI for the project initial route. Prefer
+     * {@link Digia.createInitialPage} from app code.
+     * Android: [DigiaUINavigationActivity]; iOS: modal Digia navigation host.
+     */
+    createInitialPage(): void;
 }
 
 // Try TurboModuleRegistry first (New Architecture / JSI).
@@ -82,5 +89,6 @@ export const nativeDigiaModule: Spec = {
     triggerCampaign: (id, content, cepContext) =>
         getModule()?.triggerCampaign(id, content, cepContext),
     invalidateCampaign: (campaignId) => getModule()?.invalidateCampaign(campaignId),
+    createInitialPage: () => getModule()?.createInitialPage?.(),
     getConstants: () => getModule()?.getConstants?.() ?? {},
 };

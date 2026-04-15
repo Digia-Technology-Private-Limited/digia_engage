@@ -158,10 +158,9 @@ const navRef = useNavigationContainerRef();
 >
 ```
 
-### 3 – Open the Digia UI navigation flow (Android)
+### 3 – Open the Digia UI navigation flow
 
-Launch the full-screen Compose navigation activity managed by the Digia DSL
-configuration:
+Launch the full-screen native SDUI stack:
 
 ```tsx
 import { Digia } from '@digia/engage-react-native';
@@ -170,12 +169,7 @@ function MyScreen() {
   return (
     <Button
       title="Open Digia Experience"
-      onPress={() =>
-        Digia.openNavigation({
-          startPageId: 'onboarding',
-          pageArgs: { userId: '123' },
-        })
-      }
+      onPress={() => Digia.createInitialPage()}
     />
   );
 }
@@ -216,7 +210,7 @@ const styles = StyleSheet.create({ root: { flex: 1 } });
 |---|---|---|
 | `initialize` | `(config: DigiaConfig) => Promise<void>` | Initialise the SDK and mount the Compose overlay host. |
 | `setCurrentScreen` | `(name: string) => void` | Notify the SDK of the current screen. |
-| `openNavigation` | `(options?: DigiaNavigationOptions) => void` | Launch the full-screen Digia UI navigation activity. |
+| `createInitialPage` | `() => void` | Full-screen Digia SDUI (Android: `DigiaUINavigationActivity`; iOS: modal `DigiaNavigationView`). |
 
 ### `DigiaConfig`
 
@@ -226,12 +220,9 @@ const styles = StyleSheet.create({ root: { flex: 1 } });
 | `environment` | `'production' \| 'sandbox'` | `'production'` | Target environment. |
 | `logLevel` | `'none' \| 'error' \| 'verbose'` | `'error'` | Log verbosity. |
 
-### `DigiaNavigationOptions`
+### `CreateInitialPageOptions`
 
-| Prop | Type | Description |
-|---|---|---|
-| `startPageId` | `string?` | DSL page ID to start from. |
-| `pageArgs` | `Record<string, string>?` | Key/value args forwarded to the start page. |
+Empty interface — reserved for future optional arguments.
 
 ### `<DigiaHostView>`
 
@@ -251,14 +242,14 @@ react-native/
 │   ├── index.ts                  ← Public API exports
 │   ├── types.ts                  ← TypeScript interfaces
 │   ├── Digia.ts                  ← High-level JS SDK wrapper
-│   ├── NativeDigiaModule.ts      ← Low-level native module binding
+│   ├── NativeDigiaEngage.ts      ← Low-level native module binding
 │   └── DigiaHostView.tsx         ← <DigiaHostView> React component
 │
 ├── android/
 │   ├── build.gradle              ← Android library build config
 │   └── src/main/java/com/digia/engage/rn/
 │       ├── DigiaPackage.kt       ← ReactPackage (registers module + view)
-│       ├── DigiaModule.kt        ← NativeModule (initialize, setCurrentScreen, openNavigation)
+│       ├── DigiaModule.kt        ← NativeModule (initialize, setCurrentScreen, createInitialPage)
 │       ├── DigiaViewManager.kt   ← ViewManager for <DigiaHostView>
 │       └── DigiaHostComposeView.kt ← AbstractComposeView hosting DigiaHost { }
 │

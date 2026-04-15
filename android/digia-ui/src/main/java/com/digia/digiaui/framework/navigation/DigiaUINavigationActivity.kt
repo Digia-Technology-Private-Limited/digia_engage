@@ -8,11 +8,18 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContract
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
+import androidx.compose.ui.Modifier
 import com.digia.digiaui.framework.DUIFactory
 import com.digia.digiaui.framework.actions.ActionExecutor
 import com.digia.digiaui.framework.actions.ActionProvider
+import com.digia.digiaui.framework.bottomsheet.BottomSheetHost
+import com.digia.digiaui.framework.dialog.DialogHost
+import com.digia.digiaui.init.DigiaUIManager
 
 /**
  * DigiaUINavigationActivity - SDK Activity for hosting Digia UI navigation
@@ -68,7 +75,6 @@ class DigiaUINavigationActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // Extract navigation parameters from intent
         val startPageId = intent.getStringExtra(EXTRA_START_PAGE_ID)
         @Suppress("UNCHECKED_CAST")
         val pageArgs = intent.getSerializableExtra(EXTRA_PAGE_ARGS) as? Map<String, Any?>
@@ -79,7 +85,6 @@ class DigiaUINavigationActivity : ComponentActivity() {
                     startPageId = startPageId,
                     pageArgs = pageArgs,
                     onNavigationComplete = { result ->
-                        // Return result to host app
                         val resultIntent = Intent().apply {
                             result?.let { putExtra(EXTRA_RESULT_DATA, HashMap(it)) }
                         }
@@ -89,12 +94,6 @@ class DigiaUINavigationActivity : ComponentActivity() {
                 )
             }
         }
-    }
-
-    override fun onBackPressed() {
-        // Let DUINavHost handle back navigation first
-        // If it can't handle it, finish the activity
-        super.onBackPressed()
     }
 }
 
@@ -110,19 +109,37 @@ private fun DigiaUINavigationContent(
     onNavigationComplete: (Map<String, Any?>?) -> Unit
 ) {
     val factory = DUIFactory.getInstance()
+    val digiaUiManager = remember { DigiaUIManager.getInstance() }
 
-    ActionProvider(
-        actionExecutor = ActionExecutor()
-    ) {
-        ResourceProvider(
-            resources = factory.getResources(),
-            apiModels = factory.getConfigProvider().getAllApiModels()
+    Box(modifier = Modifier.fillMaxSize()) {
+        ActionProvider(
+            actionExecutor = ActionExecutor()
         ) {
-            DUINavHost(
-                configProvider = factory.getConfigProvider(),
-                startPageId = startPageId ?: factory.getConfigProvider().getInitialRoute(),
-                startPageArgs = pageArgs,
-                registry = factory.getWidgetRegistry()
+            ResourceProvider(
+                resources = factory.getResources(),
+                apiModels = factory.getConfigProvider().getAllApiModels()
+            ) {
+                DUINavHost(
+                    configProvider = factory.getConfigProvider(),
+                    startPageId = startPageId ?: factory.getConfigProvider().getInitialRoute(),
+                    startPageArgs = pageArgs,
+                    registry = factory.getWidgetRegistry()
+                )
+            }
+        }
+
+        digiaUiManager.dialogManager?.let { manager ->
+            DialogHost(
+                dialogManager = manager,
+                registry = factory.getRegistry(),
+                resources = factory.getResources(),
+            )
+        }
+
+        digiaUiManager.bottomSheetManager?.let { manager ->
+            BottomSheetHost(
+                bottomSheetManager = manager,
+                resources = factory.getResources(),
             )
         }
     }

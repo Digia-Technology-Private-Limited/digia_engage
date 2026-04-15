@@ -10,6 +10,13 @@ Pod::Spec.new do |s|
 
   s.license          = { :type => 'MIT', :file => '../LICENSE' }
 
+  s.authors          = { 'Digia Technology Private Limited' => 'https://digia.tech' }
+  s.homepage         = 'https://github.com/Digia-Technology-Private-Limited/digia_engage'
+  s.source           = {
+    :git => 'https://github.com/Digia-Technology-Private-Limited/digia_engage.git',
+    :tag => "react-native-v#{s.version}"
+  }
+
   # DigiaEngage iOS SDK requires iOS 16+ (SwiftUI features used internally).
   s.ios.deployment_target = '16.0'
 

@@ -1,18 +1,13 @@
 import 'package:digia_engage/digia_engage.dart';
+import 'package:digia_engage/digia_ui.dart';
 import 'package:flutter/material.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   await Digia.initialize(
-    DigiaConfig(
-      apiKey: 'YOUR_DIGIA_API_KEY',
-      flavor: Flavor.debug(),
-    ),
+    DigiaConfig(apiKey: '69d3dc5e4d3eed4271b8c259'),
   );
-
-  // Register your CEP plugin (e.g. MoEngage, CleverTap) when ready.
-  // Digia.register(MyCEPPlugin());
 
   runApp(const ExampleApp());
 }
@@ -26,31 +21,7 @@ class ExampleApp extends StatelessWidget {
       title: 'digia_engage Example',
       navigatorObservers: [DigiaNavigatorObserver()],
       builder: (context, child) => DigiaHost(child: child!),
-      home: const HomeScreen(),
-    );
-  }
-}
-
-class HomeScreen extends StatelessWidget {
-  const HomeScreen({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('digia_engage Example')),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
-        children: const [
-          Text(
-            'Inline campaign slots — add placement keys from Digia Studio',
-            style: TextStyle(fontSize: 16),
-          ),
-          SizedBox(height: 16),
-          DigiaSlot('hero_banner'),
-          SizedBox(height: 16),
-          DigiaSlot('mid_banner'),
-        ],
-      ),
+      home: DUIFactory().createInitialPage(),
     );
   }
 }

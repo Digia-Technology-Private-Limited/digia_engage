@@ -87,6 +87,14 @@ class DigiaClass implements DigiaDelegate {
         this._plugins.forEach((plugin) => plugin.forwardScreen(name));
     }
 
+    /**
+     * Presents full-screen native Digia SDUI for the project initial route
+     * (AppConfig initial route on native).
+     */
+    createInitialPage(): void {
+        nativeDigiaModule.createInitialPage();
+    }
+
     // ── DigiaDelegate ────────────────────────────────────────────────────────
     // Mirrors DigiaCEPDelegate on Android.
     // Forwards to the native DigiaCEPDelegate via the bridge.

@@ -1,7 +1,6 @@
 import 'package:digia_expr/digia_expr.dart';
 import 'package:digia_inspector_core/digia_inspector_core.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/widgets.dart';
 
 import '../config/app_state/app_state_scope_context.dart';
 import '../config/app_state/global_state.dart';
@@ -655,12 +654,14 @@ class DUIFactory {
   /// - [context]: BuildContext for showing the bottom sheet
   /// - [viewId]: ID of the view to display in the bottom sheet
   /// - [args]: Arguments to pass to the view
-  /// - [scrollControlDisabledMaxHeightRatio]: Maximum height ratio when scroll is disabled
+  /// - [scrollControlDisabledMaxHeightRatio]: Max height as a fraction of screen
+  ///   height (same idea as [ModalBottomSheetRoute.scrollControlDisabledMaxHeightRatio];
+  ///   applied in the host). The host does not add scrolling; put scrollable widgets
+  ///   in the component if content may exceed the cap.
   /// - [backgroundColor]: Background color of the bottom sheet
   /// - [barrierColor]: Color of the barrier behind the bottom sheet
   /// - [border]: Border styling for the bottom sheet
   /// - [borderRadius]: Border radius for the bottom sheet corners
-  /// - [iconBuilder]: Optional builder for custom close icon
   /// - [useSafeArea]: Whether to respect device safe areas
   /// - [navigatorKey]: Custom navigator key
   ///
@@ -681,12 +682,11 @@ class DUIFactory {
     BuildContext context,
     String viewId,
     JsonLike? args, {
-    double scrollControlDisabledMaxHeightRatio = 1,
+    double scrollControlDisabledMaxHeightRatio = 9.0 / 16.0,
     Color? backgroundColor,
     Color? barrierColor,
     BoxBorder? border,
     BorderRadius? borderRadius,
-    WidgetBuilder? iconBuilder,
     bool useSafeArea = true,
     GlobalKey<NavigatorState>? navigatorKey,
   }) {
@@ -699,7 +699,6 @@ class DUIFactory {
       border: border,
       borderRadius: borderRadius,
       useSafeArea: useSafeArea,
-      iconBuilder: iconBuilder,
       navigatorKey: navigatorKey,
     );
   }

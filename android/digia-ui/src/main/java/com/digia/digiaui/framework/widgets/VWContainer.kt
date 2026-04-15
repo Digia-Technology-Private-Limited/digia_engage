@@ -279,9 +279,67 @@ class VWContainer(
         /* ==========================================================
          * 9️⃣ Render
          * ========================================================== */
-        Box(modifier = modifier, contentAlignment = alignment) { child?.ToWidget(payload) }
+        val shouldExpandWidthToBounds =
+                child == null &&
+                        containerProps.width == null &&
+                        containerProps.minWidth == null &&
+                        containerProps.maxWidth == null &&
+                        containerProps.providesOwnSurface()
+        val shouldExpandHeightToBounds =
+                child == null &&
+                        containerProps.height == null &&
+                        containerProps.minHeight == null &&
+                        containerProps.maxHeight == null &&
+                        containerProps.providesOwnSurface()
+
+        val finalModifier =
+                if (child == null) {
+                    modifier.expandToBoundedConstraints(
+                            expandWidth = shouldExpandWidthToBounds,
+                            expandHeight = shouldExpandHeightToBounds
+                    )
+                } else {
+                    modifier
+                }
+
+        Box(modifier = finalModifier, contentAlignment = alignment) { child?.ToWidget(payload) }
     }
 }
+
+/** Mirrors DialogManager / iOS: background, border, shadow, etc. */
+private fun ContainerProps.providesOwnSurface(): Boolean {
+    if (color != null) return true
+    if (gradient?.colorList?.isNotEmpty() == true) return true
+    if ((border?.borderWidth ?: 0.0) > 0.0) return true
+    if (!shadow.isNullOrEmpty()) return true
+    if ((elevation ?: 0.0) > 0.0) return true
+    if (decorationImage != null) return true
+    return false
+}
+
+private fun Modifier.expandToBoundedConstraints(
+        expandWidth: Boolean,
+        expandHeight: Boolean
+): Modifier =
+        this.layout { measurable, constraints ->
+            val placeable = measurable.measure(constraints)
+
+            val width =
+                    if (expandWidth && constraints.hasBoundedWidth) {
+                        constraints.maxWidth
+                    } else {
+                        placeable.width.coerceAtLeast(constraints.minWidth)
+                    }
+
+            val height =
+                    if (expandHeight && constraints.hasBoundedHeight) {
+                        constraints.maxHeight
+                    } else {
+                        placeable.height.coerceAtLeast(constraints.minHeight)
+                    }
+
+            layout(width, height) { placeable.place(0, 0) }
+        }
 
 // Helper extension functions for percentage constraints
 private fun Modifier.fillMinWidth(fraction: Float): Modifier {

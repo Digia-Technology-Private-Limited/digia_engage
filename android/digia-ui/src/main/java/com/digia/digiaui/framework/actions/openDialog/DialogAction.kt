@@ -12,7 +12,7 @@ import com.digia.digiaui.framework.expr.ScopeContext
 import com.digia.digiaui.framework.models.ExprOr
 import com.digia.digiaui.framework.state.StateContext
 import com.digia.digiaui.framework.utils.JsonLike
-import kotlinx.coroutines.launch
+import com.digia.digiaui.utils.asSafe
 import resourceColor
 
 /**
@@ -26,6 +26,7 @@ data class ShowDialogAction(
     val viewData: ExprOr<JsonLike>?,
     val barrierDismissible: ExprOr<Boolean>?,
     val barrierColor: ExprOr<String>?,
+    val style: JsonLike?,
     val waitForResult: Boolean = false,
     val onResult: ActionFlow?
 ) : Action {
@@ -37,6 +38,7 @@ data class ShowDialogAction(
             "viewData" to viewData?.toJson(),
             "barrierDismissible" to barrierDismissible?.toJson(),
             "barrierColor" to barrierColor?.toJson(),
+            "style" to style,
             "waitForResult" to waitForResult,
             "onResult" to onResult?.toJson()
         )
@@ -47,9 +49,17 @@ data class ShowDialogAction(
                 viewData = ExprOr.fromJson<JsonLike>(json["viewData"]),
                 barrierDismissible = ExprOr.fromJson<Boolean>(json["barrierDismissible"]),
                 barrierColor = ExprOr.fromJson<String>(json["barrierColor"]),
+                style = toJsonLike(json["style"]),
                 waitForResult = json["waitForResult"] as? Boolean ?: false,
-                onResult = (json["onResult"] as? JsonLike)?.let { ActionFlow.fromJson(it) }
+                onResult = toJsonLike(json["onResult"])?.let { ActionFlow.fromJson(it) }
             )
+        }
+
+        private fun toJsonLike(value: Any?): JsonLike? {
+            val map = value as? Map<*, *> ?: return null
+            return map.entries
+                .mapNotNull { (k, v) -> (k as? String)?.let { it to v } }
+                .toMap()
         }
     }
 }
@@ -64,39 +74,28 @@ class ShowDialogProcessor : ActionProcessor<ShowDialogAction>() {
         resourcesProvider: UIResources?,
         id: String
     ): Any? {
-        // Evaluate viewData to get component/view ID and arguments
-        val viewData = action.viewData?.evaluate<JsonLike>(scopeContext)
-        if (viewData == null) {
-            android.util.Log.e("ShowDialog", "viewData is null")
-            return null
-        }
-
+        val viewData = asSafe<JsonLike>(action.viewData?.deepEvaluate(scopeContext)) ?: return null
         val componentId = viewData["id"] as? String
-        if (componentId.isNullOrEmpty()) {
-            android.util.Log.e("ShowDialog", "componentId is empty")
-            return null
-        }
+        if (componentId.isNullOrEmpty()) return null
 
         val args = viewData["args"] as? JsonLike
 
-        // Evaluate dialog properties
         val barrierDismissible = action.barrierDismissible?.evaluate(scopeContext) ?: true
-        val barrierColorStr = action.barrierColor?.evaluate<String>(scopeContext)
+        val style: JsonLike = action.style ?: emptyMap()
+        val barrierColorStr =
+            ExprOr.fromJson<String>(style["barrierColor"])?.evaluate(scopeContext)
+                ?: action.barrierColor?.evaluate<String>(scopeContext)
 
-        // Get the dialog manager from DigiaUIManager
         val dialogManager = com.digia.digiaui.init.DigiaUIManager.getInstance().dialogManager
+            ?: return null
 
-        // Show the dialog
-        dialogManager?.show(
+        dialogManager.show(
             componentId = componentId,
             args = args,
             barrierDismissible = barrierDismissible,
             barrierColor = barrierColorStr ?.let { token -> resourceColor(token, resourcesProvider) },
             onDismiss = { result ->
-                // Handle result if waitForResult is true
                 if (action.waitForResult && action.onResult != null) {
-                    // Execute onResult callback with the result
-//                    kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Main).launch {
                         val resultContext = com.digia.digiaui.framework.expr.DefaultScopeContext(
                             variables = mapOf("result" to result),
                             enclosing = scopeContext
@@ -108,7 +107,6 @@ class ShowDialogProcessor : ActionProcessor<ShowDialogAction>() {
                             stateContext = stateContext,
                             resourcesProvider = resourcesProvider
                         )
-//                    }
                 }
             }
         )

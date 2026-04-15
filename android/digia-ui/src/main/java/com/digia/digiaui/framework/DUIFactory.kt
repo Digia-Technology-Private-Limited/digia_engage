@@ -54,7 +54,8 @@ enum class UIActionType {
     CLOSE_DIALOG
 }
 
-internal class DUIFactory private constructor() {
+/** Public factory for Digia server-driven UI (Flutter / iOS parity). */
+public class DUIFactory private constructor() {
 
     private lateinit var configProvider: ConfigProvider
     private lateinit var widgetRegistry: DefaultVirtualWidgetRegistry
@@ -652,7 +653,8 @@ internal class DUIFactory private constructor() {
          *
          * @return The DUIFactory singleton instance
          */
-        fun getInstance(): DUIFactory {
+        @JvmStatic
+        public fun getInstance(): DUIFactory {
             return instance
                     ?: synchronized(this) { instance ?: DUIFactory().also { instance = it } }
         }

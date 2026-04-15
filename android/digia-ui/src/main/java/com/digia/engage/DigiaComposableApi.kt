@@ -6,7 +6,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import com.digia.digiaui.framework.DUIFactory
 import com.digia.digiaui.framework.UIActionType
@@ -16,28 +18,44 @@ import com.digia.digiaui.init.DigiaUIManager
 import com.digia.engage.internal.DigiaInstance
 
 @Composable
+fun DigiaInitialPage() {
+    val isRenderEngineReady by DigiaInstance.isRenderEngineReady.collectAsState()
+    if (!isRenderEngineReady) return
+
+    remember { DUIFactory.getInstance() }.CreateInitialPage()
+}
+
+@Composable
 fun DigiaHost(content: @Composable () -> Unit) {
     val isUiReady by DigiaInstance.isUiReady.collectAsState()
     val activePayload by DigiaInstance.controller.activePayload.collectAsState()
     val digiaUiManager = remember { DigiaUIManager.getInstance() }
     val duiFactory = remember { DUIFactory.getInstance() }
 
-    LaunchedEffect(isUiReady) {
-        if (isUiReady) {
-            DigiaInstance.ensureRenderEngineInitialized()
-        }
+    if (isUiReady) {
+        DigiaInstance.ensureRenderEngineInitialized()
     }
+    val isRenderEngineReady by DigiaInstance.isRenderEngineReady.collectAsState()
 
+    var previousOverlayPayloadId by remember { mutableStateOf<String?>(null) }
     LaunchedEffect(activePayload?.id, isUiReady) {
         if (!isUiReady) return@LaunchedEffect
+        val currentId = activePayload?.id
+        if (previousOverlayPayloadId != null && currentId == null) {
+            digiaUiManager.dialogManager?.dismiss()
+            digiaUiManager.bottomSheetManager?.dismiss()
+        }
         when (val payload = activePayload) {
-            null -> {
-                digiaUiManager.dialogManager?.dismiss()
-                digiaUiManager.bottomSheetManager?.dismiss()
-            }
+            null -> Unit
             else -> {
-                val actionType = resolveActionType(payload) ?: return@LaunchedEffect
-                val viewId = payload.content["viewId"] as? String ?: return@LaunchedEffect
+                val actionType = resolveActionType(payload) ?: run {
+                    previousOverlayPayloadId = currentId
+                    return@LaunchedEffect
+                }
+                val viewId = payload.content["viewId"] as? String ?: run {
+                    previousOverlayPayloadId = currentId
+                    return@LaunchedEffect
+                }
                 val args = payload.content["args"].toStringAnyMap()
 
                 when (actionType) {
@@ -58,12 +76,15 @@ fun DigiaHost(content: @Composable () -> Unit) {
                 DigiaInstance.reportOverlayImpression(payload)
             }
         }
+        previousOverlayPayloadId = currentId
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
-        content()
+        if (isUiReady && isRenderEngineReady) {
+            content()
+        }
 
-        if (isUiReady) {
+        if (isRenderEngineReady) {
             digiaUiManager.dialogManager?.let { manager ->
                 DialogHost(
                         dialogManager = manager,

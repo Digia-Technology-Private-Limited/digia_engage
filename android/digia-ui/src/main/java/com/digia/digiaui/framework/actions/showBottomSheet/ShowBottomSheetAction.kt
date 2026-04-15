@@ -12,8 +12,6 @@ import com.digia.digiaui.framework.state.StateContext
 import com.digia.digiaui.framework.utils.JsonLike
 import com.digia.digiaui.framework.utils.NumUtil
 import com.digia.digiaui.utils.asSafe
-import kotlinx.coroutines.launch
-
 
 /**
  * ShowBottomSheet Action
@@ -69,37 +67,26 @@ class ShowBottomSheetProcessor : ActionProcessor<ShowBottomSheetAction>() {
         resourcesProvider: com.digia.digiaui.framework.UIResources?,
         id: String
     ): Any? {
-        // Evaluate viewData to get component/view ID and arguments
-        val viewData = asSafe<JsonLike>(action.viewData?.deepEvaluate(scopeContext))
-        if (viewData == null) {
-            android.util.Log.e("ShowBottomSheet", "viewData is null")
-            return null
-        }
-
+        val viewData = asSafe<JsonLike>(action.viewData?.deepEvaluate(scopeContext)) ?: return null
         val componentId = viewData["id"] as? String
-        if (componentId.isNullOrEmpty()) {
-            android.util.Log.e("ShowBottomSheet", "componentId is empty")
-            return null
-        }
+        if (componentId.isNullOrEmpty()) return null
 
         val args = viewData["args"] as? JsonLike
         val style: JsonLike = action.style ?: emptyMap()
 
-        // Extract style properties (support both literal values and ExprOr)
         val bgColorStr = evalStyleString(style["bgColor"], scopeContext)
         val barrierColorStr = evalStyleString(style["barrierColor"], scopeContext)
         val borderColorStr = evalStyleString(style["borderColor"], scopeContext)
         val borderWidth = evalStyleNumber(style["borderWidth"], scopeContext)?.toDouble()?.toFloat()
         val borderRadius = style["borderRadius"]
 
-        val maxHeightRatio = (evalStyleNumber(style["maxHeight"], scopeContext)?.toDouble()) ?: 1.0
+        val maxHeightRatio = (evalStyleNumber(style["maxHeight"], scopeContext)?.toDouble()) ?: (9.0 / 16.0)
         val useSafeArea = (evalStyleBool(style["useSafeArea"], scopeContext) ?: true)
 
-        // Get the bottom sheet manager from DigiaUIManager
         val bottomSheetManager = com.digia.digiaui.init.DigiaUIManager.getInstance().bottomSheetManager
+            ?: return null
 
-        // Show the bottom sheet
-        bottomSheetManager?.show(
+        bottomSheetManager.show(
             componentId = componentId,
             args = args,
             backgroundColor = bgColorStr,
@@ -110,9 +97,7 @@ class ShowBottomSheetProcessor : ActionProcessor<ShowBottomSheetAction>() {
             maxHeightRatio = maxHeightRatio.toFloat(),
             useSafeArea = useSafeArea,
             onDismiss = { result ->
-                // Handle result if waitForResult is true
                 if (action.waitForResult && action.onResult != null) {
-                    // Execute onResult callback with the result
                         val resultContext = com.digia.digiaui.framework.expr.DefaultScopeContext(
                             variables = mapOf("result" to result),
                             enclosing = scopeContext

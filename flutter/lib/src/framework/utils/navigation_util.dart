@@ -1,5 +1,3 @@
-import 'dart:ui';
-
 import 'package:flutter/material.dart';
 
 Future<T?> presentDialog<T>({
@@ -20,78 +18,63 @@ Future<T?> presentDialog<T>({
       barrierColor: barrierColor,
       routeSettings: routeSettings,
       builder: (context) {
-        return Dialog(child: builder(context));
+        return Dialog(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [builder(context)],
+          ),
+        );
       });
 }
 
-// TODO: Needs to be redesigned from scratch;
 Future<T?> presentBottomSheet<T>({
   required BuildContext context,
   required WidgetBuilder builder,
-  double scrollControlDisabledMaxHeightRatio = 1,
+  double scrollControlDisabledMaxHeightRatio = 9.0 / 16.0,
   Color? backgroundColor,
   Color? barrierColor,
   BoxBorder? border,
   bool useSafeArea = true,
   BorderRadius? borderRadius,
-  WidgetBuilder? iconBuilder,
   GlobalKey<NavigatorState>? navigatorKey,
 }) {
   return showModalBottomSheet<T>(
     context: navigatorKey?.currentContext ?? context,
     backgroundColor: backgroundColor,
-    scrollControlDisabledMaxHeightRatio: scrollControlDisabledMaxHeightRatio,
     barrierColor: barrierColor,
     useSafeArea: useSafeArea,
     useRootNavigator: true,
-    // isScrollControlled: true,
+    isScrollControlled: true,
     builder: (innerContext) {
-      return BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Flexible(
-              child: Container(
-                decoration: BoxDecoration(
-                  color: backgroundColor,
-                  border: border,
-                  borderRadius: borderRadius,
-                ),
-                clipBehavior: Clip.hardEdge,
-                // elevation: 2,
-                child: SafeArea(
-                  child: Stack(children: [
-                    Padding(
-                      padding: EdgeInsets.only(
-                          bottom: MediaQuery.viewInsetsOf(innerContext).bottom),
-                      child: builder(innerContext),
-                    ),
-                    if (iconBuilder != null)
-                      Positioned(
-                        top: 24,
-                        right: 20,
-                        child: InkWell(
-                          onTap: () {
-                            Navigator.maybePop(innerContext);
-                          },
-                          borderRadius: BorderRadius.circular(12),
-                          child: Container(
-                            height: 24,
-                            width: 24,
-                            decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(12),
-                                color: Colors.white.withValues(alpha: 0.1)),
-                            child: iconBuilder(innerContext),
-                          ),
-                        ),
-                      ),
-                  ]),
-                ),
+      final maxSheetHeight = MediaQuery.sizeOf(innerContext).height *
+          scrollControlDisabledMaxHeightRatio;
+      return Container(
+        width: double.infinity,
+        decoration: BoxDecoration(
+          color: backgroundColor,
+          borderRadius: borderRadius,
+        ),
+        foregroundDecoration: BoxDecoration(
+          border: border,
+          borderRadius: borderRadius,
+        ),
+        clipBehavior: Clip.hardEdge,
+        child: SafeArea(
+          bottom: useSafeArea,
+          child: Padding(
+            padding: EdgeInsets.only(
+              bottom: MediaQuery.viewInsetsOf(innerContext).bottom,
+            ),
+            child: ConstrainedBox(
+              constraints: BoxConstraints(maxHeight: maxSheetHeight),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [builder(innerContext)],
               ),
             ),
-          ],
+          ),
         ),
       );
     },
