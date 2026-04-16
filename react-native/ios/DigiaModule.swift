@@ -117,37 +117,6 @@ final class DigiaModule: RCTEventEmitter {
     }
 
     // ────────────────────────────────────────────────────────────────────────
-    // MARK: - createInitialPage
-
-    /// Full-screen Digia SDUI from AppConfig (`DUIFactory.shared.createInitialPage()`).
-    @objc
-    func createInitialPage() {
-        Task { @MainActor in
-            guard
-                let scene =
-                    UIApplication.shared.connectedScenes
-                    .compactMap({ $0 as? UIWindowScene })
-                    .first(where: { $0.activationState == .foregroundActive })
-                    ?? UIApplication.shared.connectedScenes.first as? UIWindowScene,
-                let root =
-                    scene.windows.first(where: { $0.isKeyWindow })?.rootViewController
-                    ?? scene.windows.first?.rootViewController
-            else {
-                return
-            }
-
-            var presenter = root
-            while let presented = presenter.presentedViewController {
-                presenter = presented
-            }
-
-            let host = UIHostingController(rootView: DUIFactory.shared.createInitialPage())
-            host.modalPresentationStyle = .fullScreen
-            presenter.present(host, animated: true)
-        }
-    }
-
-    // ────────────────────────────────────────────────────────────────────────
     // MARK: - triggerCampaign
 
     /// Forwards a campaign payload to the native DigiaCEPDelegate.
