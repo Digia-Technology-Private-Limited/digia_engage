@@ -41,29 +41,20 @@ internal final class RNEventBridgePlugin: NSObject, DigiaCEPPlugin {
     }
 
     func notifyEvent(_ event: DigiaExperienceEvent, payload: InAppPayload) {
-        let eventName: String
-        let experienceType: String
+
+        var body: [String: Any] = ["campaignId": payload.id]
         switch event {
         case .impressed:
-            eventName = "digia_experience_impressed"
-            experienceType = "impressed"
-        case .clicked:
-            eventName = "digia_experience_clicked"
-            experienceType = "clicked"
+            body["type"] = "impressed"
+        case .clicked(let elementID):
+            body["type"] = "clicked"
+            if let elementID {
+                body["elementId"] = elementID
+            }
         case .dismissed:
-            eventName = "digia_experience_dismissed"
-            experienceType = "dismissed"
+            body["type"] = "dismissed"
         }
-
-        // `type` must be the lifecycle kind ("dismissed", …), not payload.content.type ("dialog", …).
-        // DigiaCleverTapPlugin only calls CleverTap customTemplateSetDismissed when type === "dismissed"
-        // (matches Android RNEventBridgePlugin payload shape).
-        let body: [String: Any] = [
-            "id": payload.id,
-            "type": experienceType,
-            "contentType": payload.content.type,
-        ]
-        eventEmitter?.sendEvent(withName: eventName, body: body)
+        eventEmitter?.sendEvent(withName: "digiaEngageEvent", body: body)
     }
 
     func healthCheck() -> DiagnosticReport {

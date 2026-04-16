@@ -15,14 +15,25 @@
  * ```
  */
 
+import { DeviceEventEmitter } from 'react-native';
 import { nativeDigiaModule } from './NativeDigiaEngage';
-import type { DigiaConfig, DigiaDelegate, DigiaPlugin, InAppPayload } from './types';
+import type {
+    DigiaConfig,
+    DigiaDelegate,
+    DigiaExperienceEvent,
+    DigiaPlugin,
+    InAppPayload,
+} from './types';
 
 class DigiaClass implements DigiaDelegate {
     private readonly _plugins = new Map<string, DigiaPlugin>();
     // Tracks whether the native bridge plugin (RNEventBridgePlugin) has been
     // wired to the native SDK. Done once on the first Digia.register() call.
     private _nativeBridgeWired = false;
+    // Cache of triggered payloads keyed by campaign ID, used to reconstruct
+    // the full InAppPayload when overlay lifecycle events arrive from native.
+    private readonly _activePayloads = new Map<string, InAppPayload>();
+    private _engageSubscription: { remove(): void } | null = null;
 
     /**
      * Initialise the Digia Engage SDK.
@@ -59,6 +70,7 @@ class DigiaClass implements DigiaDelegate {
         // so the delegate is ready when JS campaigns start flowing.
         if (!this._nativeBridgeWired) {
             nativeDigiaModule.registerBridge();
+            this._startEngageListener();
             this._nativeBridgeWired = true;
         }
         plugin.setup(this);
@@ -88,17 +100,62 @@ class DigiaClass implements DigiaDelegate {
     }
 
 
-
     // ── DigiaDelegate ────────────────────────────────────────────────────────
     // Mirrors DigiaCEPDelegate on Android.
     // Forwards to the native DigiaCEPDelegate via the bridge.
 
     onCampaignTriggered(payload: InAppPayload): void {
+        this._activePayloads.set(payload.id, payload);
         nativeDigiaModule.triggerCampaign(payload.id, payload.content, payload.cepContext);
     }
 
     onCampaignInvalidated(campaignId: string): void {
+        this._activePayloads.delete(campaignId);
         nativeDigiaModule.invalidateCampaign(campaignId);
+    }
+
+    // ── Overlay event forwarding ─────────────────────────────────────────────
+
+    /**
+     * Subscribes to `digiaOverlayEvent` emitted by the native
+     * RNEventBridgePlugin when the Compose overlay fires a lifecycle event
+     * (impressed / clicked / dismissed).
+     *
+     * Each event is forwarded to every registered plugin's notifyEvent() so
+     * that CEP plugins (e.g. WebEngagePlugin) can report analytics.
+     */
+    private _startEngageListener(): void {
+        if (this._engageSubscription) return;
+        this._engageSubscription = DeviceEventEmitter.addListener(
+            'digiaEngageEvent',
+            (data: { campaignId: string; type: string; elementId?: string }) =>
+                this._forwardExperienceEvent(data),
+        );
+    }
+
+    private _forwardExperienceEvent(
+        data: { campaignId: string; type: string; elementId?: string },
+    ): void {
+        const payload = this._activePayloads.get(data.campaignId);
+        if (!payload) return;
+
+        let event: DigiaExperienceEvent;
+        switch (data.type) {
+            case 'impressed':
+                event = { type: 'impressed' };
+                break;
+            case 'clicked':
+                event = { type: 'clicked', elementId: data.elementId };
+                break;
+            case 'dismissed':
+                event = { type: 'dismissed' };
+                this._activePayloads.delete(data.campaignId);
+                break;
+            default:
+                return;
+        }
+
+        this._plugins.forEach((plugin) => plugin.notifyEvent(event, payload));
     }
 
 }

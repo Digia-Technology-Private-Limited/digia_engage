@@ -50,6 +50,7 @@ export interface Spec extends TurboModule {
 
     /** Invalidate / dismiss a campaign by its ID. */
     invalidateCampaign(campaignId: string): void;
+
 }
 
 // Try TurboModuleRegistry first (New Architecture / JSI).

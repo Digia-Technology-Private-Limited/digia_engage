@@ -12,4 +12,4 @@
 export { Digia } from './Digia';
 export { DigiaHostView } from './DigiaHostView';
 export { DigiaSlotView } from './DigiaSlotView';
-export type { DigiaConfig, DigiaDelegate, DigiaPlugin, InAppPayload } from './types';
+export type { DigiaConfig, DigiaDelegate, DigiaExperienceEvent, DigiaPlugin, InAppPayload } from './types';
