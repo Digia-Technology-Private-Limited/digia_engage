@@ -48,4 +48,5 @@ RCT_EXTERN_METHOD(invalidateCampaign:(NSString *)campaignId)
 
 @interface RCT_EXTERN_MODULE(DigiaSlotView, RCTViewManager)
 RCT_EXPORT_VIEW_PROPERTY(placementKey, NSString)
+RCT_EXPORT_VIEW_PROPERTY(onContentSizeChange, RCTDirectEventBlock)
 @end

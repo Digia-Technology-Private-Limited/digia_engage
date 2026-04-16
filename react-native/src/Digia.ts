@@ -87,6 +87,8 @@ class DigiaClass implements DigiaDelegate {
         this._plugins.forEach((plugin) => plugin.forwardScreen(name));
     }
 
+
+
     // ── DigiaDelegate ────────────────────────────────────────────────────────
     // Mirrors DigiaCEPDelegate on Android.
     // Forwards to the native DigiaCEPDelegate via the bridge.

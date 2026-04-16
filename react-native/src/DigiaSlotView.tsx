@@ -1,80 +1,72 @@
 /**
  * DigiaSlotView
  *
- * A React Native view that renders inline campaign content (banners, cards,
- * widgets) at a specific placement position inside your screen layout.
- *
- * On Android this mounts a Jetpack Compose `DigiaSlot` composable that
- * observes the slot payload for the given placement key and renders the
- * matching campaign component. On iOS this mounts the equivalent SwiftUI
- * `DigiaSlot` view via UIHostingController.
- *
- * ─── Usage ───────────────────────────────────────────────────────────────────
- * ```tsx
- * import { DigiaSlotView } from '@digia/engage-react-native';
- *
- * // Fixed height (you control the space)
- * <DigiaSlotView
- *   placementKey="hero_banner"
- *   style={{ width: '100%', height: 200 }}
- * />
- *
- * // Inside a scroll view
- * <ScrollView>
- *   <ProductList />
- *   <DigiaSlotView
- *     placementKey="pdp_mid_banner"
- *     style={{ width: '100%', height: 120 }}
- *   />
- *   <RelatedProducts />
- * </ScrollView>
- * ```
- *
- * The `placementKey` must match the key the marketer selects when creating
- * inline content on the Digia dashboard. The view collapses to nothing when
- * no campaign is active for that key.
- *
- * ─── Sizing ──────────────────────────────────────────────────────────────────
- * React Native's layout system controls the dimensions of this view.
- * Provide an explicit `height` (or flex) via the `style` prop so that the
- * native Compose layer has space to render. When no campaign is active the
- * Compose `DigiaSlot` renders nothing inside that space.
- * ─────────────────────────────────────────────────────────────────────────────
+ * Renders inline campaign content at a placement position.
+ * Auto-sizes to match native content height via `onContentSizeChange`;
+ * pass an explicit `height` in `style` to fix the size instead.
  */
 
-import React from 'react';
+import React, { useCallback, useState } from 'react';
 import {
     Platform,
+    StyleSheet,
     requireNativeComponent,
     type StyleProp,
     type ViewStyle,
 } from 'react-native';
 
 interface DigiaSlotViewProps {
-    /** Placement key that links this view to a Digia dashboard slot. */
     placementKey: string;
     style?: StyleProp<ViewStyle>;
 }
 
-// Fabric (New Architecture) resolves view configs lazily — no UIManager
-// guard needed. requireNativeComponent is called unconditionally on iOS and Android.
+interface NativeDigiaSlotViewProps extends DigiaSlotViewProps {
+    onContentSizeChange?: (event: { nativeEvent: { height: number } }) => void;
+    collapsable?: boolean;
+}
+
 const NativeDigiaSlotView =
     Platform.OS === 'android' || Platform.OS === 'ios'
-        ? requireNativeComponent<DigiaSlotViewProps>('DigiaSlotView')
+        ? requireNativeComponent<NativeDigiaSlotViewProps>('DigiaSlotView')
         : null;
 
-// ── DigiaSlotView ─────────────────────────────────────────────────────────────
-
 export function DigiaSlotView({ placementKey, style }: DigiaSlotViewProps) {
+    const [contentHeight, setContentHeight] = useState(0);
+
+    const onContentSizeChange = useCallback(
+        (event: { nativeEvent: { height: number } }) => {
+            const h = event.nativeEvent.height ?? 0;
+            setContentHeight(Math.max(0, h));
+        },
+        [],
+    );
+
     if ((Platform.OS === 'android' || Platform.OS === 'ios') && NativeDigiaSlotView) {
+        const flatStyle = StyleSheet.flatten(style) || {};
+        const hasExplicitHeight = flatStyle.height !== undefined;
+
+        if (hasExplicitHeight) {
+            return (
+                <NativeDigiaSlotView
+                    placementKey={placementKey}
+                    style={[{ width: '100%' }, style]}
+                    {...(Platform.OS === 'android' ? { collapsable: false } : {})}
+                />
+            );
+        }
+
+        // 1dp bootstrap ensures a real layout pass before any campaign arrives.
+        const bootstrapHeight = Math.max(contentHeight, 1);
+
         return (
             <NativeDigiaSlotView
                 placementKey={placementKey}
-                style={style}
+                style={[{ width: '100%', height: bootstrapHeight }, style]}
+                onContentSizeChange={onContentSizeChange}
+                {...(Platform.OS === 'android' ? { collapsable: false } : {})}
             />
         );
     }
 
-    // Other platforms: not yet implemented — render nothing.
     return null;
 }
