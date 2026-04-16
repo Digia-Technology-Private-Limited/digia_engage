@@ -48,17 +48,12 @@ final class DigiaHostUIView: UIView {
     }
 
     private func mountHostingController() {
-        guard let parentVC = parentViewController() else { return }
+        guard let parentVC = parentViewController() else { return}
 
         let swiftUIView = DigiaHostWrapperView()
         let hc = UIHostingController(rootView: swiftUIView)
         hc.view.translatesAutoresizingMaskIntoConstraints = false
         hc.view.backgroundColor = .clear
-        // Disable touch interception so all taps pass through to React Native
-        // content below. The dialog/bottom-sheet overlays are presented as
-        // separate UIViewControllers (via ViewControllerUtil.present) so they
-        // independently capture touches when visible.
-        hc.view.isUserInteractionEnabled = false
 
         parentVC.addChild(hc)
         // Mount onto parentVC.view (full-screen) rather than self, because
@@ -82,12 +77,33 @@ final class DigiaHostUIView: UIView {
         hostingController = hc
     }
 
-    // Walk the responder chain to find the nearest UIViewController.
+    // Pass touches through to RN when no overlay is active.
+    // When an overlay renders in-host (bottom sheet / dialog inside DigiaHost's ZStack),
+    // SwiftUI's hit test returns the overlay view and we forward that — making the
+    // overlay fully interactive. When nothing is rendered (EmptyView), SwiftUI returns
+    // nil and we return nil, so UIKit falls through to RN content below.
+    override func hitTest(_ point: CGPoint, with event: UIEvent?) -> UIView? {
+        return hostingController?.view.hitTest(point, with: event)
+    }
+
+    /// Prefer React Native’s `UIView.reactViewController`, then walk `next` from each view’s `.next`.
     private func parentViewController() -> UIViewController? {
-        var responder: UIResponder? = self
-        while let r = responder {
-            if let vc = r as? UIViewController { return vc }
-            responder = r.next
+        let reactSel = NSSelectorFromString("reactViewController")
+        var view: UIView? = self
+        while let v = view {
+            if v.responds(to: reactSel), let raw = v.perform(reactSel)?.takeUnretainedValue() {
+                if let vc = raw as? UIViewController { return vc }
+            }
+            view = v.superview
+        }
+        view = self
+        while let v = view {
+            var r: UIResponder? = v.next
+            while let responder = r {
+                if let vc = responder as? UIViewController { return vc }
+                r = responder.next
+            }
+            view = v.superview
         }
         return nil
     }

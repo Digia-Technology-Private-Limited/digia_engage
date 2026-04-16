@@ -41,6 +41,7 @@ internal final class RNEventBridgePlugin: NSObject, DigiaCEPPlugin {
     }
 
     func notifyEvent(_ event: DigiaExperienceEvent, payload: InAppPayload) {
+
         var body: [String: Any] = ["campaignId": payload.id]
         switch event {
         case .impressed:

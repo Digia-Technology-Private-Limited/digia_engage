@@ -9,6 +9,7 @@
  *   setCurrentScreen(name): void
  *   triggerCampaign(id, content, cepContext): void
  *   invalidateCampaign(campaignId): void
+ *   createInitialPage(): void  // AppConfig initial route
  *
  * Architecture
  * ────────────
@@ -28,6 +29,7 @@
 import Foundation
 import React
 import SwiftUI
+import UIKit
 import DigiaEngage
 
 @objc(DigiaEngageModule)
@@ -191,13 +193,16 @@ final class DigiaModule: RCTEventEmitter {
     // MARK: - Private helpers
 
     private func buildInAppPayloadContent(from map: NSDictionary) -> InAppPayloadContent {
-        let type    = (map["type"]         as? String) ?? "dialog"
         let pk      = map["placementKey"]  as? String
         let title   = map["title"]         as? String
         let text    = map["text"]          as? String
         let viewId  = map["viewId"]        as? String
         let command = map["command"]       as? String
         let screenId = map["screenId"]     as? String
+        var type = (map["type"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        if type.isEmpty {
+            type = (pk?.trimmingCharacters(in: .whitespacesAndNewlines) ?? "").isEmpty ? "dialog" : "inline"
+        }
         let args: [String: JSONValue] = {
             guard let raw = map["args"] as? [String: Any] else { return [:] }
             return raw.compactMapValues { JSONValue(rawValue: $0) }
