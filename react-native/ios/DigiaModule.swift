@@ -44,12 +44,16 @@ final class DigiaModule: RCTEventEmitter {
 
     override static func requiresMainQueueSetup() -> Bool { true }
 
+    override init() {
+        super.init()
+        // Pre-seed _listenerCount = 1 so sendEventWithName: never silently drops
+        // events when JS uses DeviceEventEmitter (which doesn't call native
+        // addListener: on iOS and therefore never increments the count).
+        addListener("digiaEngageEvent")
+    }
+
     override func supportedEvents() -> [String]! {
-        return [
-            "digia_experience_impressed",
-            "digia_experience_clicked",
-            "digia_experience_dismissed",
-        ]
+        return ["digiaEngageEvent"]
     }
 
     // ────────────────────────────────────────────────────────────────────────
@@ -80,6 +84,7 @@ final class DigiaModule: RCTEventEmitter {
         Task { @MainActor in
             do {
                 try await Digia.initialize(config)
+                self.mountDigiaHost()
                 resolve(nil)
             } catch {
                 reject("DIGIA_INIT_ERROR", error.localizedDescription, error)
@@ -175,6 +180,44 @@ final class DigiaModule: RCTEventEmitter {
             guard let delegate = self.rnPlugin.delegate else { return }
             delegate.onCampaignInvalidated(campaignId)
         }
+    }
+
+    // ────────────────────────────────────────────────────────────────────────
+    // MARK: - Internal: mount the SwiftUI overlay host
+
+    /// Mirrors Android's DigiaModule.mountDigiaHost().
+    /// Called once after Digia.initialize() succeeds — no need for a manual
+    /// <DigiaHostView> anywhere in the JS component tree.
+    @MainActor
+    private func mountDigiaHost() {
+        // Locate the key window's root view controller.
+        guard let rootVC = UIApplication.shared
+            .connectedScenes
+            .compactMap({ ($0 as? UIWindowScene)?.keyWindow })
+            .first?
+            .rootViewController else { return }
+
+        // Guard against double-mounting (e.g. fast-refresh).
+        let mountTag = 0xD19140
+        if rootVC.view.viewWithTag(mountTag) != nil { return }
+
+        let hc = UIHostingController(rootView: DigiaHostWrapperView())
+        hc.view.tag = mountTag
+        hc.view.translatesAutoresizingMaskIntoConstraints = false
+        hc.view.backgroundColor = .clear
+        // Pass touches through to React Native content below.
+        hc.view.isUserInteractionEnabled = false
+
+        rootVC.addChild(hc)
+        rootVC.view.addSubview(hc.view)
+        hc.didMove(toParent: rootVC)
+
+        NSLayoutConstraint.activate([
+            hc.view.leadingAnchor.constraint(equalTo: rootVC.view.leadingAnchor),
+            hc.view.trailingAnchor.constraint(equalTo: rootVC.view.trailingAnchor),
+            hc.view.topAnchor.constraint(equalTo: rootVC.view.topAnchor),
+            hc.view.bottomAnchor.constraint(equalTo: rootVC.view.bottomAnchor),
+        ])
     }
 
     // ────────────────────────────────────────────────────────────────────────

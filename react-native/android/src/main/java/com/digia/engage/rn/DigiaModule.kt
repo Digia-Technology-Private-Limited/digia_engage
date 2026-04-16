@@ -131,7 +131,7 @@ internal class RNEventBridgePlugin(
                 is DigiaExperienceEvent.Dismissed -> putString("type", "dismissed")
             }
         }
-        emit("digia_experience_dismissed", params)
+        emit("digiaEngageEvent", params)
     }
 
     override fun teardown() {
