@@ -106,7 +106,6 @@ internal class RNEventBridgePlugin(
     override fun forwardScreen(name: String) {}
 
     override fun notifyEvent(event: DigiaExperienceEvent, payload: InAppPayload) {
-
         val params =
                 Arguments.createMap().apply {
                     putString("id", payload.id)

@@ -32,6 +32,8 @@ RCT_EXTERN_METHOD(registerBridge)
 
 RCT_EXTERN_METHOD(setCurrentScreen:(NSString *)name)
 
+RCT_EXTERN_METHOD(createInitialPage)
+
 RCT_EXTERN_METHOD(triggerCampaign:(NSString *)id
                   content:(NSDictionary *)content
                   cepContext:(NSDictionary *)cepContext)
