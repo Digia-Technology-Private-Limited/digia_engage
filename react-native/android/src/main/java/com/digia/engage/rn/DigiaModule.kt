@@ -222,7 +222,7 @@ internal class RNEventBridgePlugin(
                         is DigiaExperienceEvent.Dismissed -> putString("type", "dismissed")
                     }
                 }
-        emit("digiaOverlayEvent", params)
+        emit("digiaEngageEvent", params)
     }
 
     override fun teardown() {

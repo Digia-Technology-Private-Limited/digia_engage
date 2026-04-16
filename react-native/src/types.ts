@@ -12,6 +12,30 @@ export interface InAppPayload {
     cepContext: Record<string, unknown>;
 }
 
+// ─── Experience events ────────────────────────────────────────────────────────
+
+/** The experience became visible to the user. */
+export interface ExperienceImpressed {
+    readonly type: 'impressed';
+}
+
+/** The user interacted with an actionable element. */
+export interface ExperienceClicked {
+    readonly type: 'clicked';
+    readonly elementId?: string;
+}
+
+/** The experience was dismissed — by the user or programmatically. */
+export interface ExperienceDismissed {
+    readonly type: 'dismissed';
+}
+
+/** Discriminated union of all experience event types. */
+export type DigiaExperienceEvent =
+    | ExperienceImpressed
+    | ExperienceClicked
+    | ExperienceDismissed;
+
 /**
  * Delegate passed by the Digia SDK to each registered plugin via setup().
  *
@@ -35,6 +59,12 @@ export interface DigiaPlugin {
     readonly identifier: string;
     /** Called by Digia.register() — do not call manually. */
     setup(delegate: DigiaDelegate): void;
+    /**
+     * Called by the Digia SDK when the overlay fires a lifecycle event
+     * (impressed / clicked / dismissed). Plugins use this to report
+     * analytics back to their CEP platform.
+     */
+    notifyEvent(event: DigiaExperienceEvent, payload: InAppPayload): void;
     /** Called by Digia.setCurrentScreen() — do not call manually. */
     forwardScreen(name: string): void;
     /** Called by Digia.unregister() or when tearing down the app. */

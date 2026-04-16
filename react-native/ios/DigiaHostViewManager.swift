@@ -61,14 +61,22 @@ final class DigiaHostUIView: UIView {
         hc.view.isUserInteractionEnabled = false
 
         parentVC.addChild(hc)
-        addSubview(hc.view)
+        // Mount onto parentVC.view (full-screen) rather than self, because
+        // DigiaHostView is intentionally sized 0×0 in React Native (it takes no
+        // screen space). A zero-size UIHostingController frame prevents SwiftUI
+        // from rendering its body, which means @ObservedObject subscriptions and
+        // .onChange(of:) modifiers are never established — so activePayload
+        // changes are silently dropped and no overlay is ever shown.
+        // Anchoring to parentVC.view guarantees a non-zero frame so SwiftUI's
+        // rendering loop runs and reacts to SDK state changes.
+        parentVC.view.addSubview(hc.view)
         hc.didMove(toParent: parentVC)
 
         NSLayoutConstraint.activate([
-            hc.view.leadingAnchor.constraint(equalTo: leadingAnchor),
-            hc.view.trailingAnchor.constraint(equalTo: trailingAnchor),
-            hc.view.topAnchor.constraint(equalTo: topAnchor),
-            hc.view.bottomAnchor.constraint(equalTo: bottomAnchor),
+            hc.view.leadingAnchor.constraint(equalTo: parentVC.view.leadingAnchor),
+            hc.view.trailingAnchor.constraint(equalTo: parentVC.view.trailingAnchor),
+            hc.view.topAnchor.constraint(equalTo: parentVC.view.topAnchor),
+            hc.view.bottomAnchor.constraint(equalTo: parentVC.view.bottomAnchor),
         ])
 
         hostingController = hc
@@ -91,7 +99,7 @@ final class DigiaHostUIView: UIView {
 /// content because React Native's own navigation already manages the app's
 /// view hierarchy — DigiaHost only needs to be mounted to activate the overlay
 /// layer.
-private struct DigiaHostWrapperView: View {
+struct DigiaHostWrapperView: View {
     var body: some View {
         DigiaHost {
             EmptyView()

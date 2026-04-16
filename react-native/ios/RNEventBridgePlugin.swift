@@ -41,21 +41,19 @@ internal final class RNEventBridgePlugin: NSObject, DigiaCEPPlugin {
     }
 
     func notifyEvent(_ event: DigiaExperienceEvent, payload: InAppPayload) {
-        let eventName: String
+        var body: [String: Any] = ["campaignId": payload.id]
         switch event {
         case .impressed:
-            eventName = "digia_experience_impressed"
-        case .clicked:
-            eventName = "digia_experience_clicked"
+            body["type"] = "impressed"
+        case .clicked(let elementID):
+            body["type"] = "clicked"
+            if let elementID {
+                body["elementId"] = elementID
+            }
         case .dismissed:
-            eventName = "digia_experience_dismissed"
+            body["type"] = "dismissed"
         }
-
-        let body: [String: Any] = [
-            "id": payload.id,
-            "type": payload.content.type,
-        ]
-        eventEmitter?.sendEvent(withName: eventName, body: body)
+        eventEmitter?.sendEvent(withName: "digiaEngageEvent", body: body)
     }
 
     func healthCheck() -> DiagnosticReport {
