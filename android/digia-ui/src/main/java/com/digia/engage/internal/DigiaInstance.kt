@@ -139,7 +139,19 @@ internal object DigiaInstance : DigiaCEPDelegate {
         displayCoordinator.onOverlayEvent(DigiaExperienceEvent.Impressed, payload)
     }
 
-    fun markDismissed(payloadId: String) {
+    fun reportSlotImpression(payload: InAppPayload) {
+        displayCoordinator.onSlotEvent(DigiaExperienceEvent.Impressed, payload)
+    }
+
+    fun markSlotDismissed(payloadId: String, placementKey: String) {
+        val current = controller.slotPayloads.value[placementKey]
+        if (current?.id == payloadId) {
+            displayCoordinator.onSlotEvent(DigiaExperienceEvent.Dismissed, current)
+        }
+    }
+
+
+    fun markOverlayDismissed(payloadId: String) {
         val current = controller.activePayload.value
         if (current?.id == payloadId) {
             displayCoordinator.onOverlayEvent(DigiaExperienceEvent.Dismissed, current)
@@ -234,6 +246,7 @@ internal object DigiaInstance : DigiaCEPDelegate {
                 return
             }
             displayCoordinator.routeInline(placementKey, payload)
+            reportSlotImpression(payload)
             return
         }
 

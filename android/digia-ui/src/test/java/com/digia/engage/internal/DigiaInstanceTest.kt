@@ -160,7 +160,7 @@ class DigiaInstanceTest {
         DigiaInstance.reportOverlayImpression(
             DigiaInstance.controller.activePayload.value!!,
         )
-        DigiaInstance.markDismissed("dialog-1")
+        DigiaInstance.markOverlayDismissed("dialog-1")
 
         assertNull(DigiaInstance.controller.activePayload.value)
         assertTrue(plugin.events.any { it.first is DigiaExperienceEvent.Dismissed })

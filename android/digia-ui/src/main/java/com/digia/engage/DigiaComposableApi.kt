@@ -45,13 +45,13 @@ fun DigiaHost(content: @Composable () -> Unit) {
                             digiaUiManager.dialogManager?.show(
                                     componentId = viewId,
                                     args = args,
-                                    onDismiss = { DigiaInstance.markDismissed(payload.id) },
+                                    onDismiss = { DigiaInstance.markOverlayDismissed(payload.id) },
                             )
                     UIActionType.SHOW_BOTTOM_SHEET ->
                             digiaUiManager.bottomSheetManager?.show(
                                     componentId = viewId,
                                     args = args,
-                                    onDismiss = { DigiaInstance.markDismissed(payload.id) },
+                                    onDismiss = { DigiaInstance.markOverlayDismissed(payload.id) },
                             )
                     else -> Unit
                 }
