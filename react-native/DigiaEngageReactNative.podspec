@@ -17,8 +17,8 @@ Pod::Spec.new do |s|
     :tag => "react-native-v#{s.version}"
   }
   
-  # DigiaEngage iOS SDK requires iOS 16+ (SwiftUI features used internally).
-  s.ios.deployment_target = '16.0'
+  # DigiaEngage iOS SDK requires iOS 17+ (SwiftUI features used internally).
+  s.ios.deployment_target = '17.0'
 
   s.source_files = 'ios/**/*.{h,m,mm,swift}'
 
@@ -30,7 +30,7 @@ Pod::Spec.new do |s|
   # ── Digia Engage iOS SDK ──────────────────────────────────────────────────
   # Available on SPM: https://swiftpackageindex.com/Digia-Technology-Private-Limited/digia_engage_iOS
   # CocoaPods: host app Podfile must declare the git source (see README).
-  s.dependency 'DigiaEngage', '1.0.0-beta.1'
+  s.dependency 'DigiaEngage'  
 
   # ── New Architecture (Fabric / TurboModules) support ─────────────────────
   install_modules_dependencies(s)

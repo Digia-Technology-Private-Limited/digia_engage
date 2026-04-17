@@ -17,8 +17,7 @@ dependencyResolutionManagement {
     repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
     repositories {
         google()
-        mavenCentral()   // tech.digia:engage published at https://central.sonatype.com/artifact/tech.digia/engage
-        maven { url 'https://jitpack.io' }
+        mavenCentral()  
     }
 }
 

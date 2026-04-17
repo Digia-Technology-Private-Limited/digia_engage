@@ -13,7 +13,6 @@
         "moduleResolution": "node",
         "resolveJsonModule": true,
         "forceConsistentCasingInFileNames": true,
-        "noEmit": true,
         "jsx": "react-native"
     }
 }

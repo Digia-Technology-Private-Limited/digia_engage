@@ -12,7 +12,7 @@ import PackageDescription
 
 let package = Package(
     name: "DigiaEngageReactNative",
-    platforms: [.iOS(.v16)],
+    platforms: [.iOS(.v17)],
     products: [
         .library(
             name: "DigiaEngageReactNative",
@@ -24,7 +24,7 @@ let package = Package(
         // https://swiftpackageindex.com/Digia-Technology-Private-Limited/digia_engage_iOS
         .package(
             url: "https://github.com/Digia-Technology-Private-Limited/digia_engage_iOS.git",
-            exact: "1.0.0-beta.1"
+            exact: "1.0.0-beta.2"
         ),
     ],
     targets: [
