@@ -1,4 +1,12 @@
-## [1.0.0] - 2024-12-30
+
+
+## [1.0.0-beta.4] - 2026-04-17
+
+### Added
+- Inline's Event support for `DigiaSlot`
+
+
+## [1.0.0-beta.1] - 2024-12-30
 
 ### Added
 - Initial release of Digia UI Compose SDK
@@ -36,25 +44,3 @@
 - CONFIG_PROVIDER_OPERATIONS.md
 - WIDGET_GUIDE.md
 - API documentation in code
-
-## Future Releases
-
-### [1.1.0] - Planned
-- Additional widgets (buttons, inputs, containers)
-- Enhanced theming support
-- Animation framework
-- Form validation
-- Advanced state management
-
-### [1.2.0] - Planned
-- JavaScript functions execution
-- Custom widget registration
-- Plugin system
-- Performance optimizations
-
-### [2.0.0] - Planned
-- Breaking changes for improved API
-- Full widget library
-- Advanced debugging tools
-- Analytics integration
-
