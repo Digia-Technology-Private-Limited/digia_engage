@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.1.2] - 2026-04-18
+
+### Changed
+
+- Fixed deduplication of inline impressions
+
+
 ## [1.1.1] - 2026-04-02
 
 ### Changed

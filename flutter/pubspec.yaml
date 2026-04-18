@@ -1,6 +1,7 @@
 name: digia_engage
-description: Flutter SDK for rendering server-driven UIs using JSON from Digia Studio. Supports dynamic layouts, state, actions, and custom widgets.
-version: 1.1.1
+description: Flutter SDK for rendering server-driven UIs using JSON from Digia
+  Studio. Supports dynamic layouts, state, actions, and custom widgets.
+version: 1.1.2
 repository: https://github.com/Digia-Technology-Private-Limited/digia_engage.git
 homepage: https://digia.tech
 documentation: https://docs.digia.tech
@@ -19,7 +20,7 @@ issue_tracker: https://github.com/Digia-Technology-Private-Limited/digia_engage/
 # of the product and file versions while build-number is used as the build suffix.
 
 environment:
-  sdk: '>=3.3.0 <4.0.0'
+  sdk: ">=3.3.0 <4.0.0"
 
 # https://github.com/frencojobs/derry
 scripts:
@@ -116,7 +117,6 @@ flutter:
   # included with your application, so that you can use the icons
   # in the material Icons class.
   uses-material-design: true
-
   # For details regarding fonts from package dependencies,
   # see https://flutter.dev/custom-fonts/#from-packages
 
