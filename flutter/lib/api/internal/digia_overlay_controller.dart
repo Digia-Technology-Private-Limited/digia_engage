@@ -39,6 +39,8 @@ class DigiaOverlayController extends ChangeNotifier {
     notifyListeners();
   }
 
+  InAppPayload? getSlot(String placementKey) => _slotPayloads[placementKey];
+
   void removeSlotById(String campaignId) {
     _slotPayloads.removeWhere((_, payload) => payload.id == campaignId);
     notifyListeners();

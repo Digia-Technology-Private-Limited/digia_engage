@@ -62,7 +62,7 @@ class _DigiaSlotState extends State<DigiaSlot> {
   @override
   void initState() {
     super.initState();
-    DigiaInstance.instance.inlineController.addListener(_onInlineChanged);
+    DigiaInstance.instance.controller.addListener(_onInlineChanged);
 
     // A campaign might already be in the controller when this slot mounts
     // (e.g., the campaign arrived before the page was opened).
@@ -71,7 +71,7 @@ class _DigiaSlotState extends State<DigiaSlot> {
 
   @override
   void dispose() {
-    DigiaInstance.instance.inlineController.removeListener(_onInlineChanged);
+    DigiaInstance.instance.controller.removeListener(_onInlineChanged);
     // Do NOT remove the campaign on dispose. Inline campaigns are "sticky" —
     // they persist for when the user returns to this page. Only server
     // invalidation or an explicit user dismiss should clear them.
@@ -92,8 +92,8 @@ class _DigiaSlotState extends State<DigiaSlot> {
   ///
   /// Returns `true` if the payload changed (a rebuild is needed).
   bool _scheduleImpressionIfNeeded() {
-    final payload = DigiaInstance.instance.inlineController
-        .getCampaign(widget.placementKey);
+    final payload =
+        DigiaInstance.instance.controller.getSlot(widget.placementKey);
 
     if (payload?.id == _currentPayload?.id) return false;
 

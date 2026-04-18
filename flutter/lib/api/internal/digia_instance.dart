@@ -33,14 +33,14 @@ class DigiaInstance with WidgetsBindingObserver implements DigiaCEPDelegate {
   final DigiaOverlayController _controller = DigiaOverlayController();
 
   /// Controller for inline campaigns, notifies when they change.
-  final InlineCampaignController inlineController = InlineCampaignController();
+  // final InlineCampaignController inlineController = InlineCampaignController();
 
   /// Exposed so [DigiaHost] can subscribe at mount time.
   DigiaOverlayController get controller => _controller;
 
   /// Gets the active inline campaign for a given placement key, if any.
   InAppPayload? getInlineCampaign(String placementKey) =>
-      inlineController.getCampaign(placementKey);
+      _controller.getSlot(placementKey);
 
   // ─── Lifecycle ─────────────────────────────────────────────────────────────
 
@@ -87,11 +87,6 @@ class DigiaInstance with WidgetsBindingObserver implements DigiaCEPDelegate {
     // Wire the event callback — when DigiaHost reports a user interaction,
     // route it to the active plugin.
     _controller.onEvent = (event, payload) {
-      _activePlugin?.notifyEvent(event, payload);
-    };
-
-    // Wire the same callback for inline campaigns reported by DigiaSlot.
-    inlineController.onEvent = (event, payload) {
       _activePlugin?.notifyEvent(event, payload);
     };
 
@@ -168,8 +163,8 @@ class DigiaInstance with WidgetsBindingObserver implements DigiaCEPDelegate {
         );
         return;
       }
-      inlineController.setCampaign(placementKey, payload);
-      inlineController.onEvent?.call(
+      _controller.addSlot(placementKey, payload);
+      _controller.onEvent?.call(
           const ExperienceImpressed(), payload); // Fire impression immediately
     } else {
       // Modal campaigns (SHOW_BOTTOM_SHEET / SHOW_DIALOG): route to DigiaHost.
@@ -184,7 +179,7 @@ class DigiaInstance with WidgetsBindingObserver implements DigiaCEPDelegate {
       _controller.dismiss();
     }
     // Check if it's an inline campaign.
-    inlineController.removeCampaign(campaignId);
+    // _controller.removeSlotById(campaignId);
   }
 
   // ─── WidgetsBindingObserver ────────────────────────────────────────────────
@@ -212,36 +207,5 @@ class DigiaInstance with WidgetsBindingObserver implements DigiaCEPDelegate {
       'Call Digia.register(plugin) after initialize(). '
       'The SDK is running in degraded mode — no experiences will be shown.',
     );
-  }
-}
-
-/// Internal controller for inline campaigns.
-class InlineCampaignController extends ChangeNotifier {
-  final Map<String, InAppPayload> _campaigns = {};
-
-  /// Set by [DigiaInstance] at init time.
-  /// [DigiaSlot] calls this when a user interaction event occurs
-  /// (impression, dismiss). [DigiaInstance] forwards it to the active plugin.
-  void Function(DigiaExperienceEvent, InAppPayload)? onEvent;
-
-  InAppPayload? getCampaign(String placementKey) => _campaigns[placementKey];
-
-  void setCampaign(String placementKey, InAppPayload payload) {
-    _campaigns[placementKey] = payload;
-    notifyListeners();
-  }
-
-  /// Server-driven removal — called from [DigiaInstance.onCampaignInvalidated].
-  /// Matches by placement key (which equals the payloadId stored by the server).
-  void removeCampaign(String placementId) {
-    _campaigns.removeWhere((key, payload) => key == placementId);
-    notifyListeners();
-  }
-
-  /// User-driven removal — called by [DigiaSlot] when the user explicitly
-  /// closes the inline content (e.g., taps a close CTA inside the campaign).
-  void dismissCampaign(String placementKey) {
-    _campaigns.remove(placementKey);
-    notifyListeners();
   }
 }
