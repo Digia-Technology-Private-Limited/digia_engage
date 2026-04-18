@@ -102,11 +102,11 @@ class _DigiaSlotState extends State<DigiaSlot> {
     if (payload == null || payload.id == _impressedPayloadId) return true;
 
     _impressedPayloadId = payload.id;
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      DigiaInstance.instance.inlineController.onEvent
-          ?.call(const ExperienceImpressed(), payload);
-    });
+    // WidgetsBinding.instance.addPostFrameCallback((_) {
+    //   if (!mounted) return;
+    //   DigiaInstance.instance.inlineController.onEvent
+    //       ?.call(const ExperienceImpressed(), payload);
+    // });
     return true;
   }
 
@@ -118,10 +118,10 @@ class _DigiaSlotState extends State<DigiaSlot> {
   /// Fires [ExperienceDismissed] and removes the campaign from the controller,
   /// collapsing this slot to nothing until a new campaign arrives.
   void _dismiss(InAppPayload payload) {
-    DigiaInstance.instance.inlineController.onEvent
-        ?.call(const ExperienceDismissed(), payload);
-    DigiaInstance.instance.inlineController
-        .dismissCampaign(widget.placementKey);
+    // DigiaInstance.instance.inlineController.onEvent
+    //     ?.call(const ExperienceDismissed(), payload);
+    // DigiaInstance.instance.inlineController
+    //     .dismissCampaign(widget.placementKey);
   }
 
   @override

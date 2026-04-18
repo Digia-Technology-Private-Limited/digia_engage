@@ -169,6 +169,8 @@ class DigiaInstance with WidgetsBindingObserver implements DigiaCEPDelegate {
         return;
       }
       inlineController.setCampaign(placementKey, payload);
+      inlineController.onEvent?.call(
+          const ExperienceImpressed(), payload); // Fire impression immediately
     } else {
       // Modal campaigns (SHOW_BOTTOM_SHEET / SHOW_DIALOG): route to DigiaHost.
       _controller.show(payload);
