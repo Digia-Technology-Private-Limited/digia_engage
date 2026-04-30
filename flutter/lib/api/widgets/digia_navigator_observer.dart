@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../src/framework/pip/pip_overlay.dart';
 import '../internal/digia_instance.dart';
 
 /// A [NavigatorObserver] that automatically tracks screen transitions and
@@ -24,6 +25,17 @@ class DigiaNavigatorObserver extends NavigatorObserver {
     final name = _extractName(route);
     if (name != null) {
       DigiaInstance.instance.setCurrentScreen(name);
+      PipManager.instance.onScreenChanged(name);
+    }
+  }
+
+  @override
+  void didPop(Route<dynamic> route, Route<dynamic>? previousRoute) {
+    _ensureAttached();
+    final name = previousRoute != null ? _extractName(previousRoute) : null;
+    if (name != null) {
+      DigiaInstance.instance.setCurrentScreen(name);
+      PipManager.instance.onScreenChanged(name);
     }
   }
 
@@ -33,6 +45,7 @@ class DigiaNavigatorObserver extends NavigatorObserver {
     final name = newRoute != null ? _extractName(newRoute) : null;
     if (name != null) {
       DigiaInstance.instance.setCurrentScreen(name);
+      PipManager.instance.onScreenChanged(name);
     }
   }
 

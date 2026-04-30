@@ -13,6 +13,7 @@ import com.digia.digiaui.framework.logging.Logger
 import com.digia.digiaui.framework.page.ConfigProvider
 import com.digia.digiaui.framework.page.DUIConfigProvider
 import com.digia.digiaui.framework.page.DUIPage
+import com.digia.digiaui.framework.tooltip.toTooltipPosition
 import com.digia.digiaui.framework.utils.asSafe
 import com.digia.digiaui.framework.widgets.registerBuiltInWidgets
 import com.digia.digiaui.init.DigiaUIManager
@@ -50,6 +51,10 @@ import convertToTextStyle
 enum class UIActionType {
     SHOW_BOTTOM_SHEET,
     SHOW_DIALOG,
+    SHOW_COACHMARK,
+    SHOW_TOOLTIP,
+    SHOW_FLOATER,
+    SHOW_PIP,
     CLOSE_BOTTOM_SHEET,
     CLOSE_DIALOG
 }
@@ -65,7 +70,8 @@ internal class DUIFactory private constructor() {
             actionType: UIActionType,
             componentId: String,
             componentArgs: Map<String, Any?>? = null,
-            onDismiss: ((Any?) -> Unit)? = null
+            onDismiss: ((Any?) -> Unit)? = null,
+            onPipEvent: com.digia.digiaui.framework.pip.PipEventListener? = null,
     ) {
         when (actionType) {
             UIActionType.SHOW_BOTTOM_SHEET -> {
@@ -87,11 +93,160 @@ internal class DUIFactory private constructor() {
                                 onDismiss = onDismiss
                         )
             }
+            UIActionType.SHOW_COACHMARK -> {
+                // Build a minimal coachmark request from componentArgs. If no placementKey
+                // is provided, the coachmark will show without a spotlight target.
+                val placementKey = componentArgs?.get("placementKey") as? String
+                val spotlightPadding =
+                        (componentArgs?.get("spotlightPadding") as? Number)?.toFloat() ?: 16f
+                val spotlightRadius =
+                        (componentArgs?.get("spotlightRadius") as? Number)?.toFloat() ?: 8f
+                val dimColorStr = componentArgs?.get("dimColor") as? String
+                val dimColor =
+                        try {
+                            Color(android.graphics.Color.parseColor(dimColorStr))
+                        } catch (_: Exception) {
+                            Color(0xB4000000)
+                        }
+
+                val step =
+                        com.digia.digiaui.framework.coachmark.CoachmarkStep(
+                                targetKey = placementKey,
+                                componentId = componentId,
+                                args = componentArgs,
+                                spotlightPadding = spotlightPadding,
+                                spotlightRadius = spotlightRadius,
+                        )
+
+                DigiaUIManager.getInstance()
+                        .coachmarkManager
+                        ?.show(
+                                com.digia.digiaui.framework.coachmark.CoachmarkRequest(
+                                        steps = listOf(step),
+                                        dimColor = dimColor,
+                                        onDismiss = onDismiss
+                                )
+                        )
+            }
             UIActionType.CLOSE_BOTTOM_SHEET -> {
                 DigiaUIManager.getInstance().bottomSheetManager?.dismiss()
             }
             UIActionType.CLOSE_DIALOG -> {
                 DigiaUIManager.getInstance().dialogManager?.dismiss()
+            }
+            UIActionType.SHOW_TOOLTIP -> {
+                val targetKey = componentArgs?.get("targetKey") as? String
+                val positionStr = componentArgs?.get("position") as? String
+                DigiaUIManager.getInstance()
+                        .tooltipManager
+                        ?.show(
+                                componentId = componentId,
+                                args = componentArgs,
+                                targetKey = targetKey,
+                                position = positionStr.toTooltipPosition(),
+                                onDismiss = onDismiss,
+                        )
+            }
+            UIActionType.SHOW_FLOATER -> {
+                val anchorX = (componentArgs?.get("anchorX") as? Number)?.toFloat() ?: 0.8f
+                val anchorY = (componentArgs?.get("anchorY") as? Number)?.toFloat() ?: 0.5f
+                val draggable = componentArgs?.get("draggable") as? Boolean ?: true
+                DigiaUIManager.getInstance()
+                        .floaterManager
+                        ?.show(
+                                componentId = componentId,
+                                args = componentArgs,
+                                anchorX = anchorX,
+                                anchorY = anchorY,
+                                draggable = draggable,
+                                onDismiss = onDismiss,
+                        )
+            }
+            UIActionType.SHOW_PIP -> {
+                val videoUrl            = componentArgs?.get("videoUrl") as? String
+                val widthDp             = (componentArgs?.get("width") as? Number)?.toFloat() ?: 200f
+                val heightDp            = (componentArgs?.get("height") as? Number)?.toFloat() ?: 120f
+                val startX              = (componentArgs?.get("startX") as? Number)?.toFloat() ?: 0.7f
+                val startY              = (componentArgs?.get("startY") as? Number)?.toFloat() ?: 0.1f
+                val cornerRadiusDp      = (componentArgs?.get("cornerRadius") as? Number)?.toFloat() ?: 12f
+                val backgroundColor     = try {
+                    androidx.compose.ui.graphics.Color(
+                        android.graphics.Color.parseColor(
+                            componentArgs?.get("backgroundColor") as? String ?: "#000000"
+                        )
+                    )
+                } catch (_: Exception) { androidx.compose.ui.graphics.Color.Black }
+                val showClose           = componentArgs?.get("showClose") as? Boolean ?: true
+                val expandable          = componentArgs?.get("expandable") as? Boolean ?: true
+                val autoPlay            = componentArgs?.get("autoPlay") as? Boolean ?: true
+                val looping             = componentArgs?.get("looping") as? Boolean ?: false
+                val muted               = componentArgs?.get("muted") as? Boolean ?: false
+                val animationDurationMs = (componentArgs?.get("animationDurationMs") as? Number)?.toInt() ?: 300
+                val delayMs             = (componentArgs?.get("delayMs") as? Number)?.toLong() ?: 0L
+                val autoDismissMs       = (componentArgs?.get("autoDismissMs") as? Number)?.toLong() ?: 0L
+                val closeOnScreenChange = componentArgs?.get("closeOnScreenChange") as? Boolean ?: false
+                val closeOnNavigation   = componentArgs?.get("closeOnNavigation") as? Boolean ?: false
+
+                // position preset — "br"|"bl"|"tr"|"tl"|"c" (Apxor vi_position style)
+                val position = when ((componentArgs?.get("position") as? String)?.lowercase()) {
+                    "br"           -> com.digia.digiaui.framework.pip.PipPosition.BOTTOM_RIGHT
+                    "bl"           -> com.digia.digiaui.framework.pip.PipPosition.BOTTOM_LEFT
+                    "tr"           -> com.digia.digiaui.framework.pip.PipPosition.TOP_RIGHT
+                    "tl"           -> com.digia.digiaui.framework.pip.PipPosition.TOP_LEFT
+                    "c", "center"  -> com.digia.digiaui.framework.pip.PipPosition.CENTER
+                    else           -> null
+                }
+
+                // screen filter — { type: "whitelist"|"blacklist", screens: ["Home","Cart"] }
+                @Suppress("UNCHECKED_CAST")
+                val screenFilter = (componentArgs?.get("screenFilter") as? Map<String, Any?>)?.let { sf ->
+                    val filterType = when ((sf["type"] as? String)?.lowercase()) {
+                        "whitelist" -> com.digia.digiaui.framework.pip.PipScreenFilter.Type.WHITELIST
+                        else        -> com.digia.digiaui.framework.pip.PipScreenFilter.Type.BLACKLIST
+                    }
+                    val screens = (sf["screens"] as? List<*>)?.filterIsInstance<String>()?.toSet() ?: emptySet()
+                    com.digia.digiaui.framework.pip.PipScreenFilter(filterType, screens)
+                }
+
+                // drag bounds — { minX, maxX, minY, maxY } fractions (Digia-only feature)
+                @Suppress("UNCHECKED_CAST")
+                val dragBounds = (componentArgs?.get("dragBounds") as? Map<String, Any?>)?.let { db ->
+                    com.digia.digiaui.framework.pip.PipDragBounds(
+                        minXFraction = (db["minX"] as? Number)?.toFloat() ?: 0f,
+                        maxXFraction = (db["maxX"] as? Number)?.toFloat() ?: 1f,
+                        minYFraction = (db["minY"] as? Number)?.toFloat() ?: 0f,
+                        maxYFraction = (db["maxY"] as? Number)?.toFloat() ?: 1f,
+                    )
+                }
+
+                DigiaUIManager.getInstance()
+                        .pipManager
+                        ?.show(
+                                componentId         = componentId,
+                                args                = componentArgs,
+                                videoUrl            = videoUrl,
+                                position            = position,
+                                startX              = startX,
+                                startY              = startY,
+                                widthDp             = widthDp,
+                                heightDp            = heightDp,
+                                cornerRadiusDp      = cornerRadiusDp,
+                                backgroundColor     = backgroundColor,
+                                showClose           = showClose,
+                                expandable          = expandable,
+                                autoPlay            = autoPlay,
+                                looping             = looping,
+                                muted               = muted,
+                                delayMs             = delayMs,
+                                autoDismissMs       = autoDismissMs,
+                                screenFilter        = screenFilter,
+                                closeOnScreenChange = closeOnScreenChange,
+                                closeOnNavigation   = closeOnNavigation,
+                                dragBounds          = dragBounds,
+                                animationDurationMs = animationDurationMs,
+                                onDismiss           = onDismiss,
+                                onEvent             = onPipEvent,
+                        )
             }
         }
     }

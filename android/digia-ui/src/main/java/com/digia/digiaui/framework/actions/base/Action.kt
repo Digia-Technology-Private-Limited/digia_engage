@@ -25,7 +25,15 @@ enum class ActionType(val value: String) {
     POST_MESSAGE("Action.handleDigiaMessage"),
     FIRE_EVENT("Action.fireEvent"),
     EXECUTE_CALLBACK("Action.executeCallback"),
-    CALL_EXTERNAL_METHOD("Action.handleDigiaMessage");
+    CALL_EXTERNAL_METHOD("Action.handleDigiaMessage"),
+    SHOW_COACHMARK("Action.showCoachmark"),
+    DISMISS_COACHMARK("Action.dismissCoachmark"),
+    SHOW_TOOLTIP("Action.showTooltip"),
+    DISMISS_TOOLTIP("Action.dismissTooltip"),
+    SHOW_FLOATER("Action.showFloater"),
+    DISMISS_FLOATER("Action.dismissFloater"),
+    SHOW_PIP("Action.showPip"),
+    DISMISS_PIP("Action.dismissPip");
 
     companion object {
         fun fromString(value: String): ActionType {

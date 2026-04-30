@@ -1,7 +1,10 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
+import '../../src/framework/pip/pip_overlay.dart';
+import '../../src/framework/pip/pip_types.dart';
 import '../../src/framework/ui_factory.dart';
+import '../../src/framework/utils/color_util.dart';
 import '../../src/framework/utils/navigation_util.dart';
 import '../internal/digia_instance.dart';
 import '../internal/digia_overlay_controller.dart';
@@ -20,28 +23,8 @@ import '../models/in_app_payload.dart';
 ///   builder: (context, child) => DigiaHost(child: child!),
 /// )
 /// ```
-///
-/// Placing [DigiaHost] multiple times or below the navigation root
-/// produces undefined behavior — the SDK logs a warning.
-///
-/// Marketing name: "In-App Messages" → [DigiaHost]
 class DigiaHost extends StatefulWidget {
-  /// Navigator key that must be passed to [MaterialApp.navigatorKey].
-  ///
-  /// [DigiaHost] sits in [MaterialApp.builder], which is above the app's
-  /// [Navigator] in the widget tree. Dialogs and bottom sheets require a
-  /// context that is a descendant of that navigator; this key provides it.
-  ///
-  /// ```dart
-  /// MaterialApp(
-  ///   navigatorKey: DigiaHost.navigatorKey,
-  ///   navigatorObservers: [DigiaNavigatorObserver()],
-  ///   builder: (context, child) => DigiaHost(child: child!),
-  /// )
-  /// ```
   final GlobalKey<NavigatorState>? navigatorKey;
-
-  /// The application widget tree to render below the overlay layer.
   final Widget child;
 
   const DigiaHost({required this.child, this.navigatorKey, super.key});
@@ -51,8 +34,6 @@ class DigiaHost extends StatefulWidget {
 }
 
 class _DigiaHostState extends State<DigiaHost> {
-  /// Reference to the shared controller. [DigiaInstance] owns it;
-  /// [DigiaHost] only listens.
   late final DigiaOverlayController _controller;
 
   @override
@@ -60,8 +41,6 @@ class _DigiaHostState extends State<DigiaHost> {
     super.initState();
     _controller = DigiaInstance.instance.controller;
     _controller.addListener(_onControllerChanged);
-
-    // Notify SDK that DigiaHost is now mounted.
     DigiaInstance.instance.onHostMounted();
   }
 
@@ -74,10 +53,7 @@ class _DigiaHostState extends State<DigiaHost> {
 
   void _onControllerChanged() {
     final payload = _controller.activePayload;
-
-    if (payload == null) {
-      return;
-    }
+    if (payload == null) return;
 
     final command =
         (payload.content['command'] as String?)?.trim().toUpperCase();
@@ -89,15 +65,67 @@ class _DigiaHostState extends State<DigiaHost> {
         _controller.onEvent?.call(const ExperienceImpressed(), payload);
         _presentModal(context, payload, command!);
       });
+    } else if (command == 'SHOW_PIP') {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        _presentPip(context, payload);
+      });
+      _controller.dismiss();
     } else {
       // Inline is handled by DigiaSlot; host only renders overlay commands.
       _controller.dismiss();
     }
   }
 
-  /// Presents a modal bottom sheet or dialog using the [DUIFactory] rendering
-  /// engine. The controller is dismissed when the modal closes so the overlay
-  /// state is cleared for both user-driven and programmatic dismissals.
+  void _presentPip(BuildContext context, InAppPayload payload) {
+    final content = payload.content;
+    final viewId = content['viewId'] as String?;
+    final args = _toStringDynamicMap(content['args']) ?? <String, dynamic>{};
+    final allArgs = <String, dynamic>{...args};
+    // Copy any top-level content fields into args for pip field parsing
+    content.forEach((k, v) { if (!allArgs.containsKey(k)) allArgs[k] = v; });
+
+    void fireAndDismiss(dynamic _) {
+      _controller.onEvent?.call(const ExperienceDismissed(), payload);
+    }
+
+    final navigator = widget.navigatorKey?.currentState ??
+        DigiaInstance.instance.navigator;
+    if (navigator == null) {
+      debugPrint('[Digia] DigiaHost: no navigator available for SHOW_PIP');
+      return;
+    }
+
+    final request = PipRequest(
+      componentId: viewId ?? '',
+      args: args,
+      videoUrl: allArgs['videoUrl'] as String?,
+      position: PipPosition.fromString(allArgs['position'] as String?),
+      startX: _toDouble(allArgs['startX']) ?? 0.7,
+      startY: _toDouble(allArgs['startY']) ?? 0.1,
+      widthDp: _toDouble(allArgs['width'] ?? allArgs['widthDp']) ?? 200,
+      heightDp: _toDouble(allArgs['height'] ?? allArgs['heightDp']) ?? 120,
+      cornerRadius: _toDouble(allArgs['cornerRadius']) ?? 12,
+      backgroundColor: ColorUtil.tryFromHexString(
+            allArgs['backgroundColor'] as String? ?? '#000000') ??
+          Colors.black,
+      showClose: allArgs['showClose'] as bool? ?? true,
+      expandable: allArgs['expandable'] as bool? ?? true,
+      autoPlay: allArgs['autoPlay'] as bool? ?? true,
+      looping: allArgs['looping'] as bool? ?? false,
+      muted: allArgs['muted'] as bool? ?? false,
+      delayMs: _toInt(allArgs['delayMs']) ?? 0,
+      autoDismissMs: _toInt(allArgs['autoDismissMs']) ?? 0,
+      closeOnScreenChange: allArgs['closeOnScreenChange'] as bool? ?? false,
+      dragBounds: _parseDragBounds(allArgs['dragBounds']),
+      animationDurationMs: _toInt(allArgs['animationDurationMs']) ?? 300,
+      onDismiss: fireAndDismiss,
+    );
+
+    PipManager.instance.show(navigator, request);
+    _controller.onEvent?.call(const ExperienceImpressed(), payload);
+  }
+
   void _presentModal(
       BuildContext context, InAppPayload payload, String command) {
     final content = payload.content;
@@ -114,9 +142,6 @@ class _DigiaHostState extends State<DigiaHost> {
       return;
     }
 
-    // Resolve a context that is a descendant of the app Navigator.
-    // DigiaHost lives in MaterialApp.builder (above the Navigator), so
-    // this.context cannot be used directly for Navigator-based APIs.
     final navContext = widget.navigatorKey?.currentContext ??
         DigiaInstance.instance.navigator?.context ??
         context;
@@ -152,16 +177,10 @@ class _DigiaHostState extends State<DigiaHost> {
 
   @override
   Widget build(BuildContext context) {
-    // DigiaHost only handles modal experiences (dialog/bottomsheet).
-    // Inline/fullscreen experiences are handled by individual pages.
     return widget.child;
   }
 }
 
-/// Builds a server-driven view using [DUIFactory].
-///
-/// Routes to [DUIFactory.createPage] or [DUIFactory.createComponent]
-/// based on whether [viewId] is registered as a page in the Digia config.
 Widget _buildView(
     BuildContext context, String viewId, Map<String, dynamic> args) {
   final factory = DUIFactory();
@@ -169,6 +188,31 @@ Widget _buildView(
     return factory.createPage(viewId, args);
   }
   return factory.createComponent(viewId, args);
+}
+
+double? _toDouble(dynamic v) {
+  if (v is double) return v;
+  if (v is int) return v.toDouble();
+  if (v is num) return v.toDouble();
+  return null;
+}
+
+int? _toInt(dynamic v) {
+  if (v is int) return v;
+  if (v is double) return v.toInt();
+  if (v is num) return v.toInt();
+  return null;
+}
+
+PipDragBounds? _parseDragBounds(dynamic raw) {
+  final map = raw as Map<String, dynamic>?;
+  if (map == null) return null;
+  return PipDragBounds(
+    minXFraction: _toDouble(map['minX']) ?? 0,
+    maxXFraction: _toDouble(map['maxX']) ?? 1,
+    minYFraction: _toDouble(map['minY']) ?? 0,
+    maxYFraction: _toDouble(map['maxY']) ?? 1,
+  );
 }
 
 class _DigiaModalError extends StatelessWidget {

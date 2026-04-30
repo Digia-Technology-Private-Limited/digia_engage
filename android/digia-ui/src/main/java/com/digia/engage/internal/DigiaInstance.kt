@@ -123,6 +123,10 @@ internal object DigiaInstance : DigiaCEPDelegate {
         val manager = DigiaUIManager.getInstance()
         manager.bottomSheetManager = manager.bottomSheetManager ?: BottomSheetManager()
         manager.dialogManager = manager.dialogManager ?: DialogManager()
+        manager.coachmarkManager = manager.coachmarkManager ?: com.digia.digiaui.framework.coachmark.CoachmarkManager()
+        manager.tooltipManager = manager.tooltipManager ?: com.digia.digiaui.framework.tooltip.TooltipManager()
+        manager.floaterManager = manager.floaterManager ?: com.digia.digiaui.framework.floater.FloaterManager()
+        manager.pipManager = manager.pipManager ?: com.digia.digiaui.framework.pip.PipManager()
         DUIFactory.getInstance().initialize()
         _isRenderEngineReady.value = true
     }
@@ -185,6 +189,10 @@ internal object DigiaInstance : DigiaCEPDelegate {
         lifecycleObserverAttached.set(false)
         DigiaUIManager.getInstance().dialogManager?.clear()
         DigiaUIManager.getInstance().bottomSheetManager?.clear()
+        DigiaUIManager.getInstance().coachmarkManager?.clear()
+        DigiaUIManager.getInstance().tooltipManager?.clear()
+        DigiaUIManager.getInstance().floaterManager?.clear()
+        DigiaUIManager.getInstance().pipManager?.clear()
         DigiaUIManager.destroy()
         DUIFactory.getInstance().destroy()
     }
@@ -251,7 +259,7 @@ internal object DigiaInstance : DigiaCEPDelegate {
         }
 
         when (command) {
-            "SHOW_DIALOG", "SHOW_BOTTOM_SHEET" -> {
+            "SHOW_DIALOG", "SHOW_BOTTOM_SHEET", "SHOW_COACHMARK", "SHOW_TOOLTIP", "SHOW_FLOATER", "SHOW_PIP" -> {
                 if (!hostMounted) {
                     logWarning("nudge campaign arrived before DigiaHost mounted: ${payload.id}")
                 }
@@ -268,7 +276,8 @@ internal object DigiaInstance : DigiaCEPDelegate {
         val type = (payload.content["type"] as? String)?.trim()?.lowercase()
         if (type == "inline") return false
         val command = (payload.content["command"] as? String)?.trim()?.uppercase()
-        return command == "SHOW_DIALOG" || command == "SHOW_BOTTOM_SHEET"
+        return command == "SHOW_DIALOG" || command == "SHOW_BOTTOM_SHEET" || command == "SHOW_COACHMARK"
+            || command == "SHOW_TOOLTIP" || command == "SHOW_FLOATER" || command == "SHOW_PIP"
     }
 
     private fun flushPendingPayloadIfAny() {

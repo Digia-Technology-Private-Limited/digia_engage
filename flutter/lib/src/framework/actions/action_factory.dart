@@ -22,8 +22,10 @@ import 'rebuild_state/action.dart';
 import 'setState/action.dart';
 import 'set_app_state/action.dart';
 import 'share/action.dart';
+import 'dismissPip/action.dart';
 import 'showBottomSheet/action.dart';
 import 'showDialog/action.dart';
+import 'showPip/action.dart';
 import 'showToast/action.dart';
 import 'upload/action.dart';
 
@@ -93,6 +95,10 @@ class ActionFactory {
       case ActionType.hideBottomSheet:
       case ActionType.dismissDialog:
         action = NavigateBackAction.fromJson(actionData);
+      case ActionType.showPip:
+        action = ShowPipAction.fromJson(actionData);
+      case ActionType.dismissPip:
+        action = DismissPipAction.fromJson(actionData);
     }
 
     // TODO: Remove force cast

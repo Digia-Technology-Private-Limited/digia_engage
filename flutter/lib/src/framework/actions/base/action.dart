@@ -28,7 +28,9 @@ enum ActionType {
   fireEvent('Action.fireEvent'),
   setAppState('Action.setAppState'),
   hideBottomSheet('Action.hideBottomSheet'),
-  dismissDialog('Action.dismissDialog');
+  dismissDialog('Action.dismissDialog'),
+  showPip('Action.showPip'),
+  dismissPip('Action.dismissPip');
 
   final String value;
   const ActionType(this.value);

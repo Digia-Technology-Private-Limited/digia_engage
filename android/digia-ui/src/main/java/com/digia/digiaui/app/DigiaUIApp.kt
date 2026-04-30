@@ -88,6 +88,14 @@ internal fun DigiaUIApp(
             com.digia.digiaui.framework.bottomsheet.BottomSheetManager()
         DigiaUIManager.getInstance().dialogManager = 
             com.digia.digiaui.framework.dialog.DialogManager()
+        DigiaUIManager.getInstance().coachmarkManager =
+            com.digia.digiaui.framework.coachmark.CoachmarkManager()
+        DigiaUIManager.getInstance().tooltipManager =
+            com.digia.digiaui.framework.tooltip.TooltipManager()
+        DigiaUIManager.getInstance().floaterManager =
+            com.digia.digiaui.framework.floater.FloaterManager()
+        DigiaUIManager.getInstance().pipManager =
+            com.digia.digiaui.framework.pip.PipManager()
 
         
         // Set analytics provider
@@ -151,6 +159,42 @@ internal fun DigiaUIApp(
         DigiaUIManager.getInstance().bottomSheetManager?.let { manager ->
             com.digia.digiaui.framework.bottomsheet.BottomSheetHost(
                 bottomSheetManager = manager,
+                resources = DUIFactory.getInstance().getResources()
+            )
+        }
+
+        // Coachmark Host
+        DigiaUIManager.getInstance().coachmarkManager?.let { manager ->
+            com.digia.digiaui.framework.coachmark.CoachmarkHost(
+                coachmarkManager = manager,
+                registry = DUIFactory.getInstance().getRegistry(),
+                resources = DUIFactory.getInstance().getResources()
+            )
+        }
+
+        // Tooltip Host
+        DigiaUIManager.getInstance().tooltipManager?.let { manager ->
+            com.digia.digiaui.framework.tooltip.TooltipHost(
+                tooltipManager = manager,
+                registry = DUIFactory.getInstance().getRegistry(),
+                resources = DUIFactory.getInstance().getResources()
+            )
+        }
+
+        // Floater Host
+        DigiaUIManager.getInstance().floaterManager?.let { manager ->
+            com.digia.digiaui.framework.floater.FloaterHost(
+                floaterManager = manager,
+                registry = DUIFactory.getInstance().getRegistry(),
+                resources = DUIFactory.getInstance().getResources()
+            )
+        }
+
+        // PiP Host
+        DigiaUIManager.getInstance().pipManager?.let { manager ->
+            com.digia.digiaui.framework.pip.PipHost(
+                pipManager = manager,
+                registry = DUIFactory.getInstance().getRegistry(),
                 resources = DUIFactory.getInstance().getResources()
             )
         }

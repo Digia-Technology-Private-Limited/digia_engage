@@ -27,8 +27,10 @@ import 'rebuild_state/processor.dart';
 import 'setState/processor.dart';
 import 'set_app_state/processor.dart';
 import 'share/processor.dart';
+import 'dismissPip/processor.dart';
 import 'showBottomSheet/processor.dart';
 import 'showDialog/processor.dart';
+import 'showPip/processor.dart';
 import 'showToast/processor.dart';
 import 'upload/processor.dart';
 
@@ -135,6 +137,10 @@ class ActionProcessorFactory {
       case an.ActionType.hideBottomSheet:
       case an.ActionType.dismissDialog:
         actionProcessor = NavigateBackProcessor();
+      case an.ActionType.showPip:
+        actionProcessor = ShowPipProcessor();
+      case an.ActionType.dismissPip:
+        actionProcessor = DismissPipProcessor();
     }
     actionProcessor?.executionContext = executionContext;
     return (actionProcessor ?? ShowToastProcessor());

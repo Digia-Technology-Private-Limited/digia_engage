@@ -73,6 +73,18 @@ internal class DigiaUIManager private constructor() {
     /** The dialog manager for displaying dialogs */
     var dialogManager: com.digia.digiaui.framework.dialog.DialogManager? = null
 
+    /** The coachmark manager for displaying coachmark overlays */
+    var coachmarkManager: com.digia.digiaui.framework.coachmark.CoachmarkManager? = null
+
+    /** The tooltip manager for displaying anchored tooltip bubbles */
+    var tooltipManager: com.digia.digiaui.framework.tooltip.TooltipManager? = null
+
+    /** The floater manager for displaying draggable floating cards */
+    var floaterManager: com.digia.digiaui.framework.floater.FloaterManager? = null
+
+    /** The pip manager for displaying Picture-in-Picture windows */
+    var pipManager: com.digia.digiaui.framework.pip.PipManager? = null
+
     /** Asset images declared in the config, parsed into LocalAsset objects */
     val assetImages: List<LocalAsset>
         get() {
