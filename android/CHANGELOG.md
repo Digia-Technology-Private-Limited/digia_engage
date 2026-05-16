@@ -1,6 +1,9 @@
 
 
-## [1.0.0-beta.4] - 2026-04-17
+## [1.0.0] - 2026-05-16
+
+### Changed
+- Stable release — removed beta designation
 
 ### Added
 - Inline's Event support for `DigiaSlot`

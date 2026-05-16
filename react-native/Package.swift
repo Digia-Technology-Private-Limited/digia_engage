@@ -24,7 +24,7 @@ let package = Package(
         // https://swiftpackageindex.com/Digia-Technology-Private-Limited/digia_engage_iOS
         .package(
             url: "https://github.com/Digia-Technology-Private-Limited/digia_engage_iOS.git",
-            exact: "1.0.0-beta.2"
+            exact: "1.0.0"
         ),
     ],
     targets: [
