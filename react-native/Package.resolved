@@ -14,8 +14,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/Digia-Technology-Private-Limited/digia_engage_iOS.git",
       "state" : {
-        "revision" : "f4e3890386c6ca7962e9b716c1086c06f2a6499b",
-        "version" : "1.0.0-beta.1"
+        "revision" : "11d4089aed8b9cab8b8282a0d18ae460f7b95a95",
+        "version" : "1.0.0-beta.2"
       }
     },
     {

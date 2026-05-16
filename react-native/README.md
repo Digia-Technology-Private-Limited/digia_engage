@@ -89,7 +89,7 @@ Your app's `android/app/build.gradle` must declare the Digia Engage AAR
 
 ```groovy
 dependencies {
-    implementation 'com.digia:digia-ui:1.0.0-beta-1'
+    implementation 'com.digia:digia-ui:1.0.0'
 }
 ```
 
