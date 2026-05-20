@@ -152,6 +152,32 @@ final class DigiaModule: RCTEventEmitter {
     }
 
     // ────────────────────────────────────────────────────────────────────────
+    // MARK: - registerAnchor / unregisterAnchor
+
+    /// Registers a UI element as an anchor point for Guide experiences.
+    /// JS sends physical pixels; convert to UIKit points using screen scale.
+    @objc
+    func registerAnchor(_ key: String, x: Double, y: Double, width: Double, height: Double) {
+        let scale = UIScreen.main.scale
+        let rect = CGRect(
+            x: CGFloat(x) / scale,
+            y: CGFloat(y) / scale,
+            width: CGFloat(width) / scale,
+            height: CGFloat(height) / scale
+        )
+        Task { @MainActor in
+            AnchorRegistry.shared.register(key: key, rect: rect)
+        }
+    }
+
+    @objc
+    func unregisterAnchor(_ key: String) {
+        Task { @MainActor in
+            AnchorRegistry.shared.unregister(key: key)
+        }
+    }
+
+    // ────────────────────────────────────────────────────────────────────────
     // MARK: - Internal: mount the SwiftUI overlay host
 
     /// Mirrors Android's DigiaModule.mountDigiaHost().

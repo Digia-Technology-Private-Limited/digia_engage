@@ -78,6 +78,11 @@ export interface DigiaConfig {
     /** The API key provided by Digia. */
     apiKey: string;
     /**
+     * Base URL for the Digia API.
+     * @default 'https://api.digia.io'
+     */
+    baseUrl?: string;
+    /**
      * The target environment.
      * @default 'production'
      */

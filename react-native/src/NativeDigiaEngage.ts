@@ -51,6 +51,12 @@ export interface Spec extends TurboModule {
     /** Invalidate / dismiss a campaign by its ID. */
     invalidateCampaign(campaignId: string): void;
 
+    /** Register a UI element as an anchor point for Guide experiences. */
+    registerAnchor(key: string, x: number, y: number, width: number, height: number): void;
+    unregisterAnchor(key: string): void;
+
+    /** Return all registered components (anchors/slots) for health reporting. */
+    getRegisteredComponents(): Promise<Array<{ component_key: string; component_type: 'anchor' | 'slot'; screen_name: string | null }>>;
 }
 
 // Try TurboModuleRegistry first (New Architecture / JSI).
@@ -83,5 +89,8 @@ export const nativeDigiaModule: Spec = {
     triggerCampaign: (id, content, cepContext) =>
         getModule()?.triggerCampaign(id, content, cepContext),
     invalidateCampaign: (campaignId) => getModule()?.invalidateCampaign(campaignId),
+    registerAnchor: (key, x, y, width, height) => getModule()?.registerAnchor(key, x, y, width, height),
+    unregisterAnchor: (key) => getModule()?.unregisterAnchor(key),
+    getRegisteredComponents: () => getModule()?.getRegisteredComponents() ?? Promise.resolve([]),
     getConstants: () => getModule()?.getConstants?.() ?? {},
 };

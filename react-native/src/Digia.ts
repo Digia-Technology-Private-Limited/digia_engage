@@ -17,6 +17,7 @@
 
 import { DeviceEventEmitter } from 'react-native';
 import { nativeDigiaModule } from './NativeDigiaEngage';
+import { digiaHealthReporter, HealthEventType } from './DigiaHealthReporter';
 import type {
     DigiaConfig,
     DigiaDelegate,
@@ -44,7 +45,26 @@ class DigiaClass implements DigiaDelegate {
     async initialize(config: DigiaConfig): Promise<void> {
         const environment = config.environment ?? 'production';
         const logLevel = config.logLevel ?? 'error';
-        await nativeDigiaModule.initialize(config.apiKey, environment, logLevel);
+        digiaHealthReporter.init(config.apiKey, config.baseUrl ?? 'https://api.digia.io');
+        try {
+            await nativeDigiaModule.initialize(config.apiKey, environment, logLevel);
+        } catch (e) {
+            digiaHealthReporter.report(HealthEventType.fetch_failed, { error_code: 0, platform: 'react_native' });
+            throw e;
+        }
+        // Report registered components to backend (fire-and-forget)
+        try {
+            const components = await nativeDigiaModule.getRegisteredComponents();
+            if (components.length > 0) {
+                fetch(`${config.baseUrl ?? 'https://api.digia.io'}/engage/sdk/recordComponents`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'x-api-key': config.apiKey },
+                    body: JSON.stringify({ components: components.map(c => ({ ...c, platform: 'react_native' })) }),
+                }).catch(() => { /* swallow */ });
+            }
+        } catch {
+            // never throw
+        }
     }
 
     /**
@@ -74,6 +94,7 @@ class DigiaClass implements DigiaDelegate {
             this._nativeBridgeWired = true;
         }
         plugin.setup(this);
+        (plugin as any).reportHealth?.(digiaHealthReporter);
         this._plugins.set(plugin.identifier, plugin);
     }
 
@@ -105,6 +126,9 @@ class DigiaClass implements DigiaDelegate {
     // Forwards to the native DigiaCEPDelegate via the bridge.
 
     onCampaignTriggered(payload: InAppPayload): void {
+        if (!this._nativeBridgeWired) {
+            digiaHealthReporter.report(HealthEventType.plugin_not_registered, { campaign_key: payload.id });
+        }
         this._activePayloads.set(payload.id, payload);
         nativeDigiaModule.triggerCampaign(payload.id, payload.content, payload.cepContext);
     }

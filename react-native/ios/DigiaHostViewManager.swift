@@ -48,30 +48,27 @@ final class DigiaHostUIView: UIView {
     }
 
     private func mountHostingController() {
-        guard let parentVC = parentViewController() else { return}
+        let parentVC = parentViewController()
 
         let swiftUIView = DigiaHostWrapperView()
         let hc = UIHostingController(rootView: swiftUIView)
         hc.view.translatesAutoresizingMaskIntoConstraints = false
         hc.view.backgroundColor = .clear
 
-        parentVC.addChild(hc)
-        // Mount onto parentVC.view (full-screen) rather than self, because
-        // DigiaHostView is intentionally sized 0×0 in React Native (it takes no
-        // screen space). A zero-size UIHostingController frame prevents SwiftUI
-        // from rendering its body, which means @ObservedObject subscriptions and
-        // .onChange(of:) modifiers are never established — so activePayload
-        // changes are silently dropped and no overlay is ever shown.
-        // Anchoring to parentVC.view guarantees a non-zero frame so SwiftUI's
-        // rendering loop runs and reacts to SDK state changes.
-        parentVC.view.addSubview(hc.view)
-        hc.didMove(toParent: parentVC)
+        if let parentVC { parentVC.addChild(hc) }
+        // Mount onto self rather than parentVC.view. DigiaHostView is given
+        // absoluteFillObject style from JS so self IS full-screen, and SwiftUI
+        // will render normally. Mounting here means hitTest below is the single
+        // control point for touch dispatch — parentVC.view never has a rogue
+        // full-screen sibling that intercepts all RN touches.
+        addSubview(hc.view)
+        if let parentVC { hc.didMove(toParent: parentVC) }
 
         NSLayoutConstraint.activate([
-            hc.view.leadingAnchor.constraint(equalTo: parentVC.view.leadingAnchor),
-            hc.view.trailingAnchor.constraint(equalTo: parentVC.view.trailingAnchor),
-            hc.view.topAnchor.constraint(equalTo: parentVC.view.topAnchor),
-            hc.view.bottomAnchor.constraint(equalTo: parentVC.view.bottomAnchor),
+            hc.view.leadingAnchor.constraint(equalTo: leadingAnchor),
+            hc.view.trailingAnchor.constraint(equalTo: trailingAnchor),
+            hc.view.topAnchor.constraint(equalTo: topAnchor),
+            hc.view.bottomAnchor.constraint(equalTo: bottomAnchor),
         ])
 
         hostingController = hc
@@ -79,11 +76,14 @@ final class DigiaHostUIView: UIView {
 
     // Pass touches through to RN when no overlay is active.
     // When an overlay renders in-host (bottom sheet / dialog inside DigiaHost's ZStack),
-    // SwiftUI's hit test returns the overlay view and we forward that — making the
-    // overlay fully interactive. When nothing is rendered (EmptyView), SwiftUI returns
-    // nil and we return nil, so UIKit falls through to RN content below.
+    // SwiftUI's hit test returns the overlay view — making the overlay interactive.
+    // When nothing is rendered, _UIHostingView.hitTest returns nil or itself; either
+    // way we return nil so UIKit falls through to RN content below.
     override func hitTest(_ point: CGPoint, with event: UIEvent?) -> UIView? {
-        return hostingController?.view.hitTest(point, with: event)
+        guard let hcView = hostingController?.view else { return nil }
+        let hit = hcView.hitTest(point, with: event)
+        if hit == nil || hit === hcView { return nil }
+        return hit
     }
 
     /// Prefer React Native’s `UIView.reactViewController`, then walk `next` from each view’s `.next`.

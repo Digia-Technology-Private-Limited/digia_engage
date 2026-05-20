@@ -5,11 +5,11 @@ plugins {
 }
 
 android {
-    namespace = "com.digia.digiauiexample"
+    namespace = "com.digia.engageexample"
     compileSdk = 36
 
     defaultConfig {
-        applicationId = "com.digia.digiauiexample"
+        applicationId = "com.digia.engageexample"
         minSdk = 26
         targetSdk = 36
         versionCode = 1
@@ -56,7 +56,7 @@ android {
 }
 
 dependencies {
-    // Use the local digia_engage module
+    // Use the local Digia Engage module
     implementation(project(":digia_engage"))
 
     // Android Core
