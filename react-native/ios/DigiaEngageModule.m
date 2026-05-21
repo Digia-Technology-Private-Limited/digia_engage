@@ -38,6 +38,14 @@ RCT_EXTERN_METHOD(triggerCampaign:(NSString *)id
 
 RCT_EXTERN_METHOD(invalidateCampaign:(NSString *)campaignId)
 
+RCT_EXTERN_METHOD(showAnchoredOverlay:(NSString *)id
+                  content:(NSDictionary *)content
+                  cepContext:(NSDictionary *)cepContext
+                  anchorX:(double)anchorX
+                  anchorY:(double)anchorY
+                  anchorWidth:(double)anchorWidth
+                  anchorHeight:(double)anchorHeight)
+
 @end
 
 
@@ -49,4 +57,8 @@ RCT_EXTERN_METHOD(invalidateCampaign:(NSString *)campaignId)
 @interface RCT_EXTERN_MODULE(DigiaSlotView, RCTViewManager)
 RCT_EXPORT_VIEW_PROPERTY(placementKey, NSString)
 RCT_EXPORT_VIEW_PROPERTY(onContentSizeChange, RCTDirectEventBlock)
+@end
+
+@interface RCT_EXTERN_MODULE(DigiaAnchorView, RCTViewManager)
+RCT_EXPORT_VIEW_PROPERTY(anchorKey, NSString)
 @end

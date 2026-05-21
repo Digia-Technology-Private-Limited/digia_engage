@@ -42,6 +42,9 @@ internal object DigiaInstance : DigiaCEPDelegate {
     private val _sdkState = MutableStateFlow(SDKState.NOT_INITIALIZED)
     val sdkState: StateFlow<SDKState> = _sdkState.asStateFlow()
 
+    private val _currentScreen = MutableStateFlow<String?>(null)
+    val currentScreen: StateFlow<String?> = _currentScreen.asStateFlow()
+
     private val initializationStarted = AtomicBoolean(false)
     private val initialized = AtomicBoolean(false)
     private val lifecycleObserverAttached = AtomicBoolean(false)
@@ -50,6 +53,7 @@ internal object DigiaInstance : DigiaCEPDelegate {
     private var lifecycleObserver: LifecycleEventObserver? = null
     private var hostMounted = false
     private var pendingPayload: InAppPayload? = null
+    private val pendingInlinePayloads = mutableListOf<InAppPayload>()
 
     private val diagnosticsReporter = DiagnosticsReporter(::logWarning)
     private val analyticsClient = AnalyticsClient(diagnosticsReporter)
@@ -116,6 +120,7 @@ internal object DigiaInstance : DigiaCEPDelegate {
 
     fun setCurrentScreen(name: String) {
         screenTracker.setScreen(name)
+        _currentScreen.value = name
     }
 
     fun ensureRenderEngineInitialized() {
@@ -159,6 +164,13 @@ internal object DigiaInstance : DigiaCEPDelegate {
         }
     }
 
+    fun markAnchoredOverlayDismissed(payloadId: String) {
+        val state = controller.activeAnchoredOverlay.value ?: return
+        if (state.payload.id != payloadId) return
+        controller.dismissAnchored()
+        displayCoordinator.onOverlayEvent(DigiaExperienceEvent.Dismissed, state.payload)
+    }
+
     fun emitExplicitCtaClick(elementId: String?) {
         val payload = controller.activePayload.value ?: return
         displayCoordinator.onOverlayEvent(DigiaExperienceEvent.Clicked(elementId), payload)
@@ -171,11 +183,14 @@ internal object DigiaInstance : DigiaCEPDelegate {
         initializationStarted.set(false)
         initialized.set(false)
         pendingPayload = null
+        pendingInlinePayloads.clear()
         hostMounted = false
         pluginRegistry.teardown()
         controller.dismiss()
+        controller.dismissAnchored()
         controller.clearSlots()
         screenTracker.clear()
+        _currentScreen.value = null
         renderEngineInitialized.set(false)
         _isRenderEngineReady.value = false
         _isUiReady.value = false
@@ -203,7 +218,7 @@ internal object DigiaInstance : DigiaCEPDelegate {
                         }
                         pendingPayload = payload
                     } else {
-                        logWarning("inline payload dropped while initializing: ${payload.id}")
+                        pendingInlinePayloads.add(payload)
                     }
                     return@launch
                 }
@@ -251,7 +266,7 @@ internal object DigiaInstance : DigiaCEPDelegate {
         }
 
         when (command) {
-            "SHOW_DIALOG", "SHOW_BOTTOM_SHEET" -> {
+            "SHOW_DIALOG", "SHOW_BOTTOM_SHEET", "SHOW_TOOLTIP", "SHOW_SPOTLIGHT" -> {
                 if (!hostMounted) {
                     logWarning("nudge campaign arrived before DigiaHost mounted: ${payload.id}")
                 }
@@ -268,10 +283,15 @@ internal object DigiaInstance : DigiaCEPDelegate {
         val type = (payload.content["type"] as? String)?.trim()?.lowercase()
         if (type == "inline") return false
         val command = (payload.content["command"] as? String)?.trim()?.uppercase()
-        return command == "SHOW_DIALOG" || command == "SHOW_BOTTOM_SHEET"
+        return command == "SHOW_DIALOG" || command == "SHOW_BOTTOM_SHEET" ||
+                command == "SHOW_TOOLTIP" || command == "SHOW_SPOTLIGHT"
     }
 
     private fun flushPendingPayloadIfAny() {
+        val inlines = pendingInlinePayloads.toList()
+        pendingInlinePayloads.clear()
+        inlines.forEach { routeCampaign(it) }
+
         val payload = pendingPayload ?: return
         pendingPayload = null
         routeCampaign(payload)
@@ -326,10 +346,13 @@ internal object DigiaInstance : DigiaCEPDelegate {
         initializationStarted.set(false)
         initialized.set(false)
         pendingPayload = null
+        pendingInlinePayloads.clear()
         hostMounted = false
         pluginRegistry.teardown()
         screenTracker.clear()
+        _currentScreen.value = null
         controller.dismiss()
+        controller.dismissAnchored()
         controller.clearSlots()
         renderEngineInitialized.set(false)
         _isRenderEngineReady.value = false

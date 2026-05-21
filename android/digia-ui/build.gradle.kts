@@ -132,6 +132,10 @@ dependencies {
     // Scratchify for scratch card functionality
     implementation("io.github.gsrathoreniks:scratchify:1.0.0-alpha2")
 
+    // Balloon — tooltip/spotlight anchored popups
+    implementation(libs.balloon)
+    implementation(libs.balloon.compose)
+
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.7.3")
     androidTestImplementation("androidx.test.ext:junit:1.1.5")
@@ -151,4 +155,9 @@ signing {
         useInMemoryPgpKeys(signingKeyId, keyFile.readText(), signingPassword)
         sign(publishing.publications)
     }
+}
+
+// Skip signing tasks when the key file is absent (e.g. local Maven publish).
+tasks.withType<Sign>().configureEach {
+    onlyIf { keyFile.exists() }
 }

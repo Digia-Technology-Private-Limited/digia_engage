@@ -65,5 +65,6 @@ class DigiaPackage : BaseReactPackage() {
             listOf(
                     DigiaViewManager(),
                     DigiaSlotViewManager(),
+                    DigiaAnchorViewManager(),
             )
 }

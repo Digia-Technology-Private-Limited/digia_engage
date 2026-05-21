@@ -1,11 +1,20 @@
 package com.digia.engage.internal
 
+import android.graphics.Rect
 import com.digia.engage.DigiaExperienceEvent
 import com.digia.engage.InAppPayload
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+
+internal data class AnchoredOverlayState(
+    val payload: InAppPayload,
+    val anchorKey: String,
+    val anchorRect: Rect,
+    val command: String, // "SHOW_TOOLTIP" or "SHOW_SPOTLIGHT"
+    val cornerRadius: Float = 0f,
+)
 
 internal class DigiaOverlayController {
 
@@ -37,6 +46,17 @@ internal class DigiaOverlayController {
 
     fun clearSlots() {
         _slotPayloads.value = emptyMap()
+    }
+
+    private val _activeAnchoredOverlay = MutableStateFlow<AnchoredOverlayState?>(null)
+    val activeAnchoredOverlay: StateFlow<AnchoredOverlayState?> = _activeAnchoredOverlay.asStateFlow()
+
+    fun showAnchored(state: AnchoredOverlayState) {
+        _activeAnchoredOverlay.value = state
+    }
+
+    fun dismissAnchored() {
+        _activeAnchoredOverlay.value = null
     }
 
     var onEvent: ((DigiaExperienceEvent, InAppPayload) -> Unit)? = null

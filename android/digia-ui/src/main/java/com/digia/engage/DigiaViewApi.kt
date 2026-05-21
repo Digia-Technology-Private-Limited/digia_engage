@@ -58,6 +58,10 @@ constructor(
         defStyle: Int = 0,
 ) : AbstractComposeView(context, attrs, defStyle) {
 
+    init {
+        setBackgroundColor(android.graphics.Color.TRANSPARENT)
+    }
+
     @Composable
     override fun Content() {
         // Empty content lambda — your Views are the actual app content.
@@ -131,6 +135,44 @@ constructor(
         if (placementKey.isNotEmpty()) {
             DigiaSlot(placementKey = placementKey)
         }
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// DigiaAnchorView
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * A plain FrameLayout that registers itself in [AnchorRegistry] by [anchorKey].
+ * Used as a reference point for SHOW_TOOLTIP and SHOW_SPOTLIGHT overlays.
+ */
+class DigiaAnchorView
+@JvmOverloads
+constructor(
+    context: Context,
+    attrs: AttributeSet? = null,
+    defStyle: Int = 0,
+) : android.widget.FrameLayout(context, attrs, defStyle) {
+
+    var anchorKey: String = ""
+        set(value) {
+            if (field == value) return
+            if (field.isNotEmpty()) AnchorRegistry.unregister(field)
+            field = value
+            if (value.isNotEmpty() && isAttachedToWindow) AnchorRegistry.register(value, this)
+        }
+
+    /** Corner radius (px) to use when drawing the spotlight cutout. */
+    var spotlightCornerRadius: Float = 0f
+
+    override fun onAttachedToWindow() {
+        super.onAttachedToWindow()
+        if (anchorKey.isNotEmpty()) AnchorRegistry.register(anchorKey, this)
+    }
+
+    override fun onDetachedFromWindow() {
+        if (anchorKey.isNotEmpty()) AnchorRegistry.unregister(anchorKey)
+        super.onDetachedFromWindow()
     }
 }
 
