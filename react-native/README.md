@@ -1,108 +1,38 @@
-# @digia/engage-react-native
+# @digia-engage/core
 
-React Native bridge for the **Digia Engage SDK** – renders native Android
-Jetpack Compose UI (dialogs, bottom-sheets) inside React Native applications.
+React Native SDK for **Digia Engage** – renders native Android (Jetpack Compose) and iOS campaign UI (bottom sheets, dialogs, inline banners, tooltips, spotlights) inside React Native applications.
 
 > **Platform support**
 > | Platform | Status |
 > |---|---|
 > | Android | ✅ Full support |
-> | iOS | 🚧 Stub (no-op – coming soon) |
-
----
-
-## How it works
-
-The Digia Engage Android SDK is built entirely with Jetpack Compose. In a
-pure-Android app you wrap your content with the `DigiaHost { }` composable; it
-then manages campaign-driven overlays (dialogs, bottom sheets) on top of your
-content.
-
-In a React Native app we cannot embed a Composable directly in the JS tree, so
-the bridge uses two complementary mechanisms:
-
-```
-┌─────────────────────────────────────────┐
-│  Android Activity (ReactActivity)       │
-│                                         │
-│  ┌─────────────────────────────────┐    │
-│  │  Android content FrameLayout    │    │
-│  │                                 │    │
-│  │  ┌─────────────────────────┐    │    │
-│  │  │  React Native RootView  │    │    │
-│  │  │  (your JS UI)           │    │    │
-│  │  └─────────────────────────┘    │    │
-│  │                                 │    │
-│  │  ┌─────────────────────────┐    │    │
-│  │  │  DigiaHostComposeView   │    │    │
-│  │  │  (AbstractComposeView)  │    │    │
-│  │  │  hosts DigiaHost { }   │    │    │
-│  │  │  ← transparent, no     │    │    │
-│  │  │    touch interception  │    │    │
-│  │  └─────────────────────────┘    │    │
-│  └─────────────────────────────────┘    │
-│                                         │
-│  ┌──────────────────────────────────┐   │
-│  │  Compose Dialog window (overlay) │   │
-│  │  Triggered by CEP campaign       │   │
-│  └──────────────────────────────────┘   │
-└─────────────────────────────────────────┘
-```
-
-1. **`Digia.initialize()`** initialises the SDK and calls `addContentView()`
-   to attach a transparent `DigiaHostComposeView` on top of the React Native
-   view hierarchy.  This is the anchor for the Compose composition.
-
-2. **`DigiaHost { }`** inside the `ComposeView` manages `DialogManager` and
-   `BottomSheetManager`.  When a CEP plugin triggers a campaign, Compose
-   renders a `Dialog` or `ModalBottomSheet` – these are **separate Android
-   windows** that appear on top of everything, including React Native content.
-
-3. **`<DigiaHostView>`** is an optional React Native component you can place in
-   your component tree (e.g. as `StyleSheet.absoluteFill`) if you prefer a
-   declarative, component-based mount point instead of the auto-mount.
+> | iOS | ✅ Full support |
 
 ---
 
 ## Installation
 
 ```sh
-# npm
-npm install @digia/engage-react-native
-
-# yarn
-yarn add @digia/engage-react-native
+npm install @digia-engage/core
 ```
 
-React Native CLI auto-linking handles the rest.  Rebuild the native app:
+React Native CLI auto-linking handles the rest. Rebuild the native app after installing:
 
 ```sh
-npx react-native build-android
+npx react-native run-android
 # or
 cd android && ./gradlew assembleDebug
 ```
 
-### Android – host app dependencies
+### Android – host app dependency
 
-Your app's `android/app/build.gradle` must declare the Digia Engage AAR
-(or include it via your local Maven / private registry):
+Add the Digia Engage Android SDK to `android/app/build.gradle.kts`:
 
-```groovy
+```kotlin
 dependencies {
-    implementation 'com.digia:digia-ui:1.0.0'
+    implementation("tech.digia:engage:1.1.0")
 }
 ```
-
-If you are working inside the monorepo and building locally, add the `:digia-ui`
-project instead:
-
-```groovy
-implementation(project(':digia-ui'))
-```
-
-### iOS
-
-iOS is a no-op stub.  All methods resolve immediately without error.
 
 ---
 
@@ -110,94 +40,74 @@ iOS is a no-op stub.  All methods resolve immediately without error.
 
 ### 1 – Initialise the SDK
 
-Call `Digia.initialize()` once, as early as possible (e.g. the top of
-`App.tsx`):
+Call `Digia.initialize()` once at app startup, before registering any CEP plugin:
 
 ```tsx
-import React, { useEffect } from 'react';
-import { NavigationContainer } from '@react-navigation/native';
-import { Digia } from '@digia/engage-react-native';
+import { useEffect } from 'react';
+import { Digia } from '@digia-engage/core';
 
-export default function App() {
+export function RootApp() {
   useEffect(() => {
-    Digia.initialize({
-      apiKey: 'YOUR_DIGIA_API_KEY',
-      environment: 'production', // or 'sandbox'
-      logLevel: 'error',
-    });
+    (async () => {
+      await Digia.initialize({ apiKey: 'YOUR_ACCESS_KEY' });
+      // Register your CEP plugin here (e.g. DigiaCleverTapPlugin)
+    })().catch(console.error);
   }, []);
 
-  return <NavigationContainer>{/* … */}</NavigationContainer>;
+  return <AppNavigator />;
 }
 ```
 
-`initialize()` returns a `Promise<void>` and automatically attaches the Compose
-overlay host to the Activity.  You do **not** need to add `<DigiaHostView>`
-unless you want an explicit component-based mount point.
+### 2 – Mount the overlay host
 
-### 2 – Track screen changes
-
-Wire `setCurrentScreen()` to your navigation state so the SDK can trigger
-campaigns based on the active screen:
+Place `<DigiaHostView>` at the app root so nudge campaigns (bottom sheets, dialogs, tooltips, spotlights) render above all content:
 
 ```tsx
-import { useNavigationContainerRef } from '@react-navigation/native';
-import { Digia } from '@digia/engage-react-native';
-
-// Inside your App component:
-const navRef = useNavigationContainerRef();
-
-<NavigationContainer
-  ref={navRef}
-  onStateChange={() => {
-    const currentRoute = navRef.getCurrentRoute();
-    if (currentRoute) {
-      Digia.setCurrentScreen(currentRoute.name);
-    }
-  }}
->
-```
-
-### 3 – Open the Digia UI navigation flow
-
-Launch the full-screen native SDUI stack:
-
-```tsx
-import { Digia } from '@digia/engage-react-native';
-
-function MyScreen() {
-  return (
-    <Button
-      title="Open Digia Experience"
-      onPress={() => Digia.createInitialPage()}
-    />
-  );
-}
-```
-
-### 4 – (Optional) Declarative overlay mount via `<DigiaHostView>`
-
-If you prefer an explicit React component instead of the auto-mount, skip the
-`initialize()` auto-mount and place `<DigiaHostView>` at the root of your
-component tree:
-
-```tsx
-import React from 'react';
 import { StyleSheet, View } from 'react-native';
-import { DigiaHostView } from '@digia/engage-react-native';
+import { DigiaHostView } from '@digia-engage/core';
+import { Stack } from 'expo-router';
 
-export default function App() {
+export default function RootLayout() {
   return (
     <View style={styles.root}>
-      {/* DigiaHostView must be above all other content in z-order */}
       <DigiaHostView style={StyleSheet.absoluteFill} />
-
-      {/* Your navigation / content here */}
+      <Stack />
     </View>
   );
 }
 
-const styles = StyleSheet.create({ root: { flex: 1 } });
+const styles = StyleSheet.create({
+  root: { flex: 1 },
+});
+```
+
+### 3 – Track screen changes
+
+Wire `setCurrentScreen()` to your navigation library so the SDK can trigger screen-scoped campaigns:
+
+```tsx
+import { Digia } from '@digia-engage/core';
+
+// React Navigation example:
+<NavigationContainer
+  onStateChange={() => {
+    const route = navRef.getCurrentRoute();
+    if (route) Digia.setCurrentScreen(route.name);
+  }}
+>
+```
+
+### 4 – Add inline slots
+
+Place `<DigiaSlotView>` wherever you want inline campaign content (banners, cards):
+
+```tsx
+import { DigiaSlotView } from '@digia-engage/core';
+
+<DigiaSlotView
+  placementKey="home_hero_banner"
+  style={{ width: '100%', height: 180 }}
+/>
 ```
 
 ---
@@ -208,9 +118,10 @@ const styles = StyleSheet.create({ root: { flex: 1 } });
 
 | Method | Signature | Description |
 |---|---|---|
-| `initialize` | `(config: DigiaConfig) => Promise<void>` | Initialise the SDK and mount the Compose overlay host. |
-| `setCurrentScreen` | `(name: string) => void` | Notify the SDK of the current screen. |
-| `createInitialPage` | `() => void` | Full-screen Digia SDUI (Android: `DigiaUINavigationActivity`; iOS: modal `DigiaNavigationView`). |
+| `initialize` | `(config: DigiaConfig) => Promise<void>` | Initialise the SDK. Call once at app startup. |
+| `register` | `(plugin: DigiaPlugin) => void` | Register a CEP plugin (e.g. `DigiaCleverTapPlugin`). |
+| `unregister` | `(plugin: DigiaPlugin \| string) => void` | Unregister a plugin and call its `teardown()`. |
+| `setCurrentScreen` | `(name: string) => void` | Notify the SDK of the current screen name. |
 
 ### `DigiaConfig`
 
@@ -220,46 +131,22 @@ const styles = StyleSheet.create({ root: { flex: 1 } });
 | `environment` | `'production' \| 'sandbox'` | `'production'` | Target environment. |
 | `logLevel` | `'none' \| 'error' \| 'verbose'` | `'error'` | Log verbosity. |
 
-### `CreateInitialPageOptions`
-
-Empty interface — reserved for future optional arguments.
-
 ### `<DigiaHostView>`
 
-A transparent React Native view that hosts the Compose overlay anchor.
+Transparent overlay that hosts Digia-rendered campaign UI (dialogs, bottom sheets, tooltips, spotlights) above app content. Mount once at the app root.
 
 | Prop | Type | Description |
 |---|---|---|
-| `style` | `ViewStyle?` | Custom style (defaults to `absoluteFill` behaviour). |
+| `style` | `ViewStyle?` | Style for the overlay view. Typically `StyleSheet.absoluteFill`. |
 
----
+### `<DigiaSlotView>`
 
-## Architecture overview
+Renders inline campaign content (banners, cards) at a named placement. Collapses to zero height when no campaign is active for the slot.
 
-```
-react-native/
-├── src/
-│   ├── index.ts                  ← Public API exports
-│   ├── types.ts                  ← TypeScript interfaces
-│   ├── Digia.ts                  ← High-level JS SDK wrapper
-│   ├── NativeDigiaEngage.ts      ← Low-level native module binding
-│   └── DigiaHostView.tsx         ← <DigiaHostView> React component
-│
-├── android/
-│   ├── build.gradle              ← Android library build config
-│   └── src/main/java/com/digia/engage/rn/
-│       ├── DigiaPackage.kt       ← ReactPackage (registers module + view)
-│       ├── DigiaModule.kt        ← NativeModule (initialize, setCurrentScreen, createInitialPage)
-│       ├── DigiaViewManager.kt   ← ViewManager for <DigiaHostView>
-│       └── DigiaHostComposeView.kt ← AbstractComposeView hosting DigiaHost { }
-│
-├── ios/
-│   └── DigiaEngageModule.m       ← iOS no-op stub
-│
-├── DigiaEngageReactNative.podspec
-├── react-native.config.js        ← Auto-linking config
-└── package.json
-```
+| Prop | Type | Description |
+|---|---|---|
+| `placementKey` | `string` | Must match the placement key in your CEP campaign. |
+| `style` | `ViewStyle?` | An explicit height is required — the slot is not visible without one. |
 
 ---
 

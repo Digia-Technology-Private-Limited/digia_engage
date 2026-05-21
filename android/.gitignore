@@ -53,6 +53,9 @@ captures/
 #*.jks
 #*.keystore
 
+# PGP signing key
+private-key.asc
+
 # External native build folder generated in Android Studio 2.2 and later
 .externalNativeBuild
 .cxx/
