@@ -44,8 +44,10 @@ internal object DigiaInstance : DigiaCEPDelegate {
     private val campaignStore = CampaignStore()
     private val anchorRegistry = AnchorRegistry()
     private val guideOrchestrator = GuideOrchestrator()
+    private val surveyOrchestrator = SurveyOrchestrator()
 
     val guideState = guideOrchestrator.state
+    val surveyState = surveyOrchestrator.state
 
     private val diagnosticsReporter = DiagnosticsReporter(::logWarning)
     private val analyticsClient = AnalyticsClient(diagnosticsReporter)
@@ -141,6 +143,39 @@ internal object DigiaInstance : DigiaCEPDelegate {
         )
     }
 
+    // ── Survey lifecycle ────────────────────────────────────────────────────
+
+    fun reportSurveyImpression() {
+        val state = surveyOrchestrator.state.value ?: return
+        displayCoordinator.onOverlayEvent(DigiaExperienceEvent.Impressed, surveyPayload(state))
+    }
+
+    fun reportSurveyAnswered(stepId: String, answer: Map<String, Any?>) {
+        val state = surveyOrchestrator.state.value ?: return
+        displayCoordinator.onOverlayEvent(
+            DigiaExperienceEvent.Answered(stepId, answer),
+            surveyPayload(state),
+        )
+    }
+
+    fun markSurveyCompleted(response: Map<String, Any?>) {
+        val state = surveyOrchestrator.state.value ?: return
+        displayCoordinator.onOverlayEvent(
+            DigiaExperienceEvent.Completed(response),
+            surveyPayload(state),
+        )
+        surveyOrchestrator.dismiss()
+    }
+
+    fun markSurveyDismissed() {
+        val state = surveyOrchestrator.state.value ?: return
+        displayCoordinator.onOverlayEvent(DigiaExperienceEvent.Dismissed, surveyPayload(state))
+        surveyOrchestrator.dismiss()
+    }
+
+    private fun surveyPayload(state: ActiveSurveyState): InAppPayload =
+        InAppPayload(id = state.campaign.campaignKey, content = emptyMap(), cepContext = emptyMap())
+
     fun reportSlotImpression(payload: InAppPayload) {
         displayCoordinator.onSlotEvent(DigiaExperienceEvent.Impressed, payload)
     }
@@ -169,6 +204,7 @@ internal object DigiaInstance : DigiaCEPDelegate {
         controller.clearSlots()
         screenTracker.clear()
         guideOrchestrator.dismiss()
+        surveyOrchestrator.dismiss()
         _isUiReady.value = false
         _sdkState.value = SDKState.NOT_INITIALIZED
         lifecycleObserver?.let { ProcessLifecycleOwner.get().lifecycle.removeObserver(it) }
@@ -219,9 +255,16 @@ internal object DigiaInstance : DigiaCEPDelegate {
             logWarning("payload dropped: no campaign found for key '$campaignKey'")
             return
         }
-        android.util.Log.d("Digia", "[routeCampaign] starting guide for '$campaignKey'")
+        android.util.Log.d("Digia", "[routeCampaign] routing '$campaignKey' type=${campaign.campaignType}")
         when (campaign.campaignType) {
             "guide" -> guideOrchestrator.start(campaign)
+            "survey" -> {
+                if (campaign.surveyConfig == null) {
+                    logWarning("survey campaign dropped: missing/invalid survey_config: $campaignKey")
+                } else if (!surveyOrchestrator.start(campaign)) {
+                    logWarning("survey campaign dropped: another survey is on screen: $campaignKey")
+                }
+            }
             else -> logWarning("campaign type '${campaign.campaignType}' not yet supported")
         }
     }
@@ -282,6 +325,7 @@ internal object DigiaInstance : DigiaCEPDelegate {
         controller.dismiss()
         controller.clearSlots()
         guideOrchestrator.dismiss()
+        surveyOrchestrator.dismiss()
         _isUiReady.value = false
         _sdkState.value = SDKState.NOT_INITIALIZED
         lifecycleObserver?.let { ProcessLifecycleOwner.get().lifecycle.removeObserver(it) }

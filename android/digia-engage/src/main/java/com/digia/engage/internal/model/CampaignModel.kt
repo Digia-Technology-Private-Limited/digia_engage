@@ -7,6 +7,7 @@ data class CampaignModel(
     val campaignKey: String,
     val campaignType: String,
     val guideConfig: GuideConfigModel?,
+    val surveyConfig: SurveyConfigModel? = null,
 ) {
     companion object {
         fun fromJson(json: JSONObject): CampaignModel? {
@@ -46,11 +47,16 @@ data class CampaignModel(
                 else GuideConfigModel(id = gcId, multiStep = multiStep, steps = steps.sortedBy { it.sequenceOrder })
             }
 
+            // Survey campaigns carry a `survey_config` instead of `guide_config`.
+            val surveyConfig = json.optJSONObject("survey_config")
+                ?.let { SurveyConfigModel.fromJson(it, fallbackId = id) }
+
             return CampaignModel(
                 id = id,
                 campaignKey = campaignKey,
                 campaignType = campaignType,
                 guideConfig = guideConfig,
+                surveyConfig = surveyConfig,
             )
         }
     }

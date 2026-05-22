@@ -6,12 +6,14 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Modifier
 import com.digia.engage.internal.ui.GuideRenderer
+import com.digia.engage.internal.ui.SurveyRenderer
 
 @Composable
 fun DigiaHost(content: @Composable () -> Unit) {
     Box(modifier = Modifier.fillMaxSize()) {
         content()
         GuideRenderer()
+        SurveyRenderer()
     }
 }
 
