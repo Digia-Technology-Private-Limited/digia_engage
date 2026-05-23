@@ -144,24 +144,35 @@ internal object DigiaInstance : DigiaCEPDelegate {
     }
 
     // ── Survey lifecycle ────────────────────────────────────────────────────
+    //
+    // Event routing:
+    //   • CEP plugin sees: Clicked (on start), Dismissed.
+    //   • Internal analytics sees: SurveyAnswered, SurveyCompleted.
+    //
+    // The CEP intentionally does not see per-question Answered / Completed —
+    // those are SDK-internal signals (handling TBD).
 
-    fun reportSurveyImpression() {
+    /** Fired once when the survey first becomes visible (treated as a click). */
+    fun reportSurveyStarted() {
         val state = surveyOrchestrator.state.value ?: return
-        displayCoordinator.onOverlayEvent(DigiaExperienceEvent.Impressed, surveyPayload(state))
+        displayCoordinator.notifyCEP(
+            DigiaExperienceEvent.Clicked(elementId = state.campaign.campaignKey),
+            surveyPayload(state),
+        )
     }
 
     fun reportSurveyAnswered(stepId: String, answer: Map<String, Any?>) {
         val state = surveyOrchestrator.state.value ?: return
-        displayCoordinator.onOverlayEvent(
-            DigiaExperienceEvent.Answered(stepId, answer),
+        displayCoordinator.trackInternal(
+            InternalEngageEvent.SurveyAnswered(stepId, answer),
             surveyPayload(state),
         )
     }
 
     fun markSurveyCompleted(response: Map<String, Any?>) {
         val state = surveyOrchestrator.state.value ?: return
-        displayCoordinator.onOverlayEvent(
-            DigiaExperienceEvent.Completed(response),
+        displayCoordinator.trackInternal(
+            InternalEngageEvent.SurveyCompleted(response),
             surveyPayload(state),
         )
         surveyOrchestrator.dismiss()
@@ -169,7 +180,7 @@ internal object DigiaInstance : DigiaCEPDelegate {
 
     fun markSurveyDismissed() {
         val state = surveyOrchestrator.state.value ?: return
-        displayCoordinator.onOverlayEvent(DigiaExperienceEvent.Dismissed, surveyPayload(state))
+        displayCoordinator.notifyCEP(DigiaExperienceEvent.Dismissed, surveyPayload(state))
         surveyOrchestrator.dismiss()
     }
 
@@ -244,6 +255,38 @@ internal object DigiaInstance : DigiaCEPDelegate {
         }
     }
 
+    fun triggerCampaign(campaignId: String) {
+        scope.launch(Dispatchers.Main.immediate) {
+            when (_sdkState.value) {
+                SDKState.NOT_INITIALIZED -> {
+                    logWarning("test trigger dropped — SDK not initialized: $campaignId")
+                    return@launch
+                }
+                SDKState.INITIALIZING -> {
+                    logWarning("test trigger dropped — SDK still initializing: $campaignId")
+                    return@launch
+                }
+                SDKState.FAILED -> {
+                    logWarning("test trigger dropped — SDK initialization failed: $campaignId")
+                    return@launch
+                }
+                SDKState.READY -> Unit
+            }
+
+            val trimmed = campaignId.trim()
+            if (trimmed.isBlank()) {
+                logWarning("test trigger dropped — campaign id is blank")
+                return@launch
+            }
+            val campaign = campaignStore.findById(trimmed) ?: campaignStore.find(trimmed)
+            if (campaign == null) {
+                logWarning("test trigger dropped — no campaign found for id '$trimmed'")
+                return@launch
+            }
+            routeCampaign(campaign)
+        }
+    }
+
     private fun routeCampaign(payload: InAppPayload) {
         val campaignKey = (payload.content["campaign_key"] as? String)?.trim()
         if (campaignKey.isNullOrBlank()) {
@@ -255,6 +298,11 @@ internal object DigiaInstance : DigiaCEPDelegate {
             logWarning("payload dropped: no campaign found for key '$campaignKey'")
             return
         }
+        routeCampaign(campaign)
+    }
+
+    private fun routeCampaign(campaign: com.digia.engage.internal.model.CampaignModel) {
+        val campaignKey = campaign.campaignKey
         android.util.Log.d("Digia", "[routeCampaign] routing '$campaignKey' type=${campaign.campaignType}")
         when (campaign.campaignType) {
             "guide" -> guideOrchestrator.start(campaign)

@@ -47,8 +47,13 @@ data class CampaignModel(
                 else GuideConfigModel(id = gcId, multiStep = multiStep, steps = steps.sortedBy { it.sequenceOrder })
             }
 
-            // Survey campaigns carry a `survey_config` instead of `guide_config`.
-            val surveyConfig = json.optJSONObject("survey_config")
+            // Survey campaigns carry the dashboard-authored schema in either
+            // `survey_config` or `template_config`, depending on API version.
+            val surveyJson = json.optJSONObject("survey_config")
+                ?: json.optJSONObject("template_config")?.takeIf {
+                    it.optString("template_type") == "survey"
+                }
+            val surveyConfig = surveyJson
                 ?.let { SurveyConfigModel.fromJson(it, fallbackId = id) }
 
             return CampaignModel(

@@ -32,7 +32,7 @@ internal class SurveyOrchestrator {
     /** @return true if the survey was started, false if one is already showing. */
     fun start(campaign: CampaignModel): Boolean {
         require(campaign.campaignType == "survey" && campaign.surveyConfig != null)
-        require(campaign.surveyConfig.steps.isNotEmpty())
+        require(campaign.surveyConfig.nodes.isNotEmpty() && campaign.surveyConfig.blocks.isNotEmpty())
         if (_state.value != null) return false
         _state.value = ActiveSurveyState(campaign, ++tokenCounter)
         return true

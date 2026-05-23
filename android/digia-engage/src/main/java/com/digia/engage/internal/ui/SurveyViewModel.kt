@@ -6,77 +6,86 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
+import com.digia.engage.internal.SURVEY_FINISHED
 import com.digia.engage.internal.SurveyAnswer
 import com.digia.engage.internal.SurveyLogicHandler
+import com.digia.engage.internal.model.SurveyBlock
 import com.digia.engage.internal.model.SurveyConfigModel
-import com.digia.engage.internal.model.SurveyQuestionType
-import com.digia.engage.internal.model.SurveyStepModel
+import com.digia.engage.internal.model.SurveyNode
 
 /**
  * Holds the in-progress state of one survey showing: the answers collected so
- * far and the position in the (possibly branching) step graph.
+ * far, the position in the (possibly branching) node graph, and the back-stack
+ * for the Back button.
  *
  * Lives in a [ViewModel] so a configuration change does not lose answers.
  */
 internal class SurveyViewModel(val survey: SurveyConfigModel) : ViewModel() {
 
-    /** stepId → answer. Snapshot-backed so widgets recompose on edit. */
+    /** nodeId → answer. Snapshot-backed so widgets recompose on edit. */
     val answers = mutableStateMapOf<String, SurveyAnswer>()
 
-    private val backStack = ArrayDeque<Int>()
+    private val backStack = ArrayDeque<String>()
 
-    var currentIndex by mutableStateOf(
-        SurveyLogicHandler.firstVisibleIndex(survey, emptyMap()),
-    )
+    var currentNodeId by mutableStateOf(SurveyLogicHandler.firstNodeId(survey, emptyMap()))
         private set
 
-    var isComplete by mutableStateOf(false)
+    var isComplete by mutableStateOf(currentNodeId == SURVEY_FINISHED)
         private set
 
-    val currentStep: SurveyStepModel?
-        get() = survey.steps.getOrNull(currentIndex)
+    var redirectUrl by mutableStateOf<String?>(null)
+        private set
+
+    val currentNode: SurveyNode?
+        get() = survey.nodeById(currentNodeId)
+
+    val currentBlock: SurveyBlock?
+        get() = currentNode?.let { survey.blockFor(it) }
 
     val canGoBack: Boolean
-        get() = backStack.isNotEmpty()
+        get() = backStack.isNotEmpty() && survey.settings.pagination.backButton
 
+    /** Coarse progress estimate based on traversal depth, not graph topology. */
     val progress: Float
         get() {
-            if (survey.steps.isEmpty()) return 0f
-            return ((backStack.size + 1).toFloat() / survey.steps.size).coerceIn(0f, 1f)
+            if (survey.nodes.isEmpty()) return 0f
+            return ((backStack.size + 1).toFloat() / survey.nodes.size).coerceIn(0f, 1f)
         }
 
-    /** Whether the current step may be left — required questions must be answered. */
+    /** Whether the current node may be left — required questions must be answered. */
     fun canAdvance(): Boolean {
-        val step = currentStep ?: return false
-        if (step.type == SurveyQuestionType.THANK_YOU) return true
-        if (!step.isRequired) return true
-        return answers[step.id]?.isAnswered == true
+        val block = currentBlock ?: return false
+        if (block.type.isContent) return true
+        if (!block.required) return true
+        return answers[currentNodeId]?.isAnswered == true
     }
 
-    fun setAnswer(stepId: String, answer: SurveyAnswer) {
-        answers[stepId] = answer
+    fun setAnswer(nodeId: String, answer: SurveyAnswer) {
+        answers[nodeId] = answer
     }
 
-    /** Records the current answer and moves to the branching-decided next step. */
+    /** Records the current answer and moves to the branching-decided next node. */
     fun advance() {
-        val from = currentIndex
-        if (from == SurveyLogicHandler.FINISHED || isComplete) return
-        val next = SurveyLogicHandler.nextStepIndex(survey, from, answers)
+        if (isComplete) return
+        val from = currentNodeId
+        if (from == SURVEY_FINISHED) return
+        val navigation = SurveyLogicHandler.nextStep(survey, from, answers)
         backStack.addLast(from)
-        if (next == SurveyLogicHandler.FINISHED) {
+        redirectUrl = navigation.redirectUrl
+        if (navigation.nextNodeId == SURVEY_FINISHED) {
             isComplete = true
         } else {
-            currentIndex = next
+            currentNodeId = navigation.nextNodeId
         }
     }
 
     fun back() {
         val prev = backStack.removeLastOrNull() ?: return
-        currentIndex = prev
+        currentNodeId = prev
         isComplete = false
     }
 
-    /** The collected answers as a serialisable map, for the `completed` event. */
+    /** The collected answers as a serialisable map, for the `Completed` event. */
     fun responsePayload(): Map<String, Any?> =
         answers.mapValues { (_, answer) -> answer.toMap() }
 

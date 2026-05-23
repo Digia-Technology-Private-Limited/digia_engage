@@ -1,18 +1,15 @@
 package com.digia.engage
 
+/**
+ * CEP-facing experience events. The SDK forwards these to the active
+ * [DigiaCEPPlugin]; the plugin maps them onto the host CEP's own event model
+ * (CleverTap raised event, MoEngage trigger, etc).
+ *
+ * Survey answer/completion signals are intentionally NOT modelled here — they
+ * are SDK-internal (see `InternalEngageEvent`) and never reach the CEP.
+ */
 sealed interface DigiaExperienceEvent {
     data object Impressed : DigiaExperienceEvent
     data class Clicked(val elementId: String? = null) : DigiaExperienceEvent
     data object Dismissed : DigiaExperienceEvent
-
-    /** A survey question was answered. [answer] carries `values` + `comment`. */
-    data class Answered(
-        val stepId: String,
-        val answer: Map<String, Any?> = emptyMap(),
-    ) : DigiaExperienceEvent
-
-    /** A survey ran to its end. [response] maps each step id to its answer. */
-    data class Completed(
-        val response: Map<String, Any?> = emptyMap(),
-    ) : DigiaExperienceEvent
 }

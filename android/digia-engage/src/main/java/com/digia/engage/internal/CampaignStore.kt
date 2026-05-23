@@ -13,5 +13,8 @@ internal class CampaignStore {
 
     fun find(campaignKey: String): CampaignModel? = campaigns[campaignKey]
 
+    fun findById(campaignId: String): CampaignModel? =
+        campaigns.values.firstOrNull { it.id == campaignId }
+
     fun isEmpty(): Boolean = campaigns.isEmpty()
 }
