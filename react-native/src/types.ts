@@ -79,7 +79,8 @@ export interface DigiaConfig {
     apiKey: string;
     /**
      * Base URL for the Digia API.
-     * @default 'https://api.digia.io'
+     * Defaults to the production API root, or the Engage sandbox root when
+     * `environment` is "sandbox".
      */
     baseUrl?: string;
     /**
@@ -93,4 +94,3 @@ export interface DigiaConfig {
      */
     logLevel?: 'none' | 'error' | 'verbose';
 }
-
