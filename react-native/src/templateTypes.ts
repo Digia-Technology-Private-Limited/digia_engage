@@ -58,6 +58,6 @@ export type SpotlightStep = {
     actions: Action[]
 }
 
-export type TooltipConfig   = { template_type: 'tooltip';   template_id: string; steps: TooltipStep[]   }
-export type SpotlightConfig = { template_type: 'spotlight'; template_id: string; steps: SpotlightStep[] }
+export type TooltipConfig   = { template_type: 'tooltip';   template_id: string | null; steps: TooltipStep[]   }
+export type SpotlightConfig = { template_type: 'spotlight'; template_id: string | null; steps: SpotlightStep[] }
 export type TemplateConfig  = TooltipConfig | SpotlightConfig
