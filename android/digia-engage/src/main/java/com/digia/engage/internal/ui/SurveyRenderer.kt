@@ -6,6 +6,9 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.Orientation
+import androidx.compose.foundation.gestures.draggable
+import androidx.compose.foundation.gestures.rememberDraggableState
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -19,6 +22,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -29,20 +33,19 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -68,9 +71,12 @@ import com.digia.engage.internal.model.DialogWidthPreset
 import com.digia.engage.internal.model.MediaPosition
 import com.digia.engage.internal.model.SurveyBlock
 import com.digia.engage.internal.model.SurveyBlockType
+import com.digia.engage.internal.model.PaginationStyle
 import com.digia.engage.internal.model.SurveyConfigModel
 import com.digia.engage.internal.model.SurveyDisplayType
 import com.digia.engage.internal.model.SurveyNode
+import androidx.compose.ui.unit.IntOffset
+import kotlin.math.roundToInt
 import kotlinx.coroutines.delay
 
 /** Frame-settling buffer added before the survey is shown. */
@@ -90,7 +96,6 @@ internal fun SurveyRenderer() {
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun SurveySession(state: ActiveSurveyState) {
     val survey = state.config
@@ -129,28 +134,92 @@ private fun SurveySession(state: ActiveSurveyState) {
 
     when (display.type) {
         SurveyDisplayType.BOTTOM_SHEET -> {
+            // We deliberately avoid Material3 ModalBottomSheet: its
+            // onDismissRequest can't reject scrim taps, so `backdrop_dismissible
+            // = false` is impossible to honour. Implement the sheet as a
+            // Dialog with a bottom-anchored panel and a manual scrim, with our
+            // own drag-to-dismiss + drag-handle.
             val sheet = display.bottomSheet
-            val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-            ModalBottomSheet(
-                onDismissRequest = {
-                    if (sheet.backdropDismissible || sheet.draggable) finish(completed = false)
-                },
-                sheetState = sheetState,
-                containerColor = background,
-                shape = RoundedCornerShape(
-                    topStart = sheet.cornerRadius.dp,
-                    topEnd = sheet.cornerRadius.dp,
+            // Drag-to-dismiss state. Positive offset = the sheet has been
+            // pulled down by `dragOffset` pixels. We dismiss past 150dp.
+            var dragOffset by remember { mutableFloatStateOf(0f) }
+            val dismissThresholdPx = with(LocalConfiguration.current) { 150f * (screenHeightDp / 800f).coerceAtLeast(1f) }
+            val draggableState = rememberDraggableState { delta ->
+                dragOffset = (dragOffset + delta).coerceAtLeast(0f)
+            }
+            Dialog(
+                onDismissRequest = { if (sheet.backdropDismissible) finish(completed = false) },
+                properties = DialogProperties(
+                    dismissOnBackPress = sheet.backdropDismissible,
+                    dismissOnClickOutside = false,
+                    usePlatformDefaultWidth = false,
                 ),
             ) {
-                SurveyBody(
-                    vm = vm,
-                    survey = survey,
-                    accent = accent,
-                    modifier = sheetHeightModifier(sheet.heightMode, sheet.customHeight)
-                        .navigationBarsPadding(),
-                    onClose = { finish(completed = false) },
-                    showCloseButton = sheet.backdropDismissible,
-                )
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(Color.Black.copy(alpha = 0.4f))
+                        .clickable(
+                            indication = null,
+                            interactionSource = remember { MutableInteractionSource() },
+                        ) { if (sheet.backdropDismissible) finish(completed = false) },
+                    contentAlignment = Alignment.BottomCenter,
+                ) {
+                    Surface(
+                        color = background,
+                        shape = RoundedCornerShape(
+                            topStart = sheet.cornerRadius.dp,
+                            topEnd = sheet.cornerRadius.dp,
+                        ),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .then(sheetHeightModifier(sheet.heightMode, sheet.customHeight))
+                            .offset { IntOffset(0, dragOffset.roundToInt()) }
+                            .then(
+                                if (sheet.draggable) Modifier.draggable(
+                                    state = draggableState,
+                                    orientation = Orientation.Vertical,
+                                    onDragStopped = {
+                                        if (dragOffset > dismissThresholdPx) {
+                                            finish(completed = false)
+                                        } else {
+                                            dragOffset = 0f
+                                        }
+                                    },
+                                ) else Modifier,
+                            )
+                            .clickable(
+                                indication = null,
+                                interactionSource = remember { MutableInteractionSource() },
+                            ) {},
+                    ) {
+                        Column(modifier = Modifier.navigationBarsPadding()) {
+                            if (sheet.showHandle) {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(vertical = 8.dp),
+                                    contentAlignment = Alignment.Center,
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(width = 40.dp, height = 4.dp)
+                                            .clip(RoundedCornerShape(2.dp))
+                                            .background(SurveyTokens.Border),
+                                    )
+                                }
+                            }
+                            SurveyBody(
+                                vm = vm,
+                                survey = survey,
+                                accent = accent,
+                                modifier = Modifier,
+                                onClose = { finish(completed = false) },
+                                showCloseButton = sheet.backdropDismissible,
+                            )
+                        }
+                    }
+                }
             }
         }
         SurveyDisplayType.DIALOG -> {
@@ -234,6 +303,7 @@ private fun SurveyBody(
     val node = vm.currentNode ?: return
     val block = survey.blockFor(node) ?: return
     val pagination = survey.settings.pagination
+    val timerCfg = survey.settings.timer
 
     BackHandler(enabled = true) {
         when {
@@ -245,18 +315,56 @@ private fun SurveyBody(
     val position = visibleIndexOf(survey, node) + 1
     val total = survey.nodes.size.coerceAtLeast(1)
 
+    // ── Timer state ────────────────────────────────────────────────────────
+    // Ticks once per second whenever the timer is enabled. Pauses on content
+    // blocks when `pauseOnNonTimerBlock` is set; reaches zero → auto-finish.
+    var remainingSecs by remember { mutableIntStateOf(timerCfg.timeLimitSeconds) }
+    val timerPaused = timerCfg.pauseOnNonTimerBlock && block.type.isContent
+    if (timerCfg.enabled && timerCfg.timeLimitSeconds > 0) {
+        LaunchedEffect(timerPaused) {
+            while (remainingSecs > 0 && !timerPaused) {
+                delay(1000)
+                remainingSecs = (remainingSecs - 1).coerceAtLeast(0)
+            }
+            if (remainingSecs == 0) onClose()
+        }
+    }
+
+    // ── Auto-advance ───────────────────────────────────────────────────────
+    // Single-pick blocks (rating/nps/single_select/reaction) advance themselves
+    // ~250 ms after the user picks. Multi-pick and text inputs still need the
+    // explicit Next CTA. autoAdvance is gated by `settings.autoAdvance`.
+    val currentAnswer = vm.answers[node.id]
+    if (survey.settings.autoAdvance && block.type.isAutoAdvanceCandidate &&
+        currentAnswer?.isAnswered == true) {
+        LaunchedEffect(node.id, currentAnswer) {
+            delay(250)
+            if (vm.currentNode?.id == node.id) {
+                DigiaInstance.reportSurveyAnswered(node.id, currentAnswer.toMap())
+                vm.advance()
+            }
+        }
+    }
+
     Column(
         modifier = modifier
             .fillMaxWidth()
             .imePadding()
             .padding(horizontal = 16.dp, vertical = 14.dp),
     ) {
-        // Top row: progress + counter + close
+        // Top row: progress + counter + timer + close
         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
             val showBarHere = pagination.progressbar &&
                 !(pagination.onlyShowOnQuestionBlock && block.type.isContent)
             if (showBarHere) {
-                ProgressBar(progress = position.toFloat() / total, accent = accent, modifier = Modifier.weight(1f))
+                ProgressBar(
+                    progress = position.toFloat() / total,
+                    style = pagination.paginationStyle,
+                    segments = total,
+                    currentSegment = position,
+                    accent = accent,
+                    modifier = Modifier.weight(1f),
+                )
             } else {
                 Spacer(Modifier.weight(1f))
             }
@@ -267,6 +375,14 @@ private fun SurveyBody(
                     color = SurveyTokens.TextTertiary,
                     fontSize = 11.sp,
                     fontWeight = ComposeFontWeight.SemiBold,
+                )
+            }
+            if (timerCfg.enabled && timerCfg.timeLimitSeconds > 0) {
+                Spacer(Modifier.width(10.dp))
+                TimerChip(
+                    remainingSecs = remainingSecs,
+                    warningAtSecs = timerCfg.warningAtSeconds,
+                    accent = accent,
                 )
             }
             if (showCloseButton && survey.settings.display.dismissible) {
@@ -318,11 +434,18 @@ private fun SurveyBody(
         }
 
         // Footer CTAs. Welcome + Result render their own inline CTAs (Start / Done);
-        // every other block uses the bottom Back / Next pair — Next is the only way
-        // to advance the survey so it always renders.
+        // every other block uses the bottom Back / Next pair. The Next button is
+        // omitted only when `settings.chooseButton == false` AND auto-advance is
+        // about to fire (single-pick + autoAdvance enabled). Text inputs, multi-
+        // select, and TEXT_MEDIA can never auto-advance, so they always show Next
+        // even when chooseButton is off — otherwise the survey would be stuck.
         val hasInlineCta = block.type == SurveyBlockType.WELCOME ||
             block.type == SurveyBlockType.RESULT_PAGE
-        if (!hasInlineCta) {
+        val canAutoAdvanceThisBlock = survey.settings.autoAdvance &&
+            block.type.isAutoAdvanceCandidate
+        val showNext = !hasInlineCta &&
+            (survey.settings.chooseButton || !canAutoAdvanceThisBlock)
+        if (showNext) {
             Spacer(Modifier.height(18.dp))
             FooterRow(
                 accent = accent,
@@ -346,7 +469,32 @@ private fun SurveyBody(
 // ── chrome pieces ──────────────────────────────────────────────────────────
 
 @Composable
-private fun ProgressBar(progress: Float, accent: Color, modifier: Modifier) {
+private fun ProgressBar(
+    progress: Float,
+    style: PaginationStyle,
+    segments: Int,
+    currentSegment: Int,
+    accent: Color,
+    modifier: Modifier,
+) {
+    if (style == PaginationStyle.SEGMENTED && segments > 1) {
+        Row(
+            modifier = modifier.height(3.dp),
+            horizontalArrangement = Arrangement.spacedBy(3.dp),
+        ) {
+            for (i in 1..segments) {
+                val on = i <= currentSegment
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxHeight()
+                        .clip(RoundedCornerShape(2.dp))
+                        .background(if (on) accent else SurveyTokens.SurfaceSunken),
+                )
+            }
+        }
+        return
+    }
     Box(
         modifier = modifier
             .height(3.dp)
@@ -358,6 +506,27 @@ private fun ProgressBar(progress: Float, accent: Color, modifier: Modifier) {
                 .fillMaxHeight()
                 .fillMaxWidth(progress.coerceIn(0f, 1f))
                 .background(accent),
+        )
+    }
+}
+
+@Composable
+private fun TimerChip(remainingSecs: Int, warningAtSecs: Int, accent: Color) {
+    val warn = warningAtSecs > 0 && remainingSecs <= warningAtSecs
+    val tint = if (warn) Color(0xFFD92D20) else accent
+    val minutes = remainingSecs / 60
+    val seconds = remainingSecs % 60
+    Box(
+        modifier = Modifier
+            .clip(RoundedCornerShape(999.dp))
+            .background(tint.copy(alpha = 0.12f))
+            .padding(horizontal = 8.dp, vertical = 3.dp),
+    ) {
+        Text(
+            text = "%d:%02d".format(minutes, seconds),
+            color = tint,
+            fontSize = 11.sp,
+            fontWeight = ComposeFontWeight.SemiBold,
         )
     }
 }

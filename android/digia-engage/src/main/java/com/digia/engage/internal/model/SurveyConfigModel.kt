@@ -50,6 +50,14 @@ enum class SurveyBlockType {
     val isText: Boolean
         get() = this == SHORT_TEXT || this == LONG_TEXT || this == NUMBER ||
             this == EMAIL || this == DATE
+
+    /**
+     * Single-pick blocks that can sensibly advance themselves once an answer
+     * lands. Multi-select / text inputs always need the explicit Next CTA.
+     */
+    val isAutoAdvanceCandidate: Boolean
+        get() = this == SINGLE_SELECT || this == RATING || this == NPS ||
+            this == REACTION
 }
 
 enum class BoolOp { AND, OR }
