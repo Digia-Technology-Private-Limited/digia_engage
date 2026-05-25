@@ -82,7 +82,12 @@ internal fun DigiaInlineCarousel(
                         .clip(RoundedCornerShape(8.dp))
                         .then(
                             if (!item.deepLink.isNullOrBlank()) {
-                                Modifier.clickable { uriHandler.openUri(item.deepLink) }
+                                Modifier.clickable {
+                                    runCatching { uriHandler.openUri(item.deepLink) }
+                                        .onFailure { e ->
+                                            android.util.Log.w("DigiaSlot", "deep link failed: ${item.deepLink} — ${e.message}")
+                                        }
+                                }
                             } else Modifier,
                         ),
                 ) {

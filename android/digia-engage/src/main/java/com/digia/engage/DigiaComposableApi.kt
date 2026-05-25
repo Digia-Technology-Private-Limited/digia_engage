@@ -27,6 +27,9 @@ fun DigiaScreen(name: String) {
 @Composable
 fun DigiaSlot(placementKey: String, modifier: Modifier = Modifier) {
     val slotConfigs by DigiaInstance.controller.slotConfigs.collectAsState()
-    val config = slotConfigs[placementKey] ?: return
+    val config = slotConfigs[placementKey] ?: run {
+        android.util.Log.d("DigiaSlot", "no config for slot '$placementKey' — rendering nothing")
+        return
+    }
     DigiaInlineCarousel(config = config, modifier = modifier)
 }

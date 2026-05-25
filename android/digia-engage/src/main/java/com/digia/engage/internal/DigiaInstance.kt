@@ -210,6 +210,11 @@ internal object DigiaInstance : DigiaCEPDelegate {
     }
 
     private fun routeCampaign(payload: InAppPayload) {
+        runCatching { doRouteCampaign(payload) }
+            .onFailure { e -> logWarning("routeCampaign threw unexpectedly: ${e.message}") }
+    }
+
+    private fun doRouteCampaign(payload: InAppPayload) {
         val campaignKey = (payload.content["campaign_key"] as? String)?.trim()
         if (campaignKey.isNullOrBlank()) {
             logWarning("payload dropped: missing campaign_key: ${payload.id}")
@@ -226,7 +231,7 @@ internal object DigiaInstance : DigiaCEPDelegate {
             "inline" -> {
                 val inlineConfig = campaign.inlineConfig
                 if (inlineConfig == null) {
-                    logWarning("inline campaign '$campaignKey' has no valid carousel config")
+                    logWarning("inline campaign '$campaignKey' has no valid carousel config — check template_config JSON")
                     return
                 }
                 displayCoordinator.routeInlineCarousel(inlineConfig, payload)
