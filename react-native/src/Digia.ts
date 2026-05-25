@@ -180,9 +180,16 @@ class DigiaClass implements DigiaDelegate {
 
         if (campaignKey) {
             const campaign = this._campaignsByKey.get(campaignKey);
+            if (campaign?.campaign_type === 'inline') {
+                this._log(`inline campaign triggered campaign_key=${campaignKey}, forwarding to native`);
+                this._activePayloads.set(payload.id, payload);
+                nativeDigiaModule.triggerCampaign(payload.id, payload.content, payload.cepContext);
+                return;
+            }
+
             if (campaign?.campaign_type === 'guide') {
                 const config = this._parseTemplateConfig(campaign);
-                if (!config || config.steps.length === 0) {
+                if (!config || config.template_type === 'carousel' || config.steps.length === 0) {
                     digiaHealthReporter.report(HealthEventType.anchor_not_on_screen, {
                         campaign_key: campaignKey,
                         reason: 'guide_campaign_has_no_steps',
@@ -385,9 +392,12 @@ class DigiaClass implements DigiaDelegate {
         const raw = campaign.template_config;
         if (!raw || typeof raw !== 'object') return null;
         const type = raw.template_type;
-        if (type !== 'tooltip' && type !== 'spotlight') {
+        if (type !== 'tooltip' && type !== 'spotlight' && type !== 'carousel') {
             this._log(`unknown template_type="${type}" for campaign_key=${campaign.campaign_key}`);
             return null;
+        }
+        if (type === 'carousel') {
+            return raw as TemplateConfig;
         }
         const steps = Array.isArray(raw.steps) ? raw.steps : [];
         return { ...raw, template_type: type, steps } as TemplateConfig;

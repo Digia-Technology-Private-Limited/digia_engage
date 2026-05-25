@@ -60,4 +60,28 @@ export type SpotlightStep = {
 
 export type TooltipConfig   = { template_type: 'tooltip';   template_id: string | null; steps: TooltipStep[]   }
 export type SpotlightConfig = { template_type: 'spotlight'; template_id: string | null; steps: SpotlightStep[] }
-export type TemplateConfig  = TooltipConfig | SpotlightConfig
+
+export type CarouselItem = { image_url: string; deep_link?: string }
+export type CarouselIndicatorConfig = {
+    show_indicator: boolean
+    dot_height: number
+    dot_width: number
+    spacing: number
+    dot_color: string
+    active_dot_color: string
+    indicator_effect_type: 'slide' | 'expanding' | 'worm' | 'scale' | 'jumping' | 'scrolling'
+}
+export type CarouselConfig = {
+    template_type: 'carousel'
+    slot_key: string
+    items: CarouselItem[]
+    height: number
+    auto_play: boolean
+    auto_play_interval: number
+    animation_duration: number
+    infinite_scroll: boolean
+    viewport_fraction: number
+    indicator: CarouselIndicatorConfig
+}
+
+export type TemplateConfig  = TooltipConfig | SpotlightConfig | CarouselConfig

@@ -432,7 +432,7 @@ function DigiaGuideRuntime() {
                 setActiveRequest(null);
                 return;
             }
-            log('guide start campaignKey=', event.request.campaignKey, 'type=', event.request.config.template_type, 'steps=', event.request.config.steps.length);
+            log('guide start campaignKey=', event.request.campaignKey, 'type=', event.request.config.template_type);
             setActiveRequest(event.request);
         });
     }, []);
