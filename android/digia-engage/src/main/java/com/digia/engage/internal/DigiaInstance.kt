@@ -215,7 +215,10 @@ internal object DigiaInstance : DigiaCEPDelegate {
     }
 
     private fun doRouteCampaign(payload: InAppPayload) {
-        val campaignKey = (payload.content["campaign_key"] as? String)?.trim()
+        // content["campaign_key"] is set by native CEP plugins; RN bridge uses payload.id directly
+        val campaignKey = ((payload.content["campaign_key"] as? String)
+            ?: (payload.content["digiaKey"] as? String)
+            ?: payload.id.takeIf { it.isNotBlank() })?.trim()
         if (campaignKey.isNullOrBlank()) {
             logWarning("payload dropped: missing campaign_key: ${payload.id}")
             return
