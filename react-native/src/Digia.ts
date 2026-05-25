@@ -72,23 +72,23 @@ class DigiaClass implements DigiaDelegate {
         try {
             await nativeDigiaModule.initialize(config.projectId, environment, logLevel);
         } catch (e) {
-            digiaHealthReporter.report(HealthEventType.fetch_failed, { error_code: 0, platform: 'react_native' });
+            // TODO: TO BE PICKED LATER @aditya-digia — health event reporting being removed
+            // digiaHealthReporter.report(HealthEventType.fetch_failed, { error_code: 0, platform: 'react_native' });
             throw e;
         }
 
         await this._refreshCampaignStore();
 
-        // Report registered components to backend (fire-and-forget)
-        try {
-            const components = await nativeDigiaModule.getRegisteredComponents();
-            if (components.length > 0) {
-                this._recordComponents(components.map(c => ({ ...c, platform: 'react_native' })));
-            }
-        } catch {
-            // never throw
-        }
-
-        this._flushRegisteredAnchors();
+        // TODO: TO BE PICKED LATER @aditya-digia — component registration endpoint being removed
+        // try {
+        //     const components = await nativeDigiaModule.getRegisteredComponents();
+        //     if (components.length > 0) {
+        //         this._recordComponents(components.map(c => ({ ...c, platform: 'react_native' })));
+        //     }
+        // } catch {
+        //     // never throw
+        // }
+        // this._flushRegisteredAnchors();
     }
 
     /**
@@ -342,23 +342,29 @@ class DigiaClass implements DigiaDelegate {
             const obj = json as Record<string, unknown>;
             const data = obj.data;
             if (data && typeof data === 'object' && 'response' in data) {
-                return (data as Record<string, unknown>).response as T;
+                const value = (data as Record<string, unknown>).response;
+                if (value == null) throw new Error('SDK response.data.response is null');
+                return value as T;
             }
-            if ('response' in obj) return obj.response as T;
+            if ('response' in obj) {
+                const value = obj.response;
+                if (value == null) throw new Error('SDK response.response is null');
+                return value as T;
+            }
         }
         throw new Error('SDK response missing data.response');
     }
 
-    private _recordComponents(components: Array<Record<string, unknown>>): void {
-        if (!this._projectId || !this._apiBaseUrl || components.length === 0) return;
-        fetch(`${this._apiBaseUrl}/engage/sdk/recordComponents`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'x-digia-project-id': this._projectId,
-            },
-            body: JSON.stringify({ components }),
-        }).catch(() => { /* swallow */ });
+    private _recordComponents(_components: Array<Record<string, unknown>>): void {
+        // TODO: TO BE PICKED LATER @aditya-digia — component recording endpoint being removed
+        // fetch(`${this._apiBaseUrl}/engage/sdk/recordComponents`, {
+        //     method: 'POST',
+        //     headers: {
+        //         'Content-Type': 'application/json',
+        //         'x-digia-project-id': this._projectId,
+        //     },
+        //     body: JSON.stringify({ components }),
+        // }).catch(() => { /* swallow */ });
     }
 
     private _flushRegisteredAnchors(): void {

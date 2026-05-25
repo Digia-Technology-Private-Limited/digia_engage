@@ -79,8 +79,8 @@ function getModule(): Spec | null {
 }
 
 export const nativeDigiaModule: Spec = {
-    initialize: (apiKey, environment, logLevel) =>
-        getModule()?.initialize(apiKey, environment, logLevel) ?? Promise.resolve(),
+    initialize: (projectId, environment, logLevel) =>
+        getModule()?.initialize(projectId, environment, logLevel) ?? Promise.resolve(),
     registerBridge: () => getModule()?.registerBridge(),
     setCurrentScreen: (name) => getModule()?.setCurrentScreen(name),
     triggerCampaign: (id, content, cepContext) =>

@@ -6,6 +6,7 @@ import {
     StyleSheet,
     Text,
     View,
+    useWindowDimensions,
 } from 'react-native';
 import { computePosition, flip, offset, shift } from '@floating-ui/core';
 import Svg, { Path } from 'react-native-svg';
@@ -124,7 +125,7 @@ function TooltipOverlay({
     const [floatPos, setFloatPos] = useState<FloatPos | null>(null);
     const [floatingSize, setFloatingSize] = useState<{ w: number; h: number } | null>(null);
     const step = config.steps[stepIndex];
-    const { width: screenW } = Dimensions.get('window');
+    const { width: screenW } = useWindowDimensions();
 
     // Subscribe to anchor layout
     useEffect(() => {
@@ -268,7 +269,7 @@ function SpotlightCallout({
     onBack: () => void;
     onSkip: () => void;
 }) {
-    const { width: screenW } = Dimensions.get('window');
+    const { width: screenW } = useWindowDimensions();
     const [floatPos, setFloatPos] = useState<FloatPos | null>(null);
     const [floatingSize, setFloatingSize] = useState<{ w: number; h: number } | null>(null);
     const calloutW = Math.min(step.callout_max_width, screenW - 32);
@@ -344,7 +345,7 @@ function SpotlightOverlay({
     const [stepIndex, setStepIndex] = useState(0);
     const [layout, setLayout] = useState<AnchorLayout | null>(null);
     const step = config.steps[stepIndex];
-    const { width: screenW, height: screenH } = Dimensions.get('window');
+    const { width: screenW, height: screenH } = useWindowDimensions();
 
     useEffect(() => {
         setLayout(null);

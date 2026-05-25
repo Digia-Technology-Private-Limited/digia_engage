@@ -16,41 +16,52 @@ type DigiaGuideListener = (event: DigiaGuideControllerEvent) => void;
 
 class DigiaGuideController {
     private _listener: DigiaGuideListener | null = null;
-    private _pendingStart: DigiaGuideRequest | null = null;
+    private _queue: DigiaGuideRequest[] = [];
     private _activeRequest: DigiaGuideRequest | null = null;
 
     subscribe(listener: DigiaGuideListener): () => void {
         this._listener = listener;
-        if (this._pendingStart) {
-            const request = this._pendingStart;
-            this._pendingStart = null;
+        if (this._queue.length > 0) {
+            const request = this._queue.shift()!;
+            this._activeRequest = request;
             listener({ type: 'start', request });
         }
         return () => { if (this._listener === listener) this._listener = null; };
     }
 
     start(request: DigiaGuideRequest): boolean {
-        this._activeRequest = request;
         if (!this._listener) {
-            this._pendingStart = request;
+            this._queue.push(request);
             return false;
         }
+        this._activeRequest = request;
         this._listener({ type: 'start', request });
         return true;
     }
 
     cancel(payloadId: string): void {
-        if (this._pendingStart?.payloadId === payloadId) this._pendingStart = null;
+        this._queue = this._queue.filter(r => r.payloadId !== payloadId);
         if (this._activeRequest?.payloadId === payloadId) {
             this._listener?.({ type: 'cancel', payloadId });
             this._activeRequest = null;
+            this._dispatchNext();
         }
     }
 
     emitExperienceEvent(event: DigiaExperienceEvent): void {
         if (!this._activeRequest) return;
         this._activeRequest.onExperienceEvent(event);
-        if (event.type === 'dismissed') this._activeRequest = null;
+        if (event.type === 'dismissed') {
+            this._activeRequest = null;
+            this._dispatchNext();
+        }
+    }
+
+    private _dispatchNext(): void {
+        if (this._queue.length === 0 || !this._listener) return;
+        const request = this._queue.shift()!;
+        this._activeRequest = request;
+        this._listener({ type: 'start', request });
     }
 }
 
