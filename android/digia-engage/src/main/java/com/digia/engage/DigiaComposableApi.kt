@@ -4,7 +4,11 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import com.digia.engage.internal.DigiaInstance
+import com.digia.engage.internal.ui.DigiaInlineCarousel
 import com.digia.engage.internal.ui.GuideRenderer
 
 @Composable
@@ -20,8 +24,9 @@ fun DigiaScreen(name: String) {
     LaunchedEffect(name) { Digia.setCurrentScreen(name) }
 }
 
-/** Deferred — inline campaigns not implemented in this iteration. */
 @Composable
 fun DigiaSlot(placementKey: String, modifier: Modifier = Modifier) {
-    // No-op stub: inline campaigns are deferred post-launch.
+    val slotConfigs by DigiaInstance.controller.slotConfigs.collectAsState()
+    val config = slotConfigs[placementKey] ?: return
+    DigiaInlineCarousel(config = config, modifier = modifier)
 }

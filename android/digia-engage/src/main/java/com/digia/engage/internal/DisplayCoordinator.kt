@@ -2,6 +2,7 @@ package com.digia.engage.internal
 
 import com.digia.engage.DigiaExperienceEvent
 import com.digia.engage.InAppPayload
+import com.digia.engage.internal.model.InlineCarouselConfig
 
 internal class DisplayCoordinator(
     private val overlayController: DigiaOverlayController,
@@ -14,6 +15,11 @@ internal class DisplayCoordinator(
 
     fun routeInline(placementKey: String, payload: InAppPayload) {
         overlayController.addSlot(placementKey, payload)
+    }
+
+    fun routeInlineCarousel(config: InlineCarouselConfig, payload: InAppPayload) {
+        overlayController.addSlotConfig(config.slotKey, config)
+        overlayController.addSlot(config.slotKey, payload)
     }
 
     fun dismissNudge(campaignId: String) {

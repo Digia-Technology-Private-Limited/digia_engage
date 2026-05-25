@@ -167,6 +167,7 @@ internal object DigiaInstance : DigiaCEPDelegate {
         pluginRegistry.teardown()
         controller.dismiss()
         controller.clearSlots()
+        controller.clearSlotConfigs()
         screenTracker.clear()
         guideOrchestrator.dismiss()
         _isUiReady.value = false
@@ -219,9 +220,17 @@ internal object DigiaInstance : DigiaCEPDelegate {
             logWarning("payload dropped: no campaign found for key '$campaignKey'")
             return
         }
-        android.util.Log.d("Digia", "[routeCampaign] starting guide for '$campaignKey'")
+        android.util.Log.d("Digia", "[routeCampaign] type='${campaign.campaignType}' key='$campaignKey'")
         when (campaign.campaignType) {
             "guide" -> guideOrchestrator.start(campaign)
+            "inline" -> {
+                val inlineConfig = campaign.inlineConfig
+                if (inlineConfig == null) {
+                    logWarning("inline campaign '$campaignKey' has no valid carousel config")
+                    return
+                }
+                displayCoordinator.routeInlineCarousel(inlineConfig, payload)
+            }
             else -> logWarning("campaign type '${campaign.campaignType}' not yet supported")
         }
     }
@@ -281,6 +290,7 @@ internal object DigiaInstance : DigiaCEPDelegate {
         screenTracker.clear()
         controller.dismiss()
         controller.clearSlots()
+        controller.clearSlotConfigs()
         guideOrchestrator.dismiss()
         _isUiReady.value = false
         _sdkState.value = SDKState.NOT_INITIALIZED

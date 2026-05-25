@@ -7,6 +7,7 @@ data class CampaignModel(
     val campaignKey: String,
     val campaignType: String,
     val guideConfig: GuideConfigModel?,
+    val inlineConfig: InlineCarouselConfig?,
 ) {
     companion object {
         fun fromJson(json: JSONObject): CampaignModel? {
@@ -15,6 +16,10 @@ data class CampaignModel(
                 .takeIf { it.isNotBlank() } ?: return null
             val campaignKey = json.optString("campaign_key", "").takeIf { it.isNotBlank() } ?: return null
             val campaignType = json.optString("campaign_type", "").takeIf { it.isNotBlank() } ?: return null
+
+            val inlineConfig = if (campaignType == "inline") {
+                json.optJSONObject("template_config")?.let { InlineCarouselConfig.fromJson(it) }
+            } else null
 
             val guideConfig = json.optJSONObject("guide_config")?.let { gc ->
                 val gcId = gc.optString("id", "")
@@ -51,6 +56,7 @@ data class CampaignModel(
                 campaignKey = campaignKey,
                 campaignType = campaignType,
                 guideConfig = guideConfig,
+                inlineConfig = inlineConfig,
             )
         }
     }

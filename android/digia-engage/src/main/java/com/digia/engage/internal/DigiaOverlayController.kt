@@ -2,6 +2,7 @@ package com.digia.engage.internal
 
 import com.digia.engage.DigiaExperienceEvent
 import com.digia.engage.InAppPayload
+import com.digia.engage.internal.model.InlineCarouselConfig
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -14,6 +15,9 @@ internal class DigiaOverlayController {
 
     private val _slotPayloads = MutableStateFlow<Map<String, InAppPayload>>(emptyMap())
     val slotPayloads: StateFlow<Map<String, InAppPayload>> = _slotPayloads.asStateFlow()
+
+    private val _slotConfigs = MutableStateFlow<Map<String, InlineCarouselConfig>>(emptyMap())
+    val slotConfigs: StateFlow<Map<String, InlineCarouselConfig>> = _slotConfigs.asStateFlow()
 
     fun show(payload: InAppPayload) {
         _activePayload.value = payload
@@ -37,6 +41,18 @@ internal class DigiaOverlayController {
 
     fun clearSlots() {
         _slotPayloads.value = emptyMap()
+    }
+
+    fun addSlotConfig(slotKey: String, config: InlineCarouselConfig) {
+        _slotConfigs.update { current -> current + (slotKey to config) }
+    }
+
+    fun removeSlotConfig(slotKey: String) {
+        _slotConfigs.update { current -> current - slotKey }
+    }
+
+    fun clearSlotConfigs() {
+        _slotConfigs.value = emptyMap()
     }
 
     var onEvent: ((DigiaExperienceEvent, InAppPayload) -> Unit)? = null
