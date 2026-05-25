@@ -12,7 +12,7 @@
  * Prefer using the high-level `Digia` singleton from `index.ts`.
  */
 import type { TurboModule } from 'react-native';
-import { NativeModules, Platform, TurboModuleRegistry } from 'react-native';
+import { NativeModules, TurboModuleRegistry } from 'react-native';
 
 /**
  * Codegen spec — drives Android/iOS TurboModule generation.
@@ -57,10 +57,6 @@ export interface Spec extends TurboModule {
     getRegisteredComponents(): Promise<Array<{ component_key: string; component_type: 'anchor' | 'slot'; screen_name: string | null }>>;
 }
 
-// The Android MVP guide path is JS-owned. Avoid resolving DigiaEngageModule on
-// Android because RN New Architecture can route even bridge lookups through the
-// TurboModule proxy when a module is not codegen-backed, which aborts under
-// CheckJNI before JS receives a recoverable error.
 let _resolved: Spec | null = null;
 let _didResolve = false;
 
@@ -71,10 +67,6 @@ function resolveCodegenModule(): Spec | null {
 function getModule(): Spec | null {
     if (_didResolve) return _resolved;
     _didResolve = true;
-
-    if (Platform.OS === 'android') {
-        return null;
-    }
 
     _resolved = (NativeModules.DigiaEngageModule as Spec | undefined) ?? resolveCodegenModule();
     if (__DEV__ && !_resolved) {

@@ -84,4 +84,15 @@ export type CarouselConfig = {
     indicator: CarouselIndicatorConfig
 }
 
-export type TemplateConfig  = TooltipConfig | SpotlightConfig | CarouselConfig
+export type SurveyTemplateConfig = {
+    template_type: 'survey'
+    template_id: string
+    survey_name: string
+    ui_template_id: string | null
+    settings: Record<string, unknown>
+    blocks: Record<string, unknown>[]
+    nodes: Record<string, unknown>[]
+    root_node_id: string
+}
+
+export type TemplateConfig = TooltipConfig | SpotlightConfig | CarouselConfig | SurveyTemplateConfig

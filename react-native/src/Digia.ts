@@ -20,6 +20,7 @@ import { nativeDigiaModule } from './NativeDigiaEngage';
 import { digiaHealthReporter, HealthEventType } from './DigiaHealthReporter';
 import { digiaGuideController } from './DigiaGuideController';
 import type {
+    CampaignType,
     DigiaConfig,
     DigiaDelegate,
     DigiaExperienceEvent,
@@ -35,7 +36,7 @@ interface SdkCampaign {
     id?: string;
     _id?: string;
     campaign_key: string;
-    campaign_type: string;
+    campaign_type: CampaignType;
     template_config?: Record<string, unknown>;
 }
 
@@ -180,8 +181,8 @@ class DigiaClass implements DigiaDelegate {
 
         if (campaignKey) {
             const campaign = this._campaignsByKey.get(campaignKey);
-            if (campaign?.campaign_type === 'inline') {
-                this._log(`inline campaign triggered campaign_key=${campaignKey}, forwarding to native`);
+            if (campaign?.campaign_type === 'inline' || campaign?.campaign_type === 'survey') {
+                this._log(`${campaign.campaign_type} campaign triggered campaign_key=${campaignKey}, forwarding to native`);
                 this._activePayloads.set(payload.id, payload);
                 nativeDigiaModule.triggerCampaign(payload.id, payload.content, payload.cepContext);
                 return;
@@ -189,7 +190,11 @@ class DigiaClass implements DigiaDelegate {
 
             if (campaign?.campaign_type === 'guide') {
                 const config = this._parseTemplateConfig(campaign);
-                if (!config || config.template_type === 'carousel' || config.steps.length === 0) {
+                if (
+                    !config ||
+                    (config.template_type !== 'tooltip' && config.template_type !== 'spotlight') ||
+                    config.steps.length === 0
+                ) {
                     digiaHealthReporter.report(HealthEventType.anchor_not_on_screen, {
                         campaign_key: campaignKey,
                         reason: 'guide_campaign_has_no_steps',
@@ -374,9 +379,11 @@ class DigiaClass implements DigiaDelegate {
 
         const args = payload.content.args;
         if (args && typeof args === 'object' && !Array.isArray(args)) {
-            return this._extractString(args as Record<string, unknown>, 'digiaKey', 'campaign_key', 'campaignKey');
+            const fromArgs = this._extractString(args as Record<string, unknown>, 'digiaKey', 'campaign_key', 'campaignKey');
+            if (fromArgs) return fromArgs;
         }
 
+        if (this._campaignsByKey.has(payload.id)) return payload.id;
         return null;
     }
 

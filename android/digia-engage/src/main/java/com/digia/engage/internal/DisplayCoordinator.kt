@@ -41,4 +41,14 @@ internal class DisplayCoordinator(
         pluginRegistry.notifyEvent(event, payload)
         analyticsClient.track(event, payload)
     }
+
+    /** Forward only to the active CEP plugin — used for survey Clicked/Dismissed. */
+    fun notifyCEP(event: DigiaExperienceEvent, payload: InAppPayload) {
+        pluginRegistry.notifyEvent(event, payload)
+    }
+
+    /** Record only into internal analytics — used for survey Answered/Completed. */
+    fun trackInternal(event: InternalEngageEvent, payload: InAppPayload) {
+        analyticsClient.trackInternal(event, payload)
+    }
 }

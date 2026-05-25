@@ -22,12 +22,14 @@ import com.digia.digiaui.framework.widgets.VWImage
 import com.digia.engage.internal.DigiaInstance
 import com.digia.engage.internal.model.InlineCarouselConfig
 import com.digia.engage.internal.ui.GuideRenderer
+import com.digia.engage.internal.ui.SurveyRenderer
 
 @Composable
 fun DigiaHost(content: @Composable () -> Unit) {
     Box(modifier = Modifier.fillMaxSize()) {
         content()
         GuideRenderer()
+        SurveyRenderer()
     }
 }
 

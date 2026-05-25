@@ -2,7 +2,7 @@
   "version": 1,
   "appSettings": {
     "initialRoute": "home",
-    "title": "Digia UI Demo"
+    "title": "Digia Engage Demo"
   },
   "theme": {
     "colors": {

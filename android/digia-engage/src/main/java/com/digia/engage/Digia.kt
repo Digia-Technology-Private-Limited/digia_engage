@@ -27,4 +27,14 @@ object Digia {
     fun unregisterAnchor(key: String) {
         DigiaInstance.unregisterAnchor(key)
     }
+
+    /**
+     * Test helper: triggers a fetched campaign directly by Digia campaign id.
+     *
+     * This bypasses the configured CEP plugin trigger. The SDK must already be
+     * initialized and the campaign must be present in the fetched campaign list.
+     */
+    fun triggerCampaign(campaignId: String) {
+        DigiaInstance.triggerCampaign(campaignId)
+    }
 }
