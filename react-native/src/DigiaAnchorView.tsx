@@ -1,7 +1,6 @@
 import React, { useCallback, useEffect, useRef } from 'react';
 import { Platform, View, requireNativeComponent } from 'react-native';
 import type { ViewProps } from 'react-native';
-import { CoachmarkAnchor } from '@edwardloopez/react-native-coachmark';
 import { Digia } from './Digia';
 import { nativeDigiaModule } from './NativeDigiaEngage';
 import { digiaAnchorRegistry } from './digiaAnchorRegistry';
@@ -24,19 +23,18 @@ export function DigiaAnchorView({ anchorKey, children, style, ...rest }: Props) 
         };
     }, [anchorKey]);
 
-    // padding=0, radius=0 — TourStep controls cutout size at tour-start time
+    if (Platform.OS === 'ios') {
+        return (
+            <NativeAnchorView anchorKey={anchorKey} style={style} {...rest}>
+                {children}
+            </NativeAnchorView>
+        );
+    }
+
     return (
-        <CoachmarkAnchor id={anchorKey} shape="rect" padding={0} radius={0} style={style} {...rest}>
-            {Platform.OS === 'ios' ? (
-                <NativeAnchorView anchorKey={anchorKey}>
-                    {children}
-                </NativeAnchorView>
-            ) : (
-                <JsMeasureAnchor anchorKey={anchorKey}>
-                    {children}
-                </JsMeasureAnchor>
-            )}
-        </CoachmarkAnchor>
+        <JsMeasureAnchor anchorKey={anchorKey} style={style} {...rest}>
+            {children}
+        </JsMeasureAnchor>
     );
 }
 

@@ -7,7 +7,7 @@
  * import { Digia } from '@digia/engage-react-native';
  *
  * // In your App entry point (e.g. App.tsx):
- * await Digia.initialize({ apiKey: 'YOUR_API_KEY' });
+ * await Digia.initialize({ projectId: 'YOUR_PROJECT_ID' });
  *
  * // Whenever your navigation screen changes:
  * Digia.setCurrentScreen('Home');
@@ -48,7 +48,7 @@ class DigiaClass implements DigiaDelegate {
     // the full InAppPayload when overlay lifecycle events arrive from native.
     private readonly _activePayloads = new Map<string, InAppPayload>();
     private _engageSubscription: { remove(): void } | null = null;
-    private _apiKey = '';
+    private _projectId = '';
     private _apiBaseUrl = '';
     private _logLevel: DigiaConfig['logLevel'] = 'error';
     private _currentScreen: string | null = null;
@@ -64,12 +64,12 @@ class DigiaClass implements DigiaDelegate {
     async initialize(config: DigiaConfig): Promise<void> {
         const environment = config.environment ?? 'production';
         const logLevel = config.logLevel ?? 'error';
-        this._apiKey = config.apiKey;
+        this._projectId = config.projectId;
         this._apiBaseUrl = this._resolveApiBaseUrl(config);
         this._logLevel = logLevel;
-        digiaHealthReporter.init(config.apiKey, this._apiBaseUrl);
+        digiaHealthReporter.init(config.projectId, this._apiBaseUrl);
         try {
-            await nativeDigiaModule.initialize(config.apiKey, environment, logLevel);
+            await nativeDigiaModule.initialize(config.projectId, environment, logLevel);
         } catch (e) {
             digiaHealthReporter.report(HealthEventType.fetch_failed, { error_code: 0, platform: 'react_native' });
             throw e;
@@ -101,7 +101,7 @@ class DigiaClass implements DigiaDelegate {
      * ```ts
      * import { DigiaMoEngagePlugin } from '@digia/moengage-plugin';
      *
-     * await Digia.initialize({ apiKey: 'YOUR_KEY' });
+     * await Digia.initialize({ projectId: 'YOUR_PROJECT_ID' });
      * Digia.register(new DigiaMoEngagePlugin({ moEngage: MoEngage }));
      * ```
      */
@@ -149,7 +149,7 @@ class DigiaClass implements DigiaDelegate {
         if (!cleanAnchorKey) return;
 
         this._registeredAnchorKeys.add(cleanAnchorKey);
-        if (!this._apiKey || !this._apiBaseUrl) return;
+        if (!this._projectId || !this._apiBaseUrl) return;
 
         this._recordComponents([
             {
@@ -176,6 +176,8 @@ class DigiaClass implements DigiaDelegate {
         }
 
         const campaignKey = this._extractCampaignKey(payload);
+        this._log(`onCampaignTriggered payloadId=${payload.id} extractedKey=${campaignKey} knownKeys=[${[...this._campaignsByKey.keys()].join(', ')}]`);
+
         if (campaignKey) {
             const campaign = this._campaignsByKey.get(campaignKey);
             if (campaign?.campaign_type === 'guide') {
@@ -211,6 +213,7 @@ class DigiaClass implements DigiaDelegate {
             }
 
             if (!campaign) {
+                this._log(`campaign_key_mismatch: no campaign found for key="${campaignKey}"`);
                 digiaHealthReporter.report(HealthEventType.campaign_key_mismatch, {
                     campaign_key: campaignKey,
                     payload_id: payload.id,
@@ -283,6 +286,7 @@ class DigiaClass implements DigiaDelegate {
 
     private async _refreshCampaignStore(): Promise<void> {
         try {
+            this._log(`fetching campaigns from ${this._apiBaseUrl}/engage/sdk/getCampaigns`);
             const campaigns = await this._sdkPost<SdkCampaign[]>('getCampaigns');
             this._campaignsByKey.clear();
             campaigns.forEach((campaign) => {
@@ -290,12 +294,14 @@ class DigiaClass implements DigiaDelegate {
                     this._campaignsByKey.set(campaign.campaign_key, campaign);
                 }
             });
-            this._log(`loaded ${campaigns.length} campaign(s)`);
+            this._log(`loaded ${campaigns.length} campaign(s): [${[...this._campaignsByKey.keys()].join(', ')}]`);
         } catch (e) {
+            const reason = e instanceof Error ? e.message : String(e);
+            this._log(`getCampaigns FAILED: ${reason}`);
             digiaHealthReporter.report(HealthEventType.fetch_failed, {
                 error_code: 0,
                 platform: 'react_native',
-                reason: e instanceof Error ? e.message : String(e),
+                reason,
             });
         }
     }
@@ -303,7 +309,10 @@ class DigiaClass implements DigiaDelegate {
     private async _sdkPost<T>(path: string, body: Record<string, unknown> = {}): Promise<T> {
         const res = await fetch(`${this._apiBaseUrl}/engage/sdk/${path}`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'x-api-key': this._apiKey },
+            headers: {
+                'Content-Type': 'application/json',
+                'x-digia-project-id': this._projectId,
+            },
             body: JSON.stringify(body),
         });
 
@@ -329,10 +338,13 @@ class DigiaClass implements DigiaDelegate {
     }
 
     private _recordComponents(components: Array<Record<string, unknown>>): void {
-        if (!this._apiKey || !this._apiBaseUrl || components.length === 0) return;
+        if (!this._projectId || !this._apiBaseUrl || components.length === 0) return;
         fetch(`${this._apiBaseUrl}/engage/sdk/recordComponents`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'x-api-key': this._apiKey },
+            headers: {
+                'Content-Type': 'application/json',
+                'x-digia-project-id': this._projectId,
+            },
             body: JSON.stringify({ components }),
         }).catch(() => { /* swallow */ });
     }

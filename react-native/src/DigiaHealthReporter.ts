@@ -10,20 +10,23 @@ export const HealthEventType = {
 export type HealthEventType = (typeof HealthEventType)[keyof typeof HealthEventType];
 
 export class DigiaHealthReporter {
-    private _apiKey = '';
+    private _projectId = '';
     private _baseUrl = '';
 
-    init(apiKey: string, baseUrl: string): void {
-        this._apiKey = apiKey;
+    init(projectId: string, baseUrl: string): void {
+        this._projectId = projectId;
         this._baseUrl = baseUrl;
     }
 
     report(eventType: HealthEventType, detail: Record<string, unknown>): void {
-        if (!this._apiKey) return;
+        if (!this._projectId) return;
         try {
             fetch(`${this._baseUrl}/engage/sdk/recordHealthEvent`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'x-api-key': this._apiKey },
+                headers: {
+                    'Content-Type': 'application/json',
+                    'x-digia-project-id': this._projectId,
+                },
                 body: JSON.stringify({ event_type: eventType, detail }),
             }).catch(() => { /* swallow */ });
         } catch {

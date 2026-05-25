@@ -24,7 +24,7 @@ import { NativeModules, Platform, TurboModuleRegistry } from 'react-native';
  */
 export interface Spec extends TurboModule {
     /** Initialise the SDK. Call once before anything else. */
-    initialize(apiKey: string, environment: string, logLevel: string): Promise<void>;
+    initialize(projectId: string, environment: string, logLevel: string): Promise<void>;
 
     /**
      * Wire the internal RNEventBridgePlugin with the native SDK.
