@@ -22,7 +22,7 @@
 
 @interface RCT_EXTERN_MODULE(DigiaEngageModule, RCTEventEmitter)
 
-RCT_EXTERN_METHOD(initialize:(NSString *)apiKey
+RCT_EXTERN_METHOD(initialize:(NSString *)projectId
                   environment:(NSString *)environment
                   logLevel:(NSString *)logLevel
                   resolve:(RCTPromiseResolveBlock)resolve

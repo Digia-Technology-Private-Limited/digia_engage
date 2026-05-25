@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef } from 'react';
-import { Platform, View, requireNativeComponent } from 'react-native';
+import { View } from 'react-native';
 import type { ViewProps } from 'react-native';
 import { Digia } from './Digia';
 import { nativeDigiaModule } from './NativeDigiaEngage';
@@ -10,10 +10,6 @@ interface Props extends ViewProps {
     children?: React.ReactNode;
 }
 
-const NativeAnchorView = Platform.OS === 'ios' && typeof requireNativeComponent === 'function'
-    ? requireNativeComponent<{ anchorKey: string } & ViewProps>('DigiaAnchorView')
-    : View;
-
 export function DigiaAnchorView({ anchorKey, children, style, ...rest }: Props) {
     useEffect(() => {
         Digia.registerAnchor(anchorKey);
@@ -22,14 +18,6 @@ export function DigiaAnchorView({ anchorKey, children, style, ...rest }: Props) 
             digiaAnchorRegistry.remove(anchorKey);
         };
     }, [anchorKey]);
-
-    if (Platform.OS === 'ios') {
-        return (
-            <NativeAnchorView anchorKey={anchorKey} style={style} {...rest}>
-                {children}
-            </NativeAnchorView>
-        );
-    }
 
     return (
         <JsMeasureAnchor anchorKey={anchorKey} style={style} {...rest}>
