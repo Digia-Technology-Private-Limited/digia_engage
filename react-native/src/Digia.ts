@@ -7,7 +7,7 @@
  * import { Digia } from '@digia/engage-react-native';
  *
  * // In your App entry point (e.g. App.tsx):
- * await Digia.initialize({ apiKey: 'YOUR_API_KEY' });
+ * await Digia.initialize({ projectId: 'YOUR_PROJECT_ID' });
  *
  * // Whenever your navigation screen changes:
  * Digia.setCurrentScreen('Home');
@@ -18,6 +18,7 @@
 import { DeviceEventEmitter } from 'react-native';
 import { nativeDigiaModule } from './NativeDigiaEngage';
 import { digiaHealthReporter, HealthEventType } from './DigiaHealthReporter';
+import { digiaGuideController } from './DigiaGuideController';
 import type {
     DigiaConfig,
     DigiaDelegate,
@@ -25,6 +26,18 @@ import type {
     DigiaPlugin,
     InAppPayload,
 } from './types';
+import type { TemplateConfig } from './templateTypes';
+
+const PRODUCTION_API_ROOT = 'https://api.digia.tech';
+const SANDBOX_API_ROOT = 'https://zaiden-phonematic-unseemly.ngrok-free.dev';
+
+interface SdkCampaign {
+    id?: string;
+    _id?: string;
+    campaign_key: string;
+    campaign_type: string;
+    template_config?: Record<string, unknown>;
+}
 
 class DigiaClass implements DigiaDelegate {
     private readonly _plugins = new Map<string, DigiaPlugin>();
@@ -35,6 +48,12 @@ class DigiaClass implements DigiaDelegate {
     // the full InAppPayload when overlay lifecycle events arrive from native.
     private readonly _activePayloads = new Map<string, InAppPayload>();
     private _engageSubscription: { remove(): void } | null = null;
+    private _projectId = '';
+    private _apiBaseUrl = '';
+    private _logLevel: DigiaConfig['logLevel'] = 'error';
+    private _currentScreen: string | null = null;
+    private readonly _campaignsByKey = new Map<string, SdkCampaign>();
+    private readonly _registeredAnchorKeys = new Set<string>();
 
     /**
      * Initialise the Digia Engage SDK.
@@ -45,26 +64,30 @@ class DigiaClass implements DigiaDelegate {
     async initialize(config: DigiaConfig): Promise<void> {
         const environment = config.environment ?? 'production';
         const logLevel = config.logLevel ?? 'error';
-        digiaHealthReporter.init(config.apiKey, config.baseUrl ?? 'https://api.digia.io');
+        this._projectId = config.projectId;
+        this._apiBaseUrl = this._resolveApiBaseUrl(config);
+        this._logLevel = logLevel;
+        digiaHealthReporter.init(config.projectId, this._apiBaseUrl);
         try {
-            await nativeDigiaModule.initialize(config.apiKey, environment, logLevel);
+            await nativeDigiaModule.initialize(config.projectId, environment, logLevel);
         } catch (e) {
             digiaHealthReporter.report(HealthEventType.fetch_failed, { error_code: 0, platform: 'react_native' });
             throw e;
         }
+
+        await this._refreshCampaignStore();
+
         // Report registered components to backend (fire-and-forget)
         try {
             const components = await nativeDigiaModule.getRegisteredComponents();
             if (components.length > 0) {
-                fetch(`${config.baseUrl ?? 'https://api.digia.io'}/engage/sdk/recordComponents`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'x-api-key': config.apiKey },
-                    body: JSON.stringify({ components: components.map(c => ({ ...c, platform: 'react_native' })) }),
-                }).catch(() => { /* swallow */ });
+                this._recordComponents(components.map(c => ({ ...c, platform: 'react_native' })));
             }
         } catch {
             // never throw
         }
+
+        this._flushRegisteredAnchors();
     }
 
     /**
@@ -78,7 +101,7 @@ class DigiaClass implements DigiaDelegate {
      * ```ts
      * import { DigiaMoEngagePlugin } from '@digia/moengage-plugin';
      *
-     * await Digia.initialize({ apiKey: 'YOUR_KEY' });
+     * await Digia.initialize({ projectId: 'YOUR_PROJECT_ID' });
      * Digia.register(new DigiaMoEngagePlugin({ moEngage: MoEngage }));
      * ```
      */
@@ -116,8 +139,30 @@ class DigiaClass implements DigiaDelegate {
      * All registered plugins will have forwardScreen() called automatically.
      */
     setCurrentScreen(name: string): void {
+        this._currentScreen = name;
         nativeDigiaModule.setCurrentScreen(name);
         this._plugins.forEach((plugin) => plugin.forwardScreen(name));
+    }
+
+    registerAnchor(anchorKey: string, screenName?: string | null): void {
+        const cleanAnchorKey = anchorKey.trim();
+        if (!cleanAnchorKey) return;
+
+        this._registeredAnchorKeys.add(cleanAnchorKey);
+        if (!this._projectId || !this._apiBaseUrl) return;
+
+        this._recordComponents([
+            {
+                component_key: cleanAnchorKey,
+                component_type: 'anchor',
+                screen_name: screenName ?? this._currentScreen,
+                platform: 'react_native',
+            },
+        ]);
+    }
+
+    unregisterAnchor(anchorKey: string): void {
+        this._registeredAnchorKeys.delete(anchorKey);
     }
 
 
@@ -129,12 +174,62 @@ class DigiaClass implements DigiaDelegate {
         if (!this._nativeBridgeWired) {
             digiaHealthReporter.report(HealthEventType.plugin_not_registered, { campaign_key: payload.id });
         }
+
+        const campaignKey = this._extractCampaignKey(payload);
+        this._log(`onCampaignTriggered payloadId=${payload.id} extractedKey=${campaignKey} knownKeys=[${[...this._campaignsByKey.keys()].join(', ')}]`);
+
+        if (campaignKey) {
+            const campaign = this._campaignsByKey.get(campaignKey);
+            if (campaign?.campaign_type === 'guide') {
+                const config = this._parseTemplateConfig(campaign);
+                if (!config || config.steps.length === 0) {
+                    digiaHealthReporter.report(HealthEventType.anchor_not_on_screen, {
+                        campaign_key: campaignKey,
+                        reason: 'guide_campaign_has_no_steps',
+                    });
+                    return;
+                }
+
+                this._activePayloads.set(payload.id, payload);
+                const mounted = digiaGuideController.start({
+                    payloadId: payload.id,
+                    campaignKey,
+                    config,
+                    onExperienceEvent: (event) => this._forwardExperienceEvent({
+                        campaignId: payload.id,
+                        type: event.type,
+                        elementId: event.type === 'clicked' ? event.elementId : undefined,
+                    }),
+                });
+
+                this._log(`guide trigger campaign_key=${campaignKey} mounted=${mounted}`);
+                if (!mounted) {
+                    digiaHealthReporter.report(HealthEventType.host_not_mounted, {
+                        campaign_key: campaignKey,
+                        payload_id: payload.id,
+                    });
+                }
+                return;
+            }
+
+            if (!campaign) {
+                this._log(`campaign_key_mismatch: no campaign found for key="${campaignKey}"`);
+                digiaHealthReporter.report(HealthEventType.campaign_key_mismatch, {
+                    campaign_key: campaignKey,
+                    payload_id: payload.id,
+                    available_campaign_keys: [...this._campaignsByKey.keys()],
+                });
+                return;
+            }
+        }
+
         this._activePayloads.set(payload.id, payload);
         nativeDigiaModule.triggerCampaign(payload.id, payload.content, payload.cepContext);
     }
 
     onCampaignInvalidated(campaignId: string): void {
         this._activePayloads.delete(campaignId);
+        digiaGuideController.cancel(campaignId);
         nativeDigiaModule.invalidateCampaign(campaignId);
     }
 
@@ -180,6 +275,128 @@ class DigiaClass implements DigiaDelegate {
         }
 
         this._plugins.forEach((plugin) => plugin.notifyEvent(event, payload));
+    }
+
+    private _resolveApiBaseUrl(config: DigiaConfig): string {
+        const root = (config.baseUrl ??
+            (config.environment === 'sandbox' ? SANDBOX_API_ROOT : PRODUCTION_API_ROOT)).trim();
+        const cleanRoot = root.replace(/\/+$/, '');
+        return cleanRoot.endsWith('/api/v1') ? cleanRoot : `${cleanRoot}/api/v1`;
+    }
+
+    private async _refreshCampaignStore(): Promise<void> {
+        try {
+            this._log(`fetching campaigns from ${this._apiBaseUrl}/engage/sdk/getCampaigns`);
+            const campaigns = await this._sdkPost<SdkCampaign[]>('getCampaigns');
+            this._campaignsByKey.clear();
+            campaigns.forEach((campaign) => {
+                if (campaign.campaign_key) {
+                    this._campaignsByKey.set(campaign.campaign_key, campaign);
+                }
+            });
+            this._log(`loaded ${campaigns.length} campaign(s): [${[...this._campaignsByKey.keys()].join(', ')}]`);
+        } catch (e) {
+            const reason = e instanceof Error ? e.message : String(e);
+            this._log(`getCampaigns FAILED: ${reason}`);
+            digiaHealthReporter.report(HealthEventType.fetch_failed, {
+                error_code: 0,
+                platform: 'react_native',
+                reason,
+            });
+        }
+    }
+
+    private async _sdkPost<T>(path: string, body: Record<string, unknown> = {}): Promise<T> {
+        const res = await fetch(`${this._apiBaseUrl}/engage/sdk/${path}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'x-digia-project-id': this._projectId,
+            },
+            body: JSON.stringify(body),
+        });
+
+        if (!res.ok) {
+            throw new Error(`${path} failed: HTTP ${res.status}`);
+        }
+
+        const json = await res.json();
+        return this._extractApiResponse<T>(json);
+    }
+
+    private _extractApiResponse<T>(json: unknown): T {
+        if (Array.isArray(json)) return json as T;
+        if (json && typeof json === 'object') {
+            const obj = json as Record<string, unknown>;
+            const data = obj.data;
+            if (data && typeof data === 'object' && 'response' in data) {
+                return (data as Record<string, unknown>).response as T;
+            }
+            if ('response' in obj) return obj.response as T;
+        }
+        throw new Error('SDK response missing data.response');
+    }
+
+    private _recordComponents(components: Array<Record<string, unknown>>): void {
+        if (!this._projectId || !this._apiBaseUrl || components.length === 0) return;
+        fetch(`${this._apiBaseUrl}/engage/sdk/recordComponents`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'x-digia-project-id': this._projectId,
+            },
+            body: JSON.stringify({ components }),
+        }).catch(() => { /* swallow */ });
+    }
+
+    private _flushRegisteredAnchors(): void {
+        if (this._registeredAnchorKeys.size === 0) return;
+        this._recordComponents(
+            [...this._registeredAnchorKeys].map((componentKey) => ({
+                component_key: componentKey,
+                component_type: 'anchor',
+                screen_name: this._currentScreen,
+                platform: 'react_native',
+            })),
+        );
+    }
+
+    private _extractCampaignKey(payload: InAppPayload): string | null {
+        const fromContent = this._extractString(payload.content, 'digiaKey', 'campaign_key', 'campaignKey');
+        if (fromContent) return fromContent;
+
+        const args = payload.content.args;
+        if (args && typeof args === 'object' && !Array.isArray(args)) {
+            return this._extractString(args as Record<string, unknown>, 'digiaKey', 'campaign_key', 'campaignKey');
+        }
+
+        return null;
+    }
+
+    private _extractString(data: Record<string, unknown>, ...keys: string[]): string | null {
+        for (const key of keys) {
+            const value = data[key];
+            if (typeof value === 'string' && value.trim()) return value.trim();
+        }
+        return null;
+    }
+
+    private _parseTemplateConfig(campaign: SdkCampaign): TemplateConfig | null {
+        const raw = campaign.template_config;
+        if (!raw || typeof raw !== 'object') return null;
+        const type = raw.template_type;
+        if (type !== 'tooltip' && type !== 'spotlight') {
+            this._log(`unknown template_type="${type}" for campaign_key=${campaign.campaign_key}`);
+            return null;
+        }
+        const steps = Array.isArray(raw.steps) ? raw.steps : [];
+        return { ...raw, template_type: type, steps } as TemplateConfig;
+    }
+
+    private _log(message: string): void {
+        if (this._logLevel !== 'verbose') return;
+        // eslint-disable-next-line no-console
+        console.log(`[Digia] ${message}`);
     }
 
 }

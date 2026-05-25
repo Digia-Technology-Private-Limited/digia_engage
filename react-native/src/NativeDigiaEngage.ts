@@ -1,20 +1,18 @@
 /**
  * NativeDigiaModule
  *
- * Low-level TurboModule binding to the native Digia Engage module.
+ * Low-level native binding to the Digia Engage module.
  *
  * The module is resolved lazily on first use (not at import time) so that
  * module evaluation before native initialisation doesn't throw.
  * Resolution order:
- *   1. TurboModuleRegistry.get()   — New Architecture / JSI path
- *   2. NativeModules               — bridge interop layer (RN 0.73+ New Arch
- *                                    with isTurboModule: false in ReactModuleInfo)
- *   3. null                        — non-Android environments; methods no-op
+ *   1. NativeModules               — iOS bridge module
+ *   2. null                        — non-Android environments; methods no-op
  *
  * Prefer using the high-level `Digia` singleton from `index.ts`.
  */
 import type { TurboModule } from 'react-native';
-import { NativeModules, TurboModuleRegistry } from 'react-native';
+import { NativeModules, Platform, TurboModuleRegistry } from 'react-native';
 
 /**
  * Codegen spec — drives Android/iOS TurboModule generation.
@@ -26,7 +24,7 @@ import { NativeModules, TurboModuleRegistry } from 'react-native';
  */
 export interface Spec extends TurboModule {
     /** Initialise the SDK. Call once before anything else. */
-    initialize(apiKey: string, environment: string, logLevel: string): Promise<void>;
+    initialize(projectId: string, environment: string, logLevel: string): Promise<void>;
 
     /**
      * Wire the internal RNEventBridgePlugin with the native SDK.
@@ -59,19 +57,26 @@ export interface Spec extends TurboModule {
     getRegisteredComponents(): Promise<Array<{ component_key: string; component_type: 'anchor' | 'slot'; screen_name: string | null }>>;
 }
 
-// Try TurboModuleRegistry first (New Architecture / JSI).
-// Fall back to NativeModules (bridge interop layer — enabled by default in
-// RN 0.73+ New Architecture when the module is registered with
-// isTurboModule: false in ReactModuleInfo).
-// If neither resolves, warn in DEV and use no-op stubs so non-Android
-// environments (web, Storybook) don't crash.
+// The Android MVP guide path is JS-owned. Avoid resolving DigiaEngageModule on
+// Android because RN New Architecture can route even bridge lookups through the
+// TurboModule proxy when a module is not codegen-backed, which aborts under
+// CheckJNI before JS receives a recoverable error.
 let _resolved: Spec | null = null;
+let _didResolve = false;
+
+function resolveCodegenModule(): Spec | null {
+    return TurboModuleRegistry.get<Spec>('DigiaEngageModule') ?? null;
+}
+
 function getModule(): Spec | null {
-    if (_resolved !== null) return _resolved;
-    _resolved =
-        TurboModuleRegistry.get<Spec>('DigiaEngageModule') ??
-        (NativeModules.DigiaEngageModule as Spec | undefined) ??
-        null;
+    if (_didResolve) return _resolved;
+    _didResolve = true;
+
+    if (Platform.OS === 'android') {
+        return null;
+    }
+
+    _resolved = (NativeModules.DigiaEngageModule as Spec | undefined) ?? resolveCodegenModule();
     if (__DEV__ && !_resolved) {
         console.warn(
             '[Digia] DigiaEngageModule not found.\n' +

@@ -75,11 +75,12 @@ export interface DigiaPlugin {
  * Configuration for initialising the Digia Engage SDK.
  */
 export interface DigiaConfig {
-    /** The API key provided by Digia. */
-    apiKey: string;
+    /** The Engage project ID — sent as x-digia-project-id on all SDK requests. */
+    projectId: string;
     /**
      * Base URL for the Digia API.
-     * @default 'https://api.digia.io'
+     * Defaults to the production API root, or the Engage sandbox root when
+     * `environment` is "sandbox".
      */
     baseUrl?: string;
     /**
@@ -93,4 +94,3 @@ export interface DigiaConfig {
      */
     logLevel?: 'none' | 'error' | 'verbose';
 }
-

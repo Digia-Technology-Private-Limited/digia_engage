@@ -1,53 +1,46 @@
-/**
- * DigiaAnchorView
- *
- * Android: pure JS measure() via onLayout — works with both Old and New Architecture.
- * iOS: native DigiaAnchorViewManager (RCTViewManager) auto-tracks frame natively.
- */
 import React, { useCallback, useEffect, useRef } from 'react';
-import { PixelRatio, Platform, View, requireNativeComponent } from 'react-native';
+import { View } from 'react-native';
 import type { ViewProps } from 'react-native';
+import { Digia } from './Digia';
 import { nativeDigiaModule } from './NativeDigiaEngage';
+import { digiaAnchorRegistry } from './digiaAnchorRegistry';
 
 interface Props extends ViewProps {
     anchorKey: string;
     children?: React.ReactNode;
 }
 
-const NativeAnchorView = requireNativeComponent<{ anchorKey: string } & ViewProps>('DigiaAnchorView');
-
 export function DigiaAnchorView({ anchorKey, children, style, ...rest }: Props) {
-    if (Platform.OS === 'ios') {
-        return (
-            <NativeAnchorView anchorKey={anchorKey} style={style} {...rest}>
-                {children}
-            </NativeAnchorView>
-        );
-    }
+    useEffect(() => {
+        Digia.registerAnchor(anchorKey);
+        return () => {
+            Digia.unregisterAnchor(anchorKey);
+            digiaAnchorRegistry.remove(anchorKey);
+        };
+    }, [anchorKey]);
 
-    // Android (and all other platforms): JS-side measure
-    return <JsMeasureAnchor anchorKey={anchorKey} style={style} {...rest}>{children}</JsMeasureAnchor>;
+    return (
+        <JsMeasureAnchor anchorKey={anchorKey} style={style} {...rest}>
+            {children}
+        </JsMeasureAnchor>
+    );
 }
 
 function JsMeasureAnchor({ anchorKey, children, style, ...rest }: Props) {
     const ref = useRef<View>(null);
 
-    const register = useCallback(() => {
-        ref.current?.measure((_x, _y, w, h, px, py) => {
-            if (w === 0 && h === 0) return;
-            const r = PixelRatio.get();
-            nativeDigiaModule.registerAnchor(
-                anchorKey,
-                Math.round(px * r), Math.round(py * r),
-                Math.round(w * r),  Math.round(h * r),
-            );
+    const measure = useCallback(() => {
+        ref.current?.measure((_x, _y, width, height, pageX, pageY) => {
+            if (width === 0 && height === 0) return;
+            nativeDigiaModule.registerAnchor(anchorKey, Math.round(pageX), Math.round(pageY), Math.round(width), Math.round(height));
+            digiaAnchorRegistry.setLayout(anchorKey, { pageX, pageY, width, height });
         });
     }, [anchorKey]);
 
     useEffect(() => () => { nativeDigiaModule.unregisterAnchor(anchorKey); }, [anchorKey]);
 
     return (
-        <View ref={ref} onLayout={register} style={style} {...rest}>
+        <View ref={ref} onLayout={measure} style={style} {...rest}>
             {children}
         </View>
     );

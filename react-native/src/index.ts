@@ -11,7 +11,9 @@
 
 export { Digia } from './Digia';
 export { DigiaHostView } from './DigiaHostView';
+export { DigiaHost } from './DigiaProvider';
 export { DigiaSlotView } from './DigiaSlotView';
 export { DigiaAnchorView } from './DigiaAnchorView';
 export type { DigiaConfig, DigiaDelegate, DigiaExperienceEvent, DigiaPlugin, InAppPayload } from './types';
 export { DigiaHealthReporter, HealthEventType, digiaHealthReporter } from './DigiaHealthReporter';
+export type { TemplateConfig, TooltipConfig, SpotlightConfig, TooltipStep, SpotlightStep, Action } from './templateTypes';
