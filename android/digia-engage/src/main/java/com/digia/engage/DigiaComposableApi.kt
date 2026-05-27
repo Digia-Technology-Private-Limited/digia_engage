@@ -21,6 +21,8 @@ import com.digia.engage.framework.widgets.VWCarousel
 import com.digia.engage.framework.widgets.VWImage
 import com.digia.engage.internal.DigiaInstance
 import com.digia.engage.internal.model.InlineCarouselConfig
+import com.digia.engage.internal.ui.DigiaInlineStory
+import com.digia.engage.internal.ui.DigiaStoryOverlay
 import com.digia.engage.internal.ui.GuideRenderer
 import com.digia.engage.internal.ui.SurveyRenderer
 
@@ -30,6 +32,7 @@ fun DigiaHost(content: @Composable () -> Unit) {
         content()
         GuideRenderer()
         SurveyRenderer()
+        DigiaStoryOverlay()
     }
 }
 
@@ -41,13 +44,30 @@ fun DigiaScreen(name: String) {
 @Composable
 fun DigiaSlot(placementKey: String, modifier: Modifier = Modifier) {
     val slotConfigs by DigiaInstance.controller.slotConfigs.collectAsState()
-    val config = slotConfigs[placementKey] ?: return
+    val storySlotConfigs by DigiaInstance.controller.storySlotConfigs.collectAsState()
+    val slotPayloads by DigiaInstance.controller.slotPayloads.collectAsState()
 
-    android.util.Log.d("DigiaSlot", "rendering carousel for slot '$placementKey' items=${config.items.size}")
+    val carouselConfig = slotConfigs[placementKey]
+    val storyConfig = storySlotConfigs[placementKey]
 
-    CompositionLocalProvider(LocalUIResources provides UIResources()) {
-        val carousel = remember(config) { buildCarouselWidget(config) }
-        carousel.ToWidget(RenderPayload(scopeContext = null))
+    when {
+        carouselConfig != null -> {
+            android.util.Log.d("DigiaSlot", "rendering carousel for slot '$placementKey' items=${carouselConfig.items.size}")
+            CompositionLocalProvider(LocalUIResources provides UIResources()) {
+                val carousel = remember(carouselConfig) { buildCarouselWidget(carouselConfig) }
+                carousel.ToWidget(RenderPayload(scopeContext = null))
+            }
+        }
+        storyConfig != null -> {
+            android.util.Log.d("DigiaSlot", "rendering story for slot '$placementKey' items=${storyConfig.items.size}")
+            val payload = slotPayloads[placementKey]
+                ?: InAppPayload(id = placementKey, content = emptyMap(), cepContext = emptyMap())
+            DigiaInlineStory(
+                config = storyConfig,
+                payload = payload,
+                modifier = modifier,
+            )
+        }
     }
 }
 

@@ -228,6 +228,8 @@ internal object DigiaInstance : DigiaCEPDelegate {
         controller.dismiss()
         controller.clearSlots()
         controller.clearSlotConfigs()
+        controller.clearStorySlotConfigs()
+        controller.dismissStoryOverlay()
         screenTracker.clear()
         guideOrchestrator.dismiss()
         surveyOrchestrator.dismiss()
@@ -330,11 +332,13 @@ internal object DigiaInstance : DigiaCEPDelegate {
         when (campaign.campaignType) {
             "guide" -> guideOrchestrator.start(campaign)
             "nudge" -> displayCoordinator.routeNudge(routedPayload)
-            "inline" -> displayCoordinator.routeInlineCarousel(
-                campaign.inlineConfig
-                    ?: error("inline campaign '$campaignKey' has no valid carousel config"),
-                routedPayload,
-            )
+            "inline" -> when (val cfg = campaign.config) {
+                is com.digia.engage.internal.model.CampaignConfigModel.Inline ->
+                    displayCoordinator.routeInlineCarousel(cfg.inlineConfig, routedPayload)
+                is com.digia.engage.internal.model.CampaignConfigModel.Story ->
+                    displayCoordinator.routeInlineStory(cfg.storyConfig, routedPayload)
+                else -> error("unexpected config for inline campaign '$campaignKey'")
+            }
             "survey" -> {
                 if (!surveyOrchestrator.start(campaign)) {
                     logWarning("survey campaign dropped: another survey is on screen: $campaignKey")
@@ -425,6 +429,8 @@ internal object DigiaInstance : DigiaCEPDelegate {
         controller.dismiss()
         controller.clearSlots()
         controller.clearSlotConfigs()
+        controller.clearStorySlotConfigs()
+        controller.dismissStoryOverlay()
         guideOrchestrator.dismiss()
         surveyOrchestrator.dismiss()
         _isUiReady.value = false

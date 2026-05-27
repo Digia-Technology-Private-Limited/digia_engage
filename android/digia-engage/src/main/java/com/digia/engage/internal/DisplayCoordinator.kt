@@ -3,6 +3,7 @@ package com.digia.engage.internal
 import com.digia.engage.DigiaExperienceEvent
 import com.digia.engage.InAppPayload
 import com.digia.engage.internal.model.InlineCarouselConfig
+import com.digia.engage.internal.model.InlineStoryConfig
 
 internal class DisplayCoordinator(
     private val overlayController: DigiaOverlayController,
@@ -19,6 +20,11 @@ internal class DisplayCoordinator(
 
     fun routeInlineCarousel(config: InlineCarouselConfig, payload: InAppPayload) {
         overlayController.addSlotConfig(config.slotKey, config)
+        overlayController.addSlot(config.slotKey, payload)
+    }
+
+    fun routeInlineStory(config: InlineStoryConfig, payload: InAppPayload) {
+        overlayController.addStorySlotConfig(config.slotKey, config)
         overlayController.addSlot(config.slotKey, payload)
     }
 
