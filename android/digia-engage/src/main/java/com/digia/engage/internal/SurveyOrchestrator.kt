@@ -31,8 +31,9 @@ internal class SurveyOrchestrator {
 
     /** @return true if the survey was started, false if preconditions fail or one is already showing. */
     fun start(campaign: CampaignModel): Boolean {
-        if (campaign.campaignType != "survey" || campaign.surveyConfig == null) return false
-        if (campaign.surveyConfig.nodes.isEmpty() || campaign.surveyConfig.blocks.isEmpty()) return false
+        val surveyConfig = campaign.surveyConfig
+        if (campaign.campaignType != "survey" || surveyConfig == null) return false
+        if (surveyConfig.nodes.isEmpty() || surveyConfig.blocks.isEmpty()) return false
         if (_state.value != null) return false
         _state.value = ActiveSurveyState(campaign, ++tokenCounter)
         return true

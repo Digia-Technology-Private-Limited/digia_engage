@@ -3,10 +3,17 @@ package com.digia.engage.internal
 import com.digia.engage.DigiaExperienceEvent
 import com.digia.engage.InAppPayload
 import com.digia.engage.internal.model.InlineCarouselConfig
+import com.digia.engage.internal.model.InlineStoryConfig
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+
+internal data class StoryOverlayState(
+    val config: InlineStoryConfig,
+    val initialIndex: Int,
+    val payload: InAppPayload,
+)
 
 internal class DigiaOverlayController {
 
@@ -18,6 +25,12 @@ internal class DigiaOverlayController {
 
     private val _slotConfigs = MutableStateFlow<Map<String, InlineCarouselConfig>>(emptyMap())
     val slotConfigs: StateFlow<Map<String, InlineCarouselConfig>> = _slotConfigs.asStateFlow()
+
+    private val _storySlotConfigs = MutableStateFlow<Map<String, InlineStoryConfig>>(emptyMap())
+    val storySlotConfigs: StateFlow<Map<String, InlineStoryConfig>> = _storySlotConfigs.asStateFlow()
+
+    private val _storyOverlay = MutableStateFlow<StoryOverlayState?>(null)
+    val storyOverlay: StateFlow<StoryOverlayState?> = _storyOverlay.asStateFlow()
 
     fun show(payload: InAppPayload) {
         _activePayload.value = payload
@@ -53,6 +66,26 @@ internal class DigiaOverlayController {
 
     fun clearSlotConfigs() {
         _slotConfigs.value = emptyMap()
+    }
+
+    fun addStorySlotConfig(slotKey: String, config: InlineStoryConfig) {
+        _storySlotConfigs.update { current -> current + (slotKey to config) }
+    }
+
+    fun removeStorySlotConfig(slotKey: String) {
+        _storySlotConfigs.update { current -> current - slotKey }
+    }
+
+    fun clearStorySlotConfigs() {
+        _storySlotConfigs.value = emptyMap()
+    }
+
+    fun showStoryOverlay(config: InlineStoryConfig, initialIndex: Int, payload: InAppPayload) {
+        _storyOverlay.value = StoryOverlayState(config, initialIndex, payload)
+    }
+
+    fun dismissStoryOverlay() {
+        _storyOverlay.value = null
     }
 
     var onEvent: ((DigiaExperienceEvent, InAppPayload) -> Unit)? = null

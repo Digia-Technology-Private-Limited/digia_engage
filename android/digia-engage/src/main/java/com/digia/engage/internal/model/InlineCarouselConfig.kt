@@ -21,6 +21,7 @@ data class InlineCarouselConfig(
     val slotKey: String,
     val items: List<CarouselItem>,
     val height: Int = 180,
+    val width: Int? = null,
     val autoPlay: Boolean = true,
     val autoPlayInterval: Long = 3000L,
     val animationDuration: Int = 700,
@@ -30,14 +31,14 @@ data class InlineCarouselConfig(
 ) {
     companion object {
         fun fromJson(json: JSONObject): InlineCarouselConfig? {
-            val slotKey = json.optString("slot_key", "").takeIf { it.isNotBlank() } ?: return null
+            val slotKey = json.optString("slotKey", "").takeIf { it.isNotBlank() } ?: return null
 
             val itemsArr = json.optJSONArray("items") ?: return null
             val items = mutableListOf<CarouselItem>()
             for (i in 0 until itemsArr.length()) {
                 val itemJson = itemsArr.optJSONObject(i) ?: continue
-                val imageUrl = itemJson.optString("image_url", "").takeIf { it.isNotBlank() } ?: continue
-                val deepLink = itemJson.optString("deep_link", "").takeIf { it.isNotBlank() }
+                val imageUrl = itemJson.optString("imageUrl", "").takeIf { it.isNotBlank() } ?: continue
+                val deepLink = itemJson.optString("deepLink", "").takeIf { it.isNotBlank() }
                 items.add(CarouselItem(imageUrl = imageUrl, deepLink = deepLink))
             }
             if (items.isEmpty()) return null
@@ -45,13 +46,13 @@ data class InlineCarouselConfig(
             val indicatorJson = json.optJSONObject("indicator")
             val indicator = if (indicatorJson != null) {
                 CarouselIndicatorConfig(
-                    showIndicator = indicatorJson.optBoolean("show_indicator", true),
-                    dotHeight = indicatorJson.optDouble("dot_height", 8.0).toFloat(),
-                    dotWidth = indicatorJson.optDouble("dot_width", 8.0).toFloat(),
+                    showIndicator = indicatorJson.optBoolean("showIndicator", true),
+                    dotHeight = indicatorJson.optDouble("dotHeight", 8.0).toFloat(),
+                    dotWidth = indicatorJson.optDouble("dotWidth", 8.0).toFloat(),
                     spacing = indicatorJson.optDouble("spacing", 12.0).toFloat(),
-                    dotColor = indicatorJson.optString("dot_color", "#CBD5E1"),
-                    activeDotColor = indicatorJson.optString("active_dot_color", "#4945FF"),
-                    indicatorEffectType = indicatorJson.optString("indicator_effect_type", "slide"),
+                    dotColor = indicatorJson.optString("dotColor", "#CBD5E1"),
+                    activeDotColor = indicatorJson.optString("activeDotColor", "#4945FF"),
+                    indicatorEffectType = indicatorJson.optString("indicatorEffectType", "slide"),
                 )
             } else {
                 CarouselIndicatorConfig()
@@ -61,11 +62,12 @@ data class InlineCarouselConfig(
                 slotKey = slotKey,
                 items = items,
                 height = json.optInt("height", 180),
-                autoPlay = json.optBoolean("auto_play", true),
-                autoPlayInterval = json.optLong("auto_play_interval", 3000L),
-                animationDuration = json.optInt("animation_duration", 700),
-                infiniteScroll = json.optBoolean("infinite_scroll", true),
-                viewportFraction = json.optDouble("viewport_fraction", 0.88).toFloat(),
+                width = json.opt("width").let { v -> (v as? Number)?.toInt()?.takeIf { it > 0 } },
+                autoPlay = json.optBoolean("autoPlay", true),
+                autoPlayInterval = json.optLong("autoPlayInterval", 3000L),
+                animationDuration = json.optInt("animationDuration", 700),
+                infiniteScroll = json.optBoolean("infiniteScroll", true),
+                viewportFraction = json.optDouble("viewportFraction", 0.88).toFloat(),
                 indicator = indicator,
             )
         }

@@ -14,15 +14,14 @@ import org.json.JSONObject
  * Survey
  *   ├── blocks: content library (reusable question/content definitions)
  *   ├── nodes:  graph positions, each pointing at one block + owning branching
- *   ├── root_node_id: entry node
+ *   ├── rootNodeId: entry node
  *   └── settings: display, pagination, timer, auto-advance, choose-button
  * ```
  *
  * Block-vs-node split mirrors the dashboard exactly: the same block can be
  * referenced by many nodes, each with its own branching graph.
  *
- * Naming convention: JSON is snake_case primary; legacy camelCase keys are
- * accepted as a fallback during the dashboard transition.
+ * Naming convention: JSON uses camelCase throughout (post dashboard migration).
  */
 
 // ── enums ───────────────────────────────────────────────────────────────────
@@ -186,7 +185,7 @@ data class Condition(
         fun fromJson(json: JSONObject): Condition? {
             val operator = SurveyParse.operator(json.optString("operator")) ?: return null
             return Condition(
-                nodeId = SurveyParse.optStringSnakeOrCamel(json, "node_id", "nodeId"),
+                nodeId = json.optString("nodeId", "").takeIf { it.isNotBlank() },
                 operator = operator,
                 values = SurveyParse.stringArray(json.optJSONArray("values")),
             )
@@ -244,7 +243,7 @@ data class BranchTarget(
             val kind = SurveyParse.targetKind(json.optString("kind"))
             return BranchTarget(
                 kind = kind,
-                nodeId = SurveyParse.optStringSnakeOrCamel(json, "node_id", "nodeId"),
+                nodeId = json.optString("nodeId", "").takeIf { it.isNotBlank() },
                 url = json.optString("url", ""),
             )
         }
@@ -290,13 +289,8 @@ data class NodeBranching(
             return NodeBranching(
                 type = SurveyParse.branchingType(json.optString("type")),
                 rules = rules,
-                parentNodeId = SurveyParse.optStringSnakeOrCamel(
-                    json, "parent_node_id", "parentNodeId",
-                ),
-                defaultTarget = BranchTarget.fromJson(
-                    json.optJSONObject("defaultTarget")
-                        ?: json.optJSONObject("default_target"),
-                ),
+                parentNodeId = json.optString("parentNodeId", "").takeIf { it.isNotBlank() },
+                defaultTarget = BranchTarget.fromJson(json.optJSONObject("defaultTarget")),
             )
         }
     }
@@ -339,18 +333,17 @@ data class SurveyBlock(
                 body = RichText.fromJson(json.optJSONObject("body")),
                 options = options,
                 required = json.optBoolean("required", false),
-                showMedia = json.optBoolean("show_media", false),
+                showMedia = json.optBoolean("showMedia", false),
                 media = BlockMedia.fromJson(json.optJSONObject("media")),
-                showAnswerMedia = json.optBoolean("show_answer_media", false),
-                showAnswerDescriptions = json.optBoolean("show_answer_descriptions", false),
+                showAnswerMedia = json.optBoolean("showAnswerMedia", false),
+                showAnswerDescriptions = json.optBoolean("showAnswerDescriptions", false),
                 shuffle = json.optBoolean("shuffle", false),
-                allowOther = json.optBoolean("allow_other", false),
-                flexibleHeight = json.optBoolean("flexible_height", false),
-                answerLayout = SurveyParse.answerLayout(json.optString("answer_layout")),
+                allowOther = json.optBoolean("allowOther", false),
+                flexibleHeight = json.optBoolean("flexibleHeight", false),
+                answerLayout = SurveyParse.answerLayout(json.optString("answerLayout")),
                 numberMin = SurveyParse.optDouble(json, "min"),
                 numberMax = SurveyParse.optDouble(json, "max"),
-                showWhen = ConditionExpr.fromJson(json.optJSONObject("showWhen"))
-                    ?: ConditionExpr.fromJson(json.optJSONObject("show_when")),
+                showWhen = ConditionExpr.fromJson(json.optJSONObject("showWhen")),
             )
         }
     }
@@ -366,7 +359,7 @@ data class SurveyNode(
     companion object {
         fun fromJson(json: JSONObject): SurveyNode? {
             val id = json.optString("id", "").takeIf { it.isNotBlank() } ?: return null
-            val blockId = SurveyParse.optStringSnakeOrCamel(json, "block_id", "blockId")
+            val blockId = json.optString("blockId", "").takeIf { it.isNotBlank() }
                 ?: return null
             return SurveyNode(
                 id = id,
@@ -401,12 +394,12 @@ data class DialogProps(
             if (json == null) return DEFAULT
             return DialogProps(
                 width = SurveyParse.dialogWidth(json.optString("width")),
-                customWidth = json.optInt("custom_width", 0),
-                cornerRadius = json.optInt("corner_radius", 20),
-                backdropOpacity = json.optDouble("backdrop_opacity", 0.4).toFloat()
+                customWidth = json.optInt("customWidth", 0),
+                cornerRadius = json.optInt("cornerRadius", 20),
+                backdropOpacity = json.optDouble("backdropOpacity", 0.4).toFloat()
                     .coerceIn(0f, 1f),
-                backdropDismissible = json.optBoolean("backdrop_dismissible", true),
-                showCloseButton = json.optBoolean("show_close_button", true),
+                backdropDismissible = json.optBoolean("backdropDismissible", true),
+                showCloseButton = json.optBoolean("showCloseButton", true),
             )
         }
     }
@@ -434,12 +427,12 @@ data class BottomSheetProps(
         fun fromJson(json: JSONObject?): BottomSheetProps {
             if (json == null) return DEFAULT
             return BottomSheetProps(
-                heightMode = SurveyParse.sheetHeight(json.optString("height_mode")),
-                customHeight = json.optInt("custom_height", 0),
-                cornerRadius = json.optInt("corner_radius", 20),
-                showHandle = json.optBoolean("show_handle", true),
+                heightMode = SurveyParse.sheetHeight(json.optString("heightMode")),
+                customHeight = json.optInt("customHeight", 0),
+                cornerRadius = json.optInt("cornerRadius", 20),
+                showHandle = json.optBoolean("showHandle", true),
                 draggable = json.optBoolean("draggable", true),
-                backdropDismissible = json.optBoolean("backdrop_dismissible", true),
+                backdropDismissible = json.optBoolean("backdropDismissible", true),
             )
         }
     }
@@ -469,7 +462,7 @@ data class SurveyDisplay(
             return SurveyDisplay(
                 type = SurveyParse.displayType(json.optString("type")),
                 dialog = DialogProps.fromJson(json.optJSONObject("dialog")),
-                bottomSheet = BottomSheetProps.fromJson(json.optJSONObject("bottom_sheet")),
+                bottomSheet = BottomSheetProps.fromJson(json.optJSONObject("bottomSheet")),
             )
         }
     }
@@ -573,8 +566,8 @@ data class SurveyTheme(val accentColor: Int, val backgroundColor: Int) {
         fun fromJson(json: JSONObject?): SurveyTheme {
             if (json == null) return DEFAULT
             return SurveyTheme(
-                accentColor = SurveyParse.color(json.optString("accent_color"), DEFAULT_ACCENT),
-                backgroundColor = SurveyParse.color(json.optString("background_color"), DEFAULT_BACKGROUND),
+                accentColor = SurveyParse.color(json.optString("accentColor"), DEFAULT_ACCENT),
+                backgroundColor = SurveyParse.color(json.optString("backgroundColor"), DEFAULT_BACKGROUND),
             )
         }
     }
@@ -613,16 +606,16 @@ data class SurveyConfigModel(
 
             val id = json.optString("id", "")
                 .ifBlank { json.optString("_id", "") }
-                .ifBlank { json.optString("template_id", "") }
+                .ifBlank { json.optString("templateId", "") }
                 .ifBlank { fallbackId }
 
-            val rootNodeId = json.optString("root_node_id", "").takeIf { it.isNotBlank() }
+            val rootNodeId = json.optString("rootNodeId", "").takeIf { it.isNotBlank() }
             val name = json.optString("name", "")
-                .ifBlank { json.optString("survey_name", "") }
+                .ifBlank { json.optString("surveyName", "") }
                 .ifBlank { json.optString("title", "") }
                 .takeIf { it.isNotBlank() }
 
-            val uiTemplateId = json.optString("ui_template_id", "").takeIf { it.isNotBlank() }
+            val uiTemplateId = json.optString("uiTemplateId", "").takeIf { it.isNotBlank() }
 
             return SurveyConfigModel(
                 id = id,
@@ -633,7 +626,7 @@ data class SurveyConfigModel(
                 settings = SurveySettings.fromJson(json.optJSONObject("settings")),
                 theme = SurveyTheme.fromJson(json.optJSONObject("theme")),
                 uiTemplateId = uiTemplateId,
-                timeDelayMs = json.optInt("time_delay_ms", 0).coerceIn(0, 10_000),
+                timeDelayMs = json.optInt("timeDelayMs", 0).coerceIn(0, 10_000),
             )
         }
     }

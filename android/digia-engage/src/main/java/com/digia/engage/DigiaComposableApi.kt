@@ -10,15 +10,15 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
-import com.digia.digiaui.framework.RenderPayload
-import com.digia.digiaui.framework.UIResources
-import com.digia.digiaui.framework.models.CommonProps
-import com.digia.digiaui.framework.models.CommonStyle
-import com.digia.digiaui.framework.models.ExprOr
-import com.digia.digiaui.framework.widgets.CarouselProps
-import com.digia.digiaui.framework.widgets.ImageProps
-import com.digia.digiaui.framework.widgets.VWCarousel
-import com.digia.digiaui.framework.widgets.VWImage
+import com.digia.engage.framework.RenderPayload
+import com.digia.engage.framework.UIResources
+import com.digia.engage.framework.models.CommonProps
+import com.digia.engage.framework.models.CommonStyle
+import com.digia.engage.framework.models.ExprOr
+import com.digia.engage.framework.widgets.CarouselProps
+import com.digia.engage.framework.widgets.ImageProps
+import com.digia.engage.framework.widgets.VWCarousel
+import com.digia.engage.framework.widgets.VWImage
 import com.digia.engage.internal.DigiaInstance
 import com.digia.engage.internal.model.InlineCarouselConfig
 import com.digia.engage.internal.ui.GuideRenderer
@@ -75,6 +75,7 @@ private fun buildCarouselWidget(config: InlineCarouselConfig): VWCarousel {
     val ind = config.indicator
     val carouselProps = CarouselProps(
         height = "${config.height}px",
+        width = config.width?.let { "${it}px" },
         autoPlay = config.autoPlay,
         autoPlayInterval = config.autoPlayInterval.toInt(),
         animationDuration = config.animationDuration,

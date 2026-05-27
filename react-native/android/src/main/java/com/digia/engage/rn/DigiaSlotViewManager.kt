@@ -26,10 +26,14 @@ private class ContentSizeChangeEvent(
     surfaceId: Int,
     viewTag: Int,
     private val heightDp: Double,
+    private val widthDp: Double,
 ) : Event<ContentSizeChangeEvent>(surfaceId, viewTag) {
     override fun getEventName(): String = "onContentSizeChange"
     override fun getEventData(): WritableMap =
-        Arguments.createMap().apply { putDouble("height", heightDp) }
+        Arguments.createMap().apply {
+            putDouble("height", heightDp)
+            putDouble("width", widthDp)
+        }
 }
 
 // ── DigiaSlotContainerView ────────────────────────────────────────────────────
@@ -141,7 +145,7 @@ internal class DigiaSlotContainerView(context: Context) : FrameLayout(context) {
 
         val dispatcher = UIManagerHelper.getEventDispatcherForReactTag(ctx, id) ?: return
         val surfaceId = UIManagerHelper.getSurfaceId(this)
-        dispatcher.dispatchEvent(ContentSizeChangeEvent(surfaceId, id, heightDp.toDouble()))
+        dispatcher.dispatchEvent(ContentSizeChangeEvent(surfaceId, id, heightDp.toDouble(), 0.0))
     }
 
     companion object {

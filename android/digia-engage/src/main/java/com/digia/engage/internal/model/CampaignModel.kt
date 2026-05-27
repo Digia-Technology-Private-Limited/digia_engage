@@ -6,10 +6,11 @@ internal sealed interface CampaignConfigModel {
     data class Guide(val guideConfig: GuideConfigModel) : CampaignConfigModel
     object Nudge : CampaignConfigModel
     data class Inline(val inlineConfig: InlineCarouselConfig) : CampaignConfigModel
+    data class Story(val storyConfig: InlineStoryConfig) : CampaignConfigModel
     data class Survey(val surveyConfig: SurveyConfigModel) : CampaignConfigModel
 }
 
-data class CampaignModel(
+internal data class CampaignModel(
     val id: String,
     val campaignKey: String,
     val campaignType: String,
@@ -21,6 +22,9 @@ data class CampaignModel(
     val inlineConfig: InlineCarouselConfig?
         get() = (config as? CampaignConfigModel.Inline)?.inlineConfig
 
+    val storyConfig: InlineStoryConfig?
+        get() = (config as? CampaignConfigModel.Story)?.storyConfig
+
     val surveyConfig: SurveyConfigModel?
         get() = (config as? CampaignConfigModel.Survey)?.surveyConfig
 
@@ -29,9 +33,9 @@ data class CampaignModel(
             val id = json.optString("id", "")
                 .ifBlank { json.optString("_id", "") }
                 .takeIf { it.isNotBlank() } ?: return null
-            val campaignKey = json.optString("campaign_key", "")
+            val campaignKey = json.optString("campaignKey", "")
                 .takeIf { it.isNotBlank() } ?: return null
-            val campaignType = json.optString("campaign_type", "")
+            val campaignType = json.optString("campaignType", "")
                 .takeIf { it.isNotBlank() } ?: return null
 
             val config = when (campaignType) {
@@ -40,16 +44,25 @@ data class CampaignModel(
                         ?: error("guide campaign '$campaignKey' has no valid guide_config")
                 )
                 "nudge" -> CampaignConfigModel.Nudge
-                "inline" -> CampaignConfigModel.Inline(
-                    json.optJSONObject("template_config")
-                        ?.let(InlineCarouselConfig::fromJson)
-                        ?: error("inline campaign '$campaignKey' has no valid carousel template_config")
-                )
+                "inline" -> {
+                    val templateConfig = json.optJSONObject("templateConfig")
+                        ?: error("inline campaign '$campaignKey' has no templateConfig")
+                    when (templateConfig.optString("templateType", "carousel")) {
+                        "story" -> CampaignConfigModel.Story(
+                            InlineStoryConfig.fromJson(templateConfig)
+                                ?: error("story campaign '$campaignKey' has no valid templateConfig")
+                        )
+                        else -> CampaignConfigModel.Inline(
+                            InlineCarouselConfig.fromJson(templateConfig)
+                                ?: error("inline campaign '$campaignKey' has no valid carousel templateConfig")
+                        )
+                    }
+                }
                 "survey" -> CampaignConfigModel.Survey(
                     parseSurveyConfig(json, fallbackId = id)
-                        ?: error("survey campaign '$campaignKey' has no valid survey template_config")
+                        ?: error("survey campaign '$campaignKey' has no valid survey templateConfig")
                 )
-                else -> error("Unknown campaign_type: $campaignType")
+                else -> error("Unknown campaignType: $campaignType")
             }
 
             return CampaignModel(
@@ -61,11 +74,11 @@ data class CampaignModel(
         }
 
         private fun parseGuideConfig(json: JSONObject, fallbackId: String): GuideConfigModel? {
-            val guideJson = json.optJSONObject("guide_config")
+            val guideJson = json.optJSONObject("guideConfig")
             if (guideJson != null) return parseGuideSteps(guideJson, fallbackId)
 
-            val templateJson = json.optJSONObject("template_config")?.takeIf {
-                val templateType = it.optString("template_type")
+            val templateJson = json.optJSONObject("templateConfig")?.takeIf {
+                val templateType = it.optString("templateType")
                 templateType == "tooltip" || templateType == "spotlight"
             }
             return templateJson?.let { parseFlatGuideTemplate(it, fallbackId) }
@@ -78,20 +91,20 @@ data class CampaignModel(
             val stepsArr = guideJson.optJSONArray("steps") ?: return null
             return buildGuideConfig(
                 guideId = guideId,
-                multiStep = guideJson.optBoolean("multi_step", false),
+                multiStep = guideJson.optBoolean("multiStep", false),
                 stepsArr = stepsArr,
                 displayStyle = null,
-                widgetJsonForStep = { stepJson -> stepJson.optJSONObject("widget_config") },
+                widgetJsonForStep = { stepJson -> stepJson.optJSONObject("widgetConfig") },
             )
         }
 
         private fun parseFlatGuideTemplate(templateJson: JSONObject, fallbackId: String): GuideConfigModel? {
             val stepsArr = templateJson.optJSONArray("steps") ?: return null
             return buildGuideConfig(
-                guideId = templateJson.optString("template_id", "").ifBlank { fallbackId },
+                guideId = templateJson.optString("templateId", "").ifBlank { fallbackId },
                 multiStep = stepsArr.length() > 1,
                 stepsArr = stepsArr,
-                displayStyle = templateJson.optString("template_type", "tooltip"),
+                displayStyle = templateJson.optString("templateType", "tooltip"),
                 widgetJsonForStep = { stepJson -> stepJson },
             )
         }
@@ -108,23 +121,23 @@ data class CampaignModel(
             for (i in 0 until stepsArr.length()) {
                 val stepJson = stepsArr.optJSONObject(i) ?: continue
                 val stepId = stepJson.optString("id", "").ifBlank { stepJson.optString("_id", "") }
-                val anchorKey = stepJson.optString("anchor_key", "")
+                val anchorKey = stepJson.optString("anchorKey", "")
                     .takeIf { it.isNotBlank() } ?: continue
                 val widgetJson = widgetJsonForStep(stepJson) ?: continue
                 android.util.Log.d(
                     "Digia",
-                    "[CampaignModel] step anchorKey='$anchorKey' widget_config=$widgetJson",
+                    "[CampaignModel] step anchorKey='$anchorKey' widgetConfig=$widgetJson",
                 )
                 steps.add(
                     GuideStepModel(
                         id = stepId,
-                        sequenceOrder = stepJson.optInt("sequence_order", i),
+                        sequenceOrder = stepJson.optInt("sequenceOrder", i),
                         anchorKey = anchorKey,
-                        displayStyle = displayStyle ?: stepJson.optString("display_style", "tooltip"),
+                        displayStyle = displayStyle ?: stepJson.optString("displayStyle", "tooltip"),
                         widgetConfig = GuideStepWidgetConfig.fromJson(widgetJson),
-                        advanceTrigger = stepJson.optString("advance_trigger", "tap"),
-                        autoDelayMs = if (stepJson.has("auto_delay_ms")) {
-                            stepJson.optInt("auto_delay_ms")
+                        advanceTrigger = stepJson.optString("advanceTrigger", "tap"),
+                        autoDelayMs = if (stepJson.has("autoDelayMs")) {
+                            stepJson.optInt("autoDelayMs")
                         } else {
                             null
                         },
@@ -141,9 +154,9 @@ data class CampaignModel(
         }
 
         private fun parseSurveyConfig(json: JSONObject, fallbackId: String): SurveyConfigModel? {
-            val surveyJson = json.optJSONObject("survey_config")
-                ?: json.optJSONObject("template_config")?.takeIf {
-                    it.optString("template_type") == "survey"
+            val surveyJson = json.optJSONObject("surveyConfig")
+                ?: json.optJSONObject("templateConfig")?.takeIf {
+                    it.optString("templateType") == "survey"
                 }
             return surveyJson?.let { SurveyConfigModel.fromJson(it, fallbackId = fallbackId) }
         }
