@@ -489,39 +489,66 @@ private fun ChoiceCardQuestion(
     val options = block.options +
         if (block.allowOther) listOf(SurveyOption(OTHER_CHOICE_ID, "Other…")) else emptyList()
 
-    val content: @Composable () -> Unit = {
-        options.forEach { option ->
-            ChoiceCardRow(
-                option = option,
-                selected = selected[option.id] == true,
-                multi = multi,
-                accent = accent,
-                showMedia = block.showAnswerMedia,
-                showDescription = block.showAnswerDescriptions,
-                onClick = { toggle(option.id) },
-                modifier = if (block.answerLayout == AnswerLayout.ROW) Modifier.widthIn(min = 150.dp)
-                else Modifier.fillMaxWidth(),
+    val card: @Composable (SurveyOption, Modifier) -> Unit = { option, mod ->
+        ChoiceCardRow(
+            option = option,
+            selected = selected[option.id] == true,
+            multi = multi,
+            accent = accent,
+            showMedia = block.showAnswerMedia,
+            showDescription = block.showAnswerDescriptions,
+            wide = true,
+            onClick = { toggle(option.id) },
+            modifier = mod,
+        )
+    }
+
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        when (block.answerLayout) {
+            AnswerLayout.ROW -> FlowRow(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                options.forEach { option ->
+                    card(option, Modifier.weight(1f).widthIn(min = 150.dp))
+                }
+            }
+            AnswerLayout.GRID -> Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                options.chunked(2).forEach { pair ->
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        pair.forEach { option ->
+                            Box(modifier = Modifier.weight(1f)) {
+                                card(option, Modifier.fillMaxWidth())
+                            }
+                        }
+                        // Pad the last row to two columns so a trailing item
+                        // keeps its half-width instead of stretching.
+                        if (pair.size == 1) Spacer(Modifier.weight(1f))
+                    }
+                }
+            }
+            AnswerLayout.COLUMN -> Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                options.forEach { option ->
+                    card(option, Modifier.fillMaxWidth())
+                }
+            }
+        }
+
+        if (block.allowOther && otherSelected) {
+            OutlinedTextField(
+                value = otherText,
+                onValueChange = { otherText = it; emit() },
+                placeholder = { Text("Please specify…") },
+                modifier = Modifier.fillMaxWidth(),
             )
         }
-    }
-
-    when (block.answerLayout) {
-        AnswerLayout.ROW, AnswerLayout.GRID -> FlowRow(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-        ) { content() }
-        AnswerLayout.COLUMN -> Column(verticalArrangement = Arrangement.spacedBy(8.dp)) { content() }
-    }
-
-    if (block.allowOther && otherSelected) {
-        Spacer(Modifier.height(8.dp))
-        OutlinedTextField(
-            value = otherText,
-            onValueChange = { otherText = it; emit() },
-            placeholder = { Text("Please specify…") },
-            modifier = Modifier.fillMaxWidth(),
-        )
     }
 }
 
@@ -533,6 +560,7 @@ private fun ChoiceCardRow(
     accent: Color,
     showMedia: Boolean,
     showDescription: Boolean,
+    wide: Boolean,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -576,7 +604,7 @@ private fun ChoiceCardRow(
             Text(
                 text = option.label,
                 style = OptionDefaults.toStyle(),
-                modifier = Modifier.weight(1f),
+                modifier = if (wide) Modifier.weight(1f) else Modifier,
             )
         }
         if (showDescription && !option.description.isNullOrBlank()) {

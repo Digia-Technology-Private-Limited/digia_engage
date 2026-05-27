@@ -557,6 +557,7 @@ private fun BlockTitle(block: SurveyBlock, accent: Color) {
         Text(
             text = block.title.text,
             style = block.title.style.toTextStyle(accent, default = TitleDefaults),
+            modifier = Modifier.fillMaxWidth(),
         )
     }
     val body = block.body
@@ -564,6 +565,7 @@ private fun BlockTitle(block: SurveyBlock, accent: Color) {
         Text(
             text = body.text,
             style = body.style.toTextStyle(accent, default = BodyDefaults),
+            modifier = Modifier.fillMaxWidth(),
         )
     }
 }
