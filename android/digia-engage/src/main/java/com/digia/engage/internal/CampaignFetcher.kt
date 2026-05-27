@@ -22,7 +22,7 @@ internal class CampaignFetcher(private val config: DigiaConfig) {
         val url = URL(fullUrl)
         val connection = (url.openConnection() as HttpURLConnection).apply {
             requestMethod = "POST"
-            setRequestProperty("X-Api-Key", config.apiKey)
+            setRequestProperty("x-digia-project-id", config.apiKey)
             setRequestProperty("Content-Type", "application/json")
             connectTimeout = 10_000
             readTimeout = 10_000

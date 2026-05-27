@@ -117,7 +117,7 @@ private fun SurveySession(state: ActiveSurveyState) {
     val display = survey.settings.display
 
     fun finish(completed: Boolean) {
-        if (completed) DigiaInstance.markSurveyCompleted(vm.responsePayload())
+        if (completed) DigiaInstance.markSurveyCompleted(vm.responsePayload(), vm.answers.toMap())
         else DigiaInstance.markSurveyDismissed()
     }
 
@@ -245,8 +245,9 @@ private fun SurveySession(state: ActiveSurveyState) {
                     Surface(
                         color = background,
                         shape = RoundedCornerShape(dialog.cornerRadius.dp),
-                        modifier = dialogWidthModifier(dialog.width, dialog.customWidth)
-                            .padding(24.dp)
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp)
                             .clickable(
                                 indication = null,
                                 interactionSource = remember { MutableInteractionSource() },
@@ -350,7 +351,7 @@ private fun SurveyBody(
         modifier = modifier
             .fillMaxWidth()
             .imePadding()
-            .padding(horizontal = 16.dp, vertical = 14.dp),
+            .padding(14.dp),
     ) {
         // Top row: progress + counter + timer + close
         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {

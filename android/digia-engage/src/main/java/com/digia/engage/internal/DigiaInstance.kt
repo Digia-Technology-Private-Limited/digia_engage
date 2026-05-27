@@ -45,6 +45,7 @@ internal object DigiaInstance : DigiaCEPDelegate {
     private val anchorRegistry = AnchorRegistry()
     private val guideOrchestrator = GuideOrchestrator()
     private val surveyOrchestrator = SurveyOrchestrator()
+    private var submissionReporter: SubmissionReporter? = null
 
     val guideState = guideOrchestrator.state
     val surveyState = surveyOrchestrator.state
@@ -68,6 +69,9 @@ internal object DigiaInstance : DigiaCEPDelegate {
     fun initialize(context: Context, config: DigiaConfig) {
         if (!initializationStarted.compareAndSet(false, true)) return
         _sdkState.value = SDKState.INITIALIZING
+
+        val deviceId = resolveDeviceId(context)
+        submissionReporter = SubmissionReporter(config, deviceId, scope)
 
         scope.launch(Dispatchers.IO) {
             try {
@@ -169,12 +173,18 @@ internal object DigiaInstance : DigiaCEPDelegate {
         )
     }
 
-    fun markSurveyCompleted(response: Map<String, Any?>) {
+    fun markSurveyCompleted(
+        response: Map<String, Any?>,
+        answers: Map<String, SurveyAnswer> = emptyMap(),
+    ) {
         val state = surveyOrchestrator.state.value ?: return
         displayCoordinator.trackInternal(
             InternalEngageEvent.SurveyCompleted(response),
             surveyPayload(state),
         )
+        if (answers.isNotEmpty()) {
+            submissionReporter?.reportSurveyCompleted(state.campaign, answers, state.startedAtMs)
+        }
         surveyOrchestrator.dismiss()
     }
 
@@ -186,6 +196,22 @@ internal object DigiaInstance : DigiaCEPDelegate {
 
     private fun surveyPayload(state: ActiveSurveyState): InAppPayload =
         InAppPayload(id = state.campaign.campaignKey, content = emptyMap(), cepContext = emptyMap())
+
+    private fun resolveDeviceId(context: Context): String {
+        val prefs = context.applicationContext
+            .getSharedPreferences("digia_engage", Context.MODE_PRIVATE)
+        prefs.getString("device_id", null)?.let { return it }
+        val androidId = runCatching {
+            android.provider.Settings.Secure.getString(
+                context.contentResolver,
+                android.provider.Settings.Secure.ANDROID_ID,
+            )
+        }.getOrNull()
+        val id = androidId?.takeIf { it.isNotBlank() && it != "9774d56d682e549c" }
+            ?: java.util.UUID.randomUUID().toString()
+        prefs.edit().putString("device_id", id).apply()
+        return id
+    }
 
     fun reportSlotImpression(payload: InAppPayload) {
         displayCoordinator.onSlotEvent(DigiaExperienceEvent.Impressed, payload)

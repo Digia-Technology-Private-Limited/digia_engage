@@ -14,8 +14,8 @@ data class CampaignModel(
             val id = json.optString("id", "")
                 .ifBlank { json.optString("_id", "") }
                 .takeIf { it.isNotBlank() } ?: return null
-            val campaignKey = json.optString("campaign_key", "").takeIf { it.isNotBlank() } ?: return null
-            val campaignType = json.optString("campaign_type", "").takeIf { it.isNotBlank() } ?: return null
+            val campaignKey = json.optString("campaignKey", "").takeIf { it.isNotBlank() } ?: return null
+            val campaignType = json.optString("campaignType", "").takeIf { it.isNotBlank() } ?: return null
 
             val guideConfig = json.optJSONObject("guide_config")?.let { gc ->
                 val gcId = gc.optString("id", "")
@@ -49,8 +49,8 @@ data class CampaignModel(
 
             // Survey campaigns carry the dashboard-authored schema in either
             // `survey_config` or `template_config`, depending on API version.
-            val surveyJson = json.optJSONObject("survey_config")
-                ?: json.optJSONObject("template_config")?.takeIf {
+            val surveyJson = json.optJSONObject("surveyConfig")
+                ?: json.optJSONObject("templateConfig")?.takeIf {
                     it.optString("template_type") == "survey"
                 }
             val surveyConfig = surveyJson
