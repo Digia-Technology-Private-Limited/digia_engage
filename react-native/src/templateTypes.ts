@@ -5,59 +5,96 @@ export type Action =
     | { type: 'deep_link'; label: string; style: 'primary' | 'secondary' | 'ghost'; destination: string }
 
 export type TooltipStep = {
-    anchor_key: string
+    anchorKey: string
     title: string
     body: string
     placement: 'top' | 'bottom' | 'left' | 'right' | 'auto'
-    background_color: string
-    border_color: string
-    border_width: number
-    corner_radius: number
+    backgroundColor: string
+    borderColor: string
+    borderWidth: number
+    cornerRadius: number
     shadow: boolean
-    max_width: number
+    maxWidth: number
     padding: number
-    show_arrow: boolean
-    title_color: string
-    title_size: number
-    title_weight: '400' | '600' | '700'
-    body_color: string
-    body_size: number
-    button_primary_background_color: string
-    button_primary_text_color: string
-    button_ghost_text_color: string
+    showArrow: boolean
+    titleColor: string
+    titleSize: number
+    titleWeight: '400' | '600' | '700'
+    bodyColor: string
+    bodySize: number
+    buttonPrimaryBackgroundColor: string
+    buttonPrimaryTextColor: string
+    buttonGhostTextColor: string
     actions: Action[]
 }
 
 export type SpotlightStep = {
-    anchor_key: string
+    anchorKey: string
     title: string
     body: string
-    callout_position: 'above' | 'below' | 'left' | 'right' | 'auto'
-    overlay_color: string
-    overlay_opacity: number
-    highlight_shape: 'rect' | 'circle' | 'pill'
-    highlight_corner_radius: number
-    highlight_padding: number
-    highlight_glow_color: string
-    highlight_glow_width: number
-    callout_background_color: string
-    callout_corner_radius: number
-    callout_max_width: number
-    callout_padding: number
-    callout_shadow: boolean
-    callout_border_color: string
-    callout_border_width: number
-    title_color: string
-    title_size: number
-    title_weight: '400' | '600' | '700'
-    body_color: string
-    body_size: number
-    button_primary_background_color: string
-    button_primary_text_color: string
-    button_ghost_text_color: string
+    calloutPosition: 'above' | 'below' | 'left' | 'right' | 'auto'
+    calloutGap?: number
+    overlayColor: string
+    overlayOpacity: number
+    highlightShape: 'rect' | 'circle' | 'pill'
+    highlightCornerRadius: number
+    highlightPadding: number
+    highlightGlowColor: string
+    highlightGlowWidth: number
+    calloutBackgroundColor: string
+    calloutCornerRadius: number
+    calloutMaxWidth: number
+    calloutPadding: number
+    calloutShadow: boolean
+    calloutBorderColor: string
+    calloutBorderWidth: number
+    titleColor: string
+    titleSize: number
+    titleWeight: '400' | '600' | '700'
+    bodyColor: string
+    bodySize: number
+    buttonPrimaryBackgroundColor: string
+    buttonPrimaryTextColor: string
+    buttonGhostTextColor: string
     actions: Action[]
 }
 
-export type TooltipConfig   = { template_type: 'tooltip';   template_id: string | null; steps: TooltipStep[]   }
-export type SpotlightConfig = { template_type: 'spotlight'; template_id: string | null; steps: SpotlightStep[] }
-export type TemplateConfig  = TooltipConfig | SpotlightConfig
+export type TooltipConfig   = { templateType: 'tooltip';   templateId: string | null; steps: TooltipStep[]   }
+export type SpotlightConfig = { templateType: 'spotlight'; templateId: string | null; steps: SpotlightStep[] }
+
+export type CarouselItem = { imageUrl: string; deepLink?: string }
+export type CarouselIndicatorConfig = {
+    showIndicator: boolean
+    dotHeight: number
+    dotWidth: number
+    spacing: number
+    dotColor: string
+    activeDotColor: string
+    indicatorEffectType: 'slide' | 'expanding' | 'worm' | 'scale' | 'jumping' | 'scrolling'
+}
+export type CarouselConfig = {
+    templateType: 'carousel'
+    slotKey: string
+    items: CarouselItem[]
+    height: number
+    width?: number
+    autoPlay: boolean
+    autoPlayInterval: number
+    animationDuration: number
+    infiniteScroll: boolean
+    viewportFraction: number
+    indicator: CarouselIndicatorConfig
+}
+
+export type SurveyTemplateConfig = {
+    templateType: 'survey'
+    templateId: string
+    surveyName: string
+    uiTemplateId: string | null
+    settings: Record<string, unknown>
+    blocks: Record<string, unknown>[]
+    nodes: Record<string, unknown>[]
+    rootNodeId: string
+}
+
+export type TemplateConfig = TooltipConfig | SpotlightConfig | CarouselConfig | SurveyTemplateConfig

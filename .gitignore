@@ -3,4 +3,7 @@
 .claude/
 .cursor/
 .swiftpm/
-docs/
+react-native/.build/
+react-native/lib/
+*.xcuserstate
+xcuserdata/

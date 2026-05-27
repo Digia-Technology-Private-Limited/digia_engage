@@ -37,4 +37,5 @@ object Digia {
     fun triggerCampaign(campaignId: String) {
         DigiaInstance.triggerCampaign(campaignId)
     }
+
 }

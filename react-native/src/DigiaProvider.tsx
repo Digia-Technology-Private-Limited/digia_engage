@@ -1,11 +1,13 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
+    Animated,
     Dimensions,
     Modal,
     Pressable,
     StyleSheet,
     Text,
     View,
+    useWindowDimensions,
 } from 'react-native';
 import { computePosition, flip, offset, shift } from '@floating-ui/core';
 import Svg, { Path } from 'react-native-svg';
@@ -33,14 +35,14 @@ const rnCorePlatform = {
     isElement: () => false,
 };
 
-function makeVirtualRef(layout: AnchorLayout) {
+function makeVirtualRef(layout: AnchorLayout, padding = 0) {
     return {
         getBoundingClientRect: () => ({
-            x: layout.pageX, y: layout.pageY,
-            width: layout.width, height: layout.height,
-            top: layout.pageY, left: layout.pageX,
-            bottom: layout.pageY + layout.height,
-            right: layout.pageX + layout.width,
+            x: layout.pageX - padding, y: layout.pageY - padding,
+            width: layout.width + padding * 2, height: layout.height + padding * 2,
+            top: layout.pageY - padding, left: layout.pageX - padding,
+            bottom: layout.pageY + layout.height + padding,
+            right: layout.pageX + layout.width + padding,
         }),
     };
 }
@@ -53,6 +55,7 @@ async function computeFloat(
     floatingH: number,
     placement: string,
     gap: number,
+    highlightPadding = 0,
 ): Promise<FloatPos> {
     const fpPlacement = (
         placement === 'above' ? 'top'
@@ -62,7 +65,7 @@ async function computeFloat(
     ) as any;
 
     const { x, y } = await computePosition(
-        makeVirtualRef(layout),
+        makeVirtualRef(layout, highlightPadding),
         { w: floatingW, h: floatingH },
         {
             platform: rnCorePlatform as any,
@@ -124,43 +127,67 @@ function TooltipOverlay({
     const [floatPos, setFloatPos] = useState<FloatPos | null>(null);
     const [floatingSize, setFloatingSize] = useState<{ w: number; h: number } | null>(null);
     const step = config.steps[stepIndex];
-    const { width: screenW } = Dimensions.get('window');
+    const { width: screenW } = useWindowDimensions();
+    const opacityAnim = useRef(new Animated.Value(1)).current;
+    const pendingFadeIn = useRef(false);
 
     // Subscribe to anchor layout
     useEffect(() => {
         setLayout(null);
         setFloatPos(null);
-        log('tooltip subscribing to anchorKey=', step.anchor_key);
-        return digiaAnchorRegistry.subscribe(step.anchor_key, (l) => {
-            log('tooltip got layout anchorKey=', step.anchor_key, l);
+        log('tooltip subscribing to anchorKey=', step.anchorKey);
+        return digiaAnchorRegistry.subscribe(step.anchorKey, (l) => {
+            log('tooltip got layout anchorKey=', step.anchorKey, l);
             setLayout(l);
         });
-    }, [step.anchor_key]);
+    }, [step.anchorKey]);
 
     // Recompute float position whenever layout or floating size changes
     useEffect(() => {
         if (!layout || !floatingSize) return;
-        const tooltipW = Math.min(step.max_width, screenW - 32);
+        const tooltipW = Math.min(step.maxWidth, screenW - 32);
         computeFloat(layout, Math.min(tooltipW, floatingSize.w), floatingSize.h, step.placement, 8)
             .then((pos) => {
                 log('tooltip computed pos=', pos, 'placement=', step.placement);
                 setFloatPos(pos);
             });
-    }, [layout, floatingSize, step.placement, step.max_width, screenW]);
+    }, [layout, floatingSize, step.placement, step.maxWidth, screenW]);
+
+    // Fade in once positioned after a step transition
+    useEffect(() => {
+        if (floatPos && pendingFadeIn.current) {
+            pendingFadeIn.current = false;
+            Animated.timing(opacityAnim, { toValue: 1, duration: 180, useNativeDriver: true }).start();
+        }
+    }, [floatPos, opacityAnim]);
 
     const dismiss = useCallback(() => {
-        request.onExperienceEvent({ type: 'dismissed' });
-        digiaGuideController.cancel(request.payloadId);
-    }, [request]);
+        Animated.timing(opacityAnim, { toValue: 0, duration: 150, useNativeDriver: true }).start(() => {
+            request.onExperienceEvent({ type: 'dismissed' });
+            digiaGuideController.cancel(request.payloadId);
+        });
+    }, [request, opacityAnim]);
 
-    const next = useCallback(() => stepIndex < config.steps.length - 1 ? setStepIndex(stepIndex + 1) : dismiss(), [stepIndex, config.steps.length, dismiss]);
-    const prev = useCallback(() => { if (stepIndex > 0) setStepIndex(stepIndex - 1); }, [stepIndex]);
+    const stepTo = useCallback((newIndex: number | null) => {
+        Animated.timing(opacityAnim, { toValue: 0, duration: 150, useNativeDriver: true }).start(() => {
+            if (newIndex === null) {
+                request.onExperienceEvent({ type: 'dismissed' });
+                digiaGuideController.cancel(request.payloadId);
+            } else {
+                pendingFadeIn.current = true;
+                setStepIndex(newIndex);
+            }
+        });
+    }, [opacityAnim, request]);
 
-    const tooltipW = Math.min(step.max_width, screenW - 32);
+    const next = useCallback(() => stepTo(stepIndex < config.steps.length - 1 ? stepIndex + 1 : null), [stepIndex, config.steps.length, stepTo]);
+    const prev = useCallback(() => { if (stepIndex > 0) stepTo(stepIndex - 1); }, [stepIndex, stepTo]);
+
+    const tooltipW = Math.min(step.maxWidth, screenW - 32);
 
     return (
-        <Modal transparent statusBarTranslucent animationType="fade" visible>
-            <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
+        <Modal transparent statusBarTranslucent animationType="none" visible>
+            <Animated.View style={[StyleSheet.absoluteFill, { opacity: opacityAnim }]} pointerEvents="box-none">
                 {/* Invisible backdrop tap to dismiss */}
                 <Pressable style={StyleSheet.absoluteFill} onPress={dismiss} />
                 {floatPos ? (
@@ -178,20 +205,20 @@ function TooltipOverlay({
                                 left: floatPos.x,
                                 top: floatPos.y,
                                 width: tooltipW,
-                                backgroundColor: step.background_color,
-                                borderRadius: step.corner_radius,
-                                borderWidth: step.border_width,
-                                borderColor: step.border_color,
+                                backgroundColor: step.backgroundColor,
+                                borderRadius: step.cornerRadius,
+                                borderWidth: step.borderWidth,
+                                borderColor: step.borderColor,
                                 padding: step.padding,
                             },
                             step.shadow && s.shadow,
                         ]}
                     >
-                        <Text style={{ color: step.title_color, fontSize: step.title_size, fontWeight: step.title_weight }}>
+                        <Text style={{ color: step.titleColor, fontSize: step.titleSize, fontWeight: step.titleWeight }}>
                             {step.title}
                         </Text>
                         {!!step.body && (
-                            <Text style={{ marginTop: 4, color: step.body_color, fontSize: step.body_size }}>
+                            <Text style={{ marginTop: 4, color: step.bodyColor, fontSize: step.bodySize }}>
                                 {step.body}
                             </Text>
                         )}
@@ -200,9 +227,9 @@ function TooltipOverlay({
                                 <ActionButton
                                     key={i}
                                     action={action}
-                                    btnPrimaryBg={step.button_primary_background_color}
-                                    btnPrimaryText={step.button_primary_text_color}
-                                    btnGhostText={step.button_ghost_text_color}
+                                    btnPrimaryBg={step.buttonPrimaryBackgroundColor}
+                                    btnPrimaryText={step.buttonPrimaryTextColor}
+                                    btnGhostText={step.buttonGhostTextColor}
                                     onPress={() => handleAction(action, { onNext: next, onBack: prev, onSkip: dismiss })}
                                 />
                             ))}
@@ -215,8 +242,8 @@ function TooltipOverlay({
                         onLayout={(e) => setFloatingSize({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height })}
                         style={[s.tooltipBubble, { left: -9999, top: -9999, width: tooltipW, padding: step.padding }]}
                     >
-                        <Text style={{ fontSize: step.title_size }}>{step.title}</Text>
-                        {!!step.body && <Text style={{ fontSize: step.body_size }}>{step.body}</Text>}
+                        <Text style={{ fontSize: step.titleSize }}>{step.title}</Text>
+                        {!!step.body && <Text style={{ fontSize: step.bodySize }}>{step.body}</Text>}
                         <View style={s.actionRow}>
                             {step.actions.map((a, i) => (
                                 <View key={i} style={s.button}>
@@ -226,7 +253,7 @@ function TooltipOverlay({
                         </View>
                     </View>
                 )}
-            </View>
+            </Animated.View>
         </Modal>
     );
 }
@@ -268,36 +295,46 @@ function SpotlightCallout({
     onBack: () => void;
     onSkip: () => void;
 }) {
-    const { width: screenW } = Dimensions.get('window');
+    const { width: screenW } = useWindowDimensions();
     const [floatPos, setFloatPos] = useState<FloatPos | null>(null);
     const [floatingSize, setFloatingSize] = useState<{ w: number; h: number } | null>(null);
-    const calloutW = Math.min(step.callout_max_width, screenW - 32);
+    const calloutW = Math.min(step.calloutMaxWidth, screenW - 32);
 
     useEffect(() => {
         if (!floatingSize) return;
-        computeFloat(layout, Math.min(calloutW, floatingSize.w), floatingSize.h, step.callout_position, 12)
-            .then(setFloatPos);
-    }, [layout, floatingSize, step.callout_position, calloutW]);
+        computeFloat(layout, Math.min(calloutW, floatingSize.w), floatingSize.h, step.calloutPosition, step.calloutGap ?? 8, step.highlightPadding)
+            .then((pos) => {
+                console.log('[Digia:spotlight] floatPos=', pos, 'calloutH=', floatingSize.h, 'calloutBottom=', pos.y + floatingSize.h, 'cutoutTop=', layout.pageY - step.highlightPadding, 'gap=', (layout.pageY - step.highlightPadding) - (pos.y + floatingSize.h));
+                setFloatPos(pos);
+            });
+    }, [layout, floatingSize, step.calloutPosition, calloutW, step.highlightPadding]);
 
     const calloutStyle = {
-        backgroundColor: step.callout_background_color,
-        borderRadius: step.callout_corner_radius,
-        padding: step.callout_padding,
-        borderWidth: step.callout_border_width,
-        borderColor: step.callout_border_color,
+        backgroundColor: step.calloutBackgroundColor,
+        borderRadius: step.calloutCornerRadius,
+        padding: step.calloutPadding,
+        borderWidth: step.calloutBorderWidth,
+        borderColor: step.calloutBorderColor,
         width: calloutW,
     };
 
     if (!floatPos) {
-        // Measure pass
+        // Measure pass — must match actual render exactly so computeFloat gets correct height
         return (
             <View
                 pointerEvents="none"
                 onLayout={(e) => setFloatingSize({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height })}
                 style={[calloutStyle, { position: 'absolute', left: -9999, top: -9999 }]}
             >
-                <Text style={{ fontSize: step.title_size }}>{step.title}</Text>
-                {!!step.body && <Text style={{ fontSize: step.body_size }}>{step.body}</Text>}
+                <Text style={{ fontSize: step.titleSize }}>{step.title}</Text>
+                {!!step.body && <Text style={{ marginTop: 4, fontSize: step.bodySize }}>{step.body}</Text>}
+                <View style={s.actionRow}>
+                    {step.actions.map((a, i) => (
+                        <View key={i} style={s.button}>
+                            <Text style={{ fontSize: 13 }}>{a.label}</Text>
+                        </View>
+                    ))}
+                </View>
             </View>
         );
     }
@@ -307,14 +344,14 @@ function SpotlightCallout({
             style={[
                 calloutStyle,
                 { position: 'absolute', left: floatPos.x, top: floatPos.y },
-                step.callout_shadow && s.shadow,
+                step.calloutShadow && s.shadow,
             ]}
         >
-            <Text style={{ color: step.title_color, fontSize: step.title_size, fontWeight: step.title_weight }}>
+            <Text style={{ color: step.titleColor, fontSize: step.titleSize, fontWeight: step.titleWeight }}>
                 {step.title}
             </Text>
             {!!step.body && (
-                <Text style={{ marginTop: 4, color: step.body_color, fontSize: step.body_size }}>
+                <Text style={{ marginTop: 4, color: step.bodyColor, fontSize: step.bodySize }}>
                     {step.body}
                 </Text>
             )}
@@ -323,9 +360,9 @@ function SpotlightCallout({
                     <ActionButton
                         key={i}
                         action={action}
-                        btnPrimaryBg={step.button_primary_background_color}
-                        btnPrimaryText={step.button_primary_text_color}
-                        btnGhostText={step.button_ghost_text_color}
+                        btnPrimaryBg={step.buttonPrimaryBackgroundColor}
+                        btnPrimaryText={step.buttonPrimaryTextColor}
+                        btnGhostText={step.buttonGhostTextColor}
                         onPress={() => handleAction(action, { onNext, onBack, onSkip })}
                     />
                 ))}
@@ -344,38 +381,64 @@ function SpotlightOverlay({
     const [stepIndex, setStepIndex] = useState(0);
     const [layout, setLayout] = useState<AnchorLayout | null>(null);
     const step = config.steps[stepIndex];
-    const { width: screenW, height: screenH } = Dimensions.get('window');
+    const { width: screenW, height: screenH } = useWindowDimensions();
+    const screenDims = Dimensions.get('screen');
+    const opacityAnim = useRef(new Animated.Value(1)).current;
+    const pendingFadeIn = useRef(false);
 
     useEffect(() => {
         setLayout(null);
-        log('spotlight subscribing to anchorKey=', step.anchor_key);
-        return digiaAnchorRegistry.subscribe(step.anchor_key, (l) => {
-            log('spotlight got layout anchorKey=', step.anchor_key, l);
+        log('spotlight subscribing to anchorKey=', step.anchorKey);
+        return digiaAnchorRegistry.subscribe(step.anchorKey, (l) => {
+            log('spotlight got layout anchorKey=', step.anchorKey, l);
+            log('[debug] screenH(window)=', screenH, 'screenH(screen)=', screenDims.height, 'anchor.pageY=', l.pageY);
             setLayout(l);
         });
-    }, [step.anchor_key]);
+    }, [step.anchorKey]);
+
+    // Fade in once layout arrives after a step transition
+    useEffect(() => {
+        if (layout && pendingFadeIn.current) {
+            pendingFadeIn.current = false;
+            Animated.timing(opacityAnim, { toValue: 1, duration: 180, useNativeDriver: true }).start();
+        }
+    }, [layout, opacityAnim]);
 
     const dismiss = useCallback(() => {
-        request.onExperienceEvent({ type: 'dismissed' });
-        digiaGuideController.cancel(request.payloadId);
-    }, [request]);
+        Animated.timing(opacityAnim, { toValue: 0, duration: 150, useNativeDriver: true }).start(() => {
+            request.onExperienceEvent({ type: 'dismissed' });
+            digiaGuideController.cancel(request.payloadId);
+        });
+    }, [request, opacityAnim]);
 
-    const next = useCallback(() => stepIndex < config.steps.length - 1 ? setStepIndex(stepIndex + 1) : dismiss(), [stepIndex, config.steps.length, dismiss]);
-    const prev = useCallback(() => { if (stepIndex > 0) setStepIndex(stepIndex - 1); }, [stepIndex]);
+    const stepTo = useCallback((newIndex: number | null) => {
+        Animated.timing(opacityAnim, { toValue: 0, duration: 150, useNativeDriver: true }).start(() => {
+            if (newIndex === null) {
+                request.onExperienceEvent({ type: 'dismissed' });
+                digiaGuideController.cancel(request.payloadId);
+            } else {
+                pendingFadeIn.current = true;
+                setStepIndex(newIndex);
+            }
+        });
+    }, [opacityAnim, request]);
 
-    const pad = step.highlight_padding;
+    const next = useCallback(() => stepTo(stepIndex < config.steps.length - 1 ? stepIndex + 1 : null), [stepIndex, config.steps.length, stepTo]);
+    const prev = useCallback(() => { if (stepIndex > 0) stepTo(stepIndex - 1); }, [stepIndex, stepTo]);
+
+    const pad = step.highlightPadding;
     const cutoutX = layout ? layout.pageX - pad : 0;
     const cutoutY = layout ? layout.pageY - pad : 0;
     const cutoutW = layout ? layout.width + pad * 2 : 0;
     const cutoutH = layout ? layout.height + pad * 2 : 0;
     const screenPath = `M0,0 L${screenW},0 L${screenW},${screenH} L0,${screenH} Z`;
     const cutoutPath = layout
-        ? buildCutoutPath(cutoutX, cutoutY, cutoutW, cutoutH, step.highlight_corner_radius, step.highlight_shape)
+        ? buildCutoutPath(cutoutX, cutoutY, cutoutW, cutoutH, step.highlightCornerRadius, step.highlightShape)
         : '';
 
     return (
-        <Modal transparent statusBarTranslucent animationType="fade" visible>
-            <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
+        <Modal transparent statusBarTranslucent animationType="none" visible>
+            <Animated.View style={[StyleSheet.absoluteFill, { opacity: opacityAnim }]} pointerEvents="box-none">
                 {layout && (
                     <>
                         {/* Scrim with cutout */}
@@ -388,15 +451,15 @@ function SpotlightOverlay({
                             <Path
                                 fillRule="evenodd"
                                 d={`${screenPath} ${cutoutPath}`}
-                                fill={step.overlay_color}
-                                fillOpacity={step.overlay_opacity}
+                                fill={step.overlayColor}
+                                fillOpacity={step.overlayOpacity}
                             />
-                            {step.highlight_glow_width > 0 && (
+                            {step.highlightGlowWidth > 0 && (
                                 <Path
                                     d={cutoutPath}
                                     fill="none"
-                                    stroke={step.highlight_glow_color}
-                                    strokeWidth={step.highlight_glow_width}
+                                    stroke={step.highlightGlowColor}
+                                    strokeWidth={step.highlightGlowWidth}
                                 />
                             )}
                         </Svg>
@@ -412,7 +475,7 @@ function SpotlightOverlay({
                         />
                     </>
                 )}
-            </View>
+            </Animated.View>
         </Modal>
     );
 }
@@ -432,14 +495,14 @@ function DigiaGuideRuntime() {
                 setActiveRequest(null);
                 return;
             }
-            log('guide start campaignKey=', event.request.campaignKey, 'type=', event.request.config.template_type, 'steps=', event.request.config.steps.length);
+            log('guide start campaignKey=', event.request.campaignKey, 'type=', event.request.config.templateType);
             setActiveRequest(event.request);
         });
     }, []);
 
     if (!activeRequest) return null;
 
-    switch (activeRequest.config.template_type) {
+    switch (activeRequest.config.templateType) {
         case 'tooltip':
             log('rendering TooltipOverlay');
             return <TooltipOverlay request={activeRequest} config={activeRequest.config} />;

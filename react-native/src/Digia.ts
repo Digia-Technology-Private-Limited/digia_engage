@@ -20,6 +20,7 @@ import { nativeDigiaModule } from './NativeDigiaEngage';
 import { digiaHealthReporter, HealthEventType } from './DigiaHealthReporter';
 import { digiaGuideController } from './DigiaGuideController';
 import type {
+    CampaignType,
     DigiaConfig,
     DigiaDelegate,
     DigiaExperienceEvent,
@@ -35,8 +36,8 @@ interface SdkCampaign {
     id?: string;
     _id?: string;
     campaign_key: string;
-    campaign_type: string;
-    template_config?: Record<string, unknown>;
+    campaign_type: CampaignType;
+    templateConfig?: Record<string, unknown>;
 }
 
 class DigiaClass implements DigiaDelegate {
@@ -71,23 +72,23 @@ class DigiaClass implements DigiaDelegate {
         try {
             await nativeDigiaModule.initialize(config.projectId, environment, logLevel);
         } catch (e) {
-            digiaHealthReporter.report(HealthEventType.fetch_failed, { error_code: 0, platform: 'react_native' });
+            // TODO: TO BE PICKED LATER @aditya-digia — health event reporting being removed
+            // digiaHealthReporter.report(HealthEventType.fetch_failed, { error_code: 0, platform: 'react_native' });
             throw e;
         }
 
         await this._refreshCampaignStore();
 
-        // Report registered components to backend (fire-and-forget)
-        try {
-            const components = await nativeDigiaModule.getRegisteredComponents();
-            if (components.length > 0) {
-                this._recordComponents(components.map(c => ({ ...c, platform: 'react_native' })));
-            }
-        } catch {
-            // never throw
-        }
-
-        this._flushRegisteredAnchors();
+        // TODO: TO BE PICKED LATER @aditya-digia — component registration endpoint being removed
+        // try {
+        //     const components = await nativeDigiaModule.getRegisteredComponents();
+        //     if (components.length > 0) {
+        //         this._recordComponents(components.map(c => ({ ...c, platform: 'react_native' })));
+        //     }
+        // } catch {
+        //     // never throw
+        // }
+        // this._flushRegisteredAnchors();
     }
 
     /**
@@ -176,13 +177,28 @@ class DigiaClass implements DigiaDelegate {
         }
 
         const campaignKey = this._extractCampaignKey(payload);
+        console.log('[Digia:debug] onCampaignTriggered payloadId=' + payload.id + ' extractedKey=' + campaignKey + ' knownKeys=[' + [...this._campaignsByKey.keys()].join(', ') + ']');
         this._log(`onCampaignTriggered payloadId=${payload.id} extractedKey=${campaignKey} knownKeys=[${[...this._campaignsByKey.keys()].join(', ')}]`);
 
         if (campaignKey) {
             const campaign = this._campaignsByKey.get(campaignKey);
+            if (campaign?.campaign_type === 'inline' || campaign?.campaign_type === 'survey') {
+                this._log(`${campaign.campaign_type} campaign triggered campaign_key=${campaignKey}, forwarding to native`);
+                this._activePayloads.set(payload.id, payload);
+                if (campaign.campaign_type === 'inline') {
+                    this._emitSlotWidth(campaign);
+                }
+                nativeDigiaModule.triggerCampaign(payload.id, payload.content, payload.cepContext);
+                return;
+            }
+
             if (campaign?.campaign_type === 'guide') {
                 const config = this._parseTemplateConfig(campaign);
-                if (!config || config.steps.length === 0) {
+                if (
+                    !config ||
+                    (config.templateType !== 'tooltip' && config.templateType !== 'spotlight') ||
+                    config.steps.length === 0
+                ) {
                     digiaHealthReporter.report(HealthEventType.anchor_not_on_screen, {
                         campaign_key: campaignKey,
                         reason: 'guide_campaign_has_no_steps',
@@ -289,12 +305,27 @@ class DigiaClass implements DigiaDelegate {
             this._log(`fetching campaigns from ${this._apiBaseUrl}/engage/sdk/getCampaigns`);
             const campaigns = await this._sdkPost<SdkCampaign[]>('getCampaigns');
             this._campaignsByKey.clear();
+            if (campaigns.length > 0) {
+                this._log(`campaign[0] raw keys: ${JSON.stringify(Object.keys(campaigns[0] as object))}`);
+            }
             campaigns.forEach((campaign) => {
-                if (campaign.campaign_key) {
-                    this._campaignsByKey.set(campaign.campaign_key, campaign);
+                const raw = campaign as unknown as Record<string, unknown>;
+                const key = (typeof raw.campaign_key === 'string' && raw.campaign_key)
+                    || (typeof raw.campaignKey === 'string' && raw.campaignKey)
+                    || null;
+                const type = (typeof raw.campaign_type === 'string' && raw.campaign_type)
+                    || (typeof raw.campaignType === 'string' && raw.campaignType)
+                    || '';
+                if (key) {
+                    this._campaignsByKey.set(key, { ...campaign, campaign_key: key, campaign_type: type as SdkCampaign['campaign_type'] });
                 }
             });
             this._log(`loaded ${campaigns.length} campaign(s): [${[...this._campaignsByKey.keys()].join(', ')}]`);
+            const inlineCampaigns = [...this._campaignsByKey.values()].filter((c) => c.campaign_type === 'inline');
+            console.log('[Digia:debug] loaded campaigns total=' + campaigns.length + ' inline=' + inlineCampaigns.length, inlineCampaigns.map((c) => {
+                const r = c as any;
+                return { key: c.campaign_key, slotKey: r.templateConfig?.slotKey };
+            }));
         } catch (e) {
             const reason = e instanceof Error ? e.message : String(e);
             this._log(`getCampaigns FAILED: ${reason}`);
@@ -330,23 +361,29 @@ class DigiaClass implements DigiaDelegate {
             const obj = json as Record<string, unknown>;
             const data = obj.data;
             if (data && typeof data === 'object' && 'response' in data) {
-                return (data as Record<string, unknown>).response as T;
+                const value = (data as Record<string, unknown>).response;
+                if (value == null) throw new Error('SDK response.data.response is null');
+                return value as T;
             }
-            if ('response' in obj) return obj.response as T;
+            if ('response' in obj) {
+                const value = obj.response;
+                if (value == null) throw new Error('SDK response.response is null');
+                return value as T;
+            }
         }
         throw new Error('SDK response missing data.response');
     }
 
-    private _recordComponents(components: Array<Record<string, unknown>>): void {
-        if (!this._projectId || !this._apiBaseUrl || components.length === 0) return;
-        fetch(`${this._apiBaseUrl}/engage/sdk/recordComponents`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'x-digia-project-id': this._projectId,
-            },
-            body: JSON.stringify({ components }),
-        }).catch(() => { /* swallow */ });
+    private _recordComponents(_components: Array<Record<string, unknown>>): void {
+        // TODO: TO BE PICKED LATER @aditya-digia — component recording endpoint being removed
+        // fetch(`${this._apiBaseUrl}/engage/sdk/recordComponents`, {
+        //     method: 'POST',
+        //     headers: {
+        //         'Content-Type': 'application/json',
+        //         'x-digia-project-id': this._projectId,
+        //     },
+        //     body: JSON.stringify({ components }),
+        // }).catch(() => { /* swallow */ });
     }
 
     private _flushRegisteredAnchors(): void {
@@ -361,15 +398,34 @@ class DigiaClass implements DigiaDelegate {
         );
     }
 
+    private _emitSlotWidth(campaign: SdkCampaign): void {
+        const raw = campaign as unknown as Record<string, unknown>;
+        const config = raw.templateConfig as Record<string, unknown> | undefined;
+        if (!config) {
+            console.warn('[Digia:debug] _emitSlotWidth: no templateConfig for campaign', campaign.campaign_key);
+            return;
+        }
+        const slotKey = typeof config.slotKey === 'string' ? config.slotKey : null;
+        const width = typeof config.width === 'number' && config.width > 0 ? config.width : null;
+        console.log('[Digia:debug] _emitSlotWidth slotKey=' + slotKey + ' width=' + width + ' campaign=' + campaign.campaign_key);
+        if (slotKey) {
+            DeviceEventEmitter.emit('digiaSlotWidth', { slotKey, width });
+        } else {
+            console.warn('[Digia:debug] _emitSlotWidth: no slotKey in templateConfig', JSON.stringify(config));
+        }
+    }
+
     private _extractCampaignKey(payload: InAppPayload): string | null {
         const fromContent = this._extractString(payload.content, 'digiaKey', 'campaign_key', 'campaignKey');
         if (fromContent) return fromContent;
 
         const args = payload.content.args;
         if (args && typeof args === 'object' && !Array.isArray(args)) {
-            return this._extractString(args as Record<string, unknown>, 'digiaKey', 'campaign_key', 'campaignKey');
+            const fromArgs = this._extractString(args as Record<string, unknown>, 'digiaKey', 'campaign_key', 'campaignKey');
+            if (fromArgs) return fromArgs;
         }
 
+        if (this._campaignsByKey.has(payload.id)) return payload.id;
         return null;
     }
 
@@ -382,15 +438,19 @@ class DigiaClass implements DigiaDelegate {
     }
 
     private _parseTemplateConfig(campaign: SdkCampaign): TemplateConfig | null {
-        const raw = campaign.template_config;
+        const c = campaign as unknown as Record<string, unknown>;
+        const raw = c.templateConfig as Record<string, unknown> | undefined;
         if (!raw || typeof raw !== 'object') return null;
-        const type = raw.template_type;
-        if (type !== 'tooltip' && type !== 'spotlight') {
-            this._log(`unknown template_type="${type}" for campaign_key=${campaign.campaign_key}`);
+        const type = raw.templateType;
+        if (type !== 'tooltip' && type !== 'spotlight' && type !== 'carousel') {
+            this._log(`unknown templateType="${type}" for campaign_key=${campaign.campaign_key}`);
             return null;
         }
+        if (type === 'carousel') {
+            return raw as TemplateConfig;
+        }
         const steps = Array.isArray(raw.steps) ? raw.steps : [];
-        return { ...raw, template_type: type, steps } as TemplateConfig;
+        return { ...raw, templateType: type, steps } as TemplateConfig;
     }
 
     private _log(message: string): void {

@@ -8,10 +8,9 @@ import androidx.lifecycle.ProcessLifecycleOwner
 import com.digia.engage.DigiaCEPDelegate
 import com.digia.engage.DigiaCEPPlugin
 import com.digia.engage.DigiaConfig
-import com.digia.engage.DigiaEndpoints
-import com.digia.engage.DigiaEnvironment
 import com.digia.engage.DigiaExperienceEvent
 import com.digia.engage.InAppPayload
+import com.digia.engage.internal.model.CampaignModel
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -69,6 +68,7 @@ internal object DigiaInstance : DigiaCEPDelegate {
     fun initialize(context: Context, config: DigiaConfig) {
         if (!initializationStarted.compareAndSet(false, true)) return
         _sdkState.value = SDKState.INITIALIZING
+        analyticsClient.configure(config)
 
         val deviceId = resolveDeviceId(context)
         submissionReporter = SubmissionReporter(config, deviceId, scope)
@@ -147,6 +147,18 @@ internal object DigiaInstance : DigiaCEPDelegate {
         )
     }
 
+    fun reportOverlayImpression(payload: InAppPayload) {
+        displayCoordinator.onOverlayEvent(DigiaExperienceEvent.Impressed, payload)
+    }
+
+    fun markOverlayDismissed(payloadId: String) {
+        val current = controller.activePayload.value
+        if (current?.id == payloadId) {
+            displayCoordinator.onOverlayEvent(DigiaExperienceEvent.Dismissed, current)
+            controller.dismiss()
+        }
+    }
+
     // ── Survey lifecycle ────────────────────────────────────────────────────
     //
     // Event routing:
@@ -195,7 +207,7 @@ internal object DigiaInstance : DigiaCEPDelegate {
     }
 
     private fun surveyPayload(state: ActiveSurveyState): InAppPayload =
-        InAppPayload(id = state.campaign.campaignKey, content = emptyMap(), cepContext = emptyMap())
+        campaignPayload(state.campaign)
 
     private fun resolveDeviceId(context: Context): String {
         val prefs = context.applicationContext
@@ -237,8 +249,13 @@ internal object DigiaInstance : DigiaCEPDelegate {
         initialized.set(false)
         pendingPayload = null
         pluginRegistry.teardown()
+        analyticsClient.clear()
+        campaignStore.populate(emptyList())
         controller.dismiss()
         controller.clearSlots()
+        controller.clearSlotConfigs()
+        controller.clearStorySlotConfigs()
+        controller.dismissStoryOverlay()
         screenTracker.clear()
         guideOrchestrator.dismiss()
         surveyOrchestrator.dismiss()
@@ -314,7 +331,14 @@ internal object DigiaInstance : DigiaCEPDelegate {
     }
 
     private fun routeCampaign(payload: InAppPayload) {
-        val campaignKey = (payload.content["campaign_key"] as? String)?.trim()
+        doRouteCampaign(payload)
+    }
+
+    private fun doRouteCampaign(payload: InAppPayload) {
+        // content["campaign_key"] is set by native CEP plugins; RN bridge uses payload.id directly
+        val campaignKey = ((payload.content["campaign_key"] as? String)
+            ?: (payload.content["digiaKey"] as? String)
+            ?: payload.id.takeIf { it.isNotBlank() })?.trim()
         if (campaignKey.isNullOrBlank()) {
             logWarning("payload dropped: missing campaign_key: ${payload.id}")
             return
@@ -324,24 +348,49 @@ internal object DigiaInstance : DigiaCEPDelegate {
             logWarning("payload dropped: no campaign found for key '$campaignKey'")
             return
         }
-        routeCampaign(campaign)
+        routeCampaign(campaign, payload)
     }
 
-    private fun routeCampaign(campaign: com.digia.engage.internal.model.CampaignModel) {
+    private fun routeCampaign(campaign: CampaignModel, payload: InAppPayload = campaignPayload(campaign)) {
         val campaignKey = campaign.campaignKey
+        val routedPayload = payloadForCampaign(campaign, payload)
         android.util.Log.d("Digia", "[routeCampaign] routing '$campaignKey' type=${campaign.campaignType}")
         when (campaign.campaignType) {
             "guide" -> guideOrchestrator.start(campaign)
+            "nudge" -> displayCoordinator.routeNudge(routedPayload)
+            "inline" -> when (val cfg = campaign.config) {
+                is com.digia.engage.internal.model.CampaignConfigModel.Inline ->
+                    displayCoordinator.routeInlineCarousel(cfg.inlineConfig, routedPayload)
+                is com.digia.engage.internal.model.CampaignConfigModel.Story ->
+                    displayCoordinator.routeInlineStory(cfg.storyConfig, routedPayload)
+                else -> error("unexpected config for inline campaign '$campaignKey'")
+            }
             "survey" -> {
-                if (campaign.surveyConfig == null) {
-                    logWarning("survey campaign dropped: missing/invalid survey_config: $campaignKey")
-                } else if (!surveyOrchestrator.start(campaign)) {
+                if (!surveyOrchestrator.start(campaign)) {
                     logWarning("survey campaign dropped: another survey is on screen: $campaignKey")
                 }
             }
-            else -> logWarning("campaign type '${campaign.campaignType}' not yet supported")
+            else -> error("Unknown campaign_type: ${campaign.campaignType}")
         }
     }
+
+    private fun campaignPayload(campaign: CampaignModel): InAppPayload =
+        InAppPayload(
+            id = campaign.campaignKey,
+            content = mapOf(
+                "campaign_id" to campaign.id,
+                "campaign_key" to campaign.campaignKey,
+            ),
+            cepContext = emptyMap(),
+        )
+
+    private fun payloadForCampaign(campaign: CampaignModel, payload: InAppPayload): InAppPayload =
+        payload.copy(
+            content = payload.content + mapOf(
+                "campaign_id" to campaign.id,
+                "campaign_key" to campaign.campaignKey,
+            ),
+        )
 
     private fun flushPendingPayloadIfAny() {
         val payload = pendingPayload ?: return
@@ -381,6 +430,11 @@ internal object DigiaInstance : DigiaCEPDelegate {
     }
 
     @Suppress("unused")
+    internal fun setCampaignsForTest(campaigns: List<CampaignModel>) {
+        campaignStore.populate(campaigns)
+    }
+
+    @Suppress("unused")
     internal fun setSdkStateForTest(state: SDKState) { _sdkState.value = state }
 
     @Suppress("unused")
@@ -395,9 +449,14 @@ internal object DigiaInstance : DigiaCEPDelegate {
         initialized.set(false)
         pendingPayload = null
         pluginRegistry.teardown()
+        analyticsClient.clear()
         screenTracker.clear()
+        campaignStore.populate(emptyList())
         controller.dismiss()
         controller.clearSlots()
+        controller.clearSlotConfigs()
+        controller.clearStorySlotConfigs()
+        controller.dismissStoryOverlay()
         guideOrchestrator.dismiss()
         surveyOrchestrator.dismiss()
         _isUiReady.value = false

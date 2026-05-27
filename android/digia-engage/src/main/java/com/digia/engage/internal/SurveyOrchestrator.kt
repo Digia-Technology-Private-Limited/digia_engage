@@ -30,10 +30,11 @@ internal class SurveyOrchestrator {
 
     private var tokenCounter = 0L
 
-    /** @return true if the survey was started, false if one is already showing. */
+    /** @return true if the survey was started, false if preconditions fail or one is already showing. */
     fun start(campaign: CampaignModel): Boolean {
-        require(campaign.campaignType == "survey" && campaign.surveyConfig != null)
-        require(campaign.surveyConfig.nodes.isNotEmpty() && campaign.surveyConfig.blocks.isNotEmpty())
+        val surveyConfig = campaign.surveyConfig
+        if (campaign.campaignType != "survey" || surveyConfig == null) return false
+        if (surveyConfig.nodes.isEmpty() || surveyConfig.blocks.isEmpty()) return false
         if (_state.value != null) return false
         _state.value = ActiveSurveyState(campaign, ++tokenCounter)
         return true

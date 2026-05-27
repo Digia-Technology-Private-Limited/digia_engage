@@ -20,18 +20,16 @@ export class DigiaHealthReporter {
 
     report(eventType: HealthEventType, detail: Record<string, unknown>): void {
         if (!this._projectId) return;
-        try {
-            fetch(`${this._baseUrl}/engage/sdk/recordHealthEvent`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'x-digia-project-id': this._projectId,
-                },
-                body: JSON.stringify({ event_type: eventType, detail }),
-            }).catch(() => { /* swallow */ });
-        } catch {
-            // never throw
-        }
+        // TODO: TO BE PICKED LATER @aditya-digia — health event backend endpoint being removed
+        // fetch(`${this._baseUrl}/engage/sdk/recordHealthEvent`, {
+        //     method: 'POST',
+        //     headers: {
+        //         'Content-Type': 'application/json',
+        //         'x-digia-project-id': this._projectId,
+        //     },
+        //     body: JSON.stringify({ event_type: eventType, detail }),
+        // }).catch(() => { /* swallow */ });
+        if (__DEV__) console.log('[DigiaHealth]', eventType, detail);
     }
 }
 

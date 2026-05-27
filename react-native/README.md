@@ -158,7 +158,7 @@ const navRef = useNavigationContainerRef();
 >
 ```
 
-### 3 – Open the Digia UI navigation flow
+### 3 – Open the Digia Engage navigation flow
 
 Launch the full-screen native SDUI stack:
 

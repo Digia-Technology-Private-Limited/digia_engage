@@ -12,6 +12,8 @@ export interface InAppPayload {
     cepContext: Record<string, unknown>;
 }
 
+export type CampaignType = 'nudge' | 'guide' | 'inline' | 'survey';
+
 // ─── Experience events ────────────────────────────────────────────────────────
 
 /** The experience became visible to the user. */
