@@ -17,6 +17,9 @@ export type TooltipStep = {
     maxWidth: number
     padding: number
     showArrow: boolean
+    arrowColor?: string
+    arrowBorderColor?: string
+    arrowSize?: number
     titleColor: string
     titleSize: number
     titleWeight: '400' | '600' | '700'
@@ -48,6 +51,10 @@ export type SpotlightStep = {
     calloutShadow: boolean
     calloutBorderColor: string
     calloutBorderWidth: number
+    showArrow?: boolean
+    arrowColor?: string
+    arrowBorderColor?: string
+    arrowSize?: number
     titleColor: string
     titleSize: number
     titleWeight: '400' | '600' | '700'
@@ -59,8 +66,19 @@ export type SpotlightStep = {
     actions: Action[]
 }
 
-export type TooltipConfig   = { templateType: 'tooltip';   templateId: string | null; steps: TooltipStep[]   }
-export type SpotlightConfig = { templateType: 'spotlight'; templateId: string | null; steps: SpotlightStep[] }
+export type TooltipConfig = {
+    templateType: 'tooltip'
+    templateId: string | null
+    steps: TooltipStep[]
+    sticky?: boolean
+}
+
+export type SpotlightConfig = {
+    templateType: 'spotlight'
+    templateId: string | null
+    steps: SpotlightStep[]
+    outsideTapBehavior?: 'dismiss' | 'next' | 'nothing'
+}
 
 export type CarouselItem = { imageUrl: string; deepLink?: string }
 export type CarouselIndicatorConfig = {
