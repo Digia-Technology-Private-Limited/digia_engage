@@ -1,8 +1,11 @@
 export type Action =
-    | { type: 'dismiss';   label: string; style: 'primary' | 'secondary' | 'ghost' }
-    | { type: 'next';      label: string; style: 'primary' | 'secondary' | 'ghost' }
-    | { type: 'prev';      label: string; style: 'primary' | 'secondary' | 'ghost' }
-    | { type: 'deep_link'; label: string; style: 'primary' | 'secondary' | 'ghost'; destination: string }
+    | { type: 'dismiss';    label: string; style: 'primary' | 'secondary' | 'ghost'; scope?: 'self' | 'all' }
+    | { type: 'next';       label: string; style: 'primary' | 'secondary' | 'ghost' }
+    | { type: 'back';       label: string; style: 'primary' | 'secondary' | 'ghost' }
+    | { type: 'prev';       label: string; style: 'primary' | 'secondary' | 'ghost' }
+    | { type: 'deep_link';  label: string; style: 'primary' | 'secondary' | 'ghost'; url: string; fallback_url?: string }
+    | { type: 'open_url';   label: string; style: 'primary' | 'secondary' | 'ghost'; url: string; presentation: 'external' | 'in_app' }
+    | { type: 'fire_event'; label: string; style: 'primary' | 'secondary' | 'ghost'; event_name: string; properties?: Record<string, unknown> }
 
 export type TooltipStep = {
     anchorKey: string
@@ -17,6 +20,9 @@ export type TooltipStep = {
     maxWidth: number
     padding: number
     showArrow: boolean
+    arrowColor?: string
+    arrowBorderColor?: string
+    arrowSize?: number
     titleColor: string
     titleSize: number
     titleWeight: '400' | '600' | '700'
@@ -48,6 +54,10 @@ export type SpotlightStep = {
     calloutShadow: boolean
     calloutBorderColor: string
     calloutBorderWidth: number
+    showArrow?: boolean
+    arrowColor?: string
+    arrowBorderColor?: string
+    arrowSize?: number
     titleColor: string
     titleSize: number
     titleWeight: '400' | '600' | '700'
@@ -59,8 +69,19 @@ export type SpotlightStep = {
     actions: Action[]
 }
 
-export type TooltipConfig   = { templateType: 'tooltip';   templateId: string | null; steps: TooltipStep[]   }
-export type SpotlightConfig = { templateType: 'spotlight'; templateId: string | null; steps: SpotlightStep[] }
+export type TooltipConfig = {
+    templateType: 'tooltip'
+    templateId: string | null
+    steps: TooltipStep[]
+    outsideTapBehavior?: 'dismiss' | 'next' | 'nothing'
+}
+
+export type SpotlightConfig = {
+    templateType: 'spotlight'
+    templateId: string | null
+    steps: SpotlightStep[]
+    outsideTapBehavior?: 'dismiss' | 'next' | 'nothing'
+}
 
 export type CarouselItem = { imageUrl: string; deepLink?: string }
 export type CarouselIndicatorConfig = {
