@@ -5,6 +5,12 @@ data class DigiaConfig(
     val logLevel: DigiaLogLevel = DigiaLogLevel.ERROR,
     val environment: DigiaEnvironment = DigiaEnvironment.PRODUCTION,
     val baseUrl: String? = null,
+    /**
+     * Optional global font family applied to all Digia-rendered text.
+     * Resolved as an Android system/registered font family name
+     * (e.g. "sans-serif", or a family bundled and registered with the system).
+     */
+    val fontFamily: String? = null,
 )
 
 enum class DigiaLogLevel {

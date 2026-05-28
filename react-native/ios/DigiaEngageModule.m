@@ -26,6 +26,7 @@ RCT_EXTERN_METHOD(initialize:(NSString *)projectId
                   environment:(NSString *)environment
                   logLevel:(NSString *)logLevel
                   baseUrl:(NSString *)baseUrl
+                  fontFamily:(NSString *)fontFamily
                   resolve:(RCTPromiseResolveBlock)resolve
                   reject:(RCTPromiseRejectBlock)reject)
 

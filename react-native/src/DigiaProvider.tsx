@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { computePosition, flip, offset, shift } from '@floating-ui/core';
 import Svg, { Path } from 'react-native-svg';
+import { Digia } from './Digia';
 import { digiaGuideController, type DigiaGuideRequest } from './DigiaGuideController';
 import { digiaAnchorRegistry, type AnchorLayout } from './digiaAnchorRegistry';
 import type { Action, SpotlightConfig, SpotlightStep, TooltipConfig, TooltipStep } from './templateTypes';
@@ -101,12 +102,13 @@ function ActionButton({
     onPress: () => void;
 }) {
     const isPrimary = action.style === 'primary';
+    const fontFamily = Digia.fontFamily;
     return (
         <Pressable
             onPress={onPress}
             style={[s.button, isPrimary && { backgroundColor: btnPrimaryBg }]}
         >
-            <Text style={{ color: isPrimary ? btnPrimaryText : btnGhostText, fontSize: 13, fontWeight: '600' }}>
+            <Text style={{ color: isPrimary ? btnPrimaryText : btnGhostText, fontSize: 13, fontWeight: '600', fontFamily }}>
                 {action.label}
             </Text>
         </Pressable>
@@ -130,6 +132,7 @@ function TooltipOverlay({
     const { width: screenW } = useWindowDimensions();
     const opacityAnim = useRef(new Animated.Value(1)).current;
     const pendingFadeIn = useRef(false);
+    const fontFamily = Digia.fontFamily;
 
     // Subscribe to anchor layout
     useEffect(() => {
@@ -214,11 +217,11 @@ function TooltipOverlay({
                             step.shadow && s.shadow,
                         ]}
                     >
-                        <Text style={{ color: step.titleColor, fontSize: step.titleSize, fontWeight: step.titleWeight }}>
+                        <Text style={{ color: step.titleColor, fontSize: step.titleSize, fontWeight: step.titleWeight, fontFamily }}>
                             {step.title}
                         </Text>
                         {!!step.body && (
-                            <Text style={{ marginTop: 4, color: step.bodyColor, fontSize: step.bodySize }}>
+                            <Text style={{ marginTop: 4, color: step.bodyColor, fontSize: step.bodySize, fontFamily }}>
                                 {step.body}
                             </Text>
                         )}
@@ -242,12 +245,12 @@ function TooltipOverlay({
                         onLayout={(e) => setFloatingSize({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height })}
                         style={[s.tooltipBubble, { left: -9999, top: -9999, width: tooltipW, padding: step.padding }]}
                     >
-                        <Text style={{ fontSize: step.titleSize }}>{step.title}</Text>
-                        {!!step.body && <Text style={{ fontSize: step.bodySize }}>{step.body}</Text>}
+                        <Text style={{ fontSize: step.titleSize, fontFamily }}>{step.title}</Text>
+                        {!!step.body && <Text style={{ fontSize: step.bodySize, fontFamily }}>{step.body}</Text>}
                         <View style={s.actionRow}>
                             {step.actions.map((a, i) => (
                                 <View key={i} style={s.button}>
-                                    <Text style={{ fontSize: 13 }}>{a.label}</Text>
+                                    <Text style={{ fontSize: 13, fontFamily }}>{a.label}</Text>
                                 </View>
                             ))}
                         </View>
@@ -299,6 +302,7 @@ function SpotlightCallout({
     const [floatPos, setFloatPos] = useState<FloatPos | null>(null);
     const [floatingSize, setFloatingSize] = useState<{ w: number; h: number } | null>(null);
     const calloutW = Math.min(step.calloutMaxWidth, screenW - 32);
+    const fontFamily = Digia.fontFamily;
 
     useEffect(() => {
         if (!floatingSize) return;
@@ -326,12 +330,12 @@ function SpotlightCallout({
                 onLayout={(e) => setFloatingSize({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height })}
                 style={[calloutStyle, { position: 'absolute', left: -9999, top: -9999 }]}
             >
-                <Text style={{ fontSize: step.titleSize }}>{step.title}</Text>
-                {!!step.body && <Text style={{ marginTop: 4, fontSize: step.bodySize }}>{step.body}</Text>}
+                <Text style={{ fontSize: step.titleSize, fontFamily }}>{step.title}</Text>
+                {!!step.body && <Text style={{ marginTop: 4, fontSize: step.bodySize, fontFamily }}>{step.body}</Text>}
                 <View style={s.actionRow}>
                     {step.actions.map((a, i) => (
                         <View key={i} style={s.button}>
-                            <Text style={{ fontSize: 13 }}>{a.label}</Text>
+                            <Text style={{ fontSize: 13, fontFamily }}>{a.label}</Text>
                         </View>
                     ))}
                 </View>
@@ -347,11 +351,11 @@ function SpotlightCallout({
                 step.calloutShadow && s.shadow,
             ]}
         >
-            <Text style={{ color: step.titleColor, fontSize: step.titleSize, fontWeight: step.titleWeight }}>
+            <Text style={{ color: step.titleColor, fontSize: step.titleSize, fontWeight: step.titleWeight, fontFamily }}>
                 {step.title}
             </Text>
             {!!step.body && (
-                <Text style={{ marginTop: 4, color: step.bodyColor, fontSize: step.bodySize }}>
+                <Text style={{ marginTop: 4, color: step.bodyColor, fontSize: step.bodySize, fontFamily }}>
                     {step.body}
                 </Text>
             )}

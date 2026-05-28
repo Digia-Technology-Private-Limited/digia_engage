@@ -65,6 +65,7 @@ final class DigiaModule: RCTEventEmitter {
         environment: String,
         logLevel: String,
         baseUrl: String?,
+        fontFamily: String?,
         resolve: @escaping RCTPromiseResolveBlock,
         reject: @escaping RCTPromiseRejectBlock
     ) {
@@ -80,7 +81,8 @@ final class DigiaModule: RCTEventEmitter {
             apiKey: projectId,
             logLevel: logLevelValue,
             environment: envValue,
-            developerConfig: baseUrl.flatMap { $0.isEmpty ? nil : DigiaDeveloperConfig(baseURL: $0) }
+            developerConfig: baseUrl.flatMap { $0.isEmpty ? nil : DigiaDeveloperConfig(baseURL: $0) },
+            fontFamily: fontFamily.flatMap { $0.isEmpty ? nil : $0 }
         )
 
         Task { @MainActor in

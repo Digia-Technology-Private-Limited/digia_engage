@@ -95,4 +95,10 @@ export interface DigiaConfig {
      * @default 'error'
      */
     logLevel?: 'none' | 'error' | 'verbose';
+    /**
+     * Optional global font family applied to all Digia-rendered text.
+     * Must match a font available to the native app — an Android system/registered
+     * family name, or an iOS bundled font's PostScript name.
+     */
+    fontFamily?: string;
 }

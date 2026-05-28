@@ -52,6 +52,7 @@ class DigiaClass implements DigiaDelegate {
     private _projectId = '';
     private _apiBaseUrl = '';
     private _logLevel: DigiaConfig['logLevel'] = 'error';
+    private _fontFamily: string | undefined;
     private _currentScreen: string | null = null;
     private readonly _campaignsByKey = new Map<string, SdkCampaign>();
     private readonly _registeredAnchorKeys = new Set<string>();
@@ -68,9 +69,10 @@ class DigiaClass implements DigiaDelegate {
         this._projectId = config.projectId;
         this._apiBaseUrl = this._resolveApiBaseUrl(config);
         this._logLevel = logLevel;
+        this._fontFamily = config.fontFamily?.trim() || undefined;
         digiaHealthReporter.init(config.projectId, this._apiBaseUrl);
         try {
-            await nativeDigiaModule.initialize(config.projectId, environment, logLevel, this._apiBaseUrl);
+            await nativeDigiaModule.initialize(config.projectId, environment, logLevel, this._apiBaseUrl, config.fontFamily);
         } catch (e) {
             // TODO: TO BE PICKED LATER @aditya-digia — health event reporting being removed
             // digiaHealthReporter.report(HealthEventType.fetch_failed, { error_code: 0, platform: 'react_native' });
@@ -164,6 +166,15 @@ class DigiaClass implements DigiaDelegate {
 
     unregisterAnchor(anchorKey: string): void {
         this._registeredAnchorKeys.delete(anchorKey);
+    }
+
+    /**
+     * Global font family configured via {@link initialize}, or `undefined` when
+     * none was set. Used by the JS-rendered guide overlays (tooltip/spotlight)
+     * so their text matches native-rendered campaigns.
+     */
+    get fontFamily(): string | undefined {
+        return this._fontFamily;
     }
 
 

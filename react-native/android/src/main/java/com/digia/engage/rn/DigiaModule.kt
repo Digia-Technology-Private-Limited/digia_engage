@@ -63,6 +63,7 @@ internal class DigiaModule(
             environment: String,
             logLevel: String,
             baseUrl: String?,
+            fontFamily: String?,
             promise: Promise
     ) {
         try {
@@ -81,6 +82,7 @@ internal class DigiaModule(
                                         else -> DigiaLogLevel.ERROR
                                     },
                             baseUrl = baseUrl?.takeIf { it.isNotBlank() },
+                            fontFamily = fontFamily?.takeIf { it.isNotBlank() },
                     )
             Digia.initialize(reactContext.applicationContext, config)
 

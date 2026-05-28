@@ -67,6 +67,7 @@ internal object DigiaInstance : DigiaCEPDelegate {
     fun initialize(context: Context, config: DigiaConfig) {
         if (!initializationStarted.compareAndSet(false, true)) return
         _sdkState.value = SDKState.INITIALIZING
+        com.digia.engage.framework.DigiaFontConfig.fontFamily = config.fontFamily
         analyticsClient.configure(config)
 
         scope.launch(Dispatchers.IO) {

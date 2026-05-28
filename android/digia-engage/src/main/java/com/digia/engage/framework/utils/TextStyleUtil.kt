@@ -1,11 +1,13 @@
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.sp
 import com.digia.engage.framework.DUIFontFactory
+import com.digia.engage.framework.DigiaFontConfig
 import com.digia.engage.framework.UIResources
 import com.digia.engage.framework.utils.JsonLike
 import com.digia.engage.framework.utils.JsonUtil.Companion.tryKeys
@@ -36,7 +38,9 @@ fun makeTextStyle(
     resources: UIResources? = null,
     useLocalResources: Boolean = true
 ): TextStyle? {
-    if (json == null) return fallback
+    val globalFamily = DigiaFontConfig.composeFontFamily()
+
+    if (json == null) return fallback.withGlobalFontFamily(globalFamily)
 
     val textColor = evalColor(json["textColor"], eval, useLocalResources, resources)
     val textBgColor = evalColor(
@@ -54,7 +58,7 @@ fun makeTextStyle(
             color = textColor ?: fallback.color,
             background = textBgColor ?: fallback.background,
             textDecoration = textDecoration,
-        )
+        ).withGlobalFontFamily(globalFamily)
     }
 
     /* ---------------- Case 2: Token string ---------------- */
@@ -66,12 +70,12 @@ fun makeTextStyle(
             color = textColor ?: tokenStyle.color,
             background = textBgColor ?: tokenStyle.background,
             textDecoration = textDecoration,
-        )
+        ).withGlobalFontFamily(globalFamily)
     }
 
     /* ---------------- Case 3: Token map ---------------- */
 
-    val tokenMap = fontToken as? JsonLike ?: return fallback
+    val tokenMap = fontToken as? JsonLike ?: return fallback.withGlobalFontFamily(globalFamily)
 
     val tokenValue = tokenMap["value"] as? String
 
@@ -113,7 +117,7 @@ fun makeTextStyle(
                 color = textColor ?: tokenStyle.color,
                 background = textBgColor ?: tokenStyle.background,
                 textDecoration = textDecoration,
-            )
+            ).withGlobalFontFamily(globalFamily)
         }
     }
 
@@ -136,7 +140,17 @@ fun makeTextStyle(
         return fontFactory.getFont(overridingFontFamily, textStyle = resolvedStyle)
     }
 
-    return resolvedStyle
+    return resolvedStyle.withGlobalFontFamily(globalFamily)
+}
+
+/**
+ * Applies the global font family configured at init time, but only when the
+ * style does not already carry an explicit family (e.g. resolved via a
+ * [DUIFontFactory] or a design token).
+ */
+private fun TextStyle?.withGlobalFontFamily(global: FontFamily?): TextStyle? {
+    if (this == null || global == null || fontFamily != null) return this
+    return copy(fontFamily = global)
 }
 
 /* ---------------------------------------------------------
