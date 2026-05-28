@@ -54,7 +54,7 @@ layout:
 import React, { useEffect } from 'react';
 import { StyleSheet } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
-import { Digia, DigiaHostView } from '@digia/engage-react-native';
+import { Digia, DigiaHostView } from '@digia-engage/core';
 
 export default function App() {
   useEffect(() => {
@@ -171,7 +171,7 @@ Place `<DigiaSlotView>` anywhere inside a screen. Give it an explicit `height`
 
 ```tsx
 import { ScrollView } from 'react-native';
-import { DigiaSlotView } from '@digia/engage-react-native';
+import { DigiaSlotView } from '@digia-engage/core';
 
 export function HomeScreen() {
   return (
@@ -319,7 +319,7 @@ while a Dialog overlay is also showing for a separate campaign.
 import React, { useEffect } from 'react';
 import { StyleSheet, ScrollView, View, Text } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
-import { Digia, DigiaHostView, DigiaSlotView } from '@digia/engage-react-native';
+import { Digia, DigiaHostView, DigiaSlotView } from '@digia-engage/core';
 
 // ── Root: mount DigiaHostView once ───────────────────────────────────────────
 export default function App() {

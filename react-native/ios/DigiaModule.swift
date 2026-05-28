@@ -64,6 +64,7 @@ final class DigiaModule: RCTEventEmitter {
         _ projectId: String,
         environment: String,
         logLevel: String,
+        baseUrl: String?,
         resolve: @escaping RCTPromiseResolveBlock,
         reject: @escaping RCTPromiseRejectBlock
     ) {
@@ -78,7 +79,8 @@ final class DigiaModule: RCTEventEmitter {
         let config = DigiaConfig(
             apiKey: projectId,
             logLevel: logLevelValue,
-            environment: envValue
+            environment: envValue,
+            developerConfig: baseUrl.flatMap { $0.isEmpty ? nil : DigiaDeveloperConfig(baseURL: $0) }
         )
 
         Task { @MainActor in

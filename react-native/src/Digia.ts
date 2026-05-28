@@ -70,7 +70,7 @@ class DigiaClass implements DigiaDelegate {
         this._logLevel = logLevel;
         digiaHealthReporter.init(config.projectId, this._apiBaseUrl);
         try {
-            await nativeDigiaModule.initialize(config.projectId, environment, logLevel);
+            await nativeDigiaModule.initialize(config.projectId, environment, logLevel, this._apiBaseUrl);
         } catch (e) {
             // TODO: TO BE PICKED LATER @aditya-digia — health event reporting being removed
             // digiaHealthReporter.report(HealthEventType.fetch_failed, { error_code: 0, platform: 'react_native' });

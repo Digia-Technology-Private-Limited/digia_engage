@@ -58,7 +58,13 @@ internal class DigiaModule(
     // ─── initialize ───────────────────────────────────────────────────────────
 
     @ReactMethod
-    fun initialize(apiKey: String, environment: String, logLevel: String, promise: Promise) {
+    fun initialize(
+            apiKey: String,
+            environment: String,
+            logLevel: String,
+            baseUrl: String?,
+            promise: Promise
+    ) {
         try {
             val config =
                     DigiaConfig(
@@ -74,6 +80,7 @@ internal class DigiaModule(
                                         "none" -> DigiaLogLevel.NONE
                                         else -> DigiaLogLevel.ERROR
                                     },
+                            baseUrl = baseUrl?.takeIf { it.isNotBlank() },
                     )
             Digia.initialize(reactContext.applicationContext, config)
 

@@ -25,6 +25,7 @@
 RCT_EXTERN_METHOD(initialize:(NSString *)projectId
                   environment:(NSString *)environment
                   logLevel:(NSString *)logLevel
+                  baseUrl:(NSString *)baseUrl
                   resolve:(RCTPromiseResolveBlock)resolve
                   reject:(RCTPromiseRejectBlock)reject)
 
