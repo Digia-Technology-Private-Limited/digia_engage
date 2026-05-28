@@ -5,8 +5,9 @@
  *
  * Exposed methods (callable from JS via NativeModules.DigiaEngageModule):
  *
- * initialize(apiKey, environment, logLevel): Promise<void> register(): void setCurrentScreen(name):
- * void triggerCampaign(id, content, cepContext): void invalidateCampaign(campaignId): void
+ * initialize(apiKey, environment, logLevel, baseUrl): Promise<void> register(): void setCurrentScreen(name):
+ * void triggerCampaign(id, content, cepContext): void triggerCampaignById(campaignId): void
+ * invalidateCampaign(campaignId): void
  *
  * Architecture ──────────── The RN bridge mirrors the native Digia.initialize / Digia.register /
  * Digia.setCurrentScreen flow exactly. An internal [RNEventBridgePlugin] is the single native
@@ -58,11 +59,13 @@ internal class DigiaModule(
     // ─── initialize ───────────────────────────────────────────────────────────
 
     @ReactMethod
-    fun initialize(apiKey: String, environment: String, logLevel: String, promise: Promise) {
+    fun initialize(apiKey: String, environment: String, logLevel: String, baseUrl: String, promise: Promise) {
         try {
+            val cleanBaseUrl = baseUrl.trim().trimEnd('/').removeSuffix("/api/v1").takeIf { it.isNotBlank() }
             val config =
                     DigiaConfig(
                             apiKey = apiKey,
+                            baseUrl = cleanBaseUrl,
                             environment =
                                     when (environment.lowercase()) {
                                         "sandbox" -> DigiaEnvironment.SANDBOX
@@ -135,6 +138,12 @@ internal class DigiaModule(
         )
     }
 
+    /** Triggers a fetched Digia campaign directly by campaign id/key. */
+    @ReactMethod
+    fun triggerCampaignById(campaignId: String) {
+        Digia.triggerCampaign(campaignId)
+    }
+
     // ─── invalidateCampaign ───────────────────────────────────────────────────
 
     /** Forwards a campaign invalidation to the native DigiaCEPDelegate. */
@@ -153,6 +162,11 @@ internal class DigiaModule(
     @ReactMethod
     fun unregisterAnchor(key: String) {
         Digia.unregisterAnchor(key)
+    }
+
+    @ReactMethod
+    fun getRegisteredComponents(promise: Promise) {
+        promise.resolve(Arguments.createArray())
     }
 
     // ─── Internal: mount the Compose overlay host ─────────────────────────────

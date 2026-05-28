@@ -4,10 +4,11 @@
  * React Native NativeModule that bridges the Digia Engage iOS SDK.
  *
  * Exposed methods (callable from JS via NativeModules.DigiaEngageModule):
- *   initialize(projectId, environment, logLevel): Promise<void>
+ *   initialize(projectId, environment, logLevel, baseUrl): Promise<void>
  *   registerBridge(): void
  *   setCurrentScreen(name): void
  *   triggerCampaign(id, content, cepContext): void
+ *   triggerCampaignById(campaignId): void
  *   invalidateCampaign(campaignId): void
  *   createInitialPage(): void  // AppConfig initial route
  *
@@ -64,6 +65,7 @@ final class DigiaModule: RCTEventEmitter {
         _ projectId: String,
         environment: String,
         logLevel: String,
+        baseUrl: String,
         resolve: @escaping RCTPromiseResolveBlock,
         reject: @escaping RCTPromiseRejectBlock
     ) {
@@ -78,7 +80,10 @@ final class DigiaModule: RCTEventEmitter {
         let config = DigiaConfig(
             apiKey: projectId,
             logLevel: logLevelValue,
-            environment: envValue
+            environment: envValue,
+            developerConfig: DigiaDeveloperConfig(
+                baseURL: baseUrl.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+            )
         )
 
         Task { @MainActor in
@@ -140,6 +145,13 @@ final class DigiaModule: RCTEventEmitter {
         }
     }
 
+    @objc
+    func triggerCampaignById(_ campaignId: String) {
+        Task { @MainActor in
+            Digia.triggerCampaign(campaignId)
+        }
+    }
+
     // ────────────────────────────────────────────────────────────────────────
     // MARK: - invalidateCampaign
 
@@ -175,6 +187,17 @@ final class DigiaModule: RCTEventEmitter {
         Task { @MainActor in
             AnchorRegistry.shared.unregister(key: key)
         }
+    }
+
+    // ────────────────────────────────────────────────────────────────────────
+    // MARK: - getRegisteredComponents
+
+    @objc
+    func getRegisteredComponents(
+        _ resolve: @escaping RCTPromiseResolveBlock,
+        reject: @escaping RCTPromiseRejectBlock
+    ) {
+        resolve([])
     }
 
     // ────────────────────────────────────────────────────────────────────────

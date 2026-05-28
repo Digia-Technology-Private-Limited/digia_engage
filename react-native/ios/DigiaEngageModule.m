@@ -25,6 +25,7 @@
 RCT_EXTERN_METHOD(initialize:(NSString *)projectId
                   environment:(NSString *)environment
                   logLevel:(NSString *)logLevel
+                  baseUrl:(NSString *)baseUrl
                   resolve:(RCTPromiseResolveBlock)resolve
                   reject:(RCTPromiseRejectBlock)reject)
 
@@ -36,6 +37,8 @@ RCT_EXTERN_METHOD(triggerCampaign:(NSString *)id
                   content:(NSDictionary *)content
                   cepContext:(NSDictionary *)cepContext)
 
+RCT_EXTERN_METHOD(triggerCampaignById:(NSString *)campaignId)
+
 RCT_EXTERN_METHOD(invalidateCampaign:(NSString *)campaignId)
 
 RCT_EXTERN_METHOD(registerAnchor:(NSString *)key
@@ -45,6 +48,9 @@ RCT_EXTERN_METHOD(registerAnchor:(NSString *)key
                   height:(double)height)
 
 RCT_EXTERN_METHOD(unregisterAnchor:(NSString *)key)
+
+RCT_EXTERN_METHOD(getRegisteredComponents:(RCTPromiseResolveBlock)resolve
+                  reject:(RCTPromiseRejectBlock)reject)
 
 @end
 
