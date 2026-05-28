@@ -5,6 +5,13 @@ export const HealthEventType = {
   host_not_mounted: 'host_not_mounted',
   plugin_not_registered: 'plugin_not_registered',
   fetch_failed: 'fetch_failed',
+  action_handler_threw: 'action_handler_threw',
+  action_handler_timeout: 'action_handler_timeout',
+  deep_link_no_handler: 'deep_link_no_handler',
+  invalid_action_url: 'invalid_action_url',
+  inapp_browser_unavailable: 'inapp_browser_unavailable',
+  invalid_action_context: 'invalid_action_context',
+  cold_start_queue_overflow: 'cold_start_queue_overflow',
 } as const;
 
 export type HealthEventType = (typeof HealthEventType)[keyof typeof HealthEventType];

@@ -19,7 +19,9 @@ import { DeviceEventEmitter } from 'react-native';
 import { nativeDigiaModule } from './NativeDigiaEngage';
 import { digiaHealthReporter, HealthEventType } from './DigiaHealthReporter';
 import { digiaGuideController } from './DigiaGuideController';
+import { digiaActionHandler } from './actionHandler';
 import type {
+    ActionContext,
     CampaignType,
     DigiaConfig,
     DigiaDelegate,
@@ -29,8 +31,8 @@ import type {
 } from './types';
 import type { TemplateConfig } from './templateTypes';
 
-const PRODUCTION_API_ROOT = 'https://api.digia.tech';
-const SANDBOX_API_ROOT = 'https://zaiden-phonematic-unseemly.ngrok-free.dev';
+const PRODUCTION_API_ROOT = 'https://app.digia.tech';
+const SANDBOX_API_ROOT = 'https://dev.digia.tech';
 
 interface SdkCampaign {
     id?: string;
@@ -69,6 +71,15 @@ class DigiaClass implements DigiaDelegate {
         this._apiBaseUrl = this._resolveApiBaseUrl(config);
         this._logLevel = logLevel;
         digiaHealthReporter.init(config.projectId, this._apiBaseUrl);
+
+        digiaActionHandler.configure({
+            onAction: config.onAction,
+            routeViaSystemLinking: config.linking?.routeViaSystemLinking ?? true,
+            inAppBrowser: config.linking?.inAppBrowser,
+            onFireEvent: (eventName, properties, context) =>
+                this._fireCustomEvent(eventName, properties, context),
+        });
+
         try {
             await nativeDigiaModule.initialize(config.projectId, environment, logLevel, this._apiBaseUrl);
         } catch (e) {
@@ -266,6 +277,19 @@ class DigiaClass implements DigiaDelegate {
             (data: { campaignId: string; type: string; elementId?: string }) =>
                 this._forwardExperienceEvent(data),
         );
+    }
+
+    _fireCustomEvent(
+        eventName: string,
+        properties?: Record<string, unknown>,
+        context?: ActionContext,
+    ): void {
+        const payload = context ? this._activePayloads.get(context.campaign_id) : null;
+        if (payload) {
+            const event: DigiaExperienceEvent = { type: 'clicked', elementId: eventName };
+            this._plugins.forEach((plugin) => plugin.notifyEvent(event, payload));
+        }
+        // TODO: record custom event to Digia analytics endpoint when available
     }
 
     private _forwardExperienceEvent(

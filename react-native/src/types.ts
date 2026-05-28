@@ -73,6 +73,40 @@ export interface DigiaPlugin {
     teardown(): void;
 }
 
+// ─── Action types (public API) ────────────────────────────────────────────────
+
+export type DigiaAction =
+    | { type: 'deep_link'; url: string; fallback_url?: string }
+    | { type: 'open_url'; url: string; presentation: 'external' | 'in_app' }
+    | { type: 'dismiss'; scope?: 'self' | 'all' }
+    | { type: 'next' }
+    | { type: 'back' }
+    | { type: 'fire_event'; event_name: string; properties?: Record<string, unknown> };
+
+export type ActionContext = {
+    campaign_id: string;
+    campaign_key: string;
+    campaign_type: 'nudge' | 'guide' | 'inline' | 'survey';
+    source: {
+        kind: 'button' | 'card_tap' | 'pip_small_view' | 'auto_dismiss';
+        element_id?: string;
+        button_label?: string;
+    };
+    step_index?: number;
+    step_total?: number;
+    source_node?: unknown;
+};
+
+export type ActionResult = boolean | Promise<boolean> | void;
+
+export type OnAction = (action: DigiaAction, context: ActionContext) => ActionResult;
+
+export type InAppBrowserAdapter = {
+    open: (url: string) => Promise<void>;
+};
+
+// ─── SDK init config ──────────────────────────────────────────────────────────
+
 /**
  * Configuration for initialising the Digia Engage SDK.
  */
@@ -95,4 +129,25 @@ export interface DigiaConfig {
      * @default 'error'
      */
     logLevel?: 'none' | 'error' | 'verbose';
+    /**
+     * Optional override hook called for every action before the SDK runs its
+     * default behavior. Return true to suppress the default; false/void lets
+     * the SDK handle it.
+     */
+    onAction?: OnAction;
+    /**
+     * URL / linking configuration.
+     */
+    linking?: {
+        /**
+         * When true (default) the SDK calls Linking.openURL for URL-bearing actions.
+         * @default true
+         */
+        routeViaSystemLinking?: boolean;
+        /**
+         * Required if any campaign uses open_url with presentation: 'in_app'.
+         * Falls back to Linking.openURL + emits inapp_browser_unavailable if absent.
+         */
+        inAppBrowser?: InAppBrowserAdapter;
+    };
 }

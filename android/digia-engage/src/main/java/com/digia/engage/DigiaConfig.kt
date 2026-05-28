@@ -19,6 +19,6 @@ enum class DigiaEnvironment {
 }
 
 internal object DigiaEndpoints {
-    const val PRODUCTION = "https://api.digia.tech"
-    const val SANDBOX = "https://zaiden-phonematic-unseemly.ngrok-free.dev"
+    const val PRODUCTION = "https://app.digia.tech"
+    const val SANDBOX = "https://dev.digia.tech"
 }

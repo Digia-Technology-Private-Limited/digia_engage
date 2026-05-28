@@ -13,6 +13,7 @@ import { computePosition, flip, offset, shift } from '@floating-ui/core';
 import Svg, { Path } from 'react-native-svg';
 import { digiaGuideController, type DigiaGuideRequest } from './DigiaGuideController';
 import { digiaAnchorRegistry, type AnchorLayout } from './digiaAnchorRegistry';
+import { digiaActionHandler, type ActionCallbacks } from './actionHandler';
 import type { Action, SpotlightConfig, SpotlightStep, TooltipConfig, TooltipStep } from './templateTypes';
 
 // ─── @floating-ui/core platform adapter ──────────────────────────────────────
@@ -161,15 +162,6 @@ function calcArrowOffset(
 
 // ─── Shared action helpers ────────────────────────────────────────────────────
 
-function handleAction(action: Action, cb: { onNext: () => void; onBack: () => void; onSkip: () => void }) {
-    switch (action.type) {
-        case 'next':      cb.onNext(); break;
-        case 'prev':      cb.onBack(); break;
-        case 'dismiss':   cb.onSkip(); break;
-        case 'deep_link': cb.onSkip(); break;
-    }
-}
-
 function ActionButton({
     action,
     btnPrimaryBg,
@@ -226,9 +218,7 @@ function TooltipOverlay({
     useEffect(() => {
         setLayout(null);
         setFloatPos(null);
-        log('tooltip subscribing to anchorKey=', step.anchorKey);
         return digiaAnchorRegistry.subscribe(step.anchorKey, (l) => {
-            log('tooltip got layout anchorKey=', step.anchorKey, l);
             setLayout(l);
         });
     }, [step.anchorKey]);
@@ -246,7 +236,6 @@ function TooltipOverlay({
                 middleware: [offset(gap), flip(), shift({ padding: 16 })],
             },
         ).then(({ x, y, placement }) => {
-            log('tooltip pos=', { x, y }, 'resolved=', placement);
             setFloatPos({ x, y });
             setResolvedPlacement(placement as string);
         });
@@ -280,6 +269,13 @@ function TooltipOverlay({
 
     const next = useCallback(() => stepTo(stepIndex < config.steps.length - 1 ? stepIndex + 1 : null), [stepIndex, config.steps.length, stepTo]);
     const prev = useCallback(() => { if (stepIndex > 0) stepTo(stepIndex - 1); }, [stepIndex, stepTo]);
+
+    const actionCallbacks = useCallback((): ActionCallbacks => ({
+        onNext: next,
+        onBack: prev,
+        onDismissSelf: dismiss,
+        onDismissAll: dismiss,
+    }), [next, prev, dismiss]);
 
     const tooltipW = Math.min(step.maxWidth, screenW - 32);
 
@@ -345,7 +341,14 @@ function TooltipOverlay({
                                 btnPrimaryBg={step.buttonPrimaryBackgroundColor}
                                 btnPrimaryText={step.buttonPrimaryTextColor}
                                 btnGhostText={step.buttonGhostTextColor}
-                                onPress={() => handleAction(action, { onNext: next, onBack: prev, onSkip: dismiss })}
+                                onPress={() => { void digiaActionHandler.execute(action, {
+                                    campaign_id: request.payloadId,
+                                    campaign_key: request.campaignKey,
+                                    campaign_type: 'guide',
+                                    source: { kind: 'button', button_label: action.label },
+                                    step_index: stepIndex,
+                                    step_total: config.steps.length,
+                                }, actionCallbacks()); }}
                             />
                         ))}
                     </View>
@@ -401,12 +404,14 @@ function SpotlightCallout({
     onNext,
     onBack,
     onSkip,
+    onActionPress,
 }: {
     step: SpotlightStep;
     layout: AnchorLayout;
     onNext: () => void;
     onBack: () => void;
     onSkip: () => void;
+    onActionPress: (action: Action) => void;
 }) {
     const { width: screenW } = useWindowDimensions();
     const [floatPos, setFloatPos] = useState<FloatPos | null>(null);
@@ -508,7 +513,7 @@ function SpotlightCallout({
                         btnPrimaryBg={step.buttonPrimaryBackgroundColor}
                         btnPrimaryText={step.buttonPrimaryTextColor}
                         btnGhostText={step.buttonGhostTextColor}
-                        onPress={() => handleAction(action, { onNext, onBack, onSkip })}
+                        onPress={() => { onActionPress(action); }}
                     />
                 ))}
             </View>
@@ -533,10 +538,7 @@ function SpotlightOverlay({
 
     useEffect(() => {
         setLayout(null);
-        log('spotlight subscribing to anchorKey=', step.anchorKey);
         return digiaAnchorRegistry.subscribe(step.anchorKey, (l) => {
-            log('spotlight got layout anchorKey=', step.anchorKey, l);
-            log('[debug] screenH(window)=', screenH, 'screenH(screen)=', screenDims.height, 'anchor.pageY=', l.pageY);
             setLayout(l);
         });
     }, [step.anchorKey]);
@@ -569,6 +571,24 @@ function SpotlightOverlay({
 
     const next = useCallback(() => stepTo(stepIndex < config.steps.length - 1 ? stepIndex + 1 : null), [stepIndex, config.steps.length, stepTo]);
     const prev = useCallback(() => { if (stepIndex > 0) stepTo(stepIndex - 1); }, [stepIndex, stepTo]);
+
+    const actionCallbacks = useCallback((): ActionCallbacks => ({
+        onNext: next,
+        onBack: prev,
+        onDismissSelf: dismiss,
+        onDismissAll: dismiss,
+    }), [next, prev, dismiss]);
+
+    const handleActionPress = useCallback((action: Action) => {
+        digiaActionHandler.execute(action, {
+            campaign_id: request.payloadId,
+            campaign_key: request.campaignKey,
+            campaign_type: 'guide',
+            source: { kind: 'button', button_label: action.label },
+            step_index: stepIndex,
+            step_total: config.steps.length,
+        }, actionCallbacks());
+    }, [request, stepIndex, config.steps.length, actionCallbacks]);
 
     const handleBackdropPress = useCallback(() => {
         const behavior = config.outsideTapBehavior ?? 'next';
@@ -621,6 +641,7 @@ function SpotlightOverlay({
                             onNext={next}
                             onBack={prev}
                             onSkip={dismiss}
+                            onActionPress={handleActionPress}
                         />
                     </>
                 )}
@@ -631,20 +652,15 @@ function SpotlightOverlay({
 
 // ─── Guide runtime dispatcher ─────────────────────────────────────────────────
 
-const log = (...args: any[]) => __DEV__ && console.log('[DigiaHost]', ...args);
-
 function DigiaGuideRuntime() {
     const [activeRequest, setActiveRequest] = useState<DigiaGuideRequest | null>(null);
 
     useEffect(() => {
-        log('DigiaGuideRuntime mounted — subscribing to guide controller');
         return digiaGuideController.subscribe((event) => {
             if (event.type === 'cancel') {
-                log('guide cancelled payloadId=', event.payloadId);
                 setActiveRequest(null);
                 return;
             }
-            log('guide start campaignKey=', event.request.campaignKey, 'type=', event.request.config.templateType);
             setActiveRequest(event.request);
         });
     }, []);
@@ -653,10 +669,8 @@ function DigiaGuideRuntime() {
 
     switch (activeRequest.config.templateType) {
         case 'tooltip':
-            log('rendering TooltipOverlay');
             return <TooltipOverlay request={activeRequest} config={activeRequest.config} />;
         case 'spotlight':
-            log('rendering SpotlightOverlay');
             return <SpotlightOverlay request={activeRequest} config={activeRequest.config} />;
     }
 }
