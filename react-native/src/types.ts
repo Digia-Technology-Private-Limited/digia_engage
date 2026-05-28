@@ -14,7 +14,7 @@ export interface InAppPayload {
 
 export type CampaignType = 'nudge' | 'guide' | 'inline' | 'survey';
 
-// ─── Experience events ────────────────────────────────────────────────────────
+// ─── Experience events (CEP lifecycle — used by notifyEvent) ──────────────────
 
 /** The experience became visible to the user. */
 export interface ExperienceImpressed {
@@ -32,11 +32,35 @@ export interface ExperienceDismissed {
     readonly type: 'dismissed';
 }
 
+/** The user completed the experience (advanced past the final step). */
+export interface ExperienceCompleted {
+    readonly type: 'completed';
+}
+
 /** Discriminated union of all experience event types. */
 export type DigiaExperienceEvent =
     | ExperienceImpressed
     | ExperienceClicked
-    | ExperienceDismissed;
+    | ExperienceDismissed
+    | ExperienceCompleted;
+
+// ─── Guide lifecycle events (analytics — used by track()) ────────────────────
+
+export type DismissReason = 'user_close' | 'scrim_tap' | 'back_gesture' | 'auto_timeout';
+
+/**
+ * Rich internal event emitted by guide overlays.
+ * Carries all context needed to build the CEP analytics property schema.
+ * Not part of the public plugin API — converted to track() calls in Digia.ts.
+ */
+export type GuideLifecycleEvent =
+    | { type: 'viewed';         stepIndex: number; stepTotal: number; anchorKey: string; displayStyle: 'tooltip' | 'spotlight' }
+    | { type: 'step_viewed';    stepIndex: number; stepTotal: number; anchorKey: string; displayStyle: 'tooltip' | 'spotlight' }
+    | { type: 'clicked';        stepIndex: number; stepTotal: number; anchorKey: string; displayStyle: 'tooltip' | 'spotlight'; ctaLabel: string; actionType: string; actionUrl?: string; elementId?: string }
+    | { type: 'step_clicked';   stepIndex: number; stepTotal: number; anchorKey: string; displayStyle: 'tooltip' | 'spotlight'; ctaLabel: string; actionType: string; actionUrl?: string; elementId?: string }
+    | { type: 'dismissed';      stepIndex: number; stepTotal: number; anchorKey: string; displayStyle: 'tooltip' | 'spotlight'; dismissReason: DismissReason }
+    | { type: 'step_dismissed'; stepIndex: number; stepTotal: number; anchorKey: string; displayStyle: 'tooltip' | 'spotlight'; dismissReason: DismissReason }
+    | { type: 'completed';      stepIndex: number; stepTotal: number; anchorKey: string; displayStyle: 'tooltip' | 'spotlight' };
 
 /**
  * Delegate passed by the Digia SDK to each registered plugin via setup().
@@ -67,6 +91,12 @@ export interface DigiaPlugin {
      * analytics back to their CEP platform.
      */
     notifyEvent(event: DigiaExperienceEvent, payload: InAppPayload): void;
+    /**
+     * Called by the Digia SDK to record a named analytics event with properties.
+     * Implement this to forward Digia lifecycle events (e.g. "Digia Experience Viewed")
+     * to the CEP platform's custom event API.
+     */
+    track?(eventName: string, properties: Record<string, unknown>): void;
     /** Called by Digia.setCurrentScreen() — do not call manually. */
     forwardScreen(name: string): void;
     /** Called by Digia.unregister() or when tearing down the app. */

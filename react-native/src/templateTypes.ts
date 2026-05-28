@@ -73,7 +73,7 @@ export type TooltipConfig = {
     templateType: 'tooltip'
     templateId: string | null
     steps: TooltipStep[]
-    sticky?: boolean
+    outsideTapBehavior?: 'dismiss' | 'next' | 'nothing'
 }
 
 export type SpotlightConfig = {

@@ -11,7 +11,7 @@ const loadModule = (): InAppBrowserModule => {
     try {
         // Dynamic require at runtime — not available at build time.
         // eslint-disable-next-line @typescript-eslint/no-var-requires
-        const pkg = (globalThis as any).require?.('react-native-inappbrowser-reborn');
+        const pkg = (globalThis as any).require('react-native-inappbrowser-reborn');
         if (!pkg) throw new Error('not installed');
         _module = (pkg.InAppBrowser ?? pkg.default?.InAppBrowser ?? pkg) as InAppBrowserModule;
         return _module;

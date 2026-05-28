@@ -27,12 +27,14 @@ import type {
     DigiaDelegate,
     DigiaExperienceEvent,
     DigiaPlugin,
+    GuideLifecycleEvent,
     InAppPayload,
 } from './types';
 import type { TemplateConfig } from './templateTypes';
 
 const PRODUCTION_API_ROOT = 'https://app.digia.tech';
 const SANDBOX_API_ROOT = 'https://dev.digia.tech';
+const DIGIA_SDK_VERSION = '1.0.0';
 
 interface SdkCampaign {
     id?: string;
@@ -89,17 +91,6 @@ class DigiaClass implements DigiaDelegate {
         }
 
         await this._refreshCampaignStore();
-
-        // TODO: TO BE PICKED LATER @aditya-digia — component registration endpoint being removed
-        // try {
-        //     const components = await nativeDigiaModule.getRegisteredComponents();
-        //     if (components.length > 0) {
-        //         this._recordComponents(components.map(c => ({ ...c, platform: 'react_native' })));
-        //     }
-        // } catch {
-        //     // never throw
-        // }
-        // this._flushRegisteredAnchors();
     }
 
     /**
@@ -156,21 +147,10 @@ class DigiaClass implements DigiaDelegate {
         this._plugins.forEach((plugin) => plugin.forwardScreen(name));
     }
 
-    registerAnchor(anchorKey: string, screenName?: string | null): void {
+    registerAnchor(anchorKey: string, _screenName?: string | null): void {
         const cleanAnchorKey = anchorKey.trim();
         if (!cleanAnchorKey) return;
-
         this._registeredAnchorKeys.add(cleanAnchorKey);
-        if (!this._projectId || !this._apiBaseUrl) return;
-
-        this._recordComponents([
-            {
-                component_key: cleanAnchorKey,
-                component_type: 'anchor',
-                screen_name: screenName ?? this._currentScreen,
-                platform: 'react_native',
-            },
-        ]);
     }
 
     unregisterAnchor(anchorKey: string): void {
@@ -188,7 +168,6 @@ class DigiaClass implements DigiaDelegate {
         }
 
         const campaignKey = this._extractCampaignKey(payload);
-        console.log('[Digia:debug] onCampaignTriggered payloadId=' + payload.id + ' extractedKey=' + campaignKey + ' knownKeys=[' + [...this._campaignsByKey.keys()].join(', ') + ']');
         this._log(`onCampaignTriggered payloadId=${payload.id} extractedKey=${campaignKey} knownKeys=[${[...this._campaignsByKey.keys()].join(', ')}]`);
 
         if (campaignKey) {
@@ -218,15 +197,13 @@ class DigiaClass implements DigiaDelegate {
                 }
 
                 this._activePayloads.set(payload.id, payload);
+                const digiaId = campaign._id ?? campaign.id ?? campaignKey;
                 const mounted = digiaGuideController.start({
                     payloadId: payload.id,
                     campaignKey,
+                    campaignId: digiaId,
                     config,
-                    onExperienceEvent: (event) => this._forwardExperienceEvent({
-                        campaignId: payload.id,
-                        type: event.type,
-                        elementId: event.type === 'clicked' ? event.elementId : undefined,
-                    }),
+                    onExperienceEvent: (event) => this._onGuideLifecycleEvent(event, payload.id, campaignKey, digiaId),
                 });
 
                 this._log(`guide trigger campaign_key=${campaignKey} mounted=${mounted}`);
@@ -279,7 +256,7 @@ class DigiaClass implements DigiaDelegate {
         );
     }
 
-    _fireCustomEvent(
+    private _fireCustomEvent(
         eventName: string,
         properties?: Record<string, unknown>,
         context?: ActionContext,
@@ -317,6 +294,75 @@ class DigiaClass implements DigiaDelegate {
         this._plugins.forEach((plugin) => plugin.notifyEvent(event, payload));
     }
 
+    private _onGuideLifecycleEvent(
+        event: GuideLifecycleEvent,
+        payloadId: string,
+        campaignKey: string,
+        campaignId: string,
+    ): void {
+        const eventName = this._guideEventName(event.type);
+        const properties = this._buildGuideProperties(event, campaignId, campaignKey);
+        this._plugins.forEach((p) => p.track?.(eventName, properties));
+
+        // Notify plugins of CEP lifecycle termination (template cleanup) on exit events.
+        if (event.type === 'dismissed' || event.type === 'completed') {
+            const storedPayload = this._activePayloads.get(payloadId);
+            if (storedPayload) {
+                this._plugins.forEach((p) => p.notifyEvent({ type: 'dismissed' }, storedPayload));
+                this._activePayloads.delete(payloadId);
+            }
+        }
+    }
+
+    private _guideEventName(type: GuideLifecycleEvent['type']): string {
+        switch (type) {
+            case 'viewed':         return 'Digia Experience Viewed';
+            case 'step_viewed':    return 'Digia Step Viewed';
+            case 'clicked':        return 'Digia Experience Clicked';
+            case 'step_clicked':   return 'Digia Step Clicked';
+            case 'dismissed':      return 'Digia Experience Dismissed';
+            case 'step_dismissed': return 'Digia Step Dismissed';
+            case 'completed':      return 'Digia Experience Completed';
+        }
+    }
+
+    private _buildGuideProperties(
+        event: GuideLifecycleEvent,
+        campaignId: string,
+        campaignKey: string,
+    ): Record<string, unknown> {
+        const base: Record<string, unknown> = {
+            campaign_id: campaignId,
+            campaign_key: campaignKey,
+            campaign_type: 'guide',
+            display_style: event.displayStyle,
+            step_index: event.stepIndex + 1,
+            step_total: event.stepTotal,
+            anchor_key: event.anchorKey,
+            slot_key: null,
+            element_id: null,
+            cta_label: null,
+            action_type: null,
+            action_url: null,
+            dismiss_reason: null,
+            abandoned_at_step: null,
+            digia_sdk_version: DIGIA_SDK_VERSION,
+            digia_platform: 'react_native',
+        };
+
+        if (event.type === 'clicked' || event.type === 'step_clicked') {
+            base.element_id = event.elementId ?? null;
+            base.cta_label = event.ctaLabel;
+            base.action_type = event.actionType;
+            base.action_url = event.actionUrl ?? null;
+        } else if (event.type === 'dismissed' || event.type === 'step_dismissed') {
+            base.dismiss_reason = event.dismissReason;
+            base.abandoned_at_step = event.stepIndex + 1;
+        }
+
+        return base;
+    }
+
     private _resolveApiBaseUrl(config: DigiaConfig): string {
         const root = (config.baseUrl ??
             (config.environment === 'sandbox' ? SANDBOX_API_ROOT : PRODUCTION_API_ROOT)).trim();
@@ -345,11 +391,6 @@ class DigiaClass implements DigiaDelegate {
                 }
             });
             this._log(`loaded ${campaigns.length} campaign(s): [${[...this._campaignsByKey.keys()].join(', ')}]`);
-            const inlineCampaigns = [...this._campaignsByKey.values()].filter((c) => c.campaign_type === 'inline');
-            console.log('[Digia:debug] loaded campaigns total=' + campaigns.length + ' inline=' + inlineCampaigns.length, inlineCampaigns.map((c) => {
-                const r = c as any;
-                return { key: c.campaign_key, slotKey: r.templateConfig?.slotKey };
-            }));
         } catch (e) {
             const reason = e instanceof Error ? e.message : String(e);
             this._log(`getCampaigns FAILED: ${reason}`);
@@ -398,44 +439,20 @@ class DigiaClass implements DigiaDelegate {
         throw new Error('SDK response missing data.response');
     }
 
-    private _recordComponents(_components: Array<Record<string, unknown>>): void {
-        // TODO: TO BE PICKED LATER @aditya-digia — component recording endpoint being removed
-        // fetch(`${this._apiBaseUrl}/engage/sdk/recordComponents`, {
-        //     method: 'POST',
-        //     headers: {
-        //         'Content-Type': 'application/json',
-        //         'x-digia-project-id': this._projectId,
-        //     },
-        //     body: JSON.stringify({ components }),
-        // }).catch(() => { /* swallow */ });
-    }
-
-    private _flushRegisteredAnchors(): void {
-        if (this._registeredAnchorKeys.size === 0) return;
-        this._recordComponents(
-            [...this._registeredAnchorKeys].map((componentKey) => ({
-                component_key: componentKey,
-                component_type: 'anchor',
-                screen_name: this._currentScreen,
-                platform: 'react_native',
-            })),
-        );
-    }
-
     private _emitSlotWidth(campaign: SdkCampaign): void {
         const raw = campaign as unknown as Record<string, unknown>;
         const config = raw.templateConfig as Record<string, unknown> | undefined;
         if (!config) {
-            console.warn('[Digia:debug] _emitSlotWidth: no templateConfig for campaign', campaign.campaign_key);
+            this._log(`_emitSlotWidth: no templateConfig for campaign ${campaign.campaign_key}`);
             return;
         }
         const slotKey = typeof config.slotKey === 'string' ? config.slotKey : null;
         const width = typeof config.width === 'number' && config.width > 0 ? config.width : null;
-        console.log('[Digia:debug] _emitSlotWidth slotKey=' + slotKey + ' width=' + width + ' campaign=' + campaign.campaign_key);
+        this._log(`_emitSlotWidth slotKey=${slotKey} width=${width} campaign=${campaign.campaign_key}`);
         if (slotKey) {
             DeviceEventEmitter.emit('digiaSlotWidth', { slotKey, width });
         } else {
-            console.warn('[Digia:debug] _emitSlotWidth: no slotKey in templateConfig', JSON.stringify(config));
+            this._log(`_emitSlotWidth: no slotKey in templateConfig ${JSON.stringify(config)}`);
         }
     }
 

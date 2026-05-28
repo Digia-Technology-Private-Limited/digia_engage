@@ -1,11 +1,13 @@
-import type { DigiaExperienceEvent } from './types';
+import type { GuideLifecycleEvent } from './types';
 import type { TemplateConfig } from './templateTypes';
 
 export interface DigiaGuideRequest {
     payloadId: string;
     campaignKey: string;
+    /** Digia backend UUID for this campaign (from the campaign store _id field). */
+    campaignId: string;
     config: TemplateConfig;
-    onExperienceEvent: (event: DigiaExperienceEvent) => void;
+    onExperienceEvent: (event: GuideLifecycleEvent) => void;
 }
 
 type DigiaGuideControllerEvent =
@@ -43,15 +45,6 @@ class DigiaGuideController {
         this._queue = this._queue.filter(r => r.payloadId !== payloadId);
         if (this._activeRequest?.payloadId === payloadId) {
             this._listener?.({ type: 'cancel', payloadId });
-            this._activeRequest = null;
-            this._dispatchNext();
-        }
-    }
-
-    emitExperienceEvent(event: DigiaExperienceEvent): void {
-        if (!this._activeRequest) return;
-        this._activeRequest.onExperienceEvent(event);
-        if (event.type === 'dismissed') {
             this._activeRequest = null;
             this._dispatchNext();
         }

@@ -26,6 +26,7 @@ let _lastActionKey = '';
 let _lastActionAt = 0;
 let _inappBrowserWarned = false;
 const _invalidContextWarned = new Set<string>();
+const MAX_WARNED_KEYS = 50;
 
 const DEBOUNCE_MS = 500;
 const HANDLER_TIMEOUT_MS = 2000;
@@ -147,6 +148,7 @@ async function runDefault(
                 ...(action.fallback_url ? { fallback_url: action.fallback_url } : {}),
                 campaign_id: context.campaign_id,
             });
+            callbacks.onDismissSelf();
             return;
         }
 
@@ -188,11 +190,13 @@ async function runDefault(
             if (isLastStep) {
                 const warnKey = `next:${context.campaign_id}`;
                 if (!_invalidContextWarned.has(warnKey)) {
+                    if (_invalidContextWarned.size >= MAX_WARNED_KEYS) _invalidContextWarned.clear();
                     _invalidContextWarned.add(warnKey);
                     emitHealth(HealthEventType.invalid_action_context, {
                         campaign_id: context.campaign_id, action_type: 'next',
                     });
                 }
+                callbacks.onDismissSelf();
                 return;
             }
             callbacks.onNext();
@@ -203,6 +207,7 @@ async function runDefault(
             if (context.step_index === 0) {
                 const warnKey = `back:${context.campaign_id}`;
                 if (!_invalidContextWarned.has(warnKey)) {
+                    if (_invalidContextWarned.size >= MAX_WARNED_KEYS) _invalidContextWarned.clear();
                     _invalidContextWarned.add(warnKey);
                     emitHealth(HealthEventType.invalid_action_context, {
                         campaign_id: context.campaign_id, action_type: 'back',
@@ -288,6 +293,12 @@ class ActionQueue {
             });
         }
         this._items.push({ widgetAction, actionType, context, callbacks });
+    }
+
+    destroy(): void {
+        this._subscription?.remove();
+        this._subscription = null;
+        this._items = [];
     }
 
     private _flush(): void {

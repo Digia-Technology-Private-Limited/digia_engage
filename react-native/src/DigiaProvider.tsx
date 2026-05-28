@@ -14,6 +14,7 @@ import Svg, { Path } from 'react-native-svg';
 import { digiaGuideController, type DigiaGuideRequest } from './DigiaGuideController';
 import { digiaAnchorRegistry, type AnchorLayout } from './digiaAnchorRegistry';
 import { digiaActionHandler, type ActionCallbacks } from './actionHandler';
+import type { DismissReason } from './types';
 import type { Action, SpotlightConfig, SpotlightStep, TooltipConfig, TooltipStep } from './templateTypes';
 
 // ─── @floating-ui/core platform adapter ──────────────────────────────────────
@@ -213,7 +214,6 @@ function TooltipOverlay({
     const arrowSize = step.arrowSize ?? 8;
     const showArrow = step.showArrow !== false;
     const gap = showArrow ? arrowSize + 4 : 8;
-    const isSticky = config.sticky !== false;
 
     useEffect(() => {
         setLayout(null);
@@ -248,17 +248,40 @@ function TooltipOverlay({
         }
     }, [floatPos, opacityAnim]);
 
-    const dismiss = useCallback(() => {
+    // Fire viewed/step_viewed when the step renders.
+    useEffect(() => {
+        const isMultiStep = config.steps.length > 1;
+        if (stepIndex === 0) {
+            request.onExperienceEvent({ type: 'viewed', stepIndex: 0, stepTotal: config.steps.length, anchorKey: step.anchorKey, displayStyle: 'tooltip' });
+        }
+        if (isMultiStep) {
+            request.onExperienceEvent({ type: 'step_viewed', stepIndex, stepTotal: config.steps.length, anchorKey: step.anchorKey, displayStyle: 'tooltip' });
+        }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [stepIndex]);
+
+    // Closes guide without firing analytics — used after CTA actions have already fired clicked events.
+    const closeFromCTA = useCallback(() => {
         Animated.timing(opacityAnim, { toValue: 0, duration: 150, useNativeDriver: true }).start(() => {
-            request.onExperienceEvent({ type: 'dismissed' });
             digiaGuideController.cancel(request.payloadId);
         });
-    }, [request, opacityAnim]);
+    }, [opacityAnim, request]);
+
+    // Fires dismissed analytics then closes — used for non-CTA dismissals (scrim, back gesture).
+    const dismiss = useCallback((reason: DismissReason = 'scrim_tap') => {
+        Animated.timing(opacityAnim, { toValue: 0, duration: 150, useNativeDriver: true }).start(() => {
+            const isMultiStep = config.steps.length > 1;
+            request.onExperienceEvent({ type: 'dismissed', stepIndex, stepTotal: config.steps.length, anchorKey: step.anchorKey, displayStyle: 'tooltip', dismissReason: reason });
+            if (isMultiStep) {
+                request.onExperienceEvent({ type: 'step_dismissed', stepIndex, stepTotal: config.steps.length, anchorKey: step.anchorKey, displayStyle: 'tooltip', dismissReason: reason });
+            }
+            digiaGuideController.cancel(request.payloadId);
+        });
+    }, [request, opacityAnim, step, config, stepIndex]);
 
     const stepTo = useCallback((newIndex: number | null) => {
         Animated.timing(opacityAnim, { toValue: 0, duration: 150, useNativeDriver: true }).start(() => {
             if (newIndex === null) {
-                request.onExperienceEvent({ type: 'dismissed' });
                 digiaGuideController.cancel(request.payloadId);
             } else {
                 pendingFadeIn.current = true;
@@ -273,105 +296,122 @@ function TooltipOverlay({
     const actionCallbacks = useCallback((): ActionCallbacks => ({
         onNext: next,
         onBack: prev,
-        onDismissSelf: dismiss,
-        onDismissAll: dismiss,
-    }), [next, prev, dismiss]);
+        onDismissSelf: closeFromCTA,
+        onDismissAll: closeFromCTA,
+    }), [next, prev, closeFromCTA]);
 
     const tooltipW = Math.min(step.maxWidth, screenW - 32);
 
-    // Compute arrow offset: position arrow tip at anchor center rather than bubble center.
     const arrowOffset = (showArrow && floatPos && layout && floatingSize)
         ? calcArrowOffset(resolvedPlacement, layout, floatPos, tooltipW, floatingSize.h, step.cornerRadius, arrowSize)
         : undefined;
 
-    // No Modal: sticky tooltips must not block the underlying app.
-    // pointerEvents="box-none" on the container lets all touches outside the
-    // bubble pass through to the scrollable content below.
+    const handleBackdropPress = useCallback(() => {
+        const behavior = config.outsideTapBehavior ?? 'next';
+        if (behavior === 'nothing') return;
+        if (behavior === 'next') next();
+        if (behavior === 'dismiss') dismiss();
+    }, [config.outsideTapBehavior, next, dismiss]);
+
     return (
-        <Animated.View style={[StyleSheet.absoluteFill, { opacity: opacityAnim }]} pointerEvents="box-none">
-            {/* Backdrop — only rendered when NOT sticky (allows tap-to-dismiss) */}
-            {!isSticky && (
-                <Pressable style={StyleSheet.absoluteFill} onPress={dismiss} />
-            )}
-            {floatPos ? (
-                <View
-                    onLayout={(e) => {
-                        const { width, height } = e.nativeEvent.layout;
-                        if (floatingSize?.w !== width || floatingSize?.h !== height) {
-                            setFloatingSize({ w: width, h: height });
-                        }
-                    }}
-                    style={[
-                        s.tooltipBubble,
-                        {
-                            left: floatPos.x,
-                            top: floatPos.y,
-                            width: tooltipW,
-                            backgroundColor: step.backgroundColor,
-                            borderRadius: step.cornerRadius,
-                            borderWidth: step.borderWidth,
-                            borderColor: step.borderColor,
-                            padding: step.padding,
-                        },
-                        step.shadow && s.shadow,
-                    ]}
-                >
-                    {showArrow && (
-                        <GuideArrow
-                            placement={resolvedPlacement}
-                            color={step.arrowColor ?? step.backgroundColor}
-                            borderColor={step.arrowBorderColor ?? step.borderColor}
-                            size={arrowSize}
-                            arrowOffset={arrowOffset}
-                        />
-                    )}
-                    <Text style={{ color: step.titleColor, fontSize: step.titleSize, fontWeight: step.titleWeight }}>
-                        {step.title}
-                    </Text>
-                    {!!step.body && (
-                        <Text style={{ marginTop: 4, color: step.bodyColor, fontSize: step.bodySize }}>
-                            {step.body}
-                        </Text>
-                    )}
-                    <View style={s.actionRow}>
-                        {step.actions.map((action, i) => (
-                            <ActionButton
-                                key={i}
-                                action={action}
-                                btnPrimaryBg={step.buttonPrimaryBackgroundColor}
-                                btnPrimaryText={step.buttonPrimaryTextColor}
-                                btnGhostText={step.buttonGhostTextColor}
-                                onPress={() => { void digiaActionHandler.execute(action, {
-                                    campaign_id: request.payloadId,
-                                    campaign_key: request.campaignKey,
-                                    campaign_type: 'guide',
-                                    source: { kind: 'button', button_label: action.label },
-                                    step_index: stepIndex,
-                                    step_total: config.steps.length,
-                                }, actionCallbacks()); }}
+        <Modal transparent statusBarTranslucent animationType="none" visible>
+            <Animated.View style={[StyleSheet.absoluteFill, { opacity: opacityAnim }]}>
+                {/* Full-screen backdrop: blocks all touches (scroll, tap) */}
+                <Pressable style={StyleSheet.absoluteFill} onPress={handleBackdropPress} />
+                {floatPos ? (
+                    // Bubble as Pressable so tapping the bubble body also advances
+                    <Pressable
+                        onLayout={(e) => {
+                            const { width, height } = e.nativeEvent.layout;
+                            if (floatingSize?.w !== width || floatingSize?.h !== height) {
+                                setFloatingSize({ w: width, h: height });
+                            }
+                        }}
+                        onPress={handleBackdropPress}
+                        style={[
+                            s.tooltipBubble,
+                            {
+                                left: floatPos.x,
+                                top: floatPos.y,
+                                width: tooltipW,
+                                backgroundColor: step.backgroundColor,
+                                borderRadius: step.cornerRadius,
+                                borderWidth: step.borderWidth,
+                                borderColor: step.borderColor,
+                                padding: step.padding,
+                            },
+                            step.shadow && s.shadow,
+                        ]}
+                    >
+                        {showArrow && (
+                            <GuideArrow
+                                placement={resolvedPlacement}
+                                color={step.arrowColor ?? step.backgroundColor}
+                                borderColor={step.arrowBorderColor ?? step.borderColor}
+                                size={arrowSize}
+                                arrowOffset={arrowOffset}
                             />
-                        ))}
+                        )}
+                        <Text style={{ color: step.titleColor, fontSize: step.titleSize, fontWeight: step.titleWeight }}>
+                            {step.title}
+                        </Text>
+                        {!!step.body && (
+                            <Text style={{ marginTop: 4, color: step.bodyColor, fontSize: step.bodySize }}>
+                                {step.body}
+                            </Text>
+                        )}
+                        <View style={s.actionRow}>
+                            {step.actions.map((action, i) => (
+                                <ActionButton
+                                    key={i}
+                                    action={action}
+                                    btnPrimaryBg={step.buttonPrimaryBackgroundColor}
+                                    btnPrimaryText={step.buttonPrimaryTextColor}
+                                    btnGhostText={step.buttonGhostTextColor}
+                                    onPress={() => {
+                                        const isMultiStep = config.steps.length > 1;
+                                        const isLastStep = stepIndex === config.steps.length - 1;
+                                        const actionUrl = 'url' in action ? (action as { url: string }).url : undefined;
+                                        request.onExperienceEvent({ type: 'clicked', stepIndex, stepTotal: config.steps.length, anchorKey: step.anchorKey, displayStyle: 'tooltip', ctaLabel: action.label, actionType: action.type, actionUrl });
+                                        if (isMultiStep) {
+                                            request.onExperienceEvent({ type: 'step_clicked', stepIndex, stepTotal: config.steps.length, anchorKey: step.anchorKey, displayStyle: 'tooltip', ctaLabel: action.label, actionType: action.type, actionUrl });
+                                        }
+                                        if (isMultiStep && isLastStep && action.type !== 'back') {
+                                            request.onExperienceEvent({ type: 'completed', stepIndex, stepTotal: config.steps.length, anchorKey: step.anchorKey, displayStyle: 'tooltip' });
+                                        }
+                                        void digiaActionHandler.execute(action, {
+                                            campaign_id: request.payloadId,
+                                            campaign_key: request.campaignKey,
+                                            campaign_type: 'guide',
+                                            source: { kind: 'button', button_label: action.label },
+                                            step_index: stepIndex,
+                                            step_total: config.steps.length,
+                                        }, actionCallbacks());
+                                    }}
+                                />
+                            ))}
+                        </View>
+                    </Pressable>
+                ) : (
+                    // Off-screen measurement pass to determine bubble size before positioning.
+                    <View
+                        pointerEvents="none"
+                        onLayout={(e) => setFloatingSize({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height })}
+                        style={[s.tooltipBubble, { left: -9999, top: -9999, width: tooltipW, padding: step.padding }]}
+                    >
+                        <Text style={{ fontSize: step.titleSize }}>{step.title}</Text>
+                        {!!step.body && <Text style={{ fontSize: step.bodySize }}>{step.body}</Text>}
+                        <View style={s.actionRow}>
+                            {step.actions.map((a, i) => (
+                                <View key={i} style={s.button}>
+                                    <Text style={{ fontSize: 13 }}>{a.label}</Text>
+                                </View>
+                            ))}
+                        </View>
                     </View>
-                </View>
-            ) : (
-                // Off-screen measurement pass to determine bubble size before positioning.
-                <View
-                    pointerEvents="none"
-                    onLayout={(e) => setFloatingSize({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height })}
-                    style={[s.tooltipBubble, { left: -9999, top: -9999, width: tooltipW, padding: step.padding }]}
-                >
-                    <Text style={{ fontSize: step.titleSize }}>{step.title}</Text>
-                    {!!step.body && <Text style={{ fontSize: step.bodySize }}>{step.body}</Text>}
-                    <View style={s.actionRow}>
-                        {step.actions.map((a, i) => (
-                            <View key={i} style={s.button}>
-                                <Text style={{ fontSize: 13 }}>{a.label}</Text>
-                            </View>
-                        ))}
-                    </View>
-                </View>
-            )}
-        </Animated.View>
+                )}
+            </Animated.View>
+        </Modal>
     );
 }
 
@@ -401,16 +441,10 @@ function buildCutoutPath(
 function SpotlightCallout({
     step,
     layout,
-    onNext,
-    onBack,
-    onSkip,
     onActionPress,
 }: {
     step: SpotlightStep;
     layout: AnchorLayout;
-    onNext: () => void;
-    onBack: () => void;
-    onSkip: () => void;
     onActionPress: (action: Action) => void;
 }) {
     const { width: screenW } = useWindowDimensions();
@@ -532,7 +566,6 @@ function SpotlightOverlay({
     const [layout, setLayout] = useState<AnchorLayout | null>(null);
     const step = config.steps[stepIndex];
     const { width: screenW, height: screenH } = useWindowDimensions();
-    const screenDims = Dimensions.get('screen');
     const opacityAnim = useRef(new Animated.Value(1)).current;
     const pendingFadeIn = useRef(false);
 
@@ -550,17 +583,38 @@ function SpotlightOverlay({
         }
     }, [layout, opacityAnim]);
 
-    const dismiss = useCallback(() => {
+    // Fire viewed/step_viewed when the step renders.
+    useEffect(() => {
+        const isMultiStep = config.steps.length > 1;
+        if (stepIndex === 0) {
+            request.onExperienceEvent({ type: 'viewed', stepIndex: 0, stepTotal: config.steps.length, anchorKey: step.anchorKey, displayStyle: 'spotlight' });
+        }
+        if (isMultiStep) {
+            request.onExperienceEvent({ type: 'step_viewed', stepIndex, stepTotal: config.steps.length, anchorKey: step.anchorKey, displayStyle: 'spotlight' });
+        }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [stepIndex]);
+
+    const closeFromCTA = useCallback(() => {
         Animated.timing(opacityAnim, { toValue: 0, duration: 150, useNativeDriver: true }).start(() => {
-            request.onExperienceEvent({ type: 'dismissed' });
             digiaGuideController.cancel(request.payloadId);
         });
-    }, [request, opacityAnim]);
+    }, [opacityAnim, request]);
+
+    const dismiss = useCallback((reason: DismissReason = 'scrim_tap') => {
+        Animated.timing(opacityAnim, { toValue: 0, duration: 150, useNativeDriver: true }).start(() => {
+            const isMultiStep = config.steps.length > 1;
+            request.onExperienceEvent({ type: 'dismissed', stepIndex, stepTotal: config.steps.length, anchorKey: step.anchorKey, displayStyle: 'spotlight', dismissReason: reason });
+            if (isMultiStep) {
+                request.onExperienceEvent({ type: 'step_dismissed', stepIndex, stepTotal: config.steps.length, anchorKey: step.anchorKey, displayStyle: 'spotlight', dismissReason: reason });
+            }
+            digiaGuideController.cancel(request.payloadId);
+        });
+    }, [request, opacityAnim, step, config, stepIndex]);
 
     const stepTo = useCallback((newIndex: number | null) => {
         Animated.timing(opacityAnim, { toValue: 0, duration: 150, useNativeDriver: true }).start(() => {
             if (newIndex === null) {
-                request.onExperienceEvent({ type: 'dismissed' });
                 digiaGuideController.cancel(request.payloadId);
             } else {
                 pendingFadeIn.current = true;
@@ -575,11 +629,21 @@ function SpotlightOverlay({
     const actionCallbacks = useCallback((): ActionCallbacks => ({
         onNext: next,
         onBack: prev,
-        onDismissSelf: dismiss,
-        onDismissAll: dismiss,
-    }), [next, prev, dismiss]);
+        onDismissSelf: closeFromCTA,
+        onDismissAll: closeFromCTA,
+    }), [next, prev, closeFromCTA]);
 
     const handleActionPress = useCallback((action: Action) => {
+        const isMultiStep = config.steps.length > 1;
+        const isLastStep = stepIndex === config.steps.length - 1;
+        const actionUrl = 'url' in action ? (action as { url: string }).url : undefined;
+        request.onExperienceEvent({ type: 'clicked', stepIndex, stepTotal: config.steps.length, anchorKey: step.anchorKey, displayStyle: 'spotlight', ctaLabel: action.label, actionType: action.type, actionUrl });
+        if (isMultiStep) {
+            request.onExperienceEvent({ type: 'step_clicked', stepIndex, stepTotal: config.steps.length, anchorKey: step.anchorKey, displayStyle: 'spotlight', ctaLabel: action.label, actionType: action.type, actionUrl });
+        }
+        if (isMultiStep && isLastStep && action.type !== 'back') {
+            request.onExperienceEvent({ type: 'completed', stepIndex, stepTotal: config.steps.length, anchorKey: step.anchorKey, displayStyle: 'spotlight' });
+        }
         digiaActionHandler.execute(action, {
             campaign_id: request.payloadId,
             campaign_key: request.campaignKey,
@@ -588,13 +652,13 @@ function SpotlightOverlay({
             step_index: stepIndex,
             step_total: config.steps.length,
         }, actionCallbacks());
-    }, [request, stepIndex, config.steps.length, actionCallbacks]);
+    }, [request, stepIndex, config, step, actionCallbacks]);
 
     const handleBackdropPress = useCallback(() => {
         const behavior = config.outsideTapBehavior ?? 'next';
         if (behavior === 'nothing') return;
         if (behavior === 'next') next();
-        if (behavior === 'dismiss') dismiss();
+        if (behavior === 'dismiss') dismiss('scrim_tap');
     }, [config.outsideTapBehavior, next, dismiss]);
 
     const pad = step.highlightPadding;
@@ -638,9 +702,6 @@ function SpotlightOverlay({
                         <SpotlightCallout
                             step={step}
                             layout={layout}
-                            onNext={next}
-                            onBack={prev}
-                            onSkip={dismiss}
                             onActionPress={handleActionPress}
                         />
                     </>
