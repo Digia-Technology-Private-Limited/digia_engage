@@ -50,24 +50,42 @@ function makeVirtualRef(layout: AnchorLayout, padding = 0) {
 type FloatPos = { x: number; y: number };
 
 // ─── Arrow component ──────────────────────────────────────────────────────────
+//
+// arrowOffset: pixel distance from the start of the side (left for top/bottom,
+// top for left/right) to the arrow tip center.  When provided the arrow points
+// at the anchor; when omitted it falls back to centering.
 
 function GuideArrow({
     placement,
     color,
     borderColor,
     size,
+    arrowOffset,
 }: {
     placement: string;
     color: string;
     borderColor: string;
     size: number;
+    arrowOffset?: number;
 }) {
     const s1 = size + 1;
+
+    // Horizontal: used for top / bottom placements (left offset within bubble width)
+    const hWrap = (edge: 'top' | 'bottom') =>
+        arrowOffset !== undefined
+            ? { [edge]: -s1, left: arrowOffset - s1, width: s1 * 2 }
+            : { [edge]: -s1, left: 0, right: 0 };
+
+    // Vertical: used for left / right placements (top offset within bubble height)
+    const vWrap = (edge: 'left' | 'right') =>
+        arrowOffset !== undefined
+            ? { [edge]: -s1, top: arrowOffset - s1, height: s1 * 2 }
+            : { [edge]: -s1, top: 0, bottom: 0 };
 
     if (placement === 'bottom' || placement === 'below') {
         // bubble below anchor → arrow at TOP pointing ▲ up
         return (
-            <View style={[arrowS.wrap, { top: -s1, left: 0, right: 0 }]}>
+            <View style={[arrowS.wrap, hWrap('top')]}>
                 <View style={{ position: 'relative', width: s1 * 2, height: s1, alignItems: 'center' }}>
                     <View style={{ position: 'absolute', top: 0, width: 0, height: 0, borderStyle: 'solid', borderLeftWidth: s1, borderRightWidth: s1, borderBottomWidth: s1, borderTopWidth: 0, borderLeftColor: 'transparent', borderRightColor: 'transparent', borderBottomColor: borderColor }} />
                     <View style={{ position: 'absolute', top: 1, width: 0, height: 0, borderStyle: 'solid', borderLeftWidth: size, borderRightWidth: size, borderBottomWidth: size, borderTopWidth: 0, borderLeftColor: 'transparent', borderRightColor: 'transparent', borderBottomColor: color }} />
@@ -78,7 +96,7 @@ function GuideArrow({
     if (placement === 'top' || placement === 'above') {
         // bubble above anchor → arrow at BOTTOM pointing ▼ down
         return (
-            <View style={[arrowS.wrap, { bottom: -s1, left: 0, right: 0 }]}>
+            <View style={[arrowS.wrap, hWrap('bottom')]}>
                 <View style={{ position: 'relative', width: s1 * 2, height: s1, alignItems: 'center' }}>
                     <View style={{ position: 'absolute', top: 0, width: 0, height: 0, borderStyle: 'solid', borderLeftWidth: s1, borderRightWidth: s1, borderTopWidth: s1, borderBottomWidth: 0, borderLeftColor: 'transparent', borderRightColor: 'transparent', borderTopColor: borderColor }} />
                     <View style={{ position: 'absolute', top: 0, width: 0, height: 0, borderStyle: 'solid', borderLeftWidth: size, borderRightWidth: size, borderTopWidth: size, borderBottomWidth: 0, borderLeftColor: 'transparent', borderRightColor: 'transparent', borderTopColor: color }} />
@@ -89,7 +107,7 @@ function GuideArrow({
     if (placement === 'right') {
         // bubble right of anchor → arrow at LEFT pointing ◀ left
         return (
-            <View style={[arrowS.wrap, { left: -s1, top: 0, bottom: 0 }]}>
+            <View style={[arrowS.wrap, vWrap('left')]}>
                 <View style={{ position: 'relative', width: s1, height: s1 * 2, justifyContent: 'center' }}>
                     <View style={{ position: 'absolute', left: 0, width: 0, height: 0, borderStyle: 'solid', borderTopWidth: s1, borderBottomWidth: s1, borderRightWidth: s1, borderLeftWidth: 0, borderTopColor: 'transparent', borderBottomColor: 'transparent', borderRightColor: borderColor }} />
                     <View style={{ position: 'absolute', left: 1, width: 0, height: 0, borderStyle: 'solid', borderTopWidth: size, borderBottomWidth: size, borderRightWidth: size, borderLeftWidth: 0, borderTopColor: 'transparent', borderBottomColor: 'transparent', borderRightColor: color }} />
@@ -100,7 +118,7 @@ function GuideArrow({
     if (placement === 'left') {
         // bubble left of anchor → arrow at RIGHT pointing ▶ right
         return (
-            <View style={[arrowS.wrap, { right: -s1, top: 0, bottom: 0 }]}>
+            <View style={[arrowS.wrap, vWrap('right')]}>
                 <View style={{ position: 'relative', width: s1, height: s1 * 2, justifyContent: 'center' }}>
                     <View style={{ position: 'absolute', right: 0, width: 0, height: 0, borderStyle: 'solid', borderTopWidth: s1, borderBottomWidth: s1, borderLeftWidth: s1, borderRightWidth: 0, borderTopColor: 'transparent', borderBottomColor: 'transparent', borderLeftColor: borderColor }} />
                     <View style={{ position: 'absolute', right: 1, width: 0, height: 0, borderStyle: 'solid', borderTopWidth: size, borderBottomWidth: size, borderLeftWidth: size, borderRightWidth: 0, borderTopColor: 'transparent', borderBottomColor: 'transparent', borderLeftColor: color }} />
@@ -114,6 +132,32 @@ function GuideArrow({
 const arrowS = StyleSheet.create({
     wrap: { position: 'absolute', alignItems: 'center', justifyContent: 'center' },
 });
+
+// ─── Arrow offset helper ──────────────────────────────────────────────────────
+// Returns the pixel distance from the start of the bubble side (left for
+// top/bottom, top for left/right) to where the arrow tip should point,
+// clamped so the arrow stays inside the bubble's rounded corners.
+
+function calcArrowOffset(
+    placement: string,
+    layout: AnchorLayout,
+    floatPos: FloatPos,
+    bubbleW: number,
+    bubbleH: number,
+    cornerRadius: number,
+    arrowSize: number,
+): number {
+    const minPad = cornerRadius + arrowSize + 2;
+    const isHoriz = placement === 'top' || placement === 'bottom' || placement === 'above' || placement === 'below';
+    if (isHoriz) {
+        const anchorCenterX = layout.pageX + layout.width / 2;
+        const raw = anchorCenterX - floatPos.x;
+        return Math.max(minPad, Math.min(bubbleW - minPad, raw));
+    }
+    const anchorCenterY = layout.pageY + layout.height / 2;
+    const raw = anchorCenterY - floatPos.y;
+    return Math.max(minPad, Math.min(bubbleH - minPad, raw));
+}
 
 // ─── Shared action helpers ────────────────────────────────────────────────────
 
@@ -153,6 +197,9 @@ function ActionButton({
 }
 
 // ─── Tooltip overlay ──────────────────────────────────────────────────────────
+// Rendered WITHOUT a Modal so sticky tooltips do not block underlying scrolls.
+// DigiaHost must be placed at the app root level (after NavigationContainer)
+// for absoluteFill to cover the full screen.
 
 function TooltipOverlay({
     request,
@@ -236,85 +283,92 @@ function TooltipOverlay({
 
     const tooltipW = Math.min(step.maxWidth, screenW - 32);
 
+    // Compute arrow offset: position arrow tip at anchor center rather than bubble center.
+    const arrowOffset = (showArrow && floatPos && layout && floatingSize)
+        ? calcArrowOffset(resolvedPlacement, layout, floatPos, tooltipW, floatingSize.h, step.cornerRadius, arrowSize)
+        : undefined;
+
+    // No Modal: sticky tooltips must not block the underlying app.
+    // pointerEvents="box-none" on the container lets all touches outside the
+    // bubble pass through to the scrollable content below.
     return (
-        <Modal transparent statusBarTranslucent animationType="none" visible>
-            <Animated.View style={[StyleSheet.absoluteFill, { opacity: opacityAnim }]} pointerEvents="box-none">
-                {/* Backdrop — only when NOT sticky */}
-                {!isSticky && (
-                    <Pressable style={StyleSheet.absoluteFill} onPress={dismiss} />
-                )}
-                {floatPos ? (
-                    <View
-                        pointerEvents="box-none"
-                        onLayout={(e) => {
-                            const { width, height } = e.nativeEvent.layout;
-                            if (floatingSize?.w !== width || floatingSize?.h !== height) {
-                                setFloatingSize({ w: width, h: height });
-                            }
-                        }}
-                        style={[
-                            s.tooltipBubble,
-                            {
-                                left: floatPos.x,
-                                top: floatPos.y,
-                                width: tooltipW,
-                                backgroundColor: step.backgroundColor,
-                                borderRadius: step.cornerRadius,
-                                borderWidth: step.borderWidth,
-                                borderColor: step.borderColor,
-                                padding: step.padding,
-                            },
-                            step.shadow && s.shadow,
-                        ]}
-                    >
-                        {showArrow && (
-                            <GuideArrow
-                                placement={resolvedPlacement}
-                                color={step.arrowColor ?? step.backgroundColor}
-                                borderColor={step.arrowBorderColor ?? step.borderColor}
-                                size={arrowSize}
-                            />
-                        )}
-                        <Text style={{ color: step.titleColor, fontSize: step.titleSize, fontWeight: step.titleWeight }}>
-                            {step.title}
+        <Animated.View style={[StyleSheet.absoluteFill, { opacity: opacityAnim }]} pointerEvents="box-none">
+            {/* Backdrop — only rendered when NOT sticky (allows tap-to-dismiss) */}
+            {!isSticky && (
+                <Pressable style={StyleSheet.absoluteFill} onPress={dismiss} />
+            )}
+            {floatPos ? (
+                <View
+                    onLayout={(e) => {
+                        const { width, height } = e.nativeEvent.layout;
+                        if (floatingSize?.w !== width || floatingSize?.h !== height) {
+                            setFloatingSize({ w: width, h: height });
+                        }
+                    }}
+                    style={[
+                        s.tooltipBubble,
+                        {
+                            left: floatPos.x,
+                            top: floatPos.y,
+                            width: tooltipW,
+                            backgroundColor: step.backgroundColor,
+                            borderRadius: step.cornerRadius,
+                            borderWidth: step.borderWidth,
+                            borderColor: step.borderColor,
+                            padding: step.padding,
+                        },
+                        step.shadow && s.shadow,
+                    ]}
+                >
+                    {showArrow && (
+                        <GuideArrow
+                            placement={resolvedPlacement}
+                            color={step.arrowColor ?? step.backgroundColor}
+                            borderColor={step.arrowBorderColor ?? step.borderColor}
+                            size={arrowSize}
+                            arrowOffset={arrowOffset}
+                        />
+                    )}
+                    <Text style={{ color: step.titleColor, fontSize: step.titleSize, fontWeight: step.titleWeight }}>
+                        {step.title}
+                    </Text>
+                    {!!step.body && (
+                        <Text style={{ marginTop: 4, color: step.bodyColor, fontSize: step.bodySize }}>
+                            {step.body}
                         </Text>
-                        {!!step.body && (
-                            <Text style={{ marginTop: 4, color: step.bodyColor, fontSize: step.bodySize }}>
-                                {step.body}
-                            </Text>
-                        )}
-                        <View style={s.actionRow}>
-                            {step.actions.map((action, i) => (
-                                <ActionButton
-                                    key={i}
-                                    action={action}
-                                    btnPrimaryBg={step.buttonPrimaryBackgroundColor}
-                                    btnPrimaryText={step.buttonPrimaryTextColor}
-                                    btnGhostText={step.buttonGhostTextColor}
-                                    onPress={() => handleAction(action, { onNext: next, onBack: prev, onSkip: dismiss })}
-                                />
-                            ))}
-                        </View>
+                    )}
+                    <View style={s.actionRow}>
+                        {step.actions.map((action, i) => (
+                            <ActionButton
+                                key={i}
+                                action={action}
+                                btnPrimaryBg={step.buttonPrimaryBackgroundColor}
+                                btnPrimaryText={step.buttonPrimaryTextColor}
+                                btnGhostText={step.buttonGhostTextColor}
+                                onPress={() => handleAction(action, { onNext: next, onBack: prev, onSkip: dismiss })}
+                            />
+                        ))}
                     </View>
-                ) : (
-                    <View
-                        pointerEvents="none"
-                        onLayout={(e) => setFloatingSize({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height })}
-                        style={[s.tooltipBubble, { left: -9999, top: -9999, width: tooltipW, padding: step.padding }]}
-                    >
-                        <Text style={{ fontSize: step.titleSize }}>{step.title}</Text>
-                        {!!step.body && <Text style={{ fontSize: step.bodySize }}>{step.body}</Text>}
-                        <View style={s.actionRow}>
-                            {step.actions.map((a, i) => (
-                                <View key={i} style={s.button}>
-                                    <Text style={{ fontSize: 13 }}>{a.label}</Text>
-                                </View>
-                            ))}
-                        </View>
+                </View>
+            ) : (
+                // Off-screen measurement pass to determine bubble size before positioning.
+                <View
+                    pointerEvents="none"
+                    onLayout={(e) => setFloatingSize({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height })}
+                    style={[s.tooltipBubble, { left: -9999, top: -9999, width: tooltipW, padding: step.padding }]}
+                >
+                    <Text style={{ fontSize: step.titleSize }}>{step.title}</Text>
+                    {!!step.body && <Text style={{ fontSize: step.bodySize }}>{step.body}</Text>}
+                    <View style={s.actionRow}>
+                        {step.actions.map((a, i) => (
+                            <View key={i} style={s.button}>
+                                <Text style={{ fontSize: 13 }}>{a.label}</Text>
+                            </View>
+                        ))}
                     </View>
-                )}
-            </Animated.View>
-        </Modal>
+                </View>
+            )}
+        </Animated.View>
     );
 }
 
@@ -387,6 +441,11 @@ function SpotlightCallout({
         });
     }, [layout, floatingSize, step.calloutPosition, calloutW, step.highlightPadding, gap]);
 
+    // Compute arrow offset: point arrow tip at anchor center.
+    const arrowOffset = (showArrow && floatPos && floatingSize)
+        ? calcArrowOffset(resolvedPlacement, layout, floatPos, calloutW, floatingSize.h, step.calloutCornerRadius, arrowSize)
+        : undefined;
+
     const calloutStyle = {
         backgroundColor: step.calloutBackgroundColor,
         borderRadius: step.calloutCornerRadius,
@@ -430,6 +489,7 @@ function SpotlightCallout({
                     color={step.arrowColor ?? step.calloutBackgroundColor}
                     borderColor={step.arrowBorderColor ?? step.calloutBorderColor}
                     size={arrowSize}
+                    arrowOffset={arrowOffset}
                 />
             )}
             <Text style={{ color: step.titleColor, fontSize: step.titleSize, fontWeight: step.titleWeight }}>
