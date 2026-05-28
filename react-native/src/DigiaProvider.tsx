@@ -49,32 +49,71 @@ function makeVirtualRef(layout: AnchorLayout, padding = 0) {
 
 type FloatPos = { x: number; y: number };
 
-async function computeFloat(
-    layout: AnchorLayout,
-    floatingW: number,
-    floatingH: number,
-    placement: string,
-    gap: number,
-    highlightPadding = 0,
-): Promise<FloatPos> {
-    const fpPlacement = (
-        placement === 'above' ? 'top'
-        : placement === 'below' ? 'bottom'
-        : placement === 'auto' ? 'bottom'
-        : placement
-    ) as any;
+// ─── Arrow component ──────────────────────────────────────────────────────────
 
-    const { x, y } = await computePosition(
-        makeVirtualRef(layout, highlightPadding),
-        { w: floatingW, h: floatingH },
-        {
-            platform: rnCorePlatform as any,
-            placement: fpPlacement,
-            middleware: [offset(gap), flip(), shift({ padding: 16 })],
-        },
-    );
-    return { x, y };
+function GuideArrow({
+    placement,
+    color,
+    borderColor,
+    size,
+}: {
+    placement: string;
+    color: string;
+    borderColor: string;
+    size: number;
+}) {
+    const s1 = size + 1;
+
+    if (placement === 'bottom' || placement === 'below') {
+        // bubble below anchor → arrow at TOP pointing ▲ up
+        return (
+            <View style={[arrowS.wrap, { top: -s1, left: 0, right: 0 }]}>
+                <View style={{ position: 'relative', width: s1 * 2, height: s1, alignItems: 'center' }}>
+                    <View style={{ position: 'absolute', top: 0, width: 0, height: 0, borderStyle: 'solid', borderLeftWidth: s1, borderRightWidth: s1, borderBottomWidth: s1, borderTopWidth: 0, borderLeftColor: 'transparent', borderRightColor: 'transparent', borderBottomColor: borderColor }} />
+                    <View style={{ position: 'absolute', top: 1, width: 0, height: 0, borderStyle: 'solid', borderLeftWidth: size, borderRightWidth: size, borderBottomWidth: size, borderTopWidth: 0, borderLeftColor: 'transparent', borderRightColor: 'transparent', borderBottomColor: color }} />
+                </View>
+            </View>
+        );
+    }
+    if (placement === 'top' || placement === 'above') {
+        // bubble above anchor → arrow at BOTTOM pointing ▼ down
+        return (
+            <View style={[arrowS.wrap, { bottom: -s1, left: 0, right: 0 }]}>
+                <View style={{ position: 'relative', width: s1 * 2, height: s1, alignItems: 'center' }}>
+                    <View style={{ position: 'absolute', top: 0, width: 0, height: 0, borderStyle: 'solid', borderLeftWidth: s1, borderRightWidth: s1, borderTopWidth: s1, borderBottomWidth: 0, borderLeftColor: 'transparent', borderRightColor: 'transparent', borderTopColor: borderColor }} />
+                    <View style={{ position: 'absolute', top: 0, width: 0, height: 0, borderStyle: 'solid', borderLeftWidth: size, borderRightWidth: size, borderTopWidth: size, borderBottomWidth: 0, borderLeftColor: 'transparent', borderRightColor: 'transparent', borderTopColor: color }} />
+                </View>
+            </View>
+        );
+    }
+    if (placement === 'right') {
+        // bubble right of anchor → arrow at LEFT pointing ◀ left
+        return (
+            <View style={[arrowS.wrap, { left: -s1, top: 0, bottom: 0 }]}>
+                <View style={{ position: 'relative', width: s1, height: s1 * 2, justifyContent: 'center' }}>
+                    <View style={{ position: 'absolute', left: 0, width: 0, height: 0, borderStyle: 'solid', borderTopWidth: s1, borderBottomWidth: s1, borderRightWidth: s1, borderLeftWidth: 0, borderTopColor: 'transparent', borderBottomColor: 'transparent', borderRightColor: borderColor }} />
+                    <View style={{ position: 'absolute', left: 1, width: 0, height: 0, borderStyle: 'solid', borderTopWidth: size, borderBottomWidth: size, borderRightWidth: size, borderLeftWidth: 0, borderTopColor: 'transparent', borderBottomColor: 'transparent', borderRightColor: color }} />
+                </View>
+            </View>
+        );
+    }
+    if (placement === 'left') {
+        // bubble left of anchor → arrow at RIGHT pointing ▶ right
+        return (
+            <View style={[arrowS.wrap, { right: -s1, top: 0, bottom: 0 }]}>
+                <View style={{ position: 'relative', width: s1, height: s1 * 2, justifyContent: 'center' }}>
+                    <View style={{ position: 'absolute', right: 0, width: 0, height: 0, borderStyle: 'solid', borderTopWidth: s1, borderBottomWidth: s1, borderLeftWidth: s1, borderRightWidth: 0, borderTopColor: 'transparent', borderBottomColor: 'transparent', borderLeftColor: borderColor }} />
+                    <View style={{ position: 'absolute', right: 1, width: 0, height: 0, borderStyle: 'solid', borderTopWidth: size, borderBottomWidth: size, borderLeftWidth: size, borderRightWidth: 0, borderTopColor: 'transparent', borderBottomColor: 'transparent', borderLeftColor: color }} />
+                </View>
+            </View>
+        );
+    }
+    return null;
 }
+
+const arrowS = StyleSheet.create({
+    wrap: { position: 'absolute', alignItems: 'center', justifyContent: 'center' },
+});
 
 // ─── Shared action helpers ────────────────────────────────────────────────────
 
@@ -125,13 +164,18 @@ function TooltipOverlay({
     const [stepIndex, setStepIndex] = useState(0);
     const [layout, setLayout] = useState<AnchorLayout | null>(null);
     const [floatPos, setFloatPos] = useState<FloatPos | null>(null);
+    const [resolvedPlacement, setResolvedPlacement] = useState<string>('bottom');
     const [floatingSize, setFloatingSize] = useState<{ w: number; h: number } | null>(null);
     const step = config.steps[stepIndex];
     const { width: screenW } = useWindowDimensions();
     const opacityAnim = useRef(new Animated.Value(1)).current;
     const pendingFadeIn = useRef(false);
 
-    // Subscribe to anchor layout
+    const arrowSize = step.arrowSize ?? 8;
+    const showArrow = step.showArrow !== false;
+    const gap = showArrow ? arrowSize + 4 : 8;
+    const isSticky = config.sticky !== false;
+
     useEffect(() => {
         setLayout(null);
         setFloatPos(null);
@@ -142,18 +186,25 @@ function TooltipOverlay({
         });
     }, [step.anchorKey]);
 
-    // Recompute float position whenever layout or floating size changes
     useEffect(() => {
         if (!layout || !floatingSize) return;
         const tooltipW = Math.min(step.maxWidth, screenW - 32);
-        computeFloat(layout, Math.min(tooltipW, floatingSize.w), floatingSize.h, step.placement, 8)
-            .then((pos) => {
-                log('tooltip computed pos=', pos, 'placement=', step.placement);
-                setFloatPos(pos);
-            });
-    }, [layout, floatingSize, step.placement, step.maxWidth, screenW]);
+        const fpPlacement = (step.placement === 'auto' ? 'bottom' : step.placement) as any;
+        computePosition(
+            makeVirtualRef(layout),
+            { w: Math.min(tooltipW, floatingSize.w), h: floatingSize.h },
+            {
+                platform: rnCorePlatform as any,
+                placement: fpPlacement,
+                middleware: [offset(gap), flip(), shift({ padding: 16 })],
+            },
+        ).then(({ x, y, placement }) => {
+            log('tooltip pos=', { x, y }, 'resolved=', placement);
+            setFloatPos({ x, y });
+            setResolvedPlacement(placement as string);
+        });
+    }, [layout, floatingSize, step.placement, step.maxWidth, screenW, gap]);
 
-    // Fade in once positioned after a step transition
     useEffect(() => {
         if (floatPos && pendingFadeIn.current) {
             pendingFadeIn.current = false;
@@ -188,8 +239,10 @@ function TooltipOverlay({
     return (
         <Modal transparent statusBarTranslucent animationType="none" visible>
             <Animated.View style={[StyleSheet.absoluteFill, { opacity: opacityAnim }]} pointerEvents="box-none">
-                {/* Invisible backdrop tap to dismiss */}
-                <Pressable style={StyleSheet.absoluteFill} onPress={dismiss} />
+                {/* Backdrop — only when NOT sticky */}
+                {!isSticky && (
+                    <Pressable style={StyleSheet.absoluteFill} onPress={dismiss} />
+                )}
                 {floatPos ? (
                     <View
                         pointerEvents="box-none"
@@ -214,6 +267,14 @@ function TooltipOverlay({
                             step.shadow && s.shadow,
                         ]}
                     >
+                        {showArrow && (
+                            <GuideArrow
+                                placement={resolvedPlacement}
+                                color={step.arrowColor ?? step.backgroundColor}
+                                borderColor={step.arrowBorderColor ?? step.borderColor}
+                                size={arrowSize}
+                            />
+                        )}
                         <Text style={{ color: step.titleColor, fontSize: step.titleSize, fontWeight: step.titleWeight }}>
                             {step.title}
                         </Text>
@@ -236,7 +297,6 @@ function TooltipOverlay({
                         </View>
                     </View>
                 ) : (
-                    // Hidden measurement pass — renders off-screen to get floating size
                     <View
                         pointerEvents="none"
                         onLayout={(e) => setFloatingSize({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height })}
@@ -268,7 +328,6 @@ function buildCutoutPath(
         const cx = x + w / 2;
         const cy = y + h / 2;
         const r = Math.max(w, h) / 2;
-        // SVG circle as path (two arcs)
         return `M${cx - r},${cy} a${r},${r} 0 1,0 ${r * 2},0 a${r},${r} 0 1,0 -${r * 2},0 Z`;
     }
     if (shape === 'pill') {
@@ -297,17 +356,36 @@ function SpotlightCallout({
 }) {
     const { width: screenW } = useWindowDimensions();
     const [floatPos, setFloatPos] = useState<FloatPos | null>(null);
+    const [resolvedPlacement, setResolvedPlacement] = useState<string>('below');
     const [floatingSize, setFloatingSize] = useState<{ w: number; h: number } | null>(null);
     const calloutW = Math.min(step.calloutMaxWidth, screenW - 32);
 
+    const arrowSize = step.arrowSize ?? 8;
+    const showArrow = step.showArrow !== false;
+    const gap = (step.calloutGap ?? 8) + (showArrow ? arrowSize : 0);
+
     useEffect(() => {
         if (!floatingSize) return;
-        computeFloat(layout, Math.min(calloutW, floatingSize.w), floatingSize.h, step.calloutPosition, step.calloutGap ?? 8, step.highlightPadding)
-            .then((pos) => {
-                console.log('[Digia:spotlight] floatPos=', pos, 'calloutH=', floatingSize.h, 'calloutBottom=', pos.y + floatingSize.h, 'cutoutTop=', layout.pageY - step.highlightPadding, 'gap=', (layout.pageY - step.highlightPadding) - (pos.y + floatingSize.h));
-                setFloatPos(pos);
-            });
-    }, [layout, floatingSize, step.calloutPosition, calloutW, step.highlightPadding]);
+        const fpPlacement = (
+            step.calloutPosition === 'above' ? 'top'
+            : step.calloutPosition === 'below' ? 'bottom'
+            : step.calloutPosition === 'auto' ? 'bottom'
+            : step.calloutPosition
+        ) as any;
+        computePosition(
+            makeVirtualRef(layout, step.highlightPadding),
+            { w: Math.min(calloutW, floatingSize.w), h: floatingSize.h },
+            {
+                platform: rnCorePlatform as any,
+                placement: fpPlacement,
+                middleware: [offset(gap), flip(), shift({ padding: 16 })],
+            },
+        ).then(({ x, y, placement }) => {
+            console.log('[Digia:spotlight] floatPos=', { x, y }, 'resolved=', placement);
+            setFloatPos({ x, y });
+            setResolvedPlacement(placement as string);
+        });
+    }, [layout, floatingSize, step.calloutPosition, calloutW, step.highlightPadding, gap]);
 
     const calloutStyle = {
         backgroundColor: step.calloutBackgroundColor,
@@ -319,7 +397,6 @@ function SpotlightCallout({
     };
 
     if (!floatPos) {
-        // Measure pass — must match actual render exactly so computeFloat gets correct height
         return (
             <View
                 pointerEvents="none"
@@ -347,6 +424,14 @@ function SpotlightCallout({
                 step.calloutShadow && s.shadow,
             ]}
         >
+            {showArrow && (
+                <GuideArrow
+                    placement={resolvedPlacement}
+                    color={step.arrowColor ?? step.calloutBackgroundColor}
+                    borderColor={step.arrowBorderColor ?? step.calloutBorderColor}
+                    size={arrowSize}
+                />
+            )}
             <Text style={{ color: step.titleColor, fontSize: step.titleSize, fontWeight: step.titleWeight }}>
                 {step.title}
             </Text>
@@ -396,7 +481,6 @@ function SpotlightOverlay({
         });
     }, [step.anchorKey]);
 
-    // Fade in once layout arrives after a step transition
     useEffect(() => {
         if (layout && pendingFadeIn.current) {
             pendingFadeIn.current = false;
@@ -426,6 +510,13 @@ function SpotlightOverlay({
     const next = useCallback(() => stepTo(stepIndex < config.steps.length - 1 ? stepIndex + 1 : null), [stepIndex, config.steps.length, stepTo]);
     const prev = useCallback(() => { if (stepIndex > 0) stepTo(stepIndex - 1); }, [stepIndex, stepTo]);
 
+    const handleBackdropPress = useCallback(() => {
+        const behavior = config.outsideTapBehavior ?? 'next';
+        if (behavior === 'nothing') return;
+        if (behavior === 'next') next();
+        if (behavior === 'dismiss') dismiss();
+    }, [config.outsideTapBehavior, next, dismiss]);
+
     const pad = step.highlightPadding;
     const cutoutX = layout ? layout.pageX - pad : 0;
     const cutoutY = layout ? layout.pageY - pad : 0;
@@ -441,7 +532,6 @@ function SpotlightOverlay({
             <Animated.View style={[StyleSheet.absoluteFill, { opacity: opacityAnim }]} pointerEvents="box-none">
                 {layout && (
                     <>
-                        {/* Scrim with cutout */}
                         <Svg
                             width={screenW}
                             height={screenH}
@@ -463,9 +553,8 @@ function SpotlightOverlay({
                                 />
                             )}
                         </Svg>
-                        {/* Tap outside to dismiss */}
-                        <Pressable style={StyleSheet.absoluteFill} onPress={dismiss} />
-                        {/* Callout */}
+                        {/* Backdrop with configurable outside-tap behaviour */}
+                        <Pressable style={StyleSheet.absoluteFill} onPress={handleBackdropPress} />
                         <SpotlightCallout
                             step={step}
                             layout={layout}
@@ -512,9 +601,7 @@ function DigiaGuideRuntime() {
     }
 }
 
-// ─── DigiaHost — drop-in sibling, no children or wrapper needed ──────────────
-// DigiaHostView (native Compose overlay for nudges) is intentionally NOT
-// included here — it intercepts Android touches when placed as a sibling.
+// ─── DigiaHost ────────────────────────────────────────────────────────────────
 
 export function DigiaHost() {
     return <DigiaGuideRuntime />;
