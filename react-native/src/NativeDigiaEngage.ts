@@ -49,6 +49,15 @@ export interface Spec extends TurboModule {
     /** Invalidate / dismiss a campaign by its ID. */
     invalidateCampaign(campaignId: string): void;
 
+    /** Register an anchor element position for tooltip/spotlight targeting. */
+    registerAnchor(key: string, x: number, y: number, width: number, height: number): void;
+
+    /** Remove a previously registered anchor. */
+    unregisterAnchor(key: string): void;
+
+    /** Return all component keys registered with the native SDK. */
+    getRegisteredComponents(): Promise<string[]>;
+
 }
 
 
