@@ -395,6 +395,15 @@ internal object DigiaInstance : DigiaCEPDelegate {
         }
     }
 
+    private fun loadOrCreateDeviceId(context: Context): String {
+        val prefs: SharedPreferences = context.getSharedPreferences("digia_prefs", Context.MODE_PRIVATE)
+        val existing = prefs.getString("digia_device_id", null)
+        if (!existing.isNullOrBlank()) return existing
+        val newId = UUID.randomUUID().toString()
+        prefs.edit().putString("digia_device_id", newId).apply()
+        return newId
+    }
+
     private fun logWarning(message: String) {
         Log.w("DigiaInstance", message)
     }
