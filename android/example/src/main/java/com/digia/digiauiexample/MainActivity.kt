@@ -1,4 +1,4 @@
-package com.digia.digiauiexample
+package com.digia.engageexample
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity

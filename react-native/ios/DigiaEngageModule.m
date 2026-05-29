@@ -22,9 +22,11 @@
 
 @interface RCT_EXTERN_MODULE(DigiaEngageModule, RCTEventEmitter)
 
-RCT_EXTERN_METHOD(initialize:(NSString *)apiKey
+RCT_EXTERN_METHOD(initialize:(NSString *)projectId
                   environment:(NSString *)environment
                   logLevel:(NSString *)logLevel
+                  baseUrl:(NSString *)baseUrl
+                  fontFamily:(NSString *)fontFamily
                   resolve:(RCTPromiseResolveBlock)resolve
                   reject:(RCTPromiseRejectBlock)reject)
 
@@ -57,6 +59,10 @@ RCT_EXTERN_METHOD(showAnchoredOverlay:(NSString *)id
 @interface RCT_EXTERN_MODULE(DigiaSlotView, RCTViewManager)
 RCT_EXPORT_VIEW_PROPERTY(placementKey, NSString)
 RCT_EXPORT_VIEW_PROPERTY(onContentSizeChange, RCTDirectEventBlock)
+@end
+
+@interface RCT_EXTERN_MODULE(DigiaAnchorView, RCTViewManager)
+RCT_EXPORT_VIEW_PROPERTY(anchorKey, NSString)
 @end
 
 @interface RCT_EXTERN_MODULE(DigiaAnchorView, RCTViewManager)

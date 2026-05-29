@@ -54,6 +54,7 @@ internal class DigiaViewManager : SimpleViewManager<DigiaHostView>() {
                         FrameLayout.LayoutParams.MATCH_PARENT,
                 )
 
+        android.util.Log.d("DigiaHost", "[DigiaViewManager] RN-side NativeDigiaHostView instance created (id=${view.id})")
         return view
     }
 

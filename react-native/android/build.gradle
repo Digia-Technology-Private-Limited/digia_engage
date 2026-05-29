@@ -2,13 +2,13 @@
  * Android Gradle build file for the @digia/engage-react-native library module.
  *
  * This module is a thin bridge layer that:
- *   • Depends on the Digia Engage Android AAR (digia-ui)
+ *   • Depends on the Digia Engage Android AAR
  *   • Depends on the React Native SDK
  *   • Exposes a ReactPackage (DigiaPackage) that registers the native module
  *     and native view to React Native's bridge
  *
  * The Compose runtime/tooling dependencies are inherited transitively from
- * the digia-ui AAR via `api` declarations; we only add what is needed for
+ * the Digia Engage AAR via `api` declarations; we only add what is needed for
  * the bridge code itself.
  */
 

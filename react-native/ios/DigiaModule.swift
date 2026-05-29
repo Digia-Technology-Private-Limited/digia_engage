@@ -4,7 +4,7 @@
  * React Native NativeModule that bridges the Digia Engage iOS SDK.
  *
  * Exposed methods (callable from JS via NativeModules.DigiaEngageModule):
- *   initialize(apiKey, environment, logLevel): Promise<void>
+ *   initialize(projectId, environment, logLevel): Promise<void>
  *   registerBridge(): void
  *   setCurrentScreen(name): void
  *   triggerCampaign(id, content, cepContext): void
@@ -61,9 +61,11 @@ final class DigiaModule: RCTEventEmitter {
 
     @objc
     func initialize(
-        _ apiKey: String,
+        _ projectId: String,
         environment: String,
         logLevel: String,
+        baseUrl: String?,
+        fontFamily: String?,
         resolve: @escaping RCTPromiseResolveBlock,
         reject: @escaping RCTPromiseRejectBlock
     ) {
@@ -76,9 +78,11 @@ final class DigiaModule: RCTEventEmitter {
         }
 
         let config = DigiaConfig(
-            apiKey: apiKey,
+            apiKey: projectId,
             logLevel: logLevelValue,
-            environment: envValue
+            environment: envValue,
+            developerConfig: baseUrl.flatMap { $0.isEmpty ? nil : DigiaDeveloperConfig(baseURL: $0) },
+            fontFamily: fontFamily.flatMap { $0.isEmpty ? nil : $0 }
         )
 
         Task { @MainActor in

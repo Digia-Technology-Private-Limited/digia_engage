@@ -22,7 +22,6 @@
  */
 package com.digia.engage.rn
 
-import android.widget.FrameLayout
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.ViewModelStoreOwner
 import androidx.lifecycle.setViewTreeLifecycleOwner
@@ -59,7 +58,14 @@ internal class DigiaModule(
     // ─── initialize ───────────────────────────────────────────────────────────
 
     @ReactMethod
-    fun initialize(apiKey: String, environment: String, logLevel: String, promise: Promise) {
+    fun initialize(
+            apiKey: String,
+            environment: String,
+            logLevel: String,
+            baseUrl: String?,
+            fontFamily: String?,
+            promise: Promise
+    ) {
         try {
             val config =
                     DigiaConfig(
@@ -75,10 +81,18 @@ internal class DigiaModule(
                                         "none" -> DigiaLogLevel.NONE
                                         else -> DigiaLogLevel.ERROR
                                     },
+                            baseUrl = baseUrl?.takeIf { it.isNotBlank() },
+                            fontFamily = fontFamily?.takeIf { it.isNotBlank() },
                     )
             Digia.initialize(reactContext.applicationContext, config)
 
             UiThreadUtil.runOnUiThread {
+                // Mount the Compose overlay ABOVE the ReactRootView via addContentView().
+                // This keeps it outside Fabric's shadow tree entirely so Fabric hit-testing
+                // never sees it. Touch pass-through is handled by DigiaHostView.dispatchTouchEvent
+                // returning false at the native Android level — which works correctly at this
+                // level of the hierarchy, unlike inside Fabric where pointerEvents="none" on
+                // non-ReactViewGroup views is not respected during shadow-tree hit-testing.
                 mountDigiaHost()
                 promise.resolve(null)
             }
@@ -138,13 +152,42 @@ internal class DigiaModule(
         rnPlugin.delegate?.onCampaignInvalidated(campaignId)
     }
 
+    // ─── Anchor registration ──────────────────────────────────────────────────
+
+    @ReactMethod
+    fun registerAnchor(key: String, x: Int, y: Int, width: Int, height: Int) {
+        Digia.registerAnchor(key, x, y, width, height)
+    }
+
+    @ReactMethod
+    fun unregisterAnchor(key: String) {
+        Digia.unregisterAnchor(key)
+    }
+
     // ─── Internal: mount the Compose overlay host ─────────────────────────────
 
     private fun mountDigiaHost() {
-        val activity = reactContext.currentActivity ?: return
+        val activity = reactContext.currentActivity ?: run {
+            android.util.Log.w("DigiaHost", "[mountDigiaHost] no current activity — skipping")
+            return
+        }
 
         val contentRoot = activity.window.decorView.findViewWithTag<DigiaHostView>(DIGIA_HOST_TAG)
-        if (contentRoot != null) return
+        if (contentRoot != null) {
+            android.util.Log.d("DigiaHost", "[mountDigiaHost] already mounted (tag found) — skipping")
+            return
+        }
+
+        android.util.Log.d("DigiaHost", "[mountDigiaHost] mounting native overlay on DecorView")
+
+        // Mount on the DecorView (not content area) so the overlay covers the full screen
+        // including status bar and navigation bar. This also ensures the Compose Popup's
+        // canvas y=0 aligns with the absolute screen y=0, matching getLocationOnScreen()
+        // coordinates used by DigiaAnchorView.
+        val decorView = activity.window.decorView as? android.view.ViewGroup ?: run {
+            android.util.Log.w("DigiaHost", "[mountDigiaHost] decorView not a ViewGroup — skipping")
+            return
+        }
 
         val composeView =
                 DigiaHostView(activity).apply {
@@ -155,13 +198,14 @@ internal class DigiaModule(
                             setViewTreeSavedStateRegistryOwner(activity)
                 }
 
-        activity.addContentView(
+        decorView.addView(
                 composeView,
-                FrameLayout.LayoutParams(
-                        FrameLayout.LayoutParams.MATCH_PARENT,
-                        FrameLayout.LayoutParams.MATCH_PARENT,
+                android.view.ViewGroup.LayoutParams(
+                        android.view.ViewGroup.LayoutParams.MATCH_PARENT,
+                        android.view.ViewGroup.LayoutParams.MATCH_PARENT,
                 ),
         )
+        android.util.Log.d("DigiaHost", "[mountDigiaHost] done — DecorView child count: ${decorView.childCount}")
     }
 
     companion object {

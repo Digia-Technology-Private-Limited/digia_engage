@@ -1,15 +1,13 @@
 /**
  * NativeDigiaModule
  *
- * Low-level TurboModule binding to the native Digia Engage module.
+ * Low-level native binding to the Digia Engage module.
  *
  * The module is resolved lazily on first use (not at import time) so that
  * module evaluation before native initialisation doesn't throw.
  * Resolution order:
- *   1. TurboModuleRegistry.get()   — New Architecture / JSI path
- *   2. NativeModules               — bridge interop layer (RN 0.73+ New Arch
- *                                    with isTurboModule: false in ReactModuleInfo)
- *   3. null                        — non-Android environments; methods no-op
+ *   1. NativeModules               — iOS bridge module
+ *   2. null                        — non-Android environments; methods no-op
  *
  * Prefer using the high-level `Digia` singleton from `index.ts`.
  */
@@ -26,7 +24,7 @@ import { NativeModules, TurboModuleRegistry } from 'react-native';
  */
 export interface Spec extends TurboModule {
     /** Initialise the SDK. Call once before anything else. */
-    initialize(apiKey: string, environment: string, logLevel: string): Promise<void>;
+    initialize(projectId: string, environment: string, logLevel: string, baseUrl?: string, fontFamily?: string): Promise<void>;
 
     /**
      * Wire the internal RNEventBridgePlugin with the native SDK.
@@ -61,12 +59,17 @@ export interface Spec extends TurboModule {
 // If neither resolves, warn in DEV and use no-op stubs so non-Android
 // environments (web, Storybook) don't crash.
 let _resolved: Spec | null = null;
+let _didResolve = false;
+
+function resolveCodegenModule(): Spec | null {
+    return TurboModuleRegistry.get<Spec>('DigiaEngageModule') ?? null;
+}
+
 function getModule(): Spec | null {
-    if (_resolved !== null) return _resolved;
-    _resolved =
-        TurboModuleRegistry.get<Spec>('DigiaEngageModule') ??
-        (NativeModules.DigiaEngageModule as Spec | undefined) ??
-        null;
+    if (_didResolve) return _resolved;
+    _didResolve = true;
+
+    _resolved = (NativeModules.DigiaEngageModule as Spec | undefined) ?? resolveCodegenModule();
     if (__DEV__ && !_resolved) {
         console.warn(
             '[Digia] DigiaEngageModule not found.\n' +
@@ -77,12 +80,15 @@ function getModule(): Spec | null {
 }
 
 export const nativeDigiaModule: Spec = {
-    initialize: (apiKey, environment, logLevel) =>
-        getModule()?.initialize(apiKey, environment, logLevel) ?? Promise.resolve(),
+    initialize: (projectId, environment, logLevel, baseUrl, fontFamily) =>
+        getModule()?.initialize(projectId, environment, logLevel, baseUrl, fontFamily) ?? Promise.resolve(),
     registerBridge: () => getModule()?.registerBridge(),
     setCurrentScreen: (name) => getModule()?.setCurrentScreen(name),
     triggerCampaign: (id, content, cepContext) =>
         getModule()?.triggerCampaign(id, content, cepContext),
     invalidateCampaign: (campaignId) => getModule()?.invalidateCampaign(campaignId),
+    registerAnchor: (key, x, y, width, height) => getModule()?.registerAnchor(key, x, y, width, height),
+    unregisterAnchor: (key) => getModule()?.unregisterAnchor(key),
+    getRegisteredComponents: () => getModule()?.getRegisteredComponents() ?? Promise.resolve([]),
     getConstants: () => getModule()?.getConstants?.() ?? {},
 };
