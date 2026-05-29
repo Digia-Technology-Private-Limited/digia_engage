@@ -18,7 +18,7 @@ internal class CampaignFetcher(private val config: DigiaConfig, private val devi
             else DigiaEndpoints.PRODUCTION).trimEnd('/')
 
         val fullUrl = "$baseUrl/api/v1/engage/sdk/getCampaigns"
-        android.util.Log.d("Digia", "[CampaignFetcher] fetching: $fullUrl (env=${config.environment})")
+        // android.util.Log.d("Digia", "[CampaignFetcher] fetching: $fullUrl (env=${config.environment})")
         val url = URL(fullUrl)
         val connection = (url.openConnection() as HttpURLConnection).apply {
             requestMethod = "POST"
@@ -32,7 +32,7 @@ internal class CampaignFetcher(private val config: DigiaConfig, private val devi
         }
 
         val code = connection.responseCode
-        android.util.Log.d("Digia", "[CampaignFetcher] response: HTTP $code")
+        // android.util.Log.d("Digia", "[CampaignFetcher] response: HTTP $code")
         if (code != 200) throw IOException("getCampaigns failed: HTTP $code")
 
         val body = connection.inputStream.bufferedReader().readText()

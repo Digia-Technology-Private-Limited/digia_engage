@@ -52,14 +52,14 @@ fun DigiaSlot(placementKey: String, modifier: Modifier = Modifier) {
 
     when {
         carouselConfig != null -> {
-            android.util.Log.d("DigiaSlot", "rendering carousel for slot '$placementKey' items=${carouselConfig.items.size}")
+            // android.util.Log.d("DigiaSlot", "rendering carousel for slot '$placementKey' items=${carouselConfig.items.size}")
             CompositionLocalProvider(LocalUIResources provides UIResources()) {
                 val carousel = remember(carouselConfig) { buildCarouselWidget(carouselConfig) }
                 carousel.ToWidget(RenderPayload(scopeContext = null))
             }
         }
         storyConfig != null -> {
-            android.util.Log.d("DigiaSlot", "rendering story for slot '$placementKey' items=${storyConfig.items.size}")
+            // android.util.Log.d("DigiaSlot", "rendering story for slot '$placementKey' items=${storyConfig.items.size}")
             val payload = slotPayloads[placementKey]
                 ?: InAppPayload(id = placementKey, content = emptyMap(), cepContext = emptyMap())
             DigiaInlineStory(

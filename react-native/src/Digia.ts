@@ -590,7 +590,7 @@ class DigiaClass implements DigiaDelegate {
     private _log(message: string): void {
         if (this._logLevel !== 'verbose') return;
         // eslint-disable-next-line no-console
-        console.log(`[Digia] ${message}`);
+        // console.log(`[Digia] ${message}`);
     }
 
 }

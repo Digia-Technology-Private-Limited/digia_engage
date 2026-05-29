@@ -221,9 +221,9 @@ function TooltipOverlay({
     useEffect(() => {
         setLayout(null);
         setFloatPos(null);
-        if (__DEV__) console.log(`[Digia] guide waiting for anchor key="${step.anchorKey}"`);
+        // if (__DEV__) console.log(`[Digia] guide waiting for anchor key="${step.anchorKey}"`);
         return digiaAnchorRegistry.subscribe(step.anchorKey, (l) => {
-            if (__DEV__) console.log(`[Digia] anchor resolved key="${step.anchorKey}"`, l);
+            // if (__DEV__) console.log(`[Digia] anchor resolved key="${step.anchorKey}"`, l);
             setLayout(l);
         });
     }, [step.anchorKey]);
@@ -480,7 +480,7 @@ function SpotlightCallout({
                 middleware: [offset(gap), flip(), shift({ padding: 16 })],
             },
         ).then(({ x, y, placement }) => {
-            console.log('[Digia:spotlight] floatPos=', { x, y }, 'resolved=', placement);
+            // console.log('[Digia:spotlight] floatPos=', { x, y }, 'resolved=', placement);
             setFloatPos({ x, y });
             setResolvedPlacement(placement as string);
         });

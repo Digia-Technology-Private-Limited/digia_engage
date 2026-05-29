@@ -36,11 +36,11 @@ export function DigiaSlotView({ placementKey, style }: DigiaSlotViewProps) {
     const [contentWidth, setContentWidth] = useState<number | null>(null);
 
     useEffect(() => {
-        console.log('[DigiaSlotView:debug] mounted placementKey=' + placementKey);
+        // console.log('[DigiaSlotView:debug] mounted placementKey=' + placementKey);
         const sub = DeviceEventEmitter.addListener(
             'digiaSlotWidth',
             (data: { slotKey: string; width: number | null }) => {
-                console.log('[DigiaSlotView:debug] digiaSlotWidth event received', JSON.stringify(data), 'myKey=' + placementKey, 'match=' + (data.slotKey === placementKey));
+                // console.log('[DigiaSlotView:debug] digiaSlotWidth event received', JSON.stringify(data), 'myKey=' + placementKey, 'match=' + (data.slotKey === placementKey));
                 if (data.slotKey === placementKey) {
                     setContentWidth(data.width && data.width > 0 ? data.width : null);
                 }
@@ -53,7 +53,7 @@ export function DigiaSlotView({ placementKey, style }: DigiaSlotViewProps) {
         (event: { nativeEvent: { height: number; width: number } }) => {
             const h = event.nativeEvent.height ?? 0;
             const w = event.nativeEvent.width ?? 0;
-            console.log('[DigiaSlotView:debug] onContentSizeChange placementKey=' + placementKey + ' h=' + h + ' w=' + w);
+            // console.log('[DigiaSlotView:debug] onContentSizeChange placementKey=' + placementKey + ' h=' + h + ' w=' + w);
             setContentHeight(Math.max(0, h));
             setContentWidth(w > 0 ? w : null);
         },

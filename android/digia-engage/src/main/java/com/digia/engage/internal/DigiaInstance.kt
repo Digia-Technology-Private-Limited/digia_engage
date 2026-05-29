@@ -246,7 +246,7 @@ internal object DigiaInstance : DigiaCEPDelegate {
 
     override fun onCampaignTriggered(payload: InAppPayload) {
         scope.launch(Dispatchers.Main.immediate) {
-            android.util.Log.d("Digia", "[onCampaignTriggered] id=${payload.id} state=${_sdkState.value}")
+            // android.util.Log.d("Digia", "[onCampaignTriggered] id=${payload.id} state=${_sdkState.value}")
             when (_sdkState.value) {
                 SDKState.NOT_INITIALIZED -> {
                     logWarning("campaign dropped — SDK not initialized: ${payload.id}")
@@ -332,7 +332,7 @@ internal object DigiaInstance : DigiaCEPDelegate {
     private fun routeCampaign(campaign: CampaignModel, payload: InAppPayload = campaignPayload(campaign)) {
         val campaignKey = campaign.campaignKey
         val routedPayload = payloadForCampaign(campaign, payload)
-        android.util.Log.d("Digia", "[routeCampaign] routing '$campaignKey' type=${campaign.campaignType}")
+        // android.util.Log.d("Digia", "[routeCampaign] routing '$campaignKey' type=${campaign.campaignType}")
         when (campaign.campaignType) {
             "guide" -> guideOrchestrator.start(campaign)
             "nudge" -> displayCoordinator.routeNudge(routedPayload)
