@@ -146,13 +146,13 @@ dependencies {
 val signingPassword = findProperty("signingInMemoryKeyPassword") as String? ?: ""
 val keyFile = rootProject.file("private-key.asc")
 
-signing {
-    if (keyFile.exists()) {
+if (keyFile.exists()) {
+    apply(plugin = "signing")
+    configure<org.gradle.plugins.signing.SigningExtension> {
         useInMemoryPgpKeys(keyFile.readText(), signingPassword)
-        sign(publishing.publications)
+        sign(extensions.getByType<PublishingExtension>().publications)
     }
-}
-
-tasks.withType<Sign>().configureEach {
-    onlyIf { keyFile.exists() }
+    tasks.withType(org.gradle.plugins.signing.Sign::class.java).configureEach {
+        onlyIf { keyFile.exists() }
+    }
 }

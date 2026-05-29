@@ -70,7 +70,7 @@ android {
 }
 
 dependencies {
-    implementation 'tech.digia:engage:2.0.0-rc.1'
+    implementation 'tech.digia:engage:2.0.0-rc.2'
 
     // ── React Native ─────────────────────────────────────────────────────────
     // React Native is provided by the host app; mark as compileOnly so it is

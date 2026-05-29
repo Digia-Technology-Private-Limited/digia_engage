@@ -1,0 +1,35 @@
+name: Publish React Native SDK to npm
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to publish (e.g. 2.0.0-rc.2). Leave blank to use package.json."
+        required: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          registry-url: "https://registry.npmjs.org"
+
+      - name: Set version
+        if: ${{ github.event.inputs.version != '' }}
+        run: |
+          cd react-native
+          npm version ${{ github.event.inputs.version }} --no-git-tag-version
+
+      - name: Install dependencies
+        run: cd react-native && npm install --ignore-scripts
+
+      - name: Build
+        run: cd react-native && npm run build
+
+      - name: Publish to npm
+        run: cd react-native && npm publish --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
