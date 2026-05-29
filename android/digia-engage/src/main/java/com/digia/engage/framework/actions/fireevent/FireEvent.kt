@@ -13,14 +13,6 @@ import com.digia.engage.framework.models.ExprOr
 import com.digia.engage.framework.state.StateContext
 import com.digia.engage.framework.utils.JsonLike
 
-/**
- * Fire Event Action
- *
- * Sends analytics events to the registered analytics handler.
- * Events can contain expressions that will be evaluated before sending.
- *
- * @param events List of analytic events to fire
- */
 data class FireEventAction(
     override var actionId: ActionId? = null,
     override var disableActionIf: ExprOr<Boolean>? = null,
@@ -45,7 +37,6 @@ data class FireEventAction(
     }
 }
 
-/** Processor for fire event action */
 class FireEventProcessor : ActionProcessor<FireEventAction>() {
     override suspend fun execute(
         context: Context,

@@ -142,3 +142,17 @@ dependencies {
     debugImplementation("androidx.compose.ui:ui-tooling")
     debugImplementation("androidx.compose.ui:ui-test-manifest")
 }
+
+val signingPassword = findProperty("signingInMemoryKeyPassword") as String? ?: ""
+val keyFile = rootProject.file("private-key.asc")
+
+if (keyFile.exists()) {
+    apply(plugin = "signing")
+    configure<org.gradle.plugins.signing.SigningExtension> {
+        useInMemoryPgpKeys(keyFile.readText(), signingPassword)
+        sign(extensions.getByType<PublishingExtension>().publications)
+    }
+    tasks.withType(org.gradle.plugins.signing.Sign::class.java).configureEach {
+        onlyIf { keyFile.exists() }
+    }
+}

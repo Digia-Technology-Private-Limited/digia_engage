@@ -61,8 +61,8 @@ internal fun GuideRenderer() {
     val config      = step.widgetConfig
     val anchorRect  = DigiaInstance.findAnchor(step.anchorKey) ?: return
 
-    android.util.Log.d("Digia",
-        "[GuideRenderer] step=${guideState.stepIndex} anchorKey='${step.anchorKey}' anchorRect=$anchorRect")
+    // android.util.Log.d("Digia",
+    //     "[GuideRenderer] step=${guideState.stepIndex} anchorKey='${step.anchorKey}' anchorRect=$anchorRect")
 
     // Auto-advance coroutine
     if (step.advanceTrigger == "auto" && step.autoDelayMs != null) {

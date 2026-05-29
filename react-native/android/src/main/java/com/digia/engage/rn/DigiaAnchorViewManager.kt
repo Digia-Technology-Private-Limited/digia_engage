@@ -13,9 +13,7 @@ internal class DigiaAnchorContainerView(context: Context) : FrameLayout(context)
 
     var anchorKey: String = ""
 
-    private val globalLayoutListener = ViewTreeObserver.OnGlobalLayoutListener {
-        reportPosition()
-    }
+    private val globalLayoutListener = ViewTreeObserver.OnGlobalLayoutListener { reportPosition() }
 
     override fun onAttachedToWindow() {
         super.onAttachedToWindow()
@@ -36,10 +34,13 @@ internal class DigiaAnchorContainerView(context: Context) : FrameLayout(context)
         val targetView: android.view.View = if (childCount > 0) getChildAt(0) else this
         val w = targetView.width
         val h = targetView.height
-        if (w == 0 || h == 0) return  // not measured yet — wait for next layout pass
+        if (w == 0 || h == 0) return // not measured yet — wait for next layout pass
         val loc = IntArray(2)
         targetView.getLocationOnScreen(loc)
-        android.util.Log.d("Digia", "[DigiaAnchorView] registerAnchor key='$key' x=${loc[0]} y=${loc[1]} w=$w h=$h")
+        android.util.Log.d(
+                "Digia",
+                "[DigiaAnchorView] registerAnchor key='$key' x=${loc[0]} y=${loc[1]} w=$w h=$h"
+        )
         Digia.registerAnchor(key, loc[0], loc[1], w, h)
         Digia.registerAnchorView(key, targetView)
     }
@@ -51,14 +52,13 @@ internal class DigiaAnchorViewManager : ViewGroupManager<DigiaAnchorContainerVie
 
     override fun getName(): String = VIEW_NAME
 
-    override fun createViewInstance(context: ThemedReactContext) =
-        DigiaAnchorContainerView(context)
+    override fun createViewInstance(context: ThemedReactContext) = DigiaAnchorContainerView(context)
 
     // Use updateProperties instead of @ReactProp to be compatible with both
     // Old Architecture (Paper) and New Architecture (Fabric) without codegen.
     override fun updateProperties(
-        viewToUpdate: DigiaAnchorContainerView,
-        props: com.facebook.react.uimanager.ReactStylesDiffMap,
+            viewToUpdate: DigiaAnchorContainerView,
+            props: com.facebook.react.uimanager.ReactStylesDiffMap,
     ) {
         super.updateProperties(viewToUpdate, props)
         if (props.hasKey("anchorKey")) {
@@ -78,7 +78,7 @@ internal class DigiaAnchorViewManager : ViewGroupManager<DigiaAnchorContainerVie
     override fun getChildCount(parent: DigiaAnchorContainerView): Int = parent.childCount
 
     override fun getChildAt(parent: DigiaAnchorContainerView, index: Int): View =
-        parent.getChildAt(index)
+            parent.getChildAt(index)
 
     override fun removeViewAt(parent: DigiaAnchorContainerView, index: Int) {
         parent.removeViewAt(index)

@@ -182,7 +182,7 @@ class MobileJSFunctions(context: Context) : JSFunctions() {
     }
 
     private fun log(message: String) {
-        Log.d(TAG, message)
+        // Log.d(TAG, message)
     }
 
     private fun logError(message: String, error: Throwable? = null) {

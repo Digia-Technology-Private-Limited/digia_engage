@@ -1,4 +1,4 @@
-# @digia/engage-react-native
+# @digia-engage/core
 
 React Native bridge for the **Digia Engage SDK** — renders in-app experiences
 (tooltips, spotlights, carousels, surveys) inside React Native applications.
@@ -39,15 +39,27 @@ Digia.onCampaignTriggered(payload)
 ## Installation
 
 ```sh
-npm install @digia/engage-react-native
+npm install @digia-engage/core
 # or
-yarn add @digia/engage-react-native
+yarn add @digia-engage/core
 ```
 
 React Native CLI auto-linking handles the rest. Rebuild the native app:
 
 ```sh
+npx react-native run-android
+# or
 cd android && ./gradlew assembleDebug
+```
+
+### Android – host app dependency
+
+Add the Digia Engage Android SDK to `android/app/build.gradle.kts`:
+
+```kotlin
+dependencies {
+    implementation("tech.digia:engage:2.0.0")
+}
 ```
 
 ---
@@ -59,7 +71,7 @@ cd android && ./gradlew assembleDebug
 Call `Digia.initialize()` once, as early as possible (top of `App.tsx`):
 
 ```tsx
-import { Digia } from '@digia/engage-react-native';
+import { Digia } from '@digia-engage/core';
 
 await Digia.initialize({
   projectId: 'digia_YOUR_PROJECT_ID',
@@ -75,7 +87,7 @@ JS-side guide/tooltip/spotlight overlays via a `Modal`.
 
 ```tsx
 // app/_layout.tsx (Expo Router) or App.tsx
-import { DigiaHost } from '@digia/engage-react-native';
+import { DigiaHost } from '@digia-engage/core';
 
 export default function RootLayout() {
   return (
@@ -90,7 +102,7 @@ export default function RootLayout() {
 ### 3 — Track screen changes
 
 ```tsx
-import { Digia } from '@digia/engage-react-native';
+import { Digia } from '@digia-engage/core';
 
 <NavigationContainer
   onStateChange={() => {
@@ -105,7 +117,7 @@ import { Digia } from '@digia/engage-react-native';
 Wrap any UI element you want a tooltip or spotlight to point at:
 
 ```tsx
-import { DigiaAnchorView } from '@digia/engage-react-native';
+import { DigiaAnchorView } from '@digia-engage/core';
 
 <DigiaAnchorView anchorKey="home_banner_btn">
   <Button title="Banner" />
@@ -115,7 +127,7 @@ import { DigiaAnchorView } from '@digia/engage-react-native';
 ### 5 — Add slots for inline campaigns
 
 ```tsx
-import { DigiaSlotView } from '@digia/engage-react-native';
+import { DigiaSlotView } from '@digia-engage/core';
 
 // Auto-sizes to native content height
 <DigiaSlotView placementKey="home_banner" />
@@ -124,7 +136,7 @@ import { DigiaSlotView } from '@digia/engage-react-native';
 ### 6 — Register a CEP plugin
 
 ```tsx
-import { DigiaCleverTapPlugin, createCleverTapClient } from '@digia/clevertap-plugin';
+import { DigiaCleverTapPlugin, createCleverTapClient } from '@digia-engage/clevertap';
 import CleverTap from 'clevertap-react-native';
 
 Digia.register(new DigiaCleverTapPlugin({
@@ -191,6 +203,8 @@ Place it once, anywhere in the root view — `Modal` handles z-ordering.
 | `...ViewProps` | — | All standard React Native `View` props are forwarded. |
 
 ### `<DigiaSlotView>`
+
+Renders inline campaign content (banners, cards) at a named placement. Collapses to zero height when no campaign is active for the slot.
 
 | Prop | Type | Description |
 |---|---|---|

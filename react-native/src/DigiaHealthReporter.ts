@@ -36,7 +36,7 @@ export class DigiaHealthReporter {
         //     },
         //     body: JSON.stringify({ event_type: eventType, detail }),
         // }).catch(() => { /* swallow */ });
-        if (__DEV__) console.log('[DigiaHealth]', eventType, detail);
+        // if (__DEV__) console.log('[DigiaHealth]', eventType, detail);
     }
 }
 

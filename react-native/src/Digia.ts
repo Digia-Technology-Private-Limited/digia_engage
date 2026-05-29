@@ -20,6 +20,9 @@ import { nativeDigiaModule } from './NativeDigiaEngage';
 import { digiaHealthReporter, HealthEventType } from './DigiaHealthReporter';
 import { digiaGuideController } from './DigiaGuideController';
 import { digiaActionHandler } from './actionHandler';
+import uuid from 'react-native-uuid';
+import { frequencyStore } from './frequencyStore';
+import { evaluate, hasPolicy, isSessionPolicy } from './frequencyEvaluator';
 import type {
     ActionContext,
     CampaignType,
@@ -27,6 +30,8 @@ import type {
     DigiaDelegate,
     DigiaExperienceEvent,
     DigiaPlugin,
+    FrequencyPolicy,
+    FrequencyState,
     GuideLifecycleEvent,
     InAppPayload,
 } from './types';
@@ -42,6 +47,7 @@ interface SdkCampaign {
     campaign_key: string;
     campaign_type: CampaignType;
     templateConfig?: Record<string, unknown>;
+    frequency?: FrequencyPolicy | null;
 }
 
 class DigiaClass implements DigiaDelegate {
@@ -54,6 +60,7 @@ class DigiaClass implements DigiaDelegate {
     private readonly _activePayloads = new Map<string, InAppPayload>();
     private _engageSubscription: { remove(): void } | null = null;
     private _projectId = '';
+    private _deviceId = '';
     private _apiBaseUrl = '';
     private _logLevel: DigiaConfig['logLevel'] = 'error';
     private _fontFamily: string | undefined;
@@ -92,6 +99,8 @@ class DigiaClass implements DigiaDelegate {
             throw e;
         }
 
+        this._deviceId = await this._loadOrCreateDeviceId();
+        await frequencyStore.checkProjectId(config.projectId);
         await this._refreshCampaignStore();
     }
 
@@ -173,7 +182,7 @@ class DigiaClass implements DigiaDelegate {
     // Mirrors DigiaCEPDelegate on Android.
     // Forwards to the native DigiaCEPDelegate via the bridge.
 
-    onCampaignTriggered(payload: InAppPayload): void {
+    async onCampaignTriggered(payload: InAppPayload): Promise<void> {
         if (!this._nativeBridgeWired) {
             digiaHealthReporter.report(HealthEventType.plugin_not_registered, { campaign_key: payload.id });
         }
@@ -183,6 +192,18 @@ class DigiaClass implements DigiaDelegate {
 
         if (campaignKey) {
             const campaign = this._campaignsByKey.get(campaignKey);
+
+            if (campaign && hasPolicy(campaign.frequency)) {
+                const policy = campaign.frequency!;
+                const isSession = isSessionPolicy(policy);
+                const state = await this._getFrequencyState(campaignKey, isSession);
+                const result = evaluate(policy, state, Date.now());
+                if (!result.allow) {
+                    this._log(`frequency_capped campaign_key=${campaignKey} reason=${result.reason}`);
+                    return;
+                }
+            }
+
             if (campaign?.campaign_type === 'inline' || campaign?.campaign_type === 'survey') {
                 this._log(`${campaign.campaign_type} campaign triggered campaign_key=${campaignKey}, forwarding to native`);
                 this._activePayloads.set(payload.id, payload);
@@ -286,16 +307,21 @@ class DigiaClass implements DigiaDelegate {
         const payload = this._activePayloads.get(data.campaignId);
         if (!payload) return;
 
+        const campaignKey = this._extractCampaignKey(payload);
+
         let event: DigiaExperienceEvent;
         switch (data.type) {
             case 'impressed':
                 event = { type: 'impressed' };
+                if (campaignKey) void this._bumpFrequencyImpression(campaignKey);
                 break;
             case 'clicked':
                 event = { type: 'clicked', elementId: data.elementId };
+                if (campaignKey) void this._applyStopOn(campaignKey, 'click');
                 break;
             case 'dismissed':
                 event = { type: 'dismissed' };
+                if (campaignKey) void this._applyStopOn(campaignKey, 'dismiss');
                 this._activePayloads.delete(data.campaignId);
                 break;
             default:
@@ -314,6 +340,16 @@ class DigiaClass implements DigiaDelegate {
         const eventName = this._guideEventName(event.type);
         const properties = this._buildGuideProperties(event, campaignId, campaignKey);
         this._plugins.forEach((p) => p.track?.(eventName, properties));
+
+        if (event.type === 'viewed') {
+            void this._bumpFrequencyImpression(campaignKey);
+        }
+        if (event.type === 'clicked' || event.type === 'completed') {
+            void this._applyStopOn(campaignKey, 'click');
+        }
+        if (event.type === 'dismissed') {
+            void this._applyStopOn(campaignKey, 'dismiss');
+        }
 
         // Notify plugins of CEP lifecycle termination (template cleanup) on exit events.
         if (event.type === 'dismissed' || event.type === 'completed') {
@@ -419,6 +455,7 @@ class DigiaClass implements DigiaDelegate {
             headers: {
                 'Content-Type': 'application/json',
                 'x-digia-project-id': this._projectId,
+                'x-digia-device-id': this._deviceId,
             },
             body: JSON.stringify(body),
         });
@@ -503,6 +540,67 @@ class DigiaClass implements DigiaDelegate {
         }
         const steps = Array.isArray(raw.steps) ? raw.steps : [];
         return { ...raw, templateType: type, steps } as TemplateConfig;
+    }
+
+    // ── Device ID ────────────────────────────────────────────────────────────
+
+    private async _loadOrCreateDeviceId(): Promise<string> {
+        const DEVICE_ID_KEY = 'digia:device_id';
+        try {
+            // eslint-disable-next-line @typescript-eslint/no-var-requires
+            const AsyncStorage = require('@react-native-async-storage/async-storage').default;
+            const stored = await AsyncStorage.getItem(DEVICE_ID_KEY);
+            if (stored) return stored;
+            const id = uuid.v4() as string;
+            await AsyncStorage.setItem(DEVICE_ID_KEY, id);
+            return id;
+        } catch {
+            return uuid.v4() as string;
+        }
+    }
+
+    // ── Frequency capping ────────────────────────────────────────────────────
+
+    private async _getFrequencyState(campaignKey: string, isSession: boolean): Promise<FrequencyState | null> {
+        return frequencyStore.get(campaignKey, isSession);
+    }
+
+    async _bumpFrequencyImpression(campaignKey: string): Promise<void> {
+        const campaign = this._campaignsByKey.get(campaignKey);
+        if (!campaign || !hasPolicy(campaign.frequency)) return;
+        const isSession = isSessionPolicy(campaign.frequency!);
+        const now = Date.now();
+        const prev = await frequencyStore.get(campaignKey, isSession);
+        const next: FrequencyState = {
+            shown_count: (prev?.shown_count ?? 0) + 1,
+            first_shown_at: prev?.first_shown_at ?? now,
+            last_shown_at: now,
+            stopped_at: prev?.stopped_at ?? null,
+            stopped_reason: prev?.stopped_reason ?? null,
+        };
+        await frequencyStore.set(campaignKey, next, isSession);
+    }
+
+    async _applyStopOn(campaignKey: string, interactionType: 'click' | 'dismiss'): Promise<void> {
+        const campaign = this._campaignsByKey.get(campaignKey);
+        const stopOn = campaign?.frequency?.stop_on;
+        if (!stopOn) return;
+        const matches =
+            stopOn === 'any_action' ||
+            stopOn === interactionType;
+        if (!matches) return;
+        const isSession = isSessionPolicy(campaign!.frequency!);
+        const prev = await frequencyStore.get(campaignKey, isSession);
+        if (prev?.stopped_at) return;
+        const now = Date.now();
+        const next: FrequencyState = {
+            shown_count: prev?.shown_count ?? 0,
+            first_shown_at: prev?.first_shown_at ?? null,
+            last_shown_at: prev?.last_shown_at ?? null,
+            stopped_at: now,
+            stopped_reason: interactionType,
+        };
+        await frequencyStore.set(campaignKey, next, isSession);
     }
 
     private _log(message: string): void {

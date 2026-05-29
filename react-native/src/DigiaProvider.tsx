@@ -478,7 +478,7 @@ function SpotlightCallout({
                 middleware: [offset(gap), flip(), shift({ padding: 16 })],
             },
         ).then(({ x, y, placement }) => {
-            console.log('[Digia:spotlight] floatPos=', { x, y }, 'resolved=', placement);
+            // console.log('[Digia:spotlight] floatPos=', { x, y }, 'resolved=', placement);
             setFloatPos({ x, y });
             setResolvedPlacement(placement as string);
         });

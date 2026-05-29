@@ -124,10 +124,10 @@ internal data class CampaignModel(
                 val anchorKey = stepJson.optString("anchorKey", "")
                     .takeIf { it.isNotBlank() } ?: continue
                 val widgetJson = widgetJsonForStep(stepJson) ?: continue
-                android.util.Log.d(
-                    "Digia",
-                    "[CampaignModel] step anchorKey='$anchorKey' widgetConfig=$widgetJson",
-                )
+                // android.util.Log.d(
+                //     "Digia",
+                //     "[CampaignModel] step anchorKey='$anchorKey' widgetConfig=$widgetJson",
+                // )
                 steps.add(
                     GuideStepModel(
                         id = stepId,

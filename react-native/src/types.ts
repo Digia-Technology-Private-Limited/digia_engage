@@ -70,7 +70,7 @@ export type GuideLifecycleEvent =
  */
 export interface DigiaDelegate {
     /** Deliver a campaign payload into the Digia rendering engine. */
-    onCampaignTriggered(payload: InAppPayload): void;
+    onCampaignTriggered(payload: InAppPayload): void | Promise<void>;
     /** Invalidate / dismiss a campaign by its ID. */
     onCampaignInvalidated(campaignId: string): void;
 }
@@ -134,6 +134,35 @@ export type OnAction = (action: DigiaAction, context: ActionContext) => ActionRe
 export type InAppBrowserAdapter = {
     open: (url: string) => Promise<void>;
 };
+
+// ─── Frequency capping ────────────────────────────────────────────────────────
+
+export interface FrequencyWindow {
+    count: number;
+    window: 'session' | 'day' | 'week' | 'month';
+}
+
+export interface FrequencyPolicy {
+    max_total: number | null;
+    max_per_window: FrequencyWindow | null;
+    stop_on: 'click' | 'dismiss' | 'any_action' | null;
+    min_gap_ms?: number | null; // reserved — not evaluated in v1
+}
+
+export interface FrequencyState {
+    shown_count: number;
+    first_shown_at: number | null;      // ms timestamp — set on first impression
+    last_shown_at: number | null;       // ms timestamp — reserved for min_gap_ms
+    stopped_at: number | null;
+    stopped_reason: string | null;
+}
+
+export type FrequencySkipReason = 'max_total' | 'window' | 'stopped';
+
+export interface FrequencyEvalResult {
+    allow: boolean;
+    reason: FrequencySkipReason | null;
+}
 
 // ─── SDK init config ──────────────────────────────────────────────────────────
 
