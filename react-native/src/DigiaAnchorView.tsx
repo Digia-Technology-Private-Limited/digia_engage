@@ -5,13 +5,18 @@
  * When a SHOW_TOOLTIP or SHOW_SPOTLIGHT campaign fires, the native SDK looks up this view
  * via AnchorRegistry and uses getLocationOnScreen() for accurate pixel-perfect coordinates.
  *
+ * Also reports layout into the JS digiaAnchorRegistry so JS-rendered guides (tooltip/spotlight)
+ * can position themselves relative to this anchor.
+ *
  * Usage:
  *   <DigiaAnchorView anchorKey="pdp_add_to_cart" style={{ alignSelf: 'flex-start' }}>
  *     <TouchableOpacity ...>Add to Cart</TouchableOpacity>
  *   </DigiaAnchorView>
  */
 
-import { requireNativeComponent, type ViewProps } from 'react-native';
+import React, { useCallback, useRef } from 'react';
+import { requireNativeComponent, View, type ViewProps, type LayoutChangeEvent } from 'react-native';
+import { digiaAnchorRegistry } from './digiaAnchorRegistry';
 
 interface DigiaAnchorViewProps extends ViewProps {
     anchorKey: string;
@@ -19,4 +24,27 @@ interface DigiaAnchorViewProps extends ViewProps {
     cornerRadius?: number;
 }
 
-export const DigiaAnchorView = requireNativeComponent<DigiaAnchorViewProps>('DigiaAnchorView');
+const NativeDigiaAnchorView = requireNativeComponent<DigiaAnchorViewProps>('DigiaAnchorView');
+
+export const DigiaAnchorView = ({ anchorKey, onLayout, ...rest }: DigiaAnchorViewProps) => {
+    const viewRef = useRef<View>(null);
+
+    const handleLayout = useCallback((e: LayoutChangeEvent) => {
+        onLayout?.(e);
+        // Use measure() for absolute screen coordinates (onLayout gives relative coords)
+        viewRef.current?.measure((_x, _y, width, height, pageX, pageY) => {
+            if (width > 0 && height > 0) {
+                digiaAnchorRegistry.setLayout(anchorKey, { pageX, pageY, width, height });
+            }
+        });
+    }, [anchorKey, onLayout]);
+
+    return (
+        <NativeDigiaAnchorView
+            ref={viewRef as any}
+            anchorKey={anchorKey}
+            onLayout={handleLayout}
+            {...rest}
+        />
+    );
+};

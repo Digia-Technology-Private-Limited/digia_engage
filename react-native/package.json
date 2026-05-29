@@ -44,6 +44,10 @@
   },
   "author": "Digia Technology Private Limited",
   "license": "MIT",
+  "dependencies": {
+    "@react-native-async-storage/async-storage": "^2.1.2",
+    "react-native-uuid": "^2.0.3"
+  },
   "peerDependencies": {
     "@floating-ui/core": "^1.0.0",
     "react-native-reanimated": ">=3.0.0",

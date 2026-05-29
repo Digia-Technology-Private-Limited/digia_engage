@@ -10,7 +10,7 @@ import java.io.IOException
 import java.net.HttpURLConnection
 import java.net.URL
 
-internal class CampaignFetcher(private val config: DigiaConfig) {
+internal class CampaignFetcher(private val config: DigiaConfig, private val deviceId: String) {
 
     fun fetch(): List<CampaignModel> {
         val baseUrl = (config.baseUrl
@@ -23,6 +23,7 @@ internal class CampaignFetcher(private val config: DigiaConfig) {
         val connection = (url.openConnection() as HttpURLConnection).apply {
             requestMethod = "POST"
             setRequestProperty("X-Digia-Project-Id", config.apiKey)
+            setRequestProperty("X-Digia-Device-Id", deviceId)
             setRequestProperty("Content-Type", "application/json")
             connectTimeout = 10_000
             readTimeout = 10_000
