@@ -70,6 +70,7 @@ android {
 }
 
 dependencies {
+    // Digia Engage Android library
     implementation 'tech.digia:engage:2.0.0'
 
     // ── React Native ─────────────────────────────────────────────────────────

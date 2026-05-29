@@ -64,7 +64,8 @@ constructor(
         isFocusable = false
     }
 
-    // Always return false so touches pass through to React Native content below.
+    // Balloon manages its own PopupWindow for both tooltip and spotlight — always return false
+    // so touches pass through to React Native content below.
     override fun dispatchTouchEvent(ev: MotionEvent): Boolean = false
 
 

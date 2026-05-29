@@ -1,3 +1,4 @@
+import DigiaEngage
 /**
  * DigiaModule
  *
@@ -30,7 +31,6 @@ import Foundation
 import React
 import SwiftUI
 import UIKit
-import DigiaEngage
 
 @objc(DigiaEngageModule)
 final class DigiaModule: RCTEventEmitter {
@@ -69,19 +69,22 @@ final class DigiaModule: RCTEventEmitter {
         resolve: @escaping RCTPromiseResolveBlock,
         reject: @escaping RCTPromiseRejectBlock
     ) {
-        let envValue: DigiaEnvironment = environment.lowercased() == "sandbox" ? .sandbox : .production
+        let envValue: DigiaEnvironment =
+            environment.lowercased() == "sandbox" ? .sandbox : .production
         let logLevelValue: DigiaLogLevel
         switch logLevel.lowercased() {
         case "verbose": logLevelValue = .verbose
-        case "none":    logLevelValue = .none
-        default:        logLevelValue = .error
+        case "none": logLevelValue = .none
+        default: logLevelValue = .error
         }
 
         let config = DigiaConfig(
             apiKey: projectId,
             logLevel: logLevelValue,
             environment: envValue,
-            developerConfig: baseUrl.flatMap { $0.isEmpty ? nil : DigiaDeveloperConfig(baseURL: $0) },
+            developerConfig: baseUrl.flatMap {
+                $0.isEmpty ? nil : DigiaDeveloperConfig(baseURL: $0)
+            },
             fontFamily: fontFamily.flatMap { $0.isEmpty ? nil : $0 }
         )
 
@@ -156,37 +159,28 @@ final class DigiaModule: RCTEventEmitter {
     }
 
     // ────────────────────────────────────────────────────────────────────────
-    // MARK: - showAnchoredOverlay
+    // MARK: - registerAnchor / unregisterAnchor
 
-    /// Shows SHOW_TOOLTIP or SHOW_SPOTLIGHT anchored to coordinates measured in JS.
-    /// anchorX/Y/Width/Height are screen-pixel values from measureInWindow().
+    /// Registers a UI element as an anchor point for Guide experiences.
+    /// JS sends physical pixels; convert to UIKit points using screen scale.
     @objc
-    func showAnchoredOverlay(
-        _ id: String,
-        content contentMap: NSDictionary,
-        cepContext cepContextMap: NSDictionary,
-        anchorX: Double,
-        anchorY: Double,
-        anchorWidth: Double,
-        anchorHeight: Double
-    ) {
-        let mutable = NSMutableDictionary(dictionary: contentMap)
-        // Pack anchor coords into the args sub-dict so buildInAppPayloadContent
-        // captures them as JSONValue entries in InAppPayloadContent.args.
-        var argsDict = (mutable["args"] as? [String: Any]) ?? [:]
-        argsDict["_anchorX"] = anchorX
-        argsDict["_anchorY"] = anchorY
-        argsDict["_anchorWidth"] = anchorWidth
-        argsDict["_anchorHeight"] = anchorHeight
-        mutable["args"] = argsDict
-
-        let content = buildInAppPayloadContent(from: mutable)
-        let cepContext = (cepContextMap as? [String: String]) ?? [:]
-        let payload = InAppPayload(id: id, content: content, cepContext: cepContext)
-
+    func registerAnchor(_ key: String, x: Double, y: Double, width: Double, height: Double) {
+        let scale = UIScreen.main.scale
+        let rect = CGRect(
+            x: CGFloat(x) / scale,
+            y: CGFloat(y) / scale,
+            width: CGFloat(width) / scale,
+            height: CGFloat(height) / scale
+        )
         Task { @MainActor in
-            guard let delegate = self.rnPlugin.delegate else { return }
-            delegate.onCampaignTriggered(payload)
+            AnchorRegistry.shared.register(key: key, rect: rect)
+        }
+    }
+
+    @objc
+    func unregisterAnchor(_ key: String) {
+        Task { @MainActor in
+            AnchorRegistry.shared.unregister(key: key)
         }
     }
 
@@ -199,44 +193,34 @@ final class DigiaModule: RCTEventEmitter {
     @MainActor
     private func mountDigiaHost() {
         // Locate the key window's root view controller.
-        guard let rootVC = UIApplication.shared
-            .connectedScenes
-            .compactMap({ ($0 as? UIWindowScene)?.keyWindow })
-            .first?
-            .rootViewController else { return }
+        guard
+            let rootVC = UIApplication.shared
+                .connectedScenes
+                .compactMap({ ($0 as? UIWindowScene)?.keyWindow })
+                .first?
+                .rootViewController
+        else { return }
 
         // Guard against double-mounting (e.g. fast-refresh).
         let mountTag = 0xD19140
         if rootVC.view.viewWithTag(mountTag) != nil { return }
 
-        // Container with passthrough hitTest — lets tooltip card taps reach SwiftUI
-        // while all other touches fall through to React Native content.
-        let container = DigiaPassthroughHostView()
-        container.tag = mountTag
-        container.translatesAutoresizingMaskIntoConstraints = false
-        container.backgroundColor = .clear
-
         let hc = UIHostingController(rootView: DigiaHostWrapperView())
+        hc.view.tag = mountTag
         hc.view.translatesAutoresizingMaskIntoConstraints = false
         hc.view.backgroundColor = .clear
-
-        container.hostingView = hc.view
+        // Pass touches through to React Native content below.
+        hc.view.isUserInteractionEnabled = false
 
         rootVC.addChild(hc)
-        container.addSubview(hc.view)
+        rootVC.view.addSubview(hc.view)
         hc.didMove(toParent: rootVC)
 
-        rootVC.view.addSubview(container)
-
         NSLayoutConstraint.activate([
-            container.leadingAnchor.constraint(equalTo: rootVC.view.leadingAnchor),
-            container.trailingAnchor.constraint(equalTo: rootVC.view.trailingAnchor),
-            container.topAnchor.constraint(equalTo: rootVC.view.topAnchor),
-            container.bottomAnchor.constraint(equalTo: rootVC.view.bottomAnchor),
-            hc.view.leadingAnchor.constraint(equalTo: container.leadingAnchor),
-            hc.view.trailingAnchor.constraint(equalTo: container.trailingAnchor),
-            hc.view.topAnchor.constraint(equalTo: container.topAnchor),
-            hc.view.bottomAnchor.constraint(equalTo: container.bottomAnchor),
+            hc.view.leadingAnchor.constraint(equalTo: rootVC.view.leadingAnchor),
+            hc.view.trailingAnchor.constraint(equalTo: rootVC.view.trailingAnchor),
+            hc.view.topAnchor.constraint(equalTo: rootVC.view.topAnchor),
+            hc.view.bottomAnchor.constraint(equalTo: rootVC.view.bottomAnchor),
         ])
     }
 
@@ -244,22 +228,22 @@ final class DigiaModule: RCTEventEmitter {
     // MARK: - Private helpers
 
     private func buildInAppPayloadContent(from map: NSDictionary) -> InAppPayloadContent {
-        let pk      = map["placementKey"]  as? String
-        let title   = map["title"]         as? String
-        let text    = map["text"]          as? String
-        let viewId  = map["viewId"]        as? String
-        let command = map["command"]       as? String
-        let screenId = map["screenId"]     as? String
+        let pk = map["placementKey"] as? String
+        let title = map["title"] as? String
+        let text = map["text"] as? String
+        let viewId = map["viewId"] as? String
+        let command = map["command"] as? String
+        let screenId = map["screenId"] as? String
         var type = (map["type"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         if type.isEmpty {
-            type = (pk?.trimmingCharacters(in: .whitespacesAndNewlines) ?? "").isEmpty ? "dialog" : "inline"
+            type =
+                (pk?.trimmingCharacters(in: .whitespacesAndNewlines) ?? "").isEmpty
+                ? "dialog" : "inline"
         }
         let args: [String: JSONValue] = {
             guard let raw = map["args"] as? [String: Any] else { return [:] }
             return raw.compactMapValues { JSONValue(rawValue: $0) }
         }()
-
-        let anchorKey = map["anchorKey"] as? String
 
         return InAppPayloadContent(
             type: type,
@@ -269,36 +253,19 @@ final class DigiaModule: RCTEventEmitter {
             viewId: viewId,
             command: command,
             args: args,
-            screenId: screenId,
-            anchorKey: anchorKey
+            screenId: screenId
         )
     }
 }
 
-// MARK: - DigiaPassthroughHostView
-
-/// Container that delegates hitTest to the SwiftUI hosting view.
-/// When SwiftUI renders nothing interactive (no overlay), hitTest returns nil
-/// so touches fall through to React Native. When an overlay is visible,
-/// taps on it are consumed by SwiftUI.
-private final class DigiaPassthroughHostView: UIView {
-    weak var hostingView: UIView?
-
-    override func hitTest(_ point: CGPoint, with event: UIEvent?) -> UIView? {
-        guard let hv = hostingView else { return nil }
-        let converted = convert(point, to: hv)
-        return hv.hitTest(converted, with: event)
-    }
-}
-
 // MARK: - JSONValue convenience init from Any
-private extension JSONValue {
-    init?(rawValue: Any) {
+extension JSONValue {
+    fileprivate init?(rawValue: Any) {
         switch rawValue {
-        case let s as String:  self = .string(s)
-        case let b as Bool:    self = .bool(b)
-        case let i as Int:     self = .int(i)
-        case let d as Double:  self = .double(d)
+        case let s as String: self = .string(s)
+        case let b as Bool: self = .bool(b)
+        case let i as Int: self = .int(i)
+        case let d as Double: self = .double(d)
         case let arr as [Any]:
             self = .array(arr.compactMap { JSONValue(rawValue: $0) })
         case let dict as [String: Any]:

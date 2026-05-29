@@ -24,6 +24,7 @@ import uuid from 'react-native-uuid';
 import { frequencyStore } from './frequencyStore';
 import { evaluate, hasPolicy, isSessionPolicy } from './frequencyEvaluator';
 import type {
+    ActionContext,
     CampaignType,
     DigiaConfig,
     DigiaDelegate,
@@ -86,6 +87,8 @@ class DigiaClass implements DigiaDelegate {
             onAction: config.onAction,
             routeViaSystemLinking: config.linking?.routeViaSystemLinking ?? true,
             inAppBrowser: config.linking?.inAppBrowser,
+            onFireEvent: (eventName, properties, context) =>
+                this._fireCustomEvent(eventName, properties, context),
         });
 
         try {
@@ -283,6 +286,19 @@ class DigiaClass implements DigiaDelegate {
             (data: { campaignId: string; type: string; elementId?: string }) =>
                 this._forwardExperienceEvent(data),
         );
+    }
+
+    private _fireCustomEvent(
+        eventName: string,
+        properties?: Record<string, unknown>,
+        context?: ActionContext,
+    ): void {
+        const payload = context ? this._activePayloads.get(context.campaign_id) : null;
+        if (payload) {
+            const event: DigiaExperienceEvent = { type: 'clicked', elementId: eventName };
+            this._plugins.forEach((plugin) => plugin.notifyEvent(event, payload));
+        }
+        // TODO: record custom event to Digia analytics endpoint when available
     }
 
     private _forwardExperienceEvent(
@@ -590,7 +606,7 @@ class DigiaClass implements DigiaDelegate {
     private _log(message: string): void {
         if (this._logLevel !== 'verbose') return;
         // eslint-disable-next-line no-console
-        // console.log(`[Digia] ${message}`);
+        console.log(`[Digia] ${message}`);
     }
 
 }

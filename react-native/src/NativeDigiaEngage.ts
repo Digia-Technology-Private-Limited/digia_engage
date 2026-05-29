@@ -49,24 +49,14 @@ export interface Spec extends TurboModule {
     /** Invalidate / dismiss a campaign by its ID. */
     invalidateCampaign(campaignId: string): void;
 
-    /** Register an anchor element position for tooltip/spotlight targeting. */
+    /** Register a UI element as an anchor point for Guide experiences. */
     registerAnchor(key: string, x: number, y: number, width: number, height: number): void;
-
-    /** Remove a previously registered anchor. */
     unregisterAnchor(key: string): void;
 
-    /** Return all component keys registered with the native SDK. */
-    getRegisteredComponents(): Promise<string[]>;
-
+    /** Return all registered components (anchors/slots) for health reporting. */
+    getRegisteredComponents(): Promise<Array<{ component_key: string; component_type: 'anchor' | 'slot'; screen_name: string | null }>>;
 }
 
-
-// Try TurboModuleRegistry first (New Architecture / JSI).
-// Fall back to NativeModules (bridge interop layer — enabled by default in
-// RN 0.73+ New Architecture when the module is registered with
-// isTurboModule: false in ReactModuleInfo).
-// If neither resolves, warn in DEV and use no-op stubs so non-Android
-// environments (web, Storybook) don't crash.
 let _resolved: Spec | null = null;
 let _didResolve = false;
 

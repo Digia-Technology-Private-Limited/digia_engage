@@ -110,7 +110,8 @@ export type DigiaAction =
     | { type: 'open_url'; url: string; presentation: 'external' | 'in_app' }
     | { type: 'dismiss'; scope?: 'self' | 'all' }
     | { type: 'next' }
-    | { type: 'back' };
+    | { type: 'back' }
+    | { type: 'fire_event'; event_name: string; properties?: Record<string, unknown> };
 
 export type ActionContext = {
     campaign_id: string;

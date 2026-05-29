@@ -1,6 +1,7 @@
 # @digia-engage/core
 
-React Native SDK for **Digia Engage** – renders native Android (Jetpack Compose) and iOS campaign UI (bottom sheets, dialogs, inline banners, tooltips, spotlights) inside React Native applications.
+React Native bridge for the **Digia Engage SDK** — renders in-app experiences
+(tooltips, spotlights, carousels, surveys) inside React Native applications.
 
 > **Platform support**
 > | Platform | Status |
@@ -8,11 +9,42 @@ React Native SDK for **Digia Engage** – renders native Android (Jetpack Compos
 > | Android | ✅ Full support |
 > | iOS | ✅ Guide overlays (JS renderer); native bridge (surveys, inline) |
 
-```sh
-npm install @digia-engage/core
+---
+
+## How it works
+
+Guide campaigns (tooltip / spotlight) are rendered entirely in **JavaScript** by
+`DigiaProvider.tsx` using `@floating-ui/core` for anchor positioning. Surveys
+and inline carousels are forwarded to the **native Android/iOS SDK** via the
+bridge for Compose/SwiftUI rendering.
+
+```
+CEP plugin (e.g. CleverTap)
+  │
+  ▼
+Digia.onCampaignTriggered(payload)
+  │
+  ├─ campaign_type === 'guide'   → DigiaGuideController → DigiaProvider.tsx (JS)
+  │                                                        TooltipOverlay / SpotlightOverlay
+  │
+  ├─ campaign_type === 'inline'  → nativeDigiaModule.triggerCampaign()
+  │                                Android: DigiaSlot composable → VWCarousel
+  │
+  └─ campaign_type === 'survey'  → nativeDigiaModule.triggerCampaign()
+                                   Android: SurveyRenderer composable
 ```
 
-React Native CLI auto-linking handles the rest. Rebuild the native app after installing:
+---
+
+## Installation
+
+```sh
+npm install @digia-engage/core
+# or
+yarn add @digia-engage/core
+```
+
+React Native CLI auto-linking handles the rest. Rebuild the native app:
 
 ```sh
 npx react-native run-android
@@ -50,7 +82,8 @@ await Digia.initialize({
 
 ### 2 — Mount `<DigiaHost />`
 
-Place `<DigiaHost />` at the root of your component tree. It renders the JS-side guide/tooltip/spotlight overlays via a `Modal`.
+Place `<DigiaHost />` at the root of your component tree. It renders the
+JS-side guide/tooltip/spotlight overlays via a `Modal`.
 
 ```tsx
 // app/_layout.tsx (Expo Router) or App.tsx
@@ -211,8 +244,8 @@ react-native/src/
   DigiaSlotView.tsx         Native slot view wrapper; auto-sizes to content height
   DigiaHostView.tsx         Low-level native overlay host (transparent, pointer-events none)
   NativeDigiaEngage.ts      Codegen native module spec (TurboModule)
-  actionHandler.ts          Action execution — deep link, open URL, next/prev/dismiss;
-                            onAction override; cold-start queue
+  actionHandler.ts          Action execution — deep link, open URL, next/prev/dismiss,
+                            fire_event; onAction override; cold-start queue
   defaultInAppBrowser.ts    Lazily loads react-native-inappbrowser-reborn
   templateTypes.ts          TypeScript types for TooltipConfig, SpotlightConfig,
                             CarouselConfig, SurveyTemplateConfig

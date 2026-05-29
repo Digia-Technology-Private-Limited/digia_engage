@@ -16,6 +16,7 @@ type ActionHandlerConfig = {
     onAction?: OnAction;
     routeViaSystemLinking: boolean;
     inAppBrowser?: InAppBrowserAdapter;
+    onFireEvent?: (eventName: string, properties?: Record<string, unknown>, context?: ActionContext) => void;
 };
 
 // ─── Internal state ───────────────────────────────────────────────────────────
@@ -65,6 +66,7 @@ export const toDigiaAction = (action: Action): DigiaAction => {
         case 'prev':       return { type: 'back' };
         case 'deep_link':  return { type: 'deep_link', url: action.url, fallback_url: action.fallback_url };
         case 'open_url':   return { type: 'open_url', url: action.url, presentation: action.presentation };
+        case 'fire_event': return { type: 'fire_event', event_name: action.event_name, properties: action.properties };
     }
 };
 
@@ -217,6 +219,10 @@ async function runDefault(
             return;
         }
 
+        case 'fire_event': {
+            _config.onFireEvent?.(action.event_name, action.properties, context);
+            return;
+        }
     }
 }
 
