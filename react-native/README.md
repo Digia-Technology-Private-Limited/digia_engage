@@ -26,7 +26,7 @@ Add the Digia Engage Android SDK to `android/app/build.gradle.kts`:
 
 ```kotlin
 dependencies {
-    implementation("tech.digia:engage:2.0.0-rc.1")
+    implementation("tech.digia:engage:2.0.0")
 }
 ```
 
