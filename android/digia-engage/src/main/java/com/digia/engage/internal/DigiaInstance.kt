@@ -1,6 +1,7 @@
 package com.digia.engage.internal
 
 import android.content.Context
+import android.content.SharedPreferences
 import android.util.Log
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
@@ -11,6 +12,7 @@ import com.digia.engage.DigiaConfig
 import com.digia.engage.DigiaExperienceEvent
 import com.digia.engage.InAppPayload
 import com.digia.engage.internal.model.CampaignModel
+import java.util.UUID
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -72,7 +74,8 @@ internal object DigiaInstance : DigiaCEPDelegate {
 
         scope.launch(Dispatchers.IO) {
             try {
-                val fetcher = CampaignFetcher(config)
+                val deviceId = loadOrCreateDeviceId(context.applicationContext)
+                val fetcher = CampaignFetcher(config, deviceId)
                 val campaigns = fetcher.fetch()
                 campaignStore.populate(campaigns)
                 scope.launch(Dispatchers.Main.immediate) {
