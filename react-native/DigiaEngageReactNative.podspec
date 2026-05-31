@@ -28,9 +28,7 @@ Pod::Spec.new do |s|
   s.dependency 'React-Core'
 
   # ── Digia Engage iOS SDK ──────────────────────────────────────────────────
-  # Available on SPM: https://swiftpackageindex.com/Digia-Technology-Private-Limited/digia_engage_iOS
-  # CocoaPods: host app Podfile must declare the git source (see README).
-  s.dependency 'DigiaEngage'  
+  s.dependency 'DigiaEngage','~> 2.1.0'
 
   # ── New Architecture (Fabric / TurboModules) support ─────────────────────
   install_modules_dependencies(s)
