@@ -234,6 +234,7 @@ final class DigiaModule: RCTEventEmitter {
         let viewId = map["viewId"] as? String
         let command = map["command"] as? String
         let screenId = map["screenId"] as? String
+        let campaignKey = (map["campaignKey"] as? String) ?? (map["campaign_key"] as? String) ?? (map["digiaKey"] as? String)      
         var type = (map["type"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         if type.isEmpty {
             type =
@@ -253,8 +254,9 @@ final class DigiaModule: RCTEventEmitter {
             viewId: viewId,
             command: command,
             args: args,
-            screenId: screenId
-        )
+            screenId: screenId,
+            campaignKey: campaignKey
+                    )
     }
 }
 
