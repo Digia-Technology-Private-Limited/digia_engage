@@ -73,12 +73,16 @@ internal object SurveyLogicHandler {
         return resolveTarget(survey, currentNodeId, branching.defaultTarget, answers)
     }
 
-    /** Whether [block] passes its [SurveyBlock.showWhen] given the answers so far. */
+    /**
+     * Whether [block] should be shown: not explicitly [SurveyBlock.hidden] (e.g.
+     * a hidden welcome screen) and passing its [SurveyBlock.showWhen] gate.
+     */
     fun isVisible(
         block: SurveyBlock,
         ownerNodeId: String,
         answers: Map<String, SurveyAnswer>,
     ): Boolean {
+        if (block.hidden) return false
         val expr = block.showWhen ?: return true
         return evaluateExprForNode(expr, ownerNodeId, answers)
     }

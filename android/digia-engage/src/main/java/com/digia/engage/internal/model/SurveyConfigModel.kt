@@ -90,6 +90,12 @@ enum class BottomSheetHeightMode { WRAP, HALF, FULL, CUSTOM }
 
 enum class PaginationStyle { CONTINUOUS, SEGMENTED }
 
+/** Nav-button layout: a horizontal row vs full-width buttons stacked top-down. */
+enum class CtaLayout { INLINE, STACKED }
+
+/** Horizontal distribution of the inline CTA buttons. */
+enum class CtaArrangement { SPACE_BETWEEN, SPACE_EVENLY, CENTER, START, END }
+
 // ── styling primitives ──────────────────────────────────────────────────────
 
 /** Empty colorHex inherits theme default. */
@@ -305,6 +311,8 @@ data class SurveyBlock(
     val body: RichText?,
     val options: List<SurveyOption>,
     val required: Boolean,
+    /** When true the block is kept in the survey but skipped at runtime (e.g. a hidden welcome screen). */
+    val hidden: Boolean,
     val showMedia: Boolean,
     val media: BlockMedia,
     val showAnswerMedia: Boolean,
@@ -333,6 +341,7 @@ data class SurveyBlock(
                 body = RichText.fromJson(json.optJSONObject("body")),
                 options = options,
                 required = json.optBoolean("required", false),
+                hidden = json.optBoolean("hidden", false),
                 showMedia = json.optBoolean("showMedia", false),
                 media = BlockMedia.fromJson(json.optJSONObject("media")),
                 showAnswerMedia = json.optBoolean("showAnswerMedia", false),
@@ -526,10 +535,57 @@ data class SurveyTimerSettings(
     }
 }
 
+/**
+ * Styling, layout, and labels for the navigation CTA buttons (Next / Back, the
+ * welcome "Start", the terminal "Done"). Mirrors the dashboard `CtaSettings`.
+ * Empty [bgColorHex] / [textColorHex] inherit the theme accent / white.
+ */
+data class CtaSettings(
+    val layout: CtaLayout,
+    val arrangement: CtaArrangement,
+    val nextLabel: String,
+    val backLabel: String,
+    val doneLabel: String,
+    val startLabel: String,
+    val bgColorHex: String,
+    val textColorHex: String,
+    val cornerRadius: Int,
+) {
+    companion object {
+        val DEFAULT = CtaSettings(
+            layout = CtaLayout.STACKED,
+            arrangement = CtaArrangement.SPACE_BETWEEN,
+            nextLabel = "Next",
+            backLabel = "Back",
+            doneLabel = "Done",
+            startLabel = "Start",
+            bgColorHex = "",
+            textColorHex = "",
+            cornerRadius = 8,
+        )
+
+        fun fromJson(json: JSONObject?): CtaSettings {
+            if (json == null) return DEFAULT
+            return CtaSettings(
+                layout = SurveyParse.ctaLayout(json.optString("layout")),
+                arrangement = SurveyParse.ctaArrangement(json.optString("arrangement")),
+                nextLabel = json.optString("nextLabel", "").ifBlank { DEFAULT.nextLabel },
+                backLabel = json.optString("backLabel", "").ifBlank { DEFAULT.backLabel },
+                doneLabel = json.optString("doneLabel", "").ifBlank { DEFAULT.doneLabel },
+                startLabel = json.optString("startLabel", "").ifBlank { DEFAULT.startLabel },
+                bgColorHex = json.optString("bgColor", ""),
+                textColorHex = json.optString("textColor", ""),
+                cornerRadius = json.optInt("cornerRadius", DEFAULT.cornerRadius).coerceIn(0, 48),
+            )
+        }
+    }
+}
+
 data class SurveySettings(
     val pagination: PaginationSettings,
     val autoAdvance: Boolean,
     val chooseButton: Boolean,
+    val cta: CtaSettings,
     val timer: SurveyTimerSettings,
     val display: SurveyDisplay,
 ) {
@@ -538,6 +594,7 @@ data class SurveySettings(
             pagination = PaginationSettings.DEFAULT,
             autoAdvance = false,
             chooseButton = true,
+            cta = CtaSettings.DEFAULT,
             timer = SurveyTimerSettings.DEFAULT,
             display = SurveyDisplay.DEFAULT,
         )
@@ -548,6 +605,7 @@ data class SurveySettings(
                 pagination = PaginationSettings.fromJson(json.optJSONObject("pagination")),
                 autoAdvance = json.optBoolean("autoAdvance", false),
                 chooseButton = json.optBoolean("chooseButton", true),
+                cta = CtaSettings.fromJson(json.optJSONObject("cta")),
                 timer = SurveyTimerSettings.fromJson(json.optJSONObject("surveyTimer")),
                 display = SurveyDisplay.fromJson(json.optJSONObject("display")),
             )
@@ -596,12 +654,24 @@ data class SurveyConfigModel(
 
     fun rootNode(): SurveyNode? = nodeById(rootNodeId) ?: nodes.firstOrNull()
 
+    /**
+     * The welcome screen shown before the node flow, if present and not hidden.
+     * Welcome blocks are fixed intro chrome, not graph nodes.
+     */
+    fun welcomeBlock(): SurveyBlock? =
+        blocks.firstOrNull { it.type == SurveyBlockType.WELCOME && !it.hidden }
+
     companion object {
         fun fromJson(json: JSONObject, fallbackId: String): SurveyConfigModel? {
             val blocksArr = json.optJSONArray("blocks") ?: return null
             val nodesArr = json.optJSONArray("nodes") ?: return null
             val blocks = SurveyParse.mapJsonArray(blocksArr, SurveyBlock::fromJson)
+            // Welcome screens are intro chrome rendered before the flow, never
+            // graph nodes. Drop any legacy welcome node so the flow starts at
+            // the first real block.
+            val blockTypeById = blocks.associate { it.id to it.type }
             val nodes = SurveyParse.mapJsonArray(nodesArr, SurveyNode::fromJson)
+                .filter { blockTypeById[it.blockId] != SurveyBlockType.WELCOME }
             if (blocks.isEmpty() || nodes.isEmpty()) return null
 
             val id = json.optString("id", "")
@@ -806,6 +876,21 @@ internal object SurveyParse {
         when (value?.trim()?.lowercase()) {
             "segmented" -> PaginationStyle.SEGMENTED
             else -> PaginationStyle.CONTINUOUS
+        }
+
+    fun ctaLayout(value: String?): CtaLayout =
+        when (value?.trim()?.lowercase()) {
+            "inline", "row" -> CtaLayout.INLINE
+            else -> CtaLayout.STACKED
+        }
+
+    fun ctaArrangement(value: String?): CtaArrangement =
+        when (value?.trim()?.lowercase()) {
+            "space_evenly" -> CtaArrangement.SPACE_EVENLY
+            "center" -> CtaArrangement.CENTER
+            "start" -> CtaArrangement.START
+            "end" -> CtaArrangement.END
+            else -> CtaArrangement.SPACE_BETWEEN
         }
 
     fun color(value: String?, default: Int): Int {
