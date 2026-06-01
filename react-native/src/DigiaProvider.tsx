@@ -221,10 +221,20 @@ function TooltipOverlay({
     useEffect(() => {
         setLayout(null);
         setFloatPos(null);
-        return digiaAnchorRegistry.subscribe(step.anchorKey, (l) => {
+        let skipCached = false;
+        const unsub = digiaAnchorRegistry.subscribe(step.anchorKey, (l) => {
+            if (!skipCached) return;
+            const { width: screenW, height: screenH } = Dimensions.get('window');
+            if (l.pageY + l.height <= 0 || l.pageY >= screenH || l.pageX + l.width <= 0 || l.pageX >= screenW) {
+                digiaGuideController.cancel(request.payloadId);
+                return;
+            }
             setLayout(l);
         });
-    }, [step.anchorKey]);
+        skipCached = true;
+        digiaAnchorRegistry.remeasure(step.anchorKey);
+        return unsub;
+    }, [step.anchorKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
     useEffect(() => {
         if (!layout || !floatingSize) return;
@@ -575,12 +585,20 @@ function SpotlightOverlay({
 
     useEffect(() => {
         setLayout(null);
+        let skipCached = false;
         const unsub = digiaAnchorRegistry.subscribe(step.anchorKey, (l) => {
+            if (!skipCached) return;
+            const { width: screenW, height: screenH } = Dimensions.get('window');
+            if (l.pageY + l.height <= 0 || l.pageY >= screenH || l.pageX + l.width <= 0 || l.pageX >= screenW) {
+                digiaGuideController.cancel(request.payloadId);
+                return;
+            }
             setLayout(l);
         });
+        skipCached = true;
         digiaAnchorRegistry.remeasure(step.anchorKey);
         return unsub;
-    }, [step.anchorKey]);
+    }, [step.anchorKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
     useEffect(() => {
         if (layout && pendingFadeIn.current) {
