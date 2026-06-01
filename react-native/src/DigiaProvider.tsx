@@ -575,9 +575,11 @@ function SpotlightOverlay({
 
     useEffect(() => {
         setLayout(null);
-        return digiaAnchorRegistry.subscribe(step.anchorKey, (l) => {
+        const unsub = digiaAnchorRegistry.subscribe(step.anchorKey, (l) => {
             setLayout(l);
         });
+        digiaAnchorRegistry.remeasure(step.anchorKey);
+        return unsub;
     }, [step.anchorKey]);
 
     useEffect(() => {

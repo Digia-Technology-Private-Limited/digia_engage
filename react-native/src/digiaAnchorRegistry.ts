@@ -1,8 +1,10 @@
 type AnchorLayout = { pageX: number; pageY: number; width: number; height: number }
 type Listener = (layout: AnchorLayout) => void
+type MeasureCallback = () => void
 
 const _layouts = new Map<string, AnchorLayout>()
 const _listeners = new Map<string, Listener>()
+const _measureCallbacks = new Map<string, MeasureCallback>()
 
 const setLayout = (key: string, layout: AnchorLayout) => {
     _layouts.set(key, layout)
@@ -21,7 +23,20 @@ const subscribe = (key: string, listener: Listener): () => void => {
 const remove = (key: string) => {
     _layouts.delete(key)
     _listeners.delete(key)
+    _measureCallbacks.delete(key)
+}
+
+const registerMeasure = (key: string, cb: MeasureCallback) => {
+    _measureCallbacks.set(key, cb)
+}
+
+const unregisterMeasure = (key: string, cb: MeasureCallback) => {
+    if (_measureCallbacks.get(key) === cb) _measureCallbacks.delete(key)
+}
+
+const remeasure = (key: string) => {
+    _measureCallbacks.get(key)?.()
 }
 
 export type { AnchorLayout }
-export const digiaAnchorRegistry = { setLayout, getLayout, subscribe, remove }
+export const digiaAnchorRegistry = { setLayout, getLayout, subscribe, remove, registerMeasure, unregisterMeasure, remeasure }
