@@ -37,7 +37,13 @@ function JsMeasureAnchor({ anchorKey, children, style, ...rest }: Props) {
         });
     }, [anchorKey]);
 
-    useEffect(() => () => { nativeDigiaModule.unregisterAnchor(anchorKey); }, [anchorKey]);
+    useEffect(() => {
+        digiaAnchorRegistry.registerMeasure(anchorKey, measure);
+        return () => {
+            digiaAnchorRegistry.unregisterMeasure(anchorKey, measure);
+            nativeDigiaModule.unregisterAnchor(anchorKey);
+        };
+    }, [anchorKey, measure]);
 
     return (
         <View ref={ref} onLayout={measure} style={style} {...rest}>
@@ -45,3 +51,4 @@ function JsMeasureAnchor({ anchorKey, children, style, ...rest }: Props) {
         </View>
     );
 }
+

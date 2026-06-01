@@ -38,6 +38,7 @@ import androidx.compose.ui.window.PopupProperties
 import com.digia.engage.internal.ActiveGuideState
 import com.digia.engage.internal.DigiaInstance
 import com.digia.engage.internal.ScreenRect
+import com.digia.engage.internal.interpolate
 import com.digia.engage.internal.model.ActionType
 import com.digia.engage.internal.model.GuideStepWidgetConfig
 import kotlinx.coroutines.delay
@@ -57,6 +58,7 @@ internal fun GuideRenderer() {
     if (state == null) return
 
     val guideState  = state!!
+    val variables   = guideState.variables
     val step        = guideState.currentStep
     val config      = step.widgetConfig
     val anchorRect  = DigiaInstance.findAnchor(step.anchorKey) ?: return
@@ -80,6 +82,7 @@ internal fun GuideRenderer() {
     GuideTooltipOverlay(
         config      = config,
         guideState  = guideState,
+        variables   = variables,
         anchorRect  = anchorRect,
         onAdvance   = onAdvance,
         onDismiss   = onDismiss,
@@ -92,6 +95,7 @@ internal fun GuideRenderer() {
 private fun GuideTooltipOverlay(
     config:     GuideStepWidgetConfig,
     guideState: ActiveGuideState,
+    variables:  Map<String, String>?,
     anchorRect: ScreenRect,
     onAdvance:  () -> Unit,
     onDismiss:  () -> Unit,
@@ -130,6 +134,7 @@ private fun GuideTooltipOverlay(
         TooltipBubble(
             config     = config,
             guideState = guideState,
+            variables  = variables,
             showBelow  = showBelow,
             onAdvance  = onAdvance,
             onDismiss  = onDismiss,
@@ -171,6 +176,7 @@ private fun tooltipPositionProvider(
 private fun TooltipBubble(
     config:     GuideStepWidgetConfig,
     guideState: ActiveGuideState,
+    variables:  Map<String, String>?,
     showBelow:  Boolean,
     onAdvance:  () -> Unit,
     onDismiss:  () -> Unit,
@@ -201,7 +207,7 @@ private fun TooltipBubble(
         ) {
             config.content.title?.takeIf { it.text.isNotBlank() }?.let { tc ->
                 androidx.compose.material3.Text(
-                    text       = tc.text,
+                    text       = interpolate(tc.text, variables),
                     fontSize   = tc.fontSize.sp,
                     color      = androidx.compose.ui.graphics.Color(tc.textColor),
                     fontWeight = FontWeight.Bold,
@@ -211,7 +217,7 @@ private fun TooltipBubble(
             config.content.body?.takeIf { it.text.isNotBlank() }?.let { tc ->
                 Spacer(modifier = Modifier.height(4.dp))
                 androidx.compose.material3.Text(
-                    text     = tc.text,
+                    text     = interpolate(tc.text, variables),
                     fontSize = tc.fontSize.sp,
                     color    = androidx.compose.ui.graphics.Color(tc.textColor),
                 )
@@ -248,7 +254,7 @@ private fun TooltipBubble(
                             ),
                         ) {
                             androidx.compose.material3.Text(
-                                text     = action.label,
+                                text     = interpolate(action.label, variables),
                                 fontSize = 14.sp,
                             )
                         }
