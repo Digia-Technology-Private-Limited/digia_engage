@@ -11,7 +11,7 @@ import org.junit.Test
 /**
  * Locks the nudge wire contract: the dashboard serializes `templateConfig.layout` as the
  * exact native DUI `VWData` tree, and this confirms the SDK parses those key names
- * (`containerProps`, `childGroups.children`, `digia/*` / `fw/*` type strings) into the
+ * (`containerProps`, `childGroups.children`, `digia/...` / `fw/...` type strings) into the
  * recursive renderer's data model without translation.
  */
 class NudgeConfigTest {

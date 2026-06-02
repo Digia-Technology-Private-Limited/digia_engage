@@ -3,6 +3,7 @@ package com.digia.engage.framework.models
 import com.digia.engage.framework.actions.base.ActionFlow
 import com.digia.engage.framework.utils.JsonLike
 import com.digia.engage.framework.utils.JsonUtil.Companion.tryKeys
+import com.digia.engage.utils.asSafe
 import com.digia.engage.utils.asType
 
 data class CommonStyle(
@@ -28,7 +29,7 @@ data class CommonStyle(
                     // Backward compatibility:
                     // If "border" exists → use it
                     // else → use full json (same as Dart)
-                    border = asType<JsonLike>(json["border"]) ?: json,
+                    border = asSafe<JsonLike>(json["border"]) ?: json,
                     height = asType(json["height"]),
                     width = asType(json["width"]),
                     clipBehavior = asType(json["clipBehavior"])
