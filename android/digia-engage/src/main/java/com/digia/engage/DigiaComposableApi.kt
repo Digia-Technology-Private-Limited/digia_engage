@@ -24,6 +24,7 @@ import com.digia.engage.internal.model.InlineCarouselConfig
 import com.digia.engage.internal.ui.DigiaInlineStory
 import com.digia.engage.internal.ui.DigiaStoryOverlay
 import com.digia.engage.internal.ui.GuideRenderer
+import com.digia.engage.internal.ui.NudgeRenderer
 import com.digia.engage.internal.ui.SurveyRenderer
 
 @Composable
@@ -32,6 +33,7 @@ fun DigiaHost(content: @Composable () -> Unit) {
         content()
         GuideRenderer()
         SurveyRenderer()
+        NudgeRenderer()
         DigiaStoryOverlay()
     }
 }

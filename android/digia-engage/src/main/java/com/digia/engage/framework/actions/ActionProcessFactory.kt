@@ -25,8 +25,8 @@ import com.digia.engage.framework.actions.dismissDialog.DismissDialogProcessor
 import com.digia.engage.framework.datatype.methodbinding.MethodBindingRegistry
 
 /** Action processor factory - routes actions to their processors */
-class ActionProcessorFactory {
-    fun getProcessor(action: Action,registry: MethodBindingRegistry): ActionProcessor<*> {
+open class ActionProcessorFactory {
+    open fun getProcessor(action: Action,registry: MethodBindingRegistry): ActionProcessor<*> {
         return when (action.actionType) {
             ActionType.SHOW_TOAST -> ShowToastProcessor()
             ActionType.SET_STATE -> SetStateProcessor()

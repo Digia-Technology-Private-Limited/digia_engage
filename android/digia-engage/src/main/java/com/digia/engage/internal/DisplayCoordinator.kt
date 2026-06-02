@@ -4,14 +4,15 @@ import com.digia.engage.DigiaExperienceEvent
 import com.digia.engage.InAppPayload
 import com.digia.engage.internal.model.InlineCarouselConfig
 import com.digia.engage.internal.model.InlineStoryConfig
+import com.digia.engage.internal.model.NudgeConfig
 
 internal class DisplayCoordinator(
     private val overlayController: DigiaOverlayController,
     private val pluginRegistry: PluginRegistry,
     private val analyticsClient: AnalyticsClient,
 ) {
-    fun routeNudge(payload: InAppPayload) {
-        overlayController.show(payload)
+    fun routeNudge(config: NudgeConfig, payload: InAppPayload) {
+        overlayController.showNudge(config, payload)
     }
 
     fun routeInline(placementKey: String, payload: InAppPayload) {
@@ -29,8 +30,8 @@ internal class DisplayCoordinator(
     }
 
     fun dismissNudge(campaignId: String) {
-        if (overlayController.activePayload.value?.id == campaignId) {
-            overlayController.dismiss()
+        if (overlayController.nudgeOverlay.value?.payload?.id == campaignId) {
+            overlayController.dismissNudge()
         }
     }
 

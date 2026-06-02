@@ -203,6 +203,28 @@ internal object DigiaInstance : DigiaCEPDelegate {
     private fun surveyPayload(state: ActiveSurveyState): InAppPayload =
         campaignPayload(state.campaign)
 
+    // ── Nudge lifecycle ───────────────────────────────────────────────────────
+    //
+    // Bottom-sheet / dialog nudges route Viewed / Clicked / Dismissed through the
+    // shared overlay path (both CEP plugin.track() and internal analytics). The
+    // payload carries campaign_type='nudge' + display_style for the CEP mapping.
+
+    fun reportNudgeImpression() {
+        val payload = controller.nudgeOverlay.value?.payload ?: return
+        displayCoordinator.onOverlayEvent(DigiaExperienceEvent.Impressed, payload)
+    }
+
+    fun emitNudgeClick(elementId: String?) {
+        val payload = controller.nudgeOverlay.value?.payload ?: return
+        displayCoordinator.onOverlayEvent(DigiaExperienceEvent.Clicked(elementId), payload)
+    }
+
+    fun markNudgeDismissed() {
+        val payload = controller.nudgeOverlay.value?.payload ?: return
+        displayCoordinator.onOverlayEvent(DigiaExperienceEvent.Dismissed, payload)
+        controller.dismissNudge()
+    }
+
     fun reportSlotImpression(payload: InAppPayload) {
         displayCoordinator.onSlotEvent(DigiaExperienceEvent.Impressed, payload)
     }
@@ -234,6 +256,7 @@ internal object DigiaInstance : DigiaCEPDelegate {
         controller.clearSlotConfigs()
         controller.clearStorySlotConfigs()
         controller.dismissStoryOverlay()
+        controller.dismissNudge()
         screenTracker.clear()
         guideOrchestrator.dismiss()
         surveyOrchestrator.dismiss()
@@ -336,7 +359,11 @@ internal object DigiaInstance : DigiaCEPDelegate {
         // android.util.Log.d("Digia", "[routeCampaign] routing '$campaignKey' type=${campaign.campaignType}")
         when (campaign.campaignType) {
             "guide" -> guideOrchestrator.start(campaign, extractVariables(payload.content))
-            "nudge" -> displayCoordinator.routeNudge(routedPayload)
+            "nudge" -> {
+                val nudgeConfig = campaign.nudgeConfig
+                    ?: error("unexpected config for nudge campaign '$campaignKey'")
+                displayCoordinator.routeNudge(nudgeConfig, nudgePayload(campaign, routedPayload, nudgeConfig))
+            }
             "inline" -> when (val cfg = campaign.config) {
                 is com.digia.engage.internal.model.CampaignConfigModel.Inline ->
                     displayCoordinator.routeInlineCarousel(cfg.inlineConfig, routedPayload)
@@ -368,6 +395,18 @@ internal object DigiaInstance : DigiaCEPDelegate {
             content = payload.content + mapOf(
                 "campaign_id" to campaign.id,
                 "campaign_key" to campaign.campaignKey,
+            ),
+        )
+
+    private fun nudgePayload(
+        campaign: CampaignModel,
+        payload: InAppPayload,
+        config: com.digia.engage.internal.model.NudgeConfig,
+    ): InAppPayload =
+        payload.copy(
+            content = payload.content + mapOf(
+                "campaign_type" to "nudge",
+                "display_style" to config.templateType.displayStyle,
             ),
         )
 
@@ -445,6 +484,7 @@ internal object DigiaInstance : DigiaCEPDelegate {
         controller.clearSlotConfigs()
         controller.clearStorySlotConfigs()
         controller.dismissStoryOverlay()
+        controller.dismissNudge()
         guideOrchestrator.dismiss()
         surveyOrchestrator.dismiss()
         _isUiReady.value = false

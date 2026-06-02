@@ -4,7 +4,7 @@ import org.json.JSONObject
 
 internal sealed interface CampaignConfigModel {
     data class Guide(val guideConfig: GuideConfigModel) : CampaignConfigModel
-    object Nudge : CampaignConfigModel
+    data class Nudge(val nudgeConfig: NudgeConfig) : CampaignConfigModel
     data class Inline(val inlineConfig: InlineCarouselConfig) : CampaignConfigModel
     data class Story(val storyConfig: InlineStoryConfig) : CampaignConfigModel
     data class Survey(val surveyConfig: SurveyConfigModel) : CampaignConfigModel
@@ -18,6 +18,9 @@ internal data class CampaignModel(
 ) {
     val guideConfig: GuideConfigModel?
         get() = (config as? CampaignConfigModel.Guide)?.guideConfig
+
+    val nudgeConfig: NudgeConfig?
+        get() = (config as? CampaignConfigModel.Nudge)?.nudgeConfig
 
     val inlineConfig: InlineCarouselConfig?
         get() = (config as? CampaignConfigModel.Inline)?.inlineConfig
@@ -43,7 +46,14 @@ internal data class CampaignModel(
                     parseGuideConfig(json, fallbackId = id)
                         ?: error("guide campaign '$campaignKey' has no valid guide_config")
                 )
-                "nudge" -> CampaignConfigModel.Nudge
+                "nudge" -> {
+                    val templateConfig = json.optJSONObject("templateConfig")
+                        ?: error("nudge campaign '$campaignKey' has no templateConfig")
+                    CampaignConfigModel.Nudge(
+                        NudgeConfig.fromJson(templateConfig)
+                            ?: error("nudge campaign '$campaignKey' has no valid nudge templateConfig")
+                    )
+                }
                 "inline" -> {
                     val templateConfig = json.optJSONObject("templateConfig")
                         ?: error("inline campaign '$campaignKey' has no templateConfig")

@@ -5,7 +5,10 @@ import com.digia.engage.DigiaCEPDelegate
 import com.digia.engage.DigiaCEPPlugin
 import com.digia.engage.DigiaExperienceEvent
 import com.digia.engage.InAppPayload
+import com.digia.engage.internal.model.CampaignModel
+import com.digia.engage.internal.model.NudgeTemplateType
 import kotlinx.coroutines.Dispatchers
+import org.json.JSONObject
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.resetMain
@@ -211,6 +214,69 @@ class DigiaInstanceTest {
         assertNull(DigiaInstance.controller.activePayload.value)
         assertTrue(DigiaInstance.controller.slotPayloads.value.isEmpty())
     }
+
+    @Test
+    fun `nudge campaign routes to nudge overlay channel with display style`() = runTest(testDispatcher) {
+        val plugin = FakePlugin()
+        DigiaInstance.initForTest()
+        DigiaInstance.register(plugin)
+        DigiaInstance.setCampaignsForTest(listOf(nudgeCampaign(key = "welcome_nudge", type = "bottomSheet")))
+
+        plugin.delegate!!.onCampaignTriggered(
+            InAppPayload(id = "welcome_nudge", content = mapOf("campaign_key" to "welcome_nudge")),
+        )
+        testScheduler.advanceUntilIdle()
+
+        val overlay = DigiaInstance.controller.nudgeOverlay.value
+        assertNotNull(overlay)
+        assertEquals("welcome_nudge", overlay!!.payload.id)
+        assertEquals(NudgeTemplateType.BOTTOM_SHEET, overlay.config.templateType)
+        assertEquals("nudge", overlay.payload.content["campaign_type"])
+        assertEquals("bottom_sheet", overlay.payload.content["display_style"])
+        // Impression fires through the shared overlay path.
+        DigiaInstance.reportNudgeImpression()
+        assertTrue(plugin.events.any { it.first is DigiaExperienceEvent.Impressed })
+    }
+
+    @Test
+    fun `markNudgeDismissed clears channel and emits dismissed`() = runTest(testDispatcher) {
+        val plugin = FakePlugin()
+        DigiaInstance.initForTest()
+        DigiaInstance.register(plugin)
+        DigiaInstance.setCampaignsForTest(listOf(nudgeCampaign(key = "n1", type = "dialog")))
+
+        plugin.delegate!!.onCampaignTriggered(
+            InAppPayload(id = "n1", content = mapOf("campaign_key" to "n1")),
+        )
+        testScheduler.advanceUntilIdle()
+        assertNotNull(DigiaInstance.controller.nudgeOverlay.value)
+
+        DigiaInstance.markNudgeDismissed()
+
+        assertNull(DigiaInstance.controller.nudgeOverlay.value)
+        assertTrue(plugin.events.any { it.first is DigiaExperienceEvent.Dismissed })
+    }
+
+    private fun nudgeCampaign(key: String, type: String): CampaignModel =
+        CampaignModel.fromJson(
+            JSONObject(
+                """
+                {
+                  "id": "$key-id",
+                  "campaignKey": "$key",
+                  "campaignType": "nudge",
+                  "templateConfig": {
+                    "templateType": "$type",
+                    "container": {},
+                    "layout": {
+                      "type": "digia/column",
+                      "childGroups": { "children": [ { "type": "digia/text", "props": { "text": "Hi" } } ] }
+                    }
+                  }
+                }
+                """.trimIndent(),
+            ),
+        )!!
 
     private class FakePlugin : DigiaCEPPlugin {
         override val identifier: String = "fake"
