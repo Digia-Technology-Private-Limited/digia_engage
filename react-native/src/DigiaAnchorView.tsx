@@ -7,98 +7,81 @@ import { digiaAnchorRegistry } from './digiaAnchorRegistry';
 
 export interface DigiaAnchorViewRef {
     /**
-     * Force the anchor to (re)measure its current on-screen position and publish
-     * it into the registry.
+     * Tell the anchor that the entrance/layout animation wrapping it has
+     * finished. The anchor then captures its final, resting position and
+     * publishes it to the registry so tooltips can attach to it.
      *
-     * Call this once any entrance/layout animation wrapping the anchor has
-     * settled (e.g. from a Reanimated `entering` `.withCallback`). The SDK stays
-     * animation-library-agnostic: it never inspects the animation, it just
-     * captures the position when you tell it the anchor has come to rest.
+     * Attaching a ref is itself the signal that this anchor is animated: until
+     * the first `animationCompleted()` call the anchor publishes NOTHING, so a
+     * guide that triggers mid-animation simply finds no layout and stays
+     * invisible instead of painting at a transient (wrong) position.
      *
-     * When `deferMeasurement` is set, the anchor publishes NOTHING to the
-     * registry until the first `remeasure()` call. A guide that triggers while
-     * the animation is still mid-flight therefore finds no layout and stays
-     * fully invisible — making a stale, mis-anchored paint impossible.
+     * If you never attach a ref, none of this applies — the anchor measures on
+     * layout exactly as a static anchor always has.
      */
-    remeasure: () => void;
+    animationCompleted: () => void;
 }
 
 interface Props extends ViewProps {
     anchorKey: string;
     children?: React.ReactNode;
-    /**
-     * Withhold this anchor's layout from the registry until `remeasure()` is
-     * called via ref. Use when the anchor (or an ancestor) plays an entrance
-     * animation, so the tooltip cannot paint at a transient position. Defaults
-     * to `false`, preserving the measure-on-layout behaviour for normal anchors.
-     */
-    deferMeasurement?: boolean;
 }
 
 export const DigiaAnchorView = forwardRef<DigiaAnchorViewRef, Props>(
-    function DigiaAnchorView({ anchorKey, children, style, deferMeasurement, ...rest }, ref) {
-        useEffect(() => {
-            Digia.registerAnchor(anchorKey);
-            return () => {
-                Digia.unregisterAnchor(anchorKey);
-                digiaAnchorRegistry.remove(anchorKey);
-            };
+    function DigiaAnchorView({ anchorKey, children, style, ...rest }, ref) {
+        // The native View we read the on-screen position from.
+        const viewRef = useRef<View>(null);
+
+        // A ref attached by the consumer means "this anchor is animated, wait
+        // for me to call animationCompleted()". No ref means a plain static
+        // anchor that should measure as soon as it lays out.
+        const isAnimated = ref != null;
+
+        // The gate that decides whether measure() is allowed to publish.
+        // Static anchors start open (true) and behave exactly as before.
+        // Animated anchors start closed (false) and open on animationCompleted().
+        const canMeasure = useRef(!isAnimated);
+
+        // Read the View's current position and publish it to the registry.
+        // No-op while the gate is closed (animation still in flight).
+        const measure = useCallback(() => {
+            if (!canMeasure.current) return;
+            viewRef.current?.measure((_x, _y, width, height, pageX, pageY) => {
+                if (width === 0 && height === 0) return;
+                nativeDigiaModule.registerAnchor(anchorKey, Math.round(pageX), Math.round(pageY), Math.round(width), Math.round(height));
+                digiaAnchorRegistry.setLayout(anchorKey, { pageX, pageY, width, height });
+            });
         }, [anchorKey]);
 
+        // What the consumer calls from their animation's completion callback.
+        // Open the gate, then measure on the frame after the animation's final
+        // commit so the position we capture is the resting one.
+        const animationCompleted = useCallback(() => {
+            canMeasure.current = true;
+            requestAnimationFrame(() => requestAnimationFrame(measure));
+        }, [measure]);
+
+        // Expose animationCompleted() on the ref. When no ref is attached this
+        // is a no-op, so static anchors carry zero extra behaviour.
+        useImperativeHandle(ref, () => ({ animationCompleted }), [animationCompleted]);
+
+        // Register the anchor (and its measure callback) with the SDK on mount,
+        // and tear everything down on unmount.
+        useEffect(() => {
+            Digia.registerAnchor(anchorKey);
+            digiaAnchorRegistry.registerMeasure(anchorKey, measure);
+            return () => {
+                Digia.unregisterAnchor(anchorKey);
+                digiaAnchorRegistry.unregisterMeasure(anchorKey, measure);
+                nativeDigiaModule.unregisterAnchor(anchorKey);
+                digiaAnchorRegistry.remove(anchorKey);
+            };
+        }, [anchorKey, measure]);
+
         return (
-            <JsMeasureAnchor
-                anchorKey={anchorKey}
-                deferMeasurement={deferMeasurement}
-                forwardedRef={ref}
-                style={style}
-                {...rest}
-            >
+            <View ref={viewRef} onLayout={measure} style={style} {...rest}>
                 {children}
-            </JsMeasureAnchor>
+            </View>
         );
     },
 );
-
-interface MeasureProps extends Props {
-    forwardedRef: React.ForwardedRef<DigiaAnchorViewRef>;
-}
-
-function JsMeasureAnchor({ anchorKey, children, style, deferMeasurement, forwardedRef, ...rest }: MeasureProps) {
-    const ref = useRef<View>(null);
-    // While deferred, the gate stays closed until the first remeasure() call, so
-    // measure() — including the registry's mount-time remeasure from a triggered
-    // guide — publishes nothing and the tooltip cannot anchor to a transient spot.
-    const released = useRef(!deferMeasurement);
-
-    const measure = useCallback(() => {
-        if (!released.current) return;
-        ref.current?.measure((_x, _y, width, height, pageX, pageY) => {
-            if (width === 0 && height === 0) return;
-            nativeDigiaModule.registerAnchor(anchorKey, Math.round(pageX), Math.round(pageY), Math.round(width), Math.round(height));
-            digiaAnchorRegistry.setLayout(anchorKey, { pageX, pageY, width, height });
-        });
-    }, [anchorKey]);
-
-    const remeasure = useCallback(() => {
-        // Lift the gate (first call) and measure on the frame after the
-        // animation's final commit, so the captured position is the resting one.
-        released.current = true;
-        requestAnimationFrame(() => requestAnimationFrame(measure));
-    }, [measure]);
-
-    useImperativeHandle(forwardedRef, () => ({ remeasure }), [remeasure]);
-
-    useEffect(() => {
-        digiaAnchorRegistry.registerMeasure(anchorKey, measure);
-        return () => {
-            digiaAnchorRegistry.unregisterMeasure(anchorKey, measure);
-            nativeDigiaModule.unregisterAnchor(anchorKey);
-        };
-    }, [anchorKey, measure]);
-
-    return (
-        <View ref={ref} onLayout={measure} style={style} {...rest}>
-            {children}
-        </View>
-    );
-}
