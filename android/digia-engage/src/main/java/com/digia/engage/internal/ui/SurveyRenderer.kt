@@ -35,11 +35,13 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -56,6 +58,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight as ComposeFontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -63,6 +66,7 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
+import com.digia.engage.framework.DigiaFontConfig
 import com.digia.engage.internal.ActiveSurveyState
 import com.digia.engage.internal.DigiaInstance
 import com.digia.engage.internal.model.BlockMedia
@@ -96,7 +100,30 @@ internal fun SurveyRenderer() {
     val state by DigiaInstance.surveyState.collectAsState()
     val active = state ?: return
     key(active.token) {
-        SurveySession(active)
+        ProvideSurveyFont {
+            SurveySession(active)
+        }
+    }
+}
+
+/**
+ * Applies the global [DigiaConfig.fontFamily][com.digia.engage.DigiaConfig.fontFamily]
+ * to all survey text, matching campaigns and guides. Raw `Text(...)` calls inherit
+ * the family through [LocalTextStyle]; styled text built via `toTextStyle` / `toStyle`
+ * sets the family directly. CompositionLocals propagate into the survey's `Dialog`
+ * sub-composition, so this single wrap covers both dialog and bottom-sheet displays.
+ * A no-op when no global family is configured, preserving the prior system-font look.
+ */
+@Composable
+private fun ProvideSurveyFont(content: @Composable () -> Unit) {
+    val family = DigiaFontConfig.composeFontFamily()
+    if (family == null) {
+        content()
+    } else {
+        CompositionLocalProvider(
+            LocalTextStyle provides LocalTextStyle.current.merge(TextStyle(fontFamily = family)),
+            content = content,
+        )
     }
 }
 

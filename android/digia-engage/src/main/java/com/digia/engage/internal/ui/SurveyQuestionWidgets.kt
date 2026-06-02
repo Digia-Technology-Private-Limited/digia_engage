@@ -44,6 +44,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign as ComposeTextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.digia.engage.framework.DigiaFontConfig
 import com.digia.engage.internal.SurveyAnswer
 import com.digia.engage.internal.model.AnswerLayout
 import com.digia.engage.internal.model.ElementStyle
@@ -101,6 +102,7 @@ internal fun ElementStyle.toTextStyle(accent: Color, default: TextDefaults): Tex
             FontWeight.BOLD -> ComposeFontWeight.Bold
         },
         color = parsedColor ?: default.color,
+        fontFamily = DigiaFontConfig.composeFontFamily(),
         textAlign = when (align) {
             TextAlign.LEFT -> ComposeTextAlign.Start
             TextAlign.CENTER -> ComposeTextAlign.Center
@@ -110,7 +112,13 @@ internal fun ElementStyle.toTextStyle(accent: Color, default: TextDefaults): Tex
 }
 
 internal fun TextDefaults.toStyle(): TextStyle =
-    TextStyle(fontSize = sizeSp.sp, fontWeight = weight, color = color, textAlign = align)
+    TextStyle(
+        fontSize = sizeSp.sp,
+        fontWeight = weight,
+        color = color,
+        fontFamily = DigiaFontConfig.composeFontFamily(),
+        textAlign = align,
+    )
 
 // ── dispatch ───────────────────────────────────────────────────────────────
 
