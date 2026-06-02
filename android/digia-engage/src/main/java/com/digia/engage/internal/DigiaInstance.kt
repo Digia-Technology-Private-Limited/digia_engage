@@ -314,7 +314,8 @@ internal object DigiaInstance : DigiaCEPDelegate {
 
     private fun doRouteCampaign(payload: InAppPayload) {
         // content["campaign_key"] is set by native CEP plugins; RN bridge uses payload.id directly
-        val campaignKey = ((payload.content["campaign_key"] as? String)
+        val campaignKey = ((payload.content["digia_campaign_key"] as? String)
+            ?: (payload.content["campaign_key"] as? String)
             ?: (payload.content["digiaKey"] as? String)
             ?: payload.id.takeIf { it.isNotBlank() })?.trim()
         if (campaignKey.isNullOrBlank()) {
@@ -334,7 +335,7 @@ internal object DigiaInstance : DigiaCEPDelegate {
         val routedPayload = payloadForCampaign(campaign, payload)
         // android.util.Log.d("Digia", "[routeCampaign] routing '$campaignKey' type=${campaign.campaignType}")
         when (campaign.campaignType) {
-            "guide" -> guideOrchestrator.start(campaign)
+            "guide" -> guideOrchestrator.start(campaign, extractVariables(payload.content))
             "nudge" -> displayCoordinator.routeNudge(routedPayload)
             "inline" -> when (val cfg = campaign.config) {
                 is com.digia.engage.internal.model.CampaignConfigModel.Inline ->

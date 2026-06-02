@@ -18,8 +18,10 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
@@ -38,9 +40,14 @@ import androidx.compose.ui.window.PopupProperties
 import com.digia.engage.internal.ActiveGuideState
 import com.digia.engage.internal.DigiaInstance
 import com.digia.engage.internal.ScreenRect
+import com.digia.engage.internal.interpolate
 import com.digia.engage.internal.model.ActionType
 import com.digia.engage.internal.model.GuideStepWidgetConfig
 import kotlinx.coroutines.delay
+
+// Ambient variable map for the active guide session.
+// Provided at the GuideRenderer level; consumed by any composable that renders text.
+internal val LocalDigiaVariables = compositionLocalOf<Map<String, String>?> { null }
 
 /**
  * GuideRenderer — pure Compose, no external popup library.
@@ -56,13 +63,10 @@ internal fun GuideRenderer() {
 
     if (state == null) return
 
-    val guideState  = state!!
-    val step        = guideState.currentStep
-    val config      = step.widgetConfig
-    val anchorRect  = DigiaInstance.findAnchor(step.anchorKey) ?: return
-
-    // android.util.Log.d("Digia",
-    //     "[GuideRenderer] step=${guideState.stepIndex} anchorKey='${step.anchorKey}' anchorRect=$anchorRect")
+    val guideState = state!!
+    val step       = guideState.currentStep
+    val config     = step.widgetConfig
+    val anchorRect = DigiaInstance.findAnchor(step.anchorKey) ?: return
 
     // Auto-advance coroutine
     if (step.advanceTrigger == "auto" && step.autoDelayMs != null) {
@@ -77,13 +81,15 @@ internal fun GuideRenderer() {
     }
     val onDismiss: () -> Unit = { DigiaInstance.dismissGuide() }
 
-    GuideTooltipOverlay(
-        config      = config,
-        guideState  = guideState,
-        anchorRect  = anchorRect,
-        onAdvance   = onAdvance,
-        onDismiss   = onDismiss,
-    )
+    CompositionLocalProvider(LocalDigiaVariables provides guideState.variables) {
+        GuideTooltipOverlay(
+            config     = config,
+            guideState = guideState,
+            anchorRect = anchorRect,
+            onAdvance  = onAdvance,
+            onDismiss  = onDismiss,
+        )
+    }
 }
 
 // ── Overlay + popup ───────────────────────────────────────────────────────────
@@ -178,6 +184,7 @@ private fun TooltipBubble(
     val bubble = config.bubble
     val arrow  = bubble.arrow
     val shape  = RoundedCornerShape(bubble.cornerRadius.dp)
+    val vars   = LocalDigiaVariables.current
 
     Column(modifier = Modifier.widthIn(max = bubble.maxWidthDp.dp)) {
         // ── Arrow above bubble (tooltip shown below anchor) ────────────────────
@@ -201,7 +208,7 @@ private fun TooltipBubble(
         ) {
             config.content.title?.takeIf { it.text.isNotBlank() }?.let { tc ->
                 androidx.compose.material3.Text(
-                    text       = tc.text,
+                    text       = interpolate(tc.text, vars),
                     fontSize   = tc.fontSize.sp,
                     color      = androidx.compose.ui.graphics.Color(tc.textColor),
                     fontWeight = FontWeight.Bold,
@@ -211,7 +218,7 @@ private fun TooltipBubble(
             config.content.body?.takeIf { it.text.isNotBlank() }?.let { tc ->
                 Spacer(modifier = Modifier.height(4.dp))
                 androidx.compose.material3.Text(
-                    text     = tc.text,
+                    text     = interpolate(tc.text, vars),
                     fontSize = tc.fontSize.sp,
                     color    = androidx.compose.ui.graphics.Color(tc.textColor),
                 )
@@ -248,7 +255,7 @@ private fun TooltipBubble(
                             ),
                         ) {
                             androidx.compose.material3.Text(
-                                text     = action.label,
+                                text     = interpolate(action.label, vars),
                                 fontSize = 14.sp,
                             )
                         }

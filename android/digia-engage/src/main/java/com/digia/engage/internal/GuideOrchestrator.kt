@@ -9,6 +9,7 @@ import kotlinx.coroutines.flow.asStateFlow
 internal data class ActiveGuideState(
     val campaign: CampaignModel,
     val stepIndex: Int,
+    val variables: Map<String, String>? = null,
 ) {
     val currentStep: GuideStepModel
         get() = campaign.guideConfig!!.steps[stepIndex]
@@ -21,12 +22,12 @@ internal class GuideOrchestrator {
     private val _state = MutableStateFlow<ActiveGuideState?>(null)
     val state: StateFlow<ActiveGuideState?> = _state.asStateFlow()
 
-    fun start(campaign: CampaignModel) {
+    fun start(campaign: CampaignModel, variables: Map<String, String>? = null) {
         val guideConfig = campaign.guideConfig
         require(campaign.campaignType == "guide" && guideConfig != null)
         require(guideConfig.steps.isNotEmpty())
         // android.util.Log.d("Digia", "[GuideOrchestrator] starting campaign='${campaign.campaignKey}' steps=${guideConfig.steps.size}")
-        _state.value = ActiveGuideState(campaign, 0)
+        _state.value = ActiveGuideState(campaign, 0, variables)
         // android.util.Log.d("Digia", "[GuideOrchestrator] state set → step[0] anchorKey='${guideConfig.steps[0].anchorKey}'")
     }
 

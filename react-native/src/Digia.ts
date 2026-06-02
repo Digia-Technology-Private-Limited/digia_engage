@@ -19,6 +19,7 @@ import { DeviceEventEmitter } from 'react-native';
 import { nativeDigiaModule } from './NativeDigiaEngage';
 import { digiaHealthReporter, HealthEventType } from './DigiaHealthReporter';
 import { digiaGuideController } from './DigiaGuideController';
+import { parseVariableMap } from './interpolate';
 import { digiaActionHandler } from './actionHandler';
 import uuid from 'react-native-uuid';
 import { frequencyStore } from './frequencyStore';
@@ -234,6 +235,7 @@ class DigiaClass implements DigiaDelegate {
                     payloadId: payload.id,
                     campaignKey,
                     campaignId: digiaId,
+                    variables: this._extractVariables(payload),
                     config,
                     onExperienceEvent: (event) => this._onGuideLifecycleEvent(event, payload.id, campaignKey, digiaId),
                 });
@@ -505,17 +507,28 @@ class DigiaClass implements DigiaDelegate {
     }
 
     private _extractCampaignKey(payload: InAppPayload): string | null {
-        const fromContent = this._extractString(payload.content, 'digiaKey', 'campaign_key', 'campaignKey');
+        const fromContent = this._extractString(payload.content, 'digia_campaign_key', 'digiaKey', 'campaign_key', 'campaignKey');
         if (fromContent) return fromContent;
 
         const args = payload.content.args;
         if (args && typeof args === 'object' && !Array.isArray(args)) {
-            const fromArgs = this._extractString(args as Record<string, unknown>, 'digiaKey', 'campaign_key', 'campaignKey');
+            const fromArgs = this._extractString(args as Record<string, unknown>, 'digia_campaign_key', 'digiaKey', 'campaign_key', 'campaignKey');
             if (fromArgs) return fromArgs;
         }
 
         if (this._campaignsByKey.has(payload.id)) return payload.id;
         return null;
+    }
+
+    private _extractVariables(payload: InAppPayload): Record<string, string> | undefined {
+        const fromContent = parseVariableMap(payload.content.variables);
+        if (fromContent) return fromContent;
+
+        const args = payload.content.args;
+        if (args && typeof args === 'object' && !Array.isArray(args)) {
+            return parseVariableMap((args as Record<string, unknown>).variables);
+        }
+        return undefined;
     }
 
     private _extractString(data: Record<string, unknown>, ...keys: string[]): string | null {
