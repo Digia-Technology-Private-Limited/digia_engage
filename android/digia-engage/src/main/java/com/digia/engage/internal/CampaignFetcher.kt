@@ -10,7 +10,7 @@ import java.net.URL
 import org.json.JSONArray
 import org.json.JSONObject
 
-internal class CampaignFetcher(private val config: DigiaConfig) {
+internal class CampaignFetcher(private val config: DigiaConfig, private val deviceId: String) {
 
     fun fetch(): List<CampaignModel> {
         val baseUrl =
@@ -30,6 +30,7 @@ internal class CampaignFetcher(private val config: DigiaConfig) {
                 (url.openConnection() as HttpURLConnection).apply {
                     requestMethod = "POST"
                     setRequestProperty("X-Digia-Project-Id", config.apiKey)
+                    setRequestProperty("X-Digia-Device-Id", deviceId)
                     setRequestProperty("Content-Type", "application/json")
                     connectTimeout = 10_000
                     readTimeout = 10_000
@@ -38,7 +39,7 @@ internal class CampaignFetcher(private val config: DigiaConfig) {
                 }
 
         val code = connection.responseCode
-        android.util.Log.d("Digia", "[CampaignFetcher] response: HTTP $code")
+        // android.util.Log.d("Digia", "[CampaignFetcher] response: HTTP $code")
         if (code != 200) throw IOException("getCampaigns failed: HTTP $code")
 
         val body = connection.inputStream.bufferedReader().readText()

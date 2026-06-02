@@ -1,3 +1,4 @@
+import DigiaEngage
 /**
  * DigiaModule
  *
@@ -31,7 +32,6 @@ import Foundation
 import React
 import SwiftUI
 import UIKit
-import DigiaEngage
 
 @objc(DigiaEngageModule)
 final class DigiaModule: RCTEventEmitter {
@@ -65,25 +65,28 @@ final class DigiaModule: RCTEventEmitter {
         _ projectId: String,
         environment: String,
         logLevel: String,
-        baseUrl: String,
+        baseUrl: String?,
+        fontFamily: String?,
         resolve: @escaping RCTPromiseResolveBlock,
         reject: @escaping RCTPromiseRejectBlock
     ) {
-        let envValue: DigiaEnvironment = environment.lowercased() == "sandbox" ? .sandbox : .production
+        let envValue: DigiaEnvironment =
+            environment.lowercased() == "sandbox" ? .sandbox : .production
         let logLevelValue: DigiaLogLevel
         switch logLevel.lowercased() {
         case "verbose": logLevelValue = .verbose
-        case "none":    logLevelValue = .none
-        default:        logLevelValue = .error
+        case "none": logLevelValue = .none
+        default: logLevelValue = .error
         }
 
         let config = DigiaConfig(
             apiKey: projectId,
             logLevel: logLevelValue,
             environment: envValue,
-            developerConfig: DigiaDeveloperConfig(
-                baseURL: baseUrl.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
-            )
+            developerConfig: baseUrl.flatMap {
+                $0.isEmpty ? nil : DigiaDeveloperConfig(baseURL: $0)
+            },
+            fontFamily: fontFamily.flatMap { $0.isEmpty ? nil : $0 }
         )
 
         Task { @MainActor in
@@ -209,11 +212,13 @@ final class DigiaModule: RCTEventEmitter {
     @MainActor
     private func mountDigiaHost() {
         // Locate the key window's root view controller.
-        guard let rootVC = UIApplication.shared
-            .connectedScenes
-            .compactMap({ ($0 as? UIWindowScene)?.keyWindow })
-            .first?
-            .rootViewController else { return }
+        guard
+            let rootVC = UIApplication.shared
+                .connectedScenes
+                .compactMap({ ($0 as? UIWindowScene)?.keyWindow })
+                .first?
+                .rootViewController
+        else { return }
 
         // Guard against double-mounting (e.g. fast-refresh).
         let mountTag = 0xD19140
@@ -242,15 +247,20 @@ final class DigiaModule: RCTEventEmitter {
     // MARK: - Private helpers
 
     private func buildInAppPayloadContent(from map: NSDictionary) -> InAppPayloadContent {
-        let pk      = map["placementKey"]  as? String
-        let title   = map["title"]         as? String
-        let text    = map["text"]          as? String
-        let viewId  = map["viewId"]        as? String
-        let command = map["command"]       as? String
-        let screenId = map["screenId"]     as? String
+        let pk = map["placementKey"] as? String
+        let title = map["title"] as? String
+        let text = map["text"] as? String
+        let viewId = map["viewId"] as? String
+        let command = map["command"] as? String
+        let screenId = map["screenId"] as? String
+        let campaignKey =
+            (map["campaignKey"] as? String) ?? (map["campaign_key"] as? String)
+            ?? (map["digiaKey"] as? String)
         var type = (map["type"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         if type.isEmpty {
-            type = (pk?.trimmingCharacters(in: .whitespacesAndNewlines) ?? "").isEmpty ? "dialog" : "inline"
+            type =
+                (pk?.trimmingCharacters(in: .whitespacesAndNewlines) ?? "").isEmpty
+                ? "dialog" : "inline"
         }
         let args: [String: JSONValue] = {
             guard let raw = map["args"] as? [String: Any] else { return [:] }
@@ -265,19 +275,20 @@ final class DigiaModule: RCTEventEmitter {
             viewId: viewId,
             command: command,
             args: args,
-            screenId: screenId
+            screenId: screenId,
+            campaignKey: campaignKey
         )
     }
 }
 
 // MARK: - JSONValue convenience init from Any
-private extension JSONValue {
-    init?(rawValue: Any) {
+extension JSONValue {
+    fileprivate init?(rawValue: Any) {
         switch rawValue {
-        case let s as String:  self = .string(s)
-        case let b as Bool:    self = .bool(b)
-        case let i as Int:     self = .int(i)
-        case let d as Double:  self = .double(d)
+        case let s as String: self = .string(s)
+        case let b as Bool: self = .bool(b)
+        case let i as Int: self = .int(i)
+        case let d as Double: self = .double(d)
         case let arr as [Any]:
             self = .array(arr.compactMap { JSONValue(rawValue: $0) })
         case let dict as [String: Any]:

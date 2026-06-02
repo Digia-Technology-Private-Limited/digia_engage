@@ -19,18 +19,27 @@ import { DeviceEventEmitter } from 'react-native';
 import { nativeDigiaModule } from './NativeDigiaEngage';
 import { digiaHealthReporter, HealthEventType } from './DigiaHealthReporter';
 import { digiaGuideController } from './DigiaGuideController';
+import { digiaActionHandler } from './actionHandler';
+import uuid from 'react-native-uuid';
+import { frequencyStore } from './frequencyStore';
+import { evaluate, hasPolicy, isSessionPolicy } from './frequencyEvaluator';
 import type {
+    ActionContext,
     CampaignType,
     DigiaConfig,
     DigiaDelegate,
     DigiaExperienceEvent,
     DigiaPlugin,
+    FrequencyPolicy,
+    FrequencyState,
+    GuideLifecycleEvent,
     InAppPayload,
 } from './types';
 import type { TemplateConfig } from './templateTypes';
 
-const PRODUCTION_API_ROOT = 'https://api.digia.tech';
-const SANDBOX_API_ROOT = 'https://zaiden-phonematic-unseemly.ngrok-free.dev';
+const PRODUCTION_API_ROOT = 'https://app.digia.tech';
+const SANDBOX_API_ROOT = 'https://dev.digia.tech';
+const DIGIA_SDK_VERSION = '1.0.0';
 
 interface SdkCampaign {
     id?: string;
@@ -38,6 +47,7 @@ interface SdkCampaign {
     campaign_key: string;
     campaign_type: CampaignType;
     templateConfig?: Record<string, unknown>;
+    frequency?: FrequencyPolicy | null;
 }
 
 class DigiaClass implements DigiaDelegate {
@@ -50,8 +60,10 @@ class DigiaClass implements DigiaDelegate {
     private readonly _activePayloads = new Map<string, InAppPayload>();
     private _engageSubscription: { remove(): void } | null = null;
     private _projectId = '';
+    private _deviceId = '';
     private _apiBaseUrl = '';
     private _logLevel: DigiaConfig['logLevel'] = 'error';
+    private _fontFamily: string | undefined;
     private _currentScreen: string | null = null;
     private readonly _campaignsByKey = new Map<string, SdkCampaign>();
     private readonly _registeredAnchorKeys = new Set<string>();
@@ -68,27 +80,28 @@ class DigiaClass implements DigiaDelegate {
         this._projectId = config.projectId;
         this._apiBaseUrl = this._resolveApiBaseUrl(config);
         this._logLevel = logLevel;
+        this._fontFamily = config.fontFamily?.trim() || undefined;
         digiaHealthReporter.init(config.projectId, this._apiBaseUrl);
+
+        digiaActionHandler.configure({
+            onAction: config.onAction,
+            routeViaSystemLinking: config.linking?.routeViaSystemLinking ?? true,
+            inAppBrowser: config.linking?.inAppBrowser,
+            onFireEvent: (eventName, properties, context) =>
+                this._fireCustomEvent(eventName, properties, context),
+        });
+
         try {
-            await nativeDigiaModule.initialize(config.projectId, environment, logLevel);
+            await nativeDigiaModule.initialize(config.projectId, environment, logLevel, config.baseUrl, config.fontFamily);
         } catch (e) {
             // TODO: TO BE PICKED LATER @aditya-digia — health event reporting being removed
             // digiaHealthReporter.report(HealthEventType.fetch_failed, { error_code: 0, platform: 'react_native' });
             throw e;
         }
 
+        this._deviceId = await this._loadOrCreateDeviceId();
+        await frequencyStore.checkProjectId(config.projectId);
         await this._refreshCampaignStore();
-
-        // TODO: TO BE PICKED LATER @aditya-digia — component registration endpoint being removed
-        // try {
-        //     const components = await nativeDigiaModule.getRegisteredComponents();
-        //     if (components.length > 0) {
-        //         this._recordComponents(components.map(c => ({ ...c, platform: 'react_native' })));
-        //     }
-        // } catch {
-        //     // never throw
-        // }
-        // this._flushRegisteredAnchors();
     }
 
     /**
@@ -145,25 +158,23 @@ class DigiaClass implements DigiaDelegate {
         this._plugins.forEach((plugin) => plugin.forwardScreen(name));
     }
 
-    registerAnchor(anchorKey: string, screenName?: string | null): void {
+    registerAnchor(anchorKey: string, _screenName?: string | null): void {
         const cleanAnchorKey = anchorKey.trim();
         if (!cleanAnchorKey) return;
-
         this._registeredAnchorKeys.add(cleanAnchorKey);
-        if (!this._projectId || !this._apiBaseUrl) return;
-
-        this._recordComponents([
-            {
-                component_key: cleanAnchorKey,
-                component_type: 'anchor',
-                screen_name: screenName ?? this._currentScreen,
-                platform: 'react_native',
-            },
-        ]);
     }
 
     unregisterAnchor(anchorKey: string): void {
         this._registeredAnchorKeys.delete(anchorKey);
+    }
+
+    /**
+     * Global font family configured via {@link initialize}, or `undefined` when
+     * none was set. Used by the JS-rendered guide overlays (tooltip/spotlight)
+     * so their text matches native-rendered campaigns.
+     */
+    get fontFamily(): string | undefined {
+        return this._fontFamily;
     }
 
 
@@ -171,17 +182,28 @@ class DigiaClass implements DigiaDelegate {
     // Mirrors DigiaCEPDelegate on Android.
     // Forwards to the native DigiaCEPDelegate via the bridge.
 
-    onCampaignTriggered(payload: InAppPayload): void {
+    async onCampaignTriggered(payload: InAppPayload): Promise<void> {
         if (!this._nativeBridgeWired) {
             digiaHealthReporter.report(HealthEventType.plugin_not_registered, { campaign_key: payload.id });
         }
 
         const campaignKey = this._extractCampaignKey(payload);
-        console.log('[Digia:debug] onCampaignTriggered payloadId=' + payload.id + ' extractedKey=' + campaignKey + ' knownKeys=[' + [...this._campaignsByKey.keys()].join(', ') + ']');
         this._log(`onCampaignTriggered payloadId=${payload.id} extractedKey=${campaignKey} knownKeys=[${[...this._campaignsByKey.keys()].join(', ')}]`);
 
         if (campaignKey) {
             const campaign = this._campaignsByKey.get(campaignKey);
+
+            if (campaign && hasPolicy(campaign.frequency)) {
+                const policy = campaign.frequency!;
+                const isSession = isSessionPolicy(policy);
+                const state = await this._getFrequencyState(campaignKey, isSession);
+                const result = evaluate(policy, state, Date.now());
+                if (!result.allow) {
+                    this._log(`frequency_capped campaign_key=${campaignKey} reason=${result.reason}`);
+                    return;
+                }
+            }
+
             if (campaign?.campaign_type === 'inline' || campaign?.campaign_type === 'survey') {
                 this._log(`${campaign.campaign_type} campaign triggered campaign_key=${campaignKey}, forwarding to native`);
                 this._activePayloads.set(payload.id, payload);
@@ -207,15 +229,13 @@ class DigiaClass implements DigiaDelegate {
                 }
 
                 this._activePayloads.set(payload.id, payload);
+                const digiaId = campaign._id ?? campaign.id ?? campaignKey;
                 const mounted = digiaGuideController.start({
                     payloadId: payload.id,
                     campaignKey,
+                    campaignId: digiaId,
                     config,
-                    onExperienceEvent: (event) => this._forwardExperienceEvent({
-                        campaignId: payload.id,
-                        type: event.type,
-                        elementId: event.type === 'clicked' ? event.elementId : undefined,
-                    }),
+                    onExperienceEvent: (event) => this._onGuideLifecycleEvent(event, payload.id, campaignKey, digiaId),
                 });
 
                 this._log(`guide trigger campaign_key=${campaignKey} mounted=${mounted}`);
@@ -268,22 +288,40 @@ class DigiaClass implements DigiaDelegate {
         );
     }
 
+    private _fireCustomEvent(
+        eventName: string,
+        properties?: Record<string, unknown>,
+        context?: ActionContext,
+    ): void {
+        const payload = context ? this._activePayloads.get(context.campaign_id) : null;
+        if (payload) {
+            const event: DigiaExperienceEvent = { type: 'clicked', elementId: eventName };
+            this._plugins.forEach((plugin) => plugin.notifyEvent(event, payload));
+        }
+        // TODO: record custom event to Digia analytics endpoint when available
+    }
+
     private _forwardExperienceEvent(
         data: { campaignId: string; type: string; elementId?: string },
     ): void {
         const payload = this._activePayloads.get(data.campaignId);
         if (!payload) return;
 
+        const campaignKey = this._extractCampaignKey(payload);
+
         let event: DigiaExperienceEvent;
         switch (data.type) {
             case 'impressed':
                 event = { type: 'impressed' };
+                if (campaignKey) void this._bumpFrequencyImpression(campaignKey);
                 break;
             case 'clicked':
                 event = { type: 'clicked', elementId: data.elementId };
+                if (campaignKey) void this._applyStopOn(campaignKey, 'click');
                 break;
             case 'dismissed':
                 event = { type: 'dismissed' };
+                if (campaignKey) void this._applyStopOn(campaignKey, 'dismiss');
                 this._activePayloads.delete(data.campaignId);
                 break;
             default:
@@ -291,6 +329,85 @@ class DigiaClass implements DigiaDelegate {
         }
 
         this._plugins.forEach((plugin) => plugin.notifyEvent(event, payload));
+    }
+
+    private _onGuideLifecycleEvent(
+        event: GuideLifecycleEvent,
+        payloadId: string,
+        campaignKey: string,
+        campaignId: string,
+    ): void {
+        const eventName = this._guideEventName(event.type);
+        const properties = this._buildGuideProperties(event, campaignId, campaignKey);
+        this._plugins.forEach((p) => p.track?.(eventName, properties));
+
+        if (event.type === 'viewed') {
+            void this._bumpFrequencyImpression(campaignKey);
+        }
+        if (event.type === 'clicked' || event.type === 'completed') {
+            void this._applyStopOn(campaignKey, 'click');
+        }
+        if (event.type === 'dismissed') {
+            void this._applyStopOn(campaignKey, 'dismiss');
+        }
+
+        // Notify plugins of CEP lifecycle termination (template cleanup) on exit events.
+        if (event.type === 'dismissed' || event.type === 'completed') {
+            const storedPayload = this._activePayloads.get(payloadId);
+            if (storedPayload) {
+                this._plugins.forEach((p) => p.notifyEvent({ type: 'dismissed' }, storedPayload));
+                this._activePayloads.delete(payloadId);
+            }
+        }
+    }
+
+    private _guideEventName(type: GuideLifecycleEvent['type']): string {
+        switch (type) {
+            case 'viewed': return 'Digia Experience Viewed';
+            case 'step_viewed': return 'Digia Step Viewed';
+            case 'clicked': return 'Digia Experience Clicked';
+            case 'step_clicked': return 'Digia Step Clicked';
+            case 'dismissed': return 'Digia Experience Dismissed';
+            case 'step_dismissed': return 'Digia Step Dismissed';
+            case 'completed': return 'Digia Experience Completed';
+        }
+    }
+
+    private _buildGuideProperties(
+        event: GuideLifecycleEvent,
+        campaignId: string,
+        campaignKey: string,
+    ): Record<string, unknown> {
+        const base: Record<string, unknown> = {
+            campaign_id: campaignId,
+            campaign_key: campaignKey,
+            campaign_type: 'guide',
+            display_style: event.displayStyle,
+            step_index: event.stepIndex + 1,
+            step_total: event.stepTotal,
+            anchor_key: event.anchorKey,
+            slot_key: null,
+            element_id: null,
+            cta_label: null,
+            action_type: null,
+            action_url: null,
+            dismiss_reason: null,
+            abandoned_at_step: null,
+            digia_sdk_version: DIGIA_SDK_VERSION,
+            digia_platform: 'react_native',
+        };
+
+        if (event.type === 'clicked' || event.type === 'step_clicked') {
+            base.element_id = event.elementId ?? null;
+            base.cta_label = event.ctaLabel;
+            base.action_type = event.actionType;
+            base.action_url = event.actionUrl ?? null;
+        } else if (event.type === 'dismissed' || event.type === 'step_dismissed') {
+            base.dismiss_reason = event.dismissReason;
+            base.abandoned_at_step = event.stepIndex + 1;
+        }
+
+        return base;
     }
 
     private _resolveApiBaseUrl(config: DigiaConfig): string {
@@ -321,11 +438,6 @@ class DigiaClass implements DigiaDelegate {
                 }
             });
             this._log(`loaded ${campaigns.length} campaign(s): [${[...this._campaignsByKey.keys()].join(', ')}]`);
-            const inlineCampaigns = [...this._campaignsByKey.values()].filter((c) => c.campaign_type === 'inline');
-            console.log('[Digia:debug] loaded campaigns total=' + campaigns.length + ' inline=' + inlineCampaigns.length, inlineCampaigns.map((c) => {
-                const r = c as any;
-                return { key: c.campaign_key, slotKey: r.templateConfig?.slotKey };
-            }));
         } catch (e) {
             const reason = e instanceof Error ? e.message : String(e);
             this._log(`getCampaigns FAILED: ${reason}`);
@@ -343,6 +455,7 @@ class DigiaClass implements DigiaDelegate {
             headers: {
                 'Content-Type': 'application/json',
                 'x-digia-project-id': this._projectId,
+                'x-digia-device-id': this._deviceId,
             },
             body: JSON.stringify(body),
         });
@@ -374,44 +487,20 @@ class DigiaClass implements DigiaDelegate {
         throw new Error('SDK response missing data.response');
     }
 
-    private _recordComponents(_components: Array<Record<string, unknown>>): void {
-        // TODO: TO BE PICKED LATER @aditya-digia — component recording endpoint being removed
-        // fetch(`${this._apiBaseUrl}/engage/sdk/recordComponents`, {
-        //     method: 'POST',
-        //     headers: {
-        //         'Content-Type': 'application/json',
-        //         'x-digia-project-id': this._projectId,
-        //     },
-        //     body: JSON.stringify({ components }),
-        // }).catch(() => { /* swallow */ });
-    }
-
-    private _flushRegisteredAnchors(): void {
-        if (this._registeredAnchorKeys.size === 0) return;
-        this._recordComponents(
-            [...this._registeredAnchorKeys].map((componentKey) => ({
-                component_key: componentKey,
-                component_type: 'anchor',
-                screen_name: this._currentScreen,
-                platform: 'react_native',
-            })),
-        );
-    }
-
     private _emitSlotWidth(campaign: SdkCampaign): void {
         const raw = campaign as unknown as Record<string, unknown>;
         const config = raw.templateConfig as Record<string, unknown> | undefined;
         if (!config) {
-            console.warn('[Digia:debug] _emitSlotWidth: no templateConfig for campaign', campaign.campaign_key);
+            this._log(`_emitSlotWidth: no templateConfig for campaign ${campaign.campaign_key}`);
             return;
         }
         const slotKey = typeof config.slotKey === 'string' ? config.slotKey : null;
         const width = typeof config.width === 'number' && config.width > 0 ? config.width : null;
-        console.log('[Digia:debug] _emitSlotWidth slotKey=' + slotKey + ' width=' + width + ' campaign=' + campaign.campaign_key);
+        this._log(`_emitSlotWidth slotKey=${slotKey} width=${width} campaign=${campaign.campaign_key}`);
         if (slotKey) {
             DeviceEventEmitter.emit('digiaSlotWidth', { slotKey, width });
         } else {
-            console.warn('[Digia:debug] _emitSlotWidth: no slotKey in templateConfig', JSON.stringify(config));
+            this._log(`_emitSlotWidth: no slotKey in templateConfig ${JSON.stringify(config)}`);
         }
     }
 
@@ -451,6 +540,67 @@ class DigiaClass implements DigiaDelegate {
         }
         const steps = Array.isArray(raw.steps) ? raw.steps : [];
         return { ...raw, templateType: type, steps } as TemplateConfig;
+    }
+
+    // ── Device ID ────────────────────────────────────────────────────────────
+
+    private async _loadOrCreateDeviceId(): Promise<string> {
+        const DEVICE_ID_KEY = 'digia:device_id';
+        try {
+            // eslint-disable-next-line @typescript-eslint/no-var-requires
+            const AsyncStorage = require('@react-native-async-storage/async-storage').default;
+            const stored = await AsyncStorage.getItem(DEVICE_ID_KEY);
+            if (stored) return stored;
+            const id = uuid.v4() as string;
+            await AsyncStorage.setItem(DEVICE_ID_KEY, id);
+            return id;
+        } catch {
+            return uuid.v4() as string;
+        }
+    }
+
+    // ── Frequency capping ────────────────────────────────────────────────────
+
+    private async _getFrequencyState(campaignKey: string, isSession: boolean): Promise<FrequencyState | null> {
+        return frequencyStore.get(campaignKey, isSession);
+    }
+
+    async _bumpFrequencyImpression(campaignKey: string): Promise<void> {
+        const campaign = this._campaignsByKey.get(campaignKey);
+        if (!campaign || !hasPolicy(campaign.frequency)) return;
+        const isSession = isSessionPolicy(campaign.frequency!);
+        const now = Date.now();
+        const prev = await frequencyStore.get(campaignKey, isSession);
+        const next: FrequencyState = {
+            shown_count: (prev?.shown_count ?? 0) + 1,
+            first_shown_at: prev?.first_shown_at ?? now,
+            last_shown_at: now,
+            stopped_at: prev?.stopped_at ?? null,
+            stopped_reason: prev?.stopped_reason ?? null,
+        };
+        await frequencyStore.set(campaignKey, next, isSession);
+    }
+
+    async _applyStopOn(campaignKey: string, interactionType: 'click' | 'dismiss'): Promise<void> {
+        const campaign = this._campaignsByKey.get(campaignKey);
+        const stopOn = campaign?.frequency?.stop_on;
+        if (!stopOn) return;
+        const matches =
+            stopOn === 'any_action' ||
+            stopOn === interactionType;
+        if (!matches) return;
+        const isSession = isSessionPolicy(campaign!.frequency!);
+        const prev = await frequencyStore.get(campaignKey, isSession);
+        if (prev?.stopped_at) return;
+        const now = Date.now();
+        const next: FrequencyState = {
+            shown_count: prev?.shown_count ?? 0,
+            first_shown_at: prev?.first_shown_at ?? null,
+            last_shown_at: prev?.last_shown_at ?? null,
+            stopped_at: now,
+            stopped_reason: interactionType,
+        };
+        await frequencyStore.set(campaignKey, next, isSession);
     }
 
     private _log(message: string): void {

@@ -11,8 +11,11 @@ import {
 } from 'react-native';
 import { computePosition, flip, offset, shift } from '@floating-ui/core';
 import Svg, { Path } from 'react-native-svg';
+import { Digia } from './Digia';
 import { digiaGuideController, type DigiaGuideRequest } from './DigiaGuideController';
 import { digiaAnchorRegistry, type AnchorLayout } from './digiaAnchorRegistry';
+import { digiaActionHandler, type ActionCallbacks } from './actionHandler';
+import type { DismissReason } from './types';
 import type { Action, SpotlightConfig, SpotlightStep, TooltipConfig, TooltipStep } from './templateTypes';
 
 // ─── @floating-ui/core platform adapter ──────────────────────────────────────
@@ -49,43 +52,117 @@ function makeVirtualRef(layout: AnchorLayout, padding = 0) {
 
 type FloatPos = { x: number; y: number };
 
-async function computeFloat(
-    layout: AnchorLayout,
-    floatingW: number,
-    floatingH: number,
-    placement: string,
-    gap: number,
-    highlightPadding = 0,
-): Promise<FloatPos> {
-    const fpPlacement = (
-        placement === 'above' ? 'top'
-        : placement === 'below' ? 'bottom'
-        : placement === 'auto' ? 'bottom'
-        : placement
-    ) as any;
+// ─── Arrow component ──────────────────────────────────────────────────────────
+//
+// arrowOffset: pixel distance from the start of the side (left for top/bottom,
+// top for left/right) to the arrow tip center.  When provided the arrow points
+// at the anchor; when omitted it falls back to centering.
 
-    const { x, y } = await computePosition(
-        makeVirtualRef(layout, highlightPadding),
-        { w: floatingW, h: floatingH },
-        {
-            platform: rnCorePlatform as any,
-            placement: fpPlacement,
-            middleware: [offset(gap), flip(), shift({ padding: 16 })],
-        },
-    );
-    return { x, y };
+function GuideArrow({
+    placement,
+    color,
+    borderColor,
+    size,
+    arrowOffset,
+}: {
+    placement: string;
+    color: string;
+    borderColor: string;
+    size: number;
+    arrowOffset?: number;
+}) {
+    const s1 = size + 1;
+
+    // Horizontal: used for top / bottom placements (left offset within bubble width)
+    const hWrap = (edge: 'top' | 'bottom') =>
+        arrowOffset !== undefined
+            ? { [edge]: -s1, left: arrowOffset - s1, width: s1 * 2 }
+            : { [edge]: -s1, left: 0, right: 0 };
+
+    // Vertical: used for left / right placements (top offset within bubble height)
+    const vWrap = (edge: 'left' | 'right') =>
+        arrowOffset !== undefined
+            ? { [edge]: -s1, top: arrowOffset - s1, height: s1 * 2 }
+            : { [edge]: -s1, top: 0, bottom: 0 };
+
+    if (placement === 'bottom' || placement === 'below') {
+        // bubble below anchor → arrow at TOP pointing ▲ up
+        return (
+            <View style={[arrowS.wrap, hWrap('top')]}>
+                <View style={{ position: 'relative', width: s1 * 2, height: s1, alignItems: 'center' }}>
+                    <View style={{ position: 'absolute', top: 0, width: 0, height: 0, borderStyle: 'solid', borderLeftWidth: s1, borderRightWidth: s1, borderBottomWidth: s1, borderTopWidth: 0, borderLeftColor: 'transparent', borderRightColor: 'transparent', borderBottomColor: borderColor }} />
+                    <View style={{ position: 'absolute', top: 1, width: 0, height: 0, borderStyle: 'solid', borderLeftWidth: size, borderRightWidth: size, borderBottomWidth: size, borderTopWidth: 0, borderLeftColor: 'transparent', borderRightColor: 'transparent', borderBottomColor: color }} />
+                </View>
+            </View>
+        );
+    }
+    if (placement === 'top' || placement === 'above') {
+        // bubble above anchor → arrow at BOTTOM pointing ▼ down
+        return (
+            <View style={[arrowS.wrap, hWrap('bottom')]}>
+                <View style={{ position: 'relative', width: s1 * 2, height: s1, alignItems: 'center' }}>
+                    <View style={{ position: 'absolute', top: 0, width: 0, height: 0, borderStyle: 'solid', borderLeftWidth: s1, borderRightWidth: s1, borderTopWidth: s1, borderBottomWidth: 0, borderLeftColor: 'transparent', borderRightColor: 'transparent', borderTopColor: borderColor }} />
+                    <View style={{ position: 'absolute', top: 0, width: 0, height: 0, borderStyle: 'solid', borderLeftWidth: size, borderRightWidth: size, borderTopWidth: size, borderBottomWidth: 0, borderLeftColor: 'transparent', borderRightColor: 'transparent', borderTopColor: color }} />
+                </View>
+            </View>
+        );
+    }
+    if (placement === 'right') {
+        // bubble right of anchor → arrow at LEFT pointing ◀ left
+        return (
+            <View style={[arrowS.wrap, vWrap('left')]}>
+                <View style={{ position: 'relative', width: s1, height: s1 * 2, justifyContent: 'center' }}>
+                    <View style={{ position: 'absolute', left: 0, width: 0, height: 0, borderStyle: 'solid', borderTopWidth: s1, borderBottomWidth: s1, borderRightWidth: s1, borderLeftWidth: 0, borderTopColor: 'transparent', borderBottomColor: 'transparent', borderRightColor: borderColor }} />
+                    <View style={{ position: 'absolute', left: 1, width: 0, height: 0, borderStyle: 'solid', borderTopWidth: size, borderBottomWidth: size, borderRightWidth: size, borderLeftWidth: 0, borderTopColor: 'transparent', borderBottomColor: 'transparent', borderRightColor: color }} />
+                </View>
+            </View>
+        );
+    }
+    if (placement === 'left') {
+        // bubble left of anchor → arrow at RIGHT pointing ▶ right
+        return (
+            <View style={[arrowS.wrap, vWrap('right')]}>
+                <View style={{ position: 'relative', width: s1, height: s1 * 2, justifyContent: 'center' }}>
+                    <View style={{ position: 'absolute', right: 0, width: 0, height: 0, borderStyle: 'solid', borderTopWidth: s1, borderBottomWidth: s1, borderLeftWidth: s1, borderRightWidth: 0, borderTopColor: 'transparent', borderBottomColor: 'transparent', borderLeftColor: borderColor }} />
+                    <View style={{ position: 'absolute', right: 1, width: 0, height: 0, borderStyle: 'solid', borderTopWidth: size, borderBottomWidth: size, borderLeftWidth: size, borderRightWidth: 0, borderTopColor: 'transparent', borderBottomColor: 'transparent', borderLeftColor: color }} />
+                </View>
+            </View>
+        );
+    }
+    return null;
+}
+
+const arrowS = StyleSheet.create({
+    wrap: { position: 'absolute', alignItems: 'center', justifyContent: 'center' },
+});
+
+// ─── Arrow offset helper ──────────────────────────────────────────────────────
+// Returns the pixel distance from the start of the bubble side (left for
+// top/bottom, top for left/right) to where the arrow tip should point,
+// clamped so the arrow stays inside the bubble's rounded corners.
+
+function calcArrowOffset(
+    placement: string,
+    layout: AnchorLayout,
+    floatPos: FloatPos,
+    bubbleW: number,
+    bubbleH: number,
+    cornerRadius: number,
+    arrowSize: number,
+): number {
+    const minPad = cornerRadius + arrowSize + 2;
+    const isHoriz = placement === 'top' || placement === 'bottom' || placement === 'above' || placement === 'below';
+    if (isHoriz) {
+        const anchorCenterX = layout.pageX + layout.width / 2;
+        const raw = anchorCenterX - floatPos.x;
+        return Math.max(minPad, Math.min(bubbleW - minPad, raw));
+    }
+    const anchorCenterY = layout.pageY + layout.height / 2;
+    const raw = anchorCenterY - floatPos.y;
+    return Math.max(minPad, Math.min(bubbleH - minPad, raw));
 }
 
 // ─── Shared action helpers ────────────────────────────────────────────────────
-
-function handleAction(action: Action, cb: { onNext: () => void; onBack: () => void; onSkip: () => void }) {
-    switch (action.type) {
-        case 'next':      cb.onNext(); break;
-        case 'prev':      cb.onBack(); break;
-        case 'dismiss':   cb.onSkip(); break;
-        case 'deep_link': cb.onSkip(); break;
-    }
-}
 
 function ActionButton({
     action,
@@ -101,12 +178,13 @@ function ActionButton({
     onPress: () => void;
 }) {
     const isPrimary = action.style === 'primary';
+    const fontFamily = Digia.fontFamily;
     return (
         <Pressable
             onPress={onPress}
             style={[s.button, isPrimary && { backgroundColor: btnPrimaryBg }]}
         >
-            <Text style={{ color: isPrimary ? btnPrimaryText : btnGhostText, fontSize: 13, fontWeight: '600' }}>
+            <Text style={{ color: isPrimary ? btnPrimaryText : btnGhostText, fontSize: 13, fontWeight: '600', fontFamily }}>
                 {action.label}
             </Text>
         </Pressable>
@@ -114,6 +192,9 @@ function ActionButton({
 }
 
 // ─── Tooltip overlay ──────────────────────────────────────────────────────────
+// Rendered WITHOUT a Modal so sticky tooltips do not block underlying scrolls.
+// DigiaHost must be placed at the app root level (after NavigationContainer)
+// for absoluteFill to cover the full screen.
 
 function TooltipOverlay({
     request,
@@ -125,35 +206,54 @@ function TooltipOverlay({
     const [stepIndex, setStepIndex] = useState(0);
     const [layout, setLayout] = useState<AnchorLayout | null>(null);
     const [floatPos, setFloatPos] = useState<FloatPos | null>(null);
+    const [resolvedPlacement, setResolvedPlacement] = useState<string>('bottom');
     const [floatingSize, setFloatingSize] = useState<{ w: number; h: number } | null>(null);
     const step = config.steps[stepIndex];
     const { width: screenW } = useWindowDimensions();
     const opacityAnim = useRef(new Animated.Value(1)).current;
     const pendingFadeIn = useRef(false);
+    const fontFamily = Digia.fontFamily;
 
-    // Subscribe to anchor layout
+    const arrowSize = step.arrowSize ?? 8;
+    const showArrow = step.showArrow !== false;
+    const gap = showArrow ? arrowSize + 4 : 8;
+
     useEffect(() => {
         setLayout(null);
         setFloatPos(null);
-        log('tooltip subscribing to anchorKey=', step.anchorKey);
-        return digiaAnchorRegistry.subscribe(step.anchorKey, (l) => {
-            log('tooltip got layout anchorKey=', step.anchorKey, l);
+        let skipCached = false;
+        const unsub = digiaAnchorRegistry.subscribe(step.anchorKey, (l) => {
+            if (!skipCached) return;
+            const { width: screenW, height: screenH } = Dimensions.get('window');
+            if (l.pageY + l.height <= 0 || l.pageY >= screenH || l.pageX + l.width <= 0 || l.pageX >= screenW) {
+                digiaGuideController.cancel(request.payloadId);
+                return;
+            }
             setLayout(l);
         });
-    }, [step.anchorKey]);
+        skipCached = true;
+        digiaAnchorRegistry.remeasure(step.anchorKey);
+        return unsub;
+    }, [step.anchorKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
-    // Recompute float position whenever layout or floating size changes
     useEffect(() => {
         if (!layout || !floatingSize) return;
         const tooltipW = Math.min(step.maxWidth, screenW - 32);
-        computeFloat(layout, Math.min(tooltipW, floatingSize.w), floatingSize.h, step.placement, 8)
-            .then((pos) => {
-                log('tooltip computed pos=', pos, 'placement=', step.placement);
-                setFloatPos(pos);
-            });
-    }, [layout, floatingSize, step.placement, step.maxWidth, screenW]);
+        const fpPlacement = (step.placement === 'auto' ? 'bottom' : step.placement) as any;
+        computePosition(
+            makeVirtualRef(layout),
+            { w: Math.min(tooltipW, floatingSize.w), h: floatingSize.h },
+            {
+                platform: rnCorePlatform as any,
+                placement: fpPlacement,
+                middleware: [offset(gap), flip(), shift({ padding: 16 })],
+            },
+        ).then(({ x, y, placement }) => {
+            setFloatPos({ x, y });
+            setResolvedPlacement(placement as string);
+        });
+    }, [layout, floatingSize, step.placement, step.maxWidth, screenW, gap]);
 
-    // Fade in once positioned after a step transition
     useEffect(() => {
         if (floatPos && pendingFadeIn.current) {
             pendingFadeIn.current = false;
@@ -161,17 +261,40 @@ function TooltipOverlay({
         }
     }, [floatPos, opacityAnim]);
 
-    const dismiss = useCallback(() => {
+    // Fire viewed/step_viewed when the step renders.
+    useEffect(() => {
+        const isMultiStep = config.steps.length > 1;
+        if (stepIndex === 0) {
+            request.onExperienceEvent({ type: 'viewed', stepIndex: 0, stepTotal: config.steps.length, anchorKey: step.anchorKey, displayStyle: 'tooltip' });
+        }
+        if (isMultiStep) {
+            request.onExperienceEvent({ type: 'step_viewed', stepIndex, stepTotal: config.steps.length, anchorKey: step.anchorKey, displayStyle: 'tooltip' });
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [stepIndex]);
+
+    // Closes guide without firing analytics — used after CTA actions have already fired clicked events.
+    const closeFromCTA = useCallback(() => {
         Animated.timing(opacityAnim, { toValue: 0, duration: 150, useNativeDriver: true }).start(() => {
-            request.onExperienceEvent({ type: 'dismissed' });
             digiaGuideController.cancel(request.payloadId);
         });
-    }, [request, opacityAnim]);
+    }, [opacityAnim, request]);
+
+    // Fires dismissed analytics then closes — used for non-CTA dismissals (scrim, back gesture).
+    const dismiss = useCallback((reason: DismissReason = 'scrim_tap') => {
+        Animated.timing(opacityAnim, { toValue: 0, duration: 150, useNativeDriver: true }).start(() => {
+            const isMultiStep = config.steps.length > 1;
+            request.onExperienceEvent({ type: 'dismissed', stepIndex, stepTotal: config.steps.length, anchorKey: step.anchorKey, displayStyle: 'tooltip', dismissReason: reason });
+            if (isMultiStep) {
+                request.onExperienceEvent({ type: 'step_dismissed', stepIndex, stepTotal: config.steps.length, anchorKey: step.anchorKey, displayStyle: 'tooltip', dismissReason: reason });
+            }
+            digiaGuideController.cancel(request.payloadId);
+        });
+    }, [request, opacityAnim, step, config, stepIndex]);
 
     const stepTo = useCallback((newIndex: number | null) => {
         Animated.timing(opacityAnim, { toValue: 0, duration: 150, useNativeDriver: true }).start(() => {
             if (newIndex === null) {
-                request.onExperienceEvent({ type: 'dismissed' });
                 digiaGuideController.cancel(request.payloadId);
             } else {
                 pendingFadeIn.current = true;
@@ -183,22 +306,41 @@ function TooltipOverlay({
     const next = useCallback(() => stepTo(stepIndex < config.steps.length - 1 ? stepIndex + 1 : null), [stepIndex, config.steps.length, stepTo]);
     const prev = useCallback(() => { if (stepIndex > 0) stepTo(stepIndex - 1); }, [stepIndex, stepTo]);
 
+    const actionCallbacks = useCallback((): ActionCallbacks => ({
+        onNext: next,
+        onBack: prev,
+        onDismissSelf: closeFromCTA,
+        onDismissAll: closeFromCTA,
+    }), [next, prev, closeFromCTA]);
+
     const tooltipW = Math.min(step.maxWidth, screenW - 32);
+
+    const arrowOffset = (showArrow && floatPos && layout && floatingSize)
+        ? calcArrowOffset(resolvedPlacement, layout, floatPos, tooltipW, floatingSize.h, step.cornerRadius, arrowSize)
+        : undefined;
+
+    const handleBackdropPress = useCallback(() => {
+        const behavior = config.outsideTapBehavior ?? 'next';
+        if (behavior === 'nothing') return;
+        if (behavior === 'next') next();
+        if (behavior === 'dismiss') dismiss();
+    }, [config.outsideTapBehavior, next, dismiss]);
 
     return (
         <Modal transparent statusBarTranslucent animationType="none" visible>
-            <Animated.View style={[StyleSheet.absoluteFill, { opacity: opacityAnim }]} pointerEvents="box-none">
-                {/* Invisible backdrop tap to dismiss */}
-                <Pressable style={StyleSheet.absoluteFill} onPress={dismiss} />
+            <Animated.View style={[StyleSheet.absoluteFill, { opacity: opacityAnim }]}>
+                {/* Full-screen backdrop: blocks all touches (scroll, tap) */}
+                <Pressable style={StyleSheet.absoluteFill} onPress={handleBackdropPress} />
                 {floatPos ? (
-                    <View
-                        pointerEvents="box-none"
+                    // Bubble as Pressable so tapping the bubble body also advances
+                    <Pressable
                         onLayout={(e) => {
                             const { width, height } = e.nativeEvent.layout;
                             if (floatingSize?.w !== width || floatingSize?.h !== height) {
                                 setFloatingSize({ w: width, h: height });
                             }
                         }}
+                        onPress={handleBackdropPress}
                         style={[
                             s.tooltipBubble,
                             {
@@ -214,11 +356,20 @@ function TooltipOverlay({
                             step.shadow && s.shadow,
                         ]}
                     >
-                        <Text style={{ color: step.titleColor, fontSize: step.titleSize, fontWeight: step.titleWeight }}>
+                        {showArrow && (
+                            <GuideArrow
+                                placement={resolvedPlacement}
+                                color={step.arrowColor ?? step.backgroundColor}
+                                borderColor={step.arrowBorderColor ?? step.borderColor}
+                                size={arrowSize}
+                                arrowOffset={arrowOffset}
+                            />
+                        )}
+                        <Text style={{ color: step.titleColor, fontSize: step.titleSize, fontWeight: step.titleWeight, fontFamily }}>
                             {step.title}
                         </Text>
                         {!!step.body && (
-                            <Text style={{ marginTop: 4, color: step.bodyColor, fontSize: step.bodySize }}>
+                            <Text style={{ marginTop: 4, color: step.bodyColor, fontSize: step.bodySize, fontFamily }}>
                                 {step.body}
                             </Text>
                         )}
@@ -230,24 +381,43 @@ function TooltipOverlay({
                                     btnPrimaryBg={step.buttonPrimaryBackgroundColor}
                                     btnPrimaryText={step.buttonPrimaryTextColor}
                                     btnGhostText={step.buttonGhostTextColor}
-                                    onPress={() => handleAction(action, { onNext: next, onBack: prev, onSkip: dismiss })}
+                                    onPress={() => {
+                                        const isMultiStep = config.steps.length > 1;
+                                        const isLastStep = stepIndex === config.steps.length - 1;
+                                        const actionUrl = 'url' in action ? (action as { url: string }).url : undefined;
+                                        request.onExperienceEvent({ type: 'clicked', stepIndex, stepTotal: config.steps.length, anchorKey: step.anchorKey, displayStyle: 'tooltip', ctaLabel: action.label, actionType: action.type, actionUrl });
+                                        if (isMultiStep) {
+                                            request.onExperienceEvent({ type: 'step_clicked', stepIndex, stepTotal: config.steps.length, anchorKey: step.anchorKey, displayStyle: 'tooltip', ctaLabel: action.label, actionType: action.type, actionUrl });
+                                        }
+                                        if (isMultiStep && isLastStep && action.type !== 'back') {
+                                            request.onExperienceEvent({ type: 'completed', stepIndex, stepTotal: config.steps.length, anchorKey: step.anchorKey, displayStyle: 'tooltip' });
+                                        }
+                                        void digiaActionHandler.execute(action, {
+                                            campaign_id: request.payloadId,
+                                            campaign_key: request.campaignKey,
+                                            campaign_type: 'guide',
+                                            source: { kind: 'button', button_label: action.label },
+                                            step_index: stepIndex,
+                                            step_total: config.steps.length,
+                                        }, actionCallbacks());
+                                    }}
                                 />
                             ))}
                         </View>
-                    </View>
+                    </Pressable>
                 ) : (
-                    // Hidden measurement pass — renders off-screen to get floating size
+                    // Off-screen measurement pass to determine bubble size before positioning.
                     <View
                         pointerEvents="none"
                         onLayout={(e) => setFloatingSize({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height })}
                         style={[s.tooltipBubble, { left: -9999, top: -9999, width: tooltipW, padding: step.padding }]}
                     >
-                        <Text style={{ fontSize: step.titleSize }}>{step.title}</Text>
-                        {!!step.body && <Text style={{ fontSize: step.bodySize }}>{step.body}</Text>}
+                        <Text style={{ fontSize: step.titleSize, fontFamily }}>{step.title}</Text>
+                        {!!step.body && <Text style={{ fontSize: step.bodySize, fontFamily }}>{step.body}</Text>}
                         <View style={s.actionRow}>
                             {step.actions.map((a, i) => (
                                 <View key={i} style={s.button}>
-                                    <Text style={{ fontSize: 13 }}>{a.label}</Text>
+                                    <Text style={{ fontSize: 13, fontFamily }}>{a.label}</Text>
                                 </View>
                             ))}
                         </View>
@@ -268,7 +438,6 @@ function buildCutoutPath(
         const cx = x + w / 2;
         const cy = y + h / 2;
         const r = Math.max(w, h) / 2;
-        // SVG circle as path (two arcs)
         return `M${cx - r},${cy} a${r},${r} 0 1,0 ${r * 2},0 a${r},${r} 0 1,0 -${r * 2},0 Z`;
     }
     if (shape === 'pill') {
@@ -285,29 +454,50 @@ function buildCutoutPath(
 function SpotlightCallout({
     step,
     layout,
-    onNext,
-    onBack,
-    onSkip,
+    onActionPress,
 }: {
     step: SpotlightStep;
     layout: AnchorLayout;
-    onNext: () => void;
-    onBack: () => void;
-    onSkip: () => void;
+    onActionPress: (action: Action) => void;
 }) {
     const { width: screenW } = useWindowDimensions();
     const [floatPos, setFloatPos] = useState<FloatPos | null>(null);
+    const [resolvedPlacement, setResolvedPlacement] = useState<string>('below');
     const [floatingSize, setFloatingSize] = useState<{ w: number; h: number } | null>(null);
     const calloutW = Math.min(step.calloutMaxWidth, screenW - 32);
 
+    const arrowSize = step.arrowSize ?? 8;
+    const showArrow = step.showArrow !== false;
+    const gap = (step.calloutGap ?? 8) + (showArrow ? arrowSize : 0);
+    const fontFamily = Digia.fontFamily;
+
     useEffect(() => {
         if (!floatingSize) return;
-        computeFloat(layout, Math.min(calloutW, floatingSize.w), floatingSize.h, step.calloutPosition, step.calloutGap ?? 8, step.highlightPadding)
-            .then((pos) => {
-                console.log('[Digia:spotlight] floatPos=', pos, 'calloutH=', floatingSize.h, 'calloutBottom=', pos.y + floatingSize.h, 'cutoutTop=', layout.pageY - step.highlightPadding, 'gap=', (layout.pageY - step.highlightPadding) - (pos.y + floatingSize.h));
-                setFloatPos(pos);
-            });
-    }, [layout, floatingSize, step.calloutPosition, calloutW, step.highlightPadding]);
+        const fpPlacement = (
+            step.calloutPosition === 'above' ? 'top'
+                : step.calloutPosition === 'below' ? 'bottom'
+                    : step.calloutPosition === 'auto' ? 'bottom'
+                        : step.calloutPosition
+        ) as any;
+        computePosition(
+            makeVirtualRef(layout, step.highlightPadding),
+            { w: Math.min(calloutW, floatingSize.w), h: floatingSize.h },
+            {
+                platform: rnCorePlatform as any,
+                placement: fpPlacement,
+                middleware: [offset(gap), flip(), shift({ padding: 16 })],
+            },
+        ).then(({ x, y, placement }) => {
+            // console.log('[Digia:spotlight] floatPos=', { x, y }, 'resolved=', placement);
+            setFloatPos({ x, y });
+            setResolvedPlacement(placement as string);
+        });
+    }, [layout, floatingSize, step.calloutPosition, calloutW, step.highlightPadding, gap]);
+
+    // Compute arrow offset: point arrow tip at anchor center.
+    const arrowOffset = (showArrow && floatPos && floatingSize)
+        ? calcArrowOffset(resolvedPlacement, layout, floatPos, calloutW, floatingSize.h, step.calloutCornerRadius, arrowSize)
+        : undefined;
 
     const calloutStyle = {
         backgroundColor: step.calloutBackgroundColor,
@@ -319,19 +509,18 @@ function SpotlightCallout({
     };
 
     if (!floatPos) {
-        // Measure pass — must match actual render exactly so computeFloat gets correct height
         return (
             <View
                 pointerEvents="none"
                 onLayout={(e) => setFloatingSize({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height })}
                 style={[calloutStyle, { position: 'absolute', left: -9999, top: -9999 }]}
             >
-                <Text style={{ fontSize: step.titleSize }}>{step.title}</Text>
-                {!!step.body && <Text style={{ marginTop: 4, fontSize: step.bodySize }}>{step.body}</Text>}
+                <Text style={{ fontSize: step.titleSize, fontFamily }}>{step.title}</Text>
+                {!!step.body && <Text style={{ marginTop: 4, fontSize: step.bodySize, fontFamily }}>{step.body}</Text>}
                 <View style={s.actionRow}>
                     {step.actions.map((a, i) => (
                         <View key={i} style={s.button}>
-                            <Text style={{ fontSize: 13 }}>{a.label}</Text>
+                            <Text style={{ fontSize: 13, fontFamily }}>{a.label}</Text>
                         </View>
                     ))}
                 </View>
@@ -347,11 +536,20 @@ function SpotlightCallout({
                 step.calloutShadow && s.shadow,
             ]}
         >
-            <Text style={{ color: step.titleColor, fontSize: step.titleSize, fontWeight: step.titleWeight }}>
+            {showArrow && (
+                <GuideArrow
+                    placement={resolvedPlacement}
+                    color={step.arrowColor ?? step.calloutBackgroundColor}
+                    borderColor={step.arrowBorderColor ?? step.calloutBorderColor}
+                    size={arrowSize}
+                    arrowOffset={arrowOffset}
+                />
+            )}
+            <Text style={{ color: step.titleColor, fontSize: step.titleSize, fontWeight: step.titleWeight, fontFamily }}>
                 {step.title}
             </Text>
             {!!step.body && (
-                <Text style={{ marginTop: 4, color: step.bodyColor, fontSize: step.bodySize }}>
+                <Text style={{ marginTop: 4, color: step.bodyColor, fontSize: step.bodySize, fontFamily }}>
                     {step.body}
                 </Text>
             )}
@@ -363,7 +561,7 @@ function SpotlightCallout({
                         btnPrimaryBg={step.buttonPrimaryBackgroundColor}
                         btnPrimaryText={step.buttonPrimaryTextColor}
                         btnGhostText={step.buttonGhostTextColor}
-                        onPress={() => handleAction(action, { onNext, onBack, onSkip })}
+                        onPress={() => { onActionPress(action); }}
                     />
                 ))}
             </View>
@@ -382,21 +580,26 @@ function SpotlightOverlay({
     const [layout, setLayout] = useState<AnchorLayout | null>(null);
     const step = config.steps[stepIndex];
     const { width: screenW, height: screenH } = useWindowDimensions();
-    const screenDims = Dimensions.get('screen');
     const opacityAnim = useRef(new Animated.Value(1)).current;
     const pendingFadeIn = useRef(false);
 
     useEffect(() => {
         setLayout(null);
-        log('spotlight subscribing to anchorKey=', step.anchorKey);
-        return digiaAnchorRegistry.subscribe(step.anchorKey, (l) => {
-            log('spotlight got layout anchorKey=', step.anchorKey, l);
-            log('[debug] screenH(window)=', screenH, 'screenH(screen)=', screenDims.height, 'anchor.pageY=', l.pageY);
+        let skipCached = false;
+        const unsub = digiaAnchorRegistry.subscribe(step.anchorKey, (l) => {
+            if (!skipCached) return;
+            const { width: screenW, height: screenH } = Dimensions.get('window');
+            if (l.pageY + l.height <= 0 || l.pageY >= screenH || l.pageX + l.width <= 0 || l.pageX >= screenW) {
+                digiaGuideController.cancel(request.payloadId);
+                return;
+            }
             setLayout(l);
         });
-    }, [step.anchorKey]);
+        skipCached = true;
+        digiaAnchorRegistry.remeasure(step.anchorKey);
+        return unsub;
+    }, [step.anchorKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
-    // Fade in once layout arrives after a step transition
     useEffect(() => {
         if (layout && pendingFadeIn.current) {
             pendingFadeIn.current = false;
@@ -404,17 +607,38 @@ function SpotlightOverlay({
         }
     }, [layout, opacityAnim]);
 
-    const dismiss = useCallback(() => {
+    // Fire viewed/step_viewed when the step renders.
+    useEffect(() => {
+        const isMultiStep = config.steps.length > 1;
+        if (stepIndex === 0) {
+            request.onExperienceEvent({ type: 'viewed', stepIndex: 0, stepTotal: config.steps.length, anchorKey: step.anchorKey, displayStyle: 'spotlight' });
+        }
+        if (isMultiStep) {
+            request.onExperienceEvent({ type: 'step_viewed', stepIndex, stepTotal: config.steps.length, anchorKey: step.anchorKey, displayStyle: 'spotlight' });
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [stepIndex]);
+
+    const closeFromCTA = useCallback(() => {
         Animated.timing(opacityAnim, { toValue: 0, duration: 150, useNativeDriver: true }).start(() => {
-            request.onExperienceEvent({ type: 'dismissed' });
             digiaGuideController.cancel(request.payloadId);
         });
-    }, [request, opacityAnim]);
+    }, [opacityAnim, request]);
+
+    const dismiss = useCallback((reason: DismissReason = 'scrim_tap') => {
+        Animated.timing(opacityAnim, { toValue: 0, duration: 150, useNativeDriver: true }).start(() => {
+            const isMultiStep = config.steps.length > 1;
+            request.onExperienceEvent({ type: 'dismissed', stepIndex, stepTotal: config.steps.length, anchorKey: step.anchorKey, displayStyle: 'spotlight', dismissReason: reason });
+            if (isMultiStep) {
+                request.onExperienceEvent({ type: 'step_dismissed', stepIndex, stepTotal: config.steps.length, anchorKey: step.anchorKey, displayStyle: 'spotlight', dismissReason: reason });
+            }
+            digiaGuideController.cancel(request.payloadId);
+        });
+    }, [request, opacityAnim, step, config, stepIndex]);
 
     const stepTo = useCallback((newIndex: number | null) => {
         Animated.timing(opacityAnim, { toValue: 0, duration: 150, useNativeDriver: true }).start(() => {
             if (newIndex === null) {
-                request.onExperienceEvent({ type: 'dismissed' });
                 digiaGuideController.cancel(request.payloadId);
             } else {
                 pendingFadeIn.current = true;
@@ -425,6 +649,41 @@ function SpotlightOverlay({
 
     const next = useCallback(() => stepTo(stepIndex < config.steps.length - 1 ? stepIndex + 1 : null), [stepIndex, config.steps.length, stepTo]);
     const prev = useCallback(() => { if (stepIndex > 0) stepTo(stepIndex - 1); }, [stepIndex, stepTo]);
+
+    const actionCallbacks = useCallback((): ActionCallbacks => ({
+        onNext: next,
+        onBack: prev,
+        onDismissSelf: closeFromCTA,
+        onDismissAll: closeFromCTA,
+    }), [next, prev, closeFromCTA]);
+
+    const handleActionPress = useCallback((action: Action) => {
+        const isMultiStep = config.steps.length > 1;
+        const isLastStep = stepIndex === config.steps.length - 1;
+        const actionUrl = 'url' in action ? (action as { url: string }).url : undefined;
+        request.onExperienceEvent({ type: 'clicked', stepIndex, stepTotal: config.steps.length, anchorKey: step.anchorKey, displayStyle: 'spotlight', ctaLabel: action.label, actionType: action.type, actionUrl });
+        if (isMultiStep) {
+            request.onExperienceEvent({ type: 'step_clicked', stepIndex, stepTotal: config.steps.length, anchorKey: step.anchorKey, displayStyle: 'spotlight', ctaLabel: action.label, actionType: action.type, actionUrl });
+        }
+        if (isMultiStep && isLastStep && action.type !== 'back') {
+            request.onExperienceEvent({ type: 'completed', stepIndex, stepTotal: config.steps.length, anchorKey: step.anchorKey, displayStyle: 'spotlight' });
+        }
+        digiaActionHandler.execute(action, {
+            campaign_id: request.payloadId,
+            campaign_key: request.campaignKey,
+            campaign_type: 'guide',
+            source: { kind: 'button', button_label: action.label },
+            step_index: stepIndex,
+            step_total: config.steps.length,
+        }, actionCallbacks());
+    }, [request, stepIndex, config, step, actionCallbacks]);
+
+    const handleBackdropPress = useCallback(() => {
+        const behavior = config.outsideTapBehavior ?? 'next';
+        if (behavior === 'nothing') return;
+        if (behavior === 'next') next();
+        if (behavior === 'dismiss') dismiss('scrim_tap');
+    }, [config.outsideTapBehavior, next, dismiss]);
 
     const pad = step.highlightPadding;
     const cutoutX = layout ? layout.pageX - pad : 0;
@@ -441,7 +700,6 @@ function SpotlightOverlay({
             <Animated.View style={[StyleSheet.absoluteFill, { opacity: opacityAnim }]} pointerEvents="box-none">
                 {layout && (
                     <>
-                        {/* Scrim with cutout */}
                         <Svg
                             width={screenW}
                             height={screenH}
@@ -463,15 +721,12 @@ function SpotlightOverlay({
                                 />
                             )}
                         </Svg>
-                        {/* Tap outside to dismiss */}
-                        <Pressable style={StyleSheet.absoluteFill} onPress={dismiss} />
-                        {/* Callout */}
+                        {/* Backdrop with configurable outside-tap behaviour */}
+                        <Pressable style={StyleSheet.absoluteFill} onPress={handleBackdropPress} />
                         <SpotlightCallout
                             step={step}
                             layout={layout}
-                            onNext={next}
-                            onBack={prev}
-                            onSkip={dismiss}
+                            onActionPress={handleActionPress}
                         />
                     </>
                 )}
@@ -482,20 +737,15 @@ function SpotlightOverlay({
 
 // ─── Guide runtime dispatcher ─────────────────────────────────────────────────
 
-const log = (...args: any[]) => __DEV__ && console.log('[DigiaHost]', ...args);
-
 function DigiaGuideRuntime() {
     const [activeRequest, setActiveRequest] = useState<DigiaGuideRequest | null>(null);
 
     useEffect(() => {
-        log('DigiaGuideRuntime mounted — subscribing to guide controller');
         return digiaGuideController.subscribe((event) => {
             if (event.type === 'cancel') {
-                log('guide cancelled payloadId=', event.payloadId);
                 setActiveRequest(null);
                 return;
             }
-            log('guide start campaignKey=', event.request.campaignKey, 'type=', event.request.config.templateType);
             setActiveRequest(event.request);
         });
     }, []);
@@ -504,17 +754,13 @@ function DigiaGuideRuntime() {
 
     switch (activeRequest.config.templateType) {
         case 'tooltip':
-            log('rendering TooltipOverlay');
             return <TooltipOverlay request={activeRequest} config={activeRequest.config} />;
         case 'spotlight':
-            log('rendering SpotlightOverlay');
             return <SpotlightOverlay request={activeRequest} config={activeRequest.config} />;
     }
 }
 
-// ─── DigiaHost — drop-in sibling, no children or wrapper needed ──────────────
-// DigiaHostView (native Compose overlay for nudges) is intentionally NOT
-// included here — it intercepts Android touches when placed as a sibling.
+// ─── DigiaHost ────────────────────────────────────────────────────────────────
 
 export function DigiaHost() {
     return <DigiaGuideRuntime />;

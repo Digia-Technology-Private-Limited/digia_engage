@@ -1,6 +1,6 @@
 {
   "name": "@digia-engage/core",
-  "version": "1.0.0",
+  "version": "2.0.3",
   "description": "React Native bridge for Digia Engage – renders native Android Compose UI inside React Native apps",
   "main": "src/index.ts",
   "module": "src/index.ts",
@@ -13,6 +13,7 @@
     "android",
     "ios",
     "*.podspec",
+    "react-native.config.js",
     "!lib/typescript/example",
     "!android/.gradle",
     "!android/build",
@@ -43,14 +44,17 @@
   },
   "author": "Digia Technology Private Limited",
   "license": "MIT",
+  "dependencies": {
+    "@react-native-async-storage/async-storage": "^2.1.2",
+    "react-native-uuid": "^2.0.3",
+    "@edwardloopez/react-native-coachmark": "^0.5.3",
+    "@floating-ui/core": "^1.0.0"
+  },
   "peerDependencies": {
-    "@floating-ui/core": "^1.0.0",
     "react-native-reanimated": ">=3.0.0",
     "react-native-svg": ">=13.0.0"
   },
   "devDependencies": {
-    "@edwardloopez/react-native-coachmark": "^0.5.3",
-    "@floating-ui/core": "^1.7.5",
     "@react-native/eslint-config": "^0.73.0",
     "@types/react": "^18.2.0",
     "@types/react-native": "^0.73.0",

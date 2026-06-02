@@ -1,6 +1,6 @@
-import SwiftUI
-import React
 import DigiaEngage
+import React
+import SwiftUI
 
 @objc(DigiaSlotView)
 final class DigiaSlotViewManager: RCTViewManager {
@@ -81,7 +81,9 @@ final class DigiaSlotUIView: UIView {
 
     /// Forward hit-testing to SwiftUI view hierarchy even outside self.bounds.
     override func hitTest(_ point: CGPoint, with event: UIEvent?) -> UIView? {
-        guard let hcView = hostingController?.view, isUserInteractionEnabled, !isHidden, alpha > 0.01 else {
+        guard let hcView = hostingController?.view, isUserInteractionEnabled, !isHidden,
+            alpha > 0.01
+        else {
             return super.hitTest(point, with: event)
         }
         let converted = convert(point, to: hcView)
@@ -166,11 +168,12 @@ final class DigiaSlotUIView: UIView {
         if intrinsic.isFinite, intrinsic > 0, intrinsic != UIView.noIntrinsicMetric {
             height = intrinsic
         } else {
-            height = hc.view.systemLayoutSizeFitting(
-                CGSize(width: width, height: UIView.layoutFittingCompressedSize.height),
-                withHorizontalFittingPriority: .required,
-                verticalFittingPriority: .fittingSizeLevel
-            ).height
+            height =
+                hc.view.systemLayoutSizeFitting(
+                    CGSize(width: width, height: UIView.layoutFittingCompressedSize.height),
+                    withHorizontalFittingPriority: .required,
+                    verticalFittingPriority: .fittingSizeLevel
+                ).height
         }
 
         if abs(height - lastReportedHeight) < 0.5 { return }
@@ -230,7 +233,8 @@ private final class SlotHostingController<Content: View>: UIHostingController<Co
 private final class RCTTouchDelegateProxy: NSObject, UIGestureRecognizerDelegate {
 
     private static let hostingViews = NSHashTable<UIView>.weakObjects()
-    private static let proxies = NSMapTable<UIGestureRecognizer, RCTTouchDelegateProxy>.weakToStrongObjects()
+    private static let proxies = NSMapTable<UIGestureRecognizer, RCTTouchDelegateProxy>
+        .weakToStrongObjects()
 
     static func registerHostingView(_ view: UIView) {
         hostingViews.add(view)

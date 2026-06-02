@@ -5,9 +5,9 @@
  *
  * Exposed methods (callable from JS via NativeModules.DigiaEngageModule):
  *
- * initialize(apiKey, environment, logLevel, baseUrl): Promise<void> register(): void setCurrentScreen(name):
- * void triggerCampaign(id, content, cepContext): void triggerCampaignById(campaignId): void
- * invalidateCampaign(campaignId): void
+ * initialize(apiKey, environment, logLevel, baseUrl): Promise<void> register(): void
+ * setCurrentScreen(name): void triggerCampaign(id, content, cepContext): void
+ * triggerCampaignById(campaignId): void invalidateCampaign(campaignId): void
  *
  * Architecture ──────────── The RN bridge mirrors the native Digia.initialize / Digia.register /
  * Digia.setCurrentScreen flow exactly. An internal [RNEventBridgePlugin] is the single native
@@ -59,9 +59,17 @@ internal class DigiaModule(
     // ─── initialize ───────────────────────────────────────────────────────────
 
     @ReactMethod
-    fun initialize(apiKey: String, environment: String, logLevel: String, baseUrl: String, promise: Promise) {
+    fun initialize(
+            apiKey: String,
+            environment: String,
+            logLevel: String,
+            baseUrl: String?,
+            fontFamily: String?,
+            promise: Promise
+    ) {
         try {
-            val cleanBaseUrl = baseUrl.trim().trimEnd('/').removeSuffix("/api/v1").takeIf { it.isNotBlank() }
+            val cleanBaseUrl =
+                    baseUrl.trim().trimEnd('/').removeSuffix("/api/v1").takeIf { it.isNotBlank() }
             val config =
                     DigiaConfig(
                             apiKey = apiKey,
@@ -77,6 +85,8 @@ internal class DigiaModule(
                                         "none" -> DigiaLogLevel.NONE
                                         else -> DigiaLogLevel.ERROR
                                     },
+                            baseUrl = baseUrl?.takeIf { it.isNotBlank() },
+                            fontFamily = fontFamily?.takeIf { it.isNotBlank() },
                     )
             Digia.initialize(reactContext.applicationContext, config)
 
@@ -172,14 +182,22 @@ internal class DigiaModule(
     // ─── Internal: mount the Compose overlay host ─────────────────────────────
 
     private fun mountDigiaHost() {
-        val activity = reactContext.currentActivity ?: run {
-            android.util.Log.w("DigiaHost", "[mountDigiaHost] no current activity — skipping")
-            return
-        }
+        val activity =
+                reactContext.currentActivity
+                        ?: run {
+                            android.util.Log.w(
+                                    "DigiaHost",
+                                    "[mountDigiaHost] no current activity — skipping"
+                            )
+                            return
+                        }
 
         val contentRoot = activity.window.decorView.findViewWithTag<DigiaHostView>(DIGIA_HOST_TAG)
         if (contentRoot != null) {
-            android.util.Log.d("DigiaHost", "[mountDigiaHost] already mounted (tag found) — skipping")
+            android.util.Log.d(
+                    "DigiaHost",
+                    "[mountDigiaHost] already mounted (tag found) — skipping"
+            )
             return
         }
 
@@ -189,10 +207,15 @@ internal class DigiaModule(
         // including status bar and navigation bar. This also ensures the Compose Popup's
         // canvas y=0 aligns with the absolute screen y=0, matching getLocationOnScreen()
         // coordinates used by DigiaAnchorView.
-        val decorView = activity.window.decorView as? android.view.ViewGroup ?: run {
-            android.util.Log.w("DigiaHost", "[mountDigiaHost] decorView not a ViewGroup — skipping")
-            return
-        }
+        val decorView =
+                activity.window.decorView as? android.view.ViewGroup
+                        ?: run {
+                            android.util.Log.w(
+                                    "DigiaHost",
+                                    "[mountDigiaHost] decorView not a ViewGroup — skipping"
+                            )
+                            return
+                        }
 
         val composeView =
                 DigiaHostView(activity).apply {
@@ -210,7 +233,10 @@ internal class DigiaModule(
                         android.view.ViewGroup.LayoutParams.MATCH_PARENT,
                 ),
         )
-        android.util.Log.d("DigiaHost", "[mountDigiaHost] done — DecorView child count: ${decorView.childCount}")
+        android.util.Log.d(
+                "DigiaHost",
+                "[mountDigiaHost] done — DecorView child count: ${decorView.childCount}"
+        )
     }
 
     companion object {

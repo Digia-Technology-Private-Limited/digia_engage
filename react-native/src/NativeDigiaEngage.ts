@@ -24,7 +24,7 @@ import { NativeModules, TurboModuleRegistry } from 'react-native';
  */
 export interface Spec extends TurboModule {
     /** Initialise the SDK. Call once before anything else. */
-    initialize(projectId: string, environment: string, logLevel: string): Promise<void>;
+    initialize(projectId: string, environment: string, logLevel: string, baseUrl?: string, fontFamily?: string): Promise<void>;
 
     /**
      * Wire the internal RNEventBridgePlugin with the native SDK.
@@ -79,8 +79,8 @@ function getModule(): Spec | null {
 }
 
 export const nativeDigiaModule: Spec = {
-    initialize: (projectId, environment, logLevel) =>
-        getModule()?.initialize(projectId, environment, logLevel) ?? Promise.resolve(),
+    initialize: (projectId, environment, logLevel, baseUrl, fontFamily) =>
+        getModule()?.initialize(projectId, environment, logLevel, baseUrl, fontFamily) ?? Promise.resolve(),
     registerBridge: () => getModule()?.registerBridge(),
     setCurrentScreen: (name) => getModule()?.setCurrentScreen(name),
     triggerCampaign: (id, content, cepContext) =>

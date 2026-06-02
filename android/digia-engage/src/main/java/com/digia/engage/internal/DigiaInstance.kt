@@ -1,6 +1,7 @@
 package com.digia.engage.internal
 
 import android.content.Context
+import android.content.SharedPreferences
 import android.util.Log
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
@@ -11,6 +12,7 @@ import com.digia.engage.DigiaConfig
 import com.digia.engage.DigiaExperienceEvent
 import com.digia.engage.InAppPayload
 import com.digia.engage.internal.model.CampaignModel
+import java.util.UUID
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -68,6 +70,7 @@ internal object DigiaInstance : DigiaCEPDelegate {
     fun initialize(context: Context, config: DigiaConfig) {
         if (!initializationStarted.compareAndSet(false, true)) return
         _sdkState.value = SDKState.INITIALIZING
+        com.digia.engage.framework.DigiaFontConfig.fontFamily = config.fontFamily
         analyticsClient.configure(config)
 
         val deviceId = resolveDeviceId(context)
@@ -75,7 +78,8 @@ internal object DigiaInstance : DigiaCEPDelegate {
 
         scope.launch(Dispatchers.IO) {
             try {
-                val fetcher = CampaignFetcher(config)
+                val deviceId = loadOrCreateDeviceId(context.applicationContext)
+                val fetcher = CampaignFetcher(config, deviceId)
                 val campaigns = fetcher.fetch()
                 campaignStore.populate(campaigns)
                 scope.launch(Dispatchers.Main.immediate) {
@@ -268,7 +272,7 @@ internal object DigiaInstance : DigiaCEPDelegate {
 
     override fun onCampaignTriggered(payload: InAppPayload) {
         scope.launch(Dispatchers.Main.immediate) {
-            android.util.Log.d("Digia", "[onCampaignTriggered] id=${payload.id} state=${_sdkState.value}")
+            // android.util.Log.d("Digia", "[onCampaignTriggered] id=${payload.id} state=${_sdkState.value}")
             when (_sdkState.value) {
                 SDKState.NOT_INITIALIZED -> {
                     logWarning("campaign dropped — SDK not initialized: ${payload.id}")
@@ -354,7 +358,7 @@ internal object DigiaInstance : DigiaCEPDelegate {
     private fun routeCampaign(campaign: CampaignModel, payload: InAppPayload = campaignPayload(campaign)) {
         val campaignKey = campaign.campaignKey
         val routedPayload = payloadForCampaign(campaign, payload)
-        android.util.Log.d("Digia", "[routeCampaign] routing '$campaignKey' type=${campaign.campaignType}")
+        // android.util.Log.d("Digia", "[routeCampaign] routing '$campaignKey' type=${campaign.campaignType}")
         when (campaign.campaignType) {
             "guide" -> guideOrchestrator.start(campaign)
             "nudge" -> displayCoordinator.routeNudge(routedPayload)
@@ -415,6 +419,15 @@ internal object DigiaInstance : DigiaCEPDelegate {
             lifecycleObserverAttached.set(false)
             throw t
         }
+    }
+
+    private fun loadOrCreateDeviceId(context: Context): String {
+        val prefs: SharedPreferences = context.getSharedPreferences("digia_prefs", Context.MODE_PRIVATE)
+        val existing = prefs.getString("digia_device_id", null)
+        if (!existing.isNullOrBlank()) return existing
+        val newId = UUID.randomUUID().toString()
+        prefs.edit().putString("digia_device_id", newId).apply()
+        return newId
     }
 
     private fun logWarning(message: String) {

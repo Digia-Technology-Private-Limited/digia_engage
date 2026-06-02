@@ -25,9 +25,9 @@ internal class GuideOrchestrator {
         val guideConfig = campaign.guideConfig
         require(campaign.campaignType == "guide" && guideConfig != null)
         require(guideConfig.steps.isNotEmpty())
-        android.util.Log.d("Digia", "[GuideOrchestrator] starting campaign='${campaign.campaignKey}' steps=${guideConfig.steps.size}")
+        // android.util.Log.d("Digia", "[GuideOrchestrator] starting campaign='${campaign.campaignKey}' steps=${guideConfig.steps.size}")
         _state.value = ActiveGuideState(campaign, 0)
-        android.util.Log.d("Digia", "[GuideOrchestrator] state set → step[0] anchorKey='${guideConfig.steps[0].anchorKey}'")
+        // android.util.Log.d("Digia", "[GuideOrchestrator] state set → step[0] anchorKey='${guideConfig.steps[0].anchorKey}'")
     }
 
     fun advance() {
