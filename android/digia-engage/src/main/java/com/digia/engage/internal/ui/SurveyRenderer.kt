@@ -75,6 +75,7 @@ import com.digia.engage.internal.model.MediaPosition
 import com.digia.engage.internal.model.SurveyBlock
 import com.digia.engage.internal.model.SurveyBlockType
 import com.digia.engage.internal.model.PaginationStyle
+import com.digia.engage.internal.model.ProgressIndicatorStyle
 import com.digia.engage.internal.model.SurveyConfigModel
 import com.digia.engage.internal.model.SurveyDisplayType
 import com.digia.engage.internal.model.SurveyNode
@@ -217,6 +218,7 @@ private fun SurveySession(state: ActiveSurveyState) {
                                 survey = survey,
                                 accent = accent,
                                 onClose = { finish(completed = false) },
+                                onCompletedClose = { DigiaInstance.dismissCompletedSurvey() },
                                 showCloseButton = sheet.backdropDismissible,
                             )
                         }
@@ -260,6 +262,7 @@ private fun SurveySession(state: ActiveSurveyState) {
                             survey = survey,
                             accent = accent,
                             onClose = { finish(completed = false) },
+                            onCompletedClose = { DigiaInstance.dismissCompletedSurvey() },
                             showCloseButton = dialog.showCloseButton,
                         )
                     }
@@ -304,6 +307,7 @@ private fun SurveyPanel(
     survey: SurveyConfigModel,
     accent: Color,
     onClose: () -> Unit,
+    onCompletedClose: () -> Unit,
     showCloseButton: Boolean,
 ) {
     val welcome = survey.welcomeBlock()
@@ -324,6 +328,7 @@ private fun SurveyPanel(
             accent = accent,
             modifier = Modifier,
             onClose = onClose,
+            onCompletedClose = onCompletedClose,
             showCloseButton = showCloseButton,
         )
     }
@@ -338,9 +343,11 @@ private fun WelcomeScreen(
     onStart: () -> Unit,
     onClose: () -> Unit,
 ) {
+    val blockBg = block.backgroundColorHex.toComposeColorOrNull()
     Column(
         modifier = Modifier
             .fillMaxWidth()
+            .then(if (blockBg != null) Modifier.background(blockBg) else Modifier)
             .padding(horizontal = 16.dp, vertical = 14.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
@@ -384,6 +391,7 @@ private fun SurveyBody(
     accent: Color,
     modifier: Modifier,
     onClose: () -> Unit,
+    onCompletedClose: () -> Unit,
     showCloseButton: Boolean,
 ) {
     val node = vm.currentNode ?: return
@@ -401,6 +409,14 @@ private fun SurveyBody(
 
     val position = visibleIndexOf(survey, node) + 1
     val total = survey.nodes.size.coerceAtLeast(1)
+    var completionReported by remember { mutableStateOf(false) }
+
+    fun reportCompletionIfResultIsNext() {
+        if (!completionReported && vm.nextBlockIsResultPage()) {
+            DigiaInstance.reportSurveyCompleted(vm.responsePayload(), vm.answers.toMap())
+            completionReported = true
+        }
+    }
 
     // ── Timer state ────────────────────────────────────────────────────────
     // Ticks once per second whenever the timer is enabled. Pauses on content
@@ -428,14 +444,17 @@ private fun SurveyBody(
             delay(250)
             if (vm.currentNode?.id == node.id) {
                 DigiaInstance.reportSurveyAnswered(node.id, currentAnswer.toMap())
+                reportCompletionIfResultIsNext()
                 vm.advance()
             }
         }
     }
 
+    val blockBg = block.backgroundColorHex.toComposeColorOrNull()
     Column(
         modifier = modifier
             .fillMaxWidth()
+            .then(if (blockBg != null) Modifier.background(blockBg) else Modifier)
             .imePadding()
             .padding(14.dp),
     ) {
@@ -450,6 +469,7 @@ private fun SurveyBody(
                     segments = total,
                     currentSegment = position,
                     accent = accent,
+                    indicator = pagination.progressIndicatorStyle,
                     modifier = Modifier.weight(1f),
                 )
             } else {
@@ -509,7 +529,7 @@ private fun SurveyBody(
                     DigiaInstance.reportSurveyAnswered(node.id, emptyMap())
                     vm.advance()
                 })
-                SurveyBlockType.RESULT_PAGE -> ResultPagePanel(cta = cta, accent = accent, onDone = { vm.advance() })
+                SurveyBlockType.RESULT_PAGE -> ResultPagePanel(cta = cta, accent = accent, onDone = onCompletedClose)
                 SurveyBlockType.TEXT_MEDIA -> if (!block.media.hasUrl) MediaPlaceholder()
                 else -> SurveyQuestionContent(
                     block = block,
@@ -547,6 +567,7 @@ private fun SurveyBody(
                             DigiaInstance.reportSurveyAnswered(node.id, ans.toMap())
                         }
                     }
+                    reportCompletionIfResultIsNext()
                     vm.advance()
                 },
             )
@@ -563,11 +584,16 @@ private fun ProgressBar(
     segments: Int,
     currentSegment: Int,
     accent: Color,
+    indicator: ProgressIndicatorStyle,
     modifier: Modifier,
 ) {
+    val activeColor = indicator.activeColorHex.toComposeColorOrNull() ?: accent
+    val trackColor = indicator.trackColorHex.toComposeColorOrNull() ?: SurveyTokens.SurfaceSunken
+    val barHeight = indicator.height.dp
+    val barShape = RoundedCornerShape(indicator.cornerRadius.dp)
     if (style == PaginationStyle.SEGMENTED && segments > 1) {
         Row(
-            modifier = modifier.height(3.dp),
+            modifier = modifier.height(barHeight),
             horizontalArrangement = Arrangement.spacedBy(3.dp),
         ) {
             for (i in 1..segments) {
@@ -576,8 +602,8 @@ private fun ProgressBar(
                     modifier = Modifier
                         .weight(1f)
                         .fillMaxHeight()
-                        .clip(RoundedCornerShape(2.dp))
-                        .background(if (on) accent else SurveyTokens.SurfaceSunken),
+                        .clip(barShape)
+                        .background(if (on) activeColor else trackColor),
                 )
             }
         }
@@ -585,15 +611,15 @@ private fun ProgressBar(
     }
     Box(
         modifier = modifier
-            .height(3.dp)
-            .clip(RoundedCornerShape(2.dp))
-            .background(SurveyTokens.SurfaceSunken),
+            .height(barHeight)
+            .clip(barShape)
+            .background(trackColor),
     ) {
         Box(
             modifier = Modifier
                 .fillMaxHeight()
                 .fillMaxWidth(progress.coerceIn(0f, 1f))
-                .background(accent),
+                .background(activeColor),
         )
     }
 }
@@ -621,7 +647,7 @@ private fun TimerChip(remainingSecs: Int, warningAtSecs: Int, accent: Color) {
 
 @Composable
 private fun CategoryPill(block: SurveyBlock, accent: Color) {
-    if (block.type.isContent) return
+    if (block.type.isContent || !block.showTag) return
     val label = categoryLabel(block.type) ?: return
     Box(
         modifier = Modifier
@@ -861,7 +887,9 @@ private fun categoryLabel(type: SurveyBlockType): String? = when (type) {
     SurveyBlockType.SINGLE_SELECT -> "Select one answer"
     SurveyBlockType.MULTI_SELECT -> "Select all that apply"
     SurveyBlockType.RATING -> "Rate it"
-    SurveyBlockType.NPS -> "Promoter score"
+    SurveyBlockType.NPS,
+    SurveyBlockType.NPS_EMOJI,
+    SurveyBlockType.NPS_SMILEY -> "Promoter score"
     SurveyBlockType.REACTION -> "Reaction poll"
     SurveyBlockType.THIS_OR_THAT -> "This or that"
     SurveyBlockType.TIER_LIST -> "Tier list"

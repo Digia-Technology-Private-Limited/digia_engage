@@ -225,21 +225,28 @@ final class DigiaModule: RCTEventEmitter {
         if rootVC.view.viewWithTag(mountTag) != nil { return }
 
         let hc = UIHostingController(rootView: DigiaHostWrapperView())
-        hc.view.tag = mountTag
+        let hostView = DigiaRootOverlayView(hostingController: hc)
+        hostView.tag = mountTag
+        hostView.translatesAutoresizingMaskIntoConstraints = false
+        hostView.backgroundColor = .clear
+
         hc.view.translatesAutoresizingMaskIntoConstraints = false
         hc.view.backgroundColor = .clear
-        // Pass touches through to React Native content below.
-        hc.view.isUserInteractionEnabled = false
 
         rootVC.addChild(hc)
-        rootVC.view.addSubview(hc.view)
+        hostView.addSubview(hc.view)
+        rootVC.view.addSubview(hostView)
         hc.didMove(toParent: rootVC)
 
         NSLayoutConstraint.activate([
-            hc.view.leadingAnchor.constraint(equalTo: rootVC.view.leadingAnchor),
-            hc.view.trailingAnchor.constraint(equalTo: rootVC.view.trailingAnchor),
-            hc.view.topAnchor.constraint(equalTo: rootVC.view.topAnchor),
-            hc.view.bottomAnchor.constraint(equalTo: rootVC.view.bottomAnchor),
+            hostView.leadingAnchor.constraint(equalTo: rootVC.view.leadingAnchor),
+            hostView.trailingAnchor.constraint(equalTo: rootVC.view.trailingAnchor),
+            hostView.topAnchor.constraint(equalTo: rootVC.view.topAnchor),
+            hostView.bottomAnchor.constraint(equalTo: rootVC.view.bottomAnchor),
+            hc.view.leadingAnchor.constraint(equalTo: hostView.leadingAnchor),
+            hc.view.trailingAnchor.constraint(equalTo: hostView.trailingAnchor),
+            hc.view.topAnchor.constraint(equalTo: hostView.topAnchor),
+            hc.view.bottomAnchor.constraint(equalTo: hostView.bottomAnchor),
         ])
     }
 
@@ -278,6 +285,45 @@ final class DigiaModule: RCTEventEmitter {
             screenId: screenId,
             campaignKey: campaignKey
         )
+    }
+}
+
+// MARK: - DigiaRootOverlayView
+
+/// Full-screen native overlay container for the auto-mounted DigiaHost.
+/// It stays touch-transparent when SwiftUI has no active overlay, but lets
+/// survey/dialog/sheet content and barriers receive touches when present.
+private final class DigiaRootOverlayView: UIView {
+    private let hostingController: UIHostingController<DigiaHostWrapperView>
+
+    init(hostingController: UIHostingController<DigiaHostWrapperView>) {
+        self.hostingController = hostingController
+        super.init(frame: .zero)
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+
+    override func hitTest(_ point: CGPoint, with event: UIEvent?) -> UIView? {
+        guard let hcView = hostingController.view else { return nil }
+
+        // When a modal overlay (survey / dialog / bottom sheet / toast / tooltip)
+        // is active, the SwiftUI layer must own ALL touches so the dim backdrop
+        // both blocks the app underneath and receives barrier-dismiss taps.
+        // SwiftUI draws a gesture-only scrim (Color + .onTapGesture) into the
+        // hosting view itself with no child UIView, so the `hit === hcView`
+        // heuristic below would wrongly treat it as empty and pass the touch
+        // through to React Native content.
+        let overlayActive = MainActor.assumeIsolated { Digia.hasActiveOverlay }
+        if overlayActive {
+            return hcView.hitTest(point, with: event) ?? hcView
+        }
+
+        let hit = hcView.hitTest(point, with: event)
+        if hit == nil || hit === hcView { return nil }
+        return hit
     }
 }
 

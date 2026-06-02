@@ -28,7 +28,7 @@ import org.json.JSONObject
 
 enum class SurveyBlockType {
     // Prompts
-    SINGLE_SELECT, MULTI_SELECT, RATING, NPS, REACTION,
+    SINGLE_SELECT, MULTI_SELECT, RATING, NPS, NPS_EMOJI, NPS_SMILEY, REACTION,
     THIS_OR_THAT, TIER_LIST, UPVOTE,
     // Form fields
     SHORT_TEXT, LONG_TEXT, NUMBER, EMAIL, DATE,
@@ -41,6 +41,10 @@ enum class SurveyBlockType {
 
     val isMultiSelect: Boolean
         get() = this == MULTI_SELECT || this == TIER_LIST || this == UPVOTE
+
+    /** Any of the NPS skins (numeric grid + face scales). */
+    val isNps: Boolean
+        get() = this == NPS || this == NPS_EMOJI || this == NPS_SMILEY
 
     val isChoice: Boolean
         get() = this == SINGLE_SELECT || this == MULTI_SELECT || this == REACTION ||
@@ -55,8 +59,7 @@ enum class SurveyBlockType {
      * lands. Multi-select / text inputs always need the explicit Next CTA.
      */
     val isAutoAdvanceCandidate: Boolean
-        get() = this == SINGLE_SELECT || this == RATING || this == NPS ||
-            this == REACTION
+        get() = this == SINGLE_SELECT || this == RATING || isNps || this == REACTION
 }
 
 enum class BoolOp { AND, OR }
@@ -76,9 +79,7 @@ enum class MediaPosition { TOP, INLINE, BACKGROUND }
 
 enum class AnswerLayout { ROW, COLUMN, GRID }
 
-enum class TextSize { SM, MD, LG, XL }
-
-enum class FontWeight { REGULAR, MEDIUM, BOLD }
+enum class FontWeight { REGULAR, MEDIUM, SEMIBOLD, BOLD }
 
 enum class TextAlign { LEFT, CENTER, RIGHT }
 
@@ -98,9 +99,10 @@ enum class CtaArrangement { SPACE_BETWEEN, SPACE_EVENLY, CENTER, START, END }
 
 // ── styling primitives ──────────────────────────────────────────────────────
 
-/** Empty colorHex inherits theme default. */
+/** Empty colorHex inherits theme default. [sizePx] of 0 inherits the element default. */
 data class ElementStyle(
-    val size: TextSize = TextSize.MD,
+    /** Font size in px; 0 means "inherit the element default". */
+    val sizePx: Float = 0f,
     val weight: FontWeight = FontWeight.REGULAR,
     val align: TextAlign = TextAlign.LEFT,
     val colorHex: String = "",
@@ -109,7 +111,7 @@ data class ElementStyle(
         fun fromJson(json: JSONObject?): ElementStyle {
             if (json == null) return ElementStyle()
             return ElementStyle(
-                size = SurveyParse.textSize(json.optString("size")),
+                sizePx = (SurveyParse.optDouble(json, "size") ?: 0.0).toFloat().coerceAtLeast(0f),
                 weight = SurveyParse.fontWeight(json.optString("weight")),
                 align = SurveyParse.textAlign(json.optString("align")),
                 colorHex = json.optString("color", ""),
@@ -178,6 +180,106 @@ data class BlockMedia(
     }
 }
 
+// ── NPS styling ───────────────────────────────────────────────────────────────
+
+/** One value per sentiment band: detractors 0–6, passives 7–8, promoters 9–10. */
+data class NpsSentiment(
+    val detractors: String,
+    val passives: String,
+    val promoters: String,
+) {
+    companion object {
+        fun fromJson(json: JSONObject?, defaults: NpsSentiment): NpsSentiment {
+            if (json == null) return defaults
+            fun pick(key: String, def: String) = json.optString(key, "").ifBlank { def }
+            return NpsSentiment(
+                detractors = pick("detractors", defaults.detractors),
+                passives = pick("passives", defaults.passives),
+                promoters = pick("promoters", defaults.promoters),
+            )
+        }
+    }
+}
+
+/** One editable point on a face scale (`nps_emoji` / `nps_smiley`). */
+data class NpsFace(val emoji: String, val label: String) {
+    companion object {
+        fun fromJson(json: JSONObject): NpsFace? {
+            val emoji = json.optString("emoji", "").takeIf { it.isNotBlank() } ?: return null
+            return NpsFace(emoji = emoji, label = json.optString("label", ""))
+        }
+    }
+}
+
+/** Tile appearance for the numeric grid (also the selected tile). */
+data class NpsTileStyle(
+    /** "square" | "circle"; circle rounds the tile fully. */
+    val shape: String,
+    val borderRadius: Float,
+    val borderWidth: Float,
+    val borderColorHex: String,
+    val backgroundColorHex: String,
+) {
+    val isCircle: Boolean get() = shape == "circle"
+
+    companion object {
+        val DEFAULT = NpsTileStyle("square", 8f, 1f, "", "")
+
+        fun fromJson(json: JSONObject?): NpsTileStyle {
+            if (json == null) return DEFAULT
+            return NpsTileStyle(
+                shape = json.optString("shape", "square"),
+                borderRadius = (SurveyParse.optDouble(json, "borderRadius") ?: 8.0).toFloat(),
+                borderWidth = (SurveyParse.optDouble(json, "borderWidth") ?: 1.0).toFloat(),
+                borderColorHex = json.optString("borderColor", ""),
+                backgroundColorHex = json.optString("backgroundColor", ""),
+            )
+        }
+    }
+}
+
+/** Presentation styling shared across the NPS variants. Empty colours inherit defaults. */
+data class NpsStyle(
+    val shape: String,
+    val borderRadius: Float,
+    val borderWidth: Float,
+    val borderColorHex: String,
+    val backgroundColorHex: String,
+    val selectedTile: NpsTileStyle,
+    val textStyle: ElementStyle,
+    val scaleColors: NpsSentiment,
+    val tierEmojis: NpsSentiment,
+    val selectedBgColorHex: String,
+    val faces: List<NpsFace>,
+    val showFaceLabels: Boolean,
+) {
+    val isCircle: Boolean get() = shape == "circle"
+
+    companion object {
+        val DEFAULT_SCALE = NpsSentiment("#F2675A", "#D7C928", "#55B82E")
+        val DEFAULT_TIERS = NpsSentiment("😡", "😐", "😍")
+
+        fun fromJson(json: JSONObject?): NpsStyle? {
+            if (json == null) return null
+            // Field defaults mirror the dashboard `defaultNpsStyle`.
+            return NpsStyle(
+                shape = json.optString("shape", "square"),
+                borderRadius = (SurveyParse.optDouble(json, "borderRadius") ?: 8.0).toFloat(),
+                borderWidth = (SurveyParse.optDouble(json, "borderWidth") ?: 1.0).toFloat(),
+                borderColorHex = json.optString("borderColor", "").ifBlank { "#E4E6EB" },
+                backgroundColorHex = json.optString("backgroundColor", "").ifBlank { "#F4F5F8" },
+                selectedTile = NpsTileStyle.fromJson(json.optJSONObject("selectedTile")),
+                textStyle = ElementStyle.fromJson(json.optJSONObject("textStyle")),
+                scaleColors = NpsSentiment.fromJson(json.optJSONObject("scaleColors"), DEFAULT_SCALE),
+                tierEmojis = NpsSentiment.fromJson(json.optJSONObject("tierEmojis"), DEFAULT_TIERS),
+                selectedBgColorHex = json.optString("selectedBgColor", "").ifBlank { "#FFFFFF" },
+                faces = SurveyParse.mapJsonArray(json.optJSONArray("faces"), NpsFace::fromJson),
+                showFaceLabels = json.optBoolean("showFaceLabels", true),
+            )
+        }
+    }
+}
+
 // ── branching ───────────────────────────────────────────────────────────────
 
 /** A single test against one node's answer. */
@@ -191,7 +293,7 @@ data class Condition(
         fun fromJson(json: JSONObject): Condition? {
             val operator = SurveyParse.operator(json.optString("operator")) ?: return null
             return Condition(
-                nodeId = json.optString("nodeId", "").takeIf { it.isNotBlank() },
+                nodeId = SurveyParse.optId(json, "nodeId"),
                 operator = operator,
                 values = SurveyParse.stringArray(json.optJSONArray("values")),
             )
@@ -249,7 +351,7 @@ data class BranchTarget(
             val kind = SurveyParse.targetKind(json.optString("kind"))
             return BranchTarget(
                 kind = kind,
-                nodeId = json.optString("nodeId", "").takeIf { it.isNotBlank() },
+                nodeId = SurveyParse.optId(json, "nodeId"),
                 url = json.optString("url", ""),
             )
         }
@@ -295,7 +397,7 @@ data class NodeBranching(
             return NodeBranching(
                 type = SurveyParse.branchingType(json.optString("type")),
                 rules = rules,
-                parentNodeId = json.optString("parentNodeId", "").takeIf { it.isNotBlank() },
+                parentNodeId = SurveyParse.optId(json, "parentNodeId"),
                 defaultTarget = BranchTarget.fromJson(json.optJSONObject("defaultTarget")),
             )
         }
@@ -310,17 +412,25 @@ data class SurveyBlock(
     val title: RichText,
     val body: RichText?,
     val options: List<SurveyOption>,
+    /** Shared text style applied to every answer option (select-style blocks). */
+    val optionStyle: ElementStyle?,
+    /** Presentation styling for the NPS variants. */
+    val npsStyle: NpsStyle?,
     val required: Boolean,
     /** When true the block is kept in the survey but skipped at runtime (e.g. a hidden welcome screen). */
     val hidden: Boolean,
     val showMedia: Boolean,
     val media: BlockMedia,
+    /** Show the block category tag/pill above the content. */
+    val showTag: Boolean,
     val showAnswerMedia: Boolean,
     val showAnswerDescriptions: Boolean,
     val shuffle: Boolean,
     val allowOther: Boolean,
     val flexibleHeight: Boolean,
     val answerLayout: AnswerLayout,
+    /** Block surface background; an empty string inherits the survey surface. */
+    val backgroundColorHex: String,
     /** NUMBER-block constraints. `null` means unbounded on that side. */
     val numberMin: Double?,
     val numberMax: Double?,
@@ -340,16 +450,20 @@ data class SurveyBlock(
                 title = title,
                 body = RichText.fromJson(json.optJSONObject("body")),
                 options = options,
+                optionStyle = json.optJSONObject("optionStyle")?.let { ElementStyle.fromJson(it) },
+                npsStyle = NpsStyle.fromJson(json.optJSONObject("npsStyle")),
                 required = json.optBoolean("required", false),
                 hidden = json.optBoolean("hidden", false),
                 showMedia = json.optBoolean("showMedia", false),
                 media = BlockMedia.fromJson(json.optJSONObject("media")),
+                showTag = json.optBoolean("showTag", true),
                 showAnswerMedia = json.optBoolean("showAnswerMedia", false),
                 showAnswerDescriptions = json.optBoolean("showAnswerDescriptions", false),
                 shuffle = json.optBoolean("shuffle", false),
                 allowOther = json.optBoolean("allowOther", false),
                 flexibleHeight = json.optBoolean("flexibleHeight", false),
                 answerLayout = SurveyParse.answerLayout(json.optString("answerLayout")),
+                backgroundColorHex = json.optString("backgroundColor", ""),
                 numberMin = SurveyParse.optDouble(json, "min"),
                 numberMax = SurveyParse.optDouble(json, "max"),
                 showWhen = ConditionExpr.fromJson(json.optJSONObject("showWhen")),
@@ -477,12 +591,35 @@ data class SurveyDisplay(
     }
 }
 
+/** Visual styling for the progress indicator. Empty colours inherit defaults. */
+data class ProgressIndicatorStyle(
+    val activeColorHex: String,
+    val trackColorHex: String,
+    val height: Float,
+    val cornerRadius: Float,
+) {
+    companion object {
+        val DEFAULT = ProgressIndicatorStyle("", "", 3f, 2f)
+
+        fun fromJson(json: JSONObject?): ProgressIndicatorStyle {
+            if (json == null) return DEFAULT
+            return ProgressIndicatorStyle(
+                activeColorHex = json.optString("activeColor", ""),
+                trackColorHex = json.optString("trackColor", ""),
+                height = (SurveyParse.optDouble(json, "height") ?: 3.0).toFloat().coerceAtLeast(1f),
+                cornerRadius = (SurveyParse.optDouble(json, "cornerRadius") ?: 2.0).toFloat().coerceAtLeast(0f),
+            )
+        }
+    }
+}
+
 data class PaginationSettings(
     val numberOfPages: Boolean,
     val progressbar: Boolean,
     val onlyShowOnQuestionBlock: Boolean,
     val backButton: Boolean,
     val paginationStyle: PaginationStyle,
+    val progressIndicatorStyle: ProgressIndicatorStyle,
 ) {
     companion object {
         val DEFAULT = PaginationSettings(
@@ -491,6 +628,7 @@ data class PaginationSettings(
             onlyShowOnQuestionBlock = true,
             backButton = true,
             paginationStyle = PaginationStyle.CONTINUOUS,
+            progressIndicatorStyle = ProgressIndicatorStyle.DEFAULT,
         )
 
         fun fromJson(json: JSONObject?): PaginationSettings {
@@ -501,6 +639,7 @@ data class PaginationSettings(
                 onlyShowOnQuestionBlock = json.optBoolean("onlyShowOnQuestionBlock", true),
                 backButton = json.optBoolean("backButton", true),
                 paginationStyle = SurveyParse.paginationStyle(json.optString("paginationStyle")),
+                progressIndicatorStyle = ProgressIndicatorStyle.fromJson(json.optJSONObject("progressIndicatorStyle")),
             )
         }
     }
@@ -617,8 +756,10 @@ data class SurveySettings(
 
 data class SurveyTheme(val accentColor: Int, val backgroundColor: Int) {
     companion object {
-        private val DEFAULT_ACCENT = Color.parseColor("#2D6CDF")
-        private val DEFAULT_BACKGROUND = Color.parseColor("#FFFFFF")
+        // ARGB literals (not Color.parseColor) so the class initialises without
+        // the Android framework — keeps the model usable in plain JVM unit tests.
+        private val DEFAULT_ACCENT = 0xFF2D6CDF.toInt()
+        private val DEFAULT_BACKGROUND = 0xFFFFFFFF.toInt()
         val DEFAULT = SurveyTheme(DEFAULT_ACCENT, DEFAULT_BACKGROUND)
 
         fun fromJson(json: JSONObject?): SurveyTheme {
@@ -679,13 +820,13 @@ data class SurveyConfigModel(
                 .ifBlank { json.optString("templateId", "") }
                 .ifBlank { fallbackId }
 
-            val rootNodeId = json.optString("rootNodeId", "").takeIf { it.isNotBlank() }
+            val rootNodeId = SurveyParse.optId(json, "rootNodeId")
             val name = json.optString("name", "")
                 .ifBlank { json.optString("surveyName", "") }
                 .ifBlank { json.optString("title", "") }
                 .takeIf { it.isNotBlank() }
 
-            val uiTemplateId = json.optString("uiTemplateId", "").takeIf { it.isNotBlank() }
+            val uiTemplateId = SurveyParse.optId(json, "uiTemplateId")
 
             return SurveyConfigModel(
                 id = id,
@@ -724,6 +865,23 @@ internal object SurveyParse {
         return out
     }
 
+    /**
+     * Reads an optional id-like field, treating a missing key, an explicit JSON
+     * `null`, and the literal string "null" as absent.
+     *
+     * `org.json`'s [JSONObject.optString] coerces an explicit `null` to the
+     * *string* "null" (via `String.valueOf(JSONObject.NULL)`), not "". Branch
+     * conditions that test the owning node's own answer are serialised as
+     * `"nodeId": null`, so a naive `optString(...).takeIf { isNotBlank() }` would
+     * yield "null" and route branching against a non-existent node id — the rule
+     * never matches and the survey jumps to the wrong node. iOS avoids this
+     * because its parser filters the literal "null".
+     */
+    fun optId(json: JSONObject, key: String): String? {
+        if (!json.has(key) || json.isNull(key)) return null
+        return json.optString(key, "").takeIf { it.isNotBlank() && it != "null" }
+    }
+
     fun optStringSnakeOrCamel(json: JSONObject, snake: String, camel: String): String? {
         val raw = when {
             json.has(snake) && !json.isNull(snake) -> json.optString(snake, "")
@@ -757,7 +915,10 @@ internal object SurveyParse {
             "multi_select", "multiple_select", "multiple_choice", "multi", "multiple" ->
                 SurveyBlockType.MULTI_SELECT
             "rating", "star", "likert_scale" -> SurveyBlockType.RATING
-            "nps" -> SurveyBlockType.NPS
+            // gauge / slider variants render with the numeric grid for now.
+            "nps", "nps_gauge", "nps_slider" -> SurveyBlockType.NPS
+            "nps_emoji" -> SurveyBlockType.NPS_EMOJI
+            "nps_smiley" -> SurveyBlockType.NPS_SMILEY
             "reaction", "smiley", "smiley_scale", "csat" -> SurveyBlockType.REACTION
             "this_or_that" -> SurveyBlockType.THIS_OR_THAT
             "tier_list" -> SurveyBlockType.TIER_LIST
@@ -828,17 +989,10 @@ internal object SurveyParse {
             else -> AnswerLayout.COLUMN
         }
 
-    fun textSize(value: String?): TextSize =
-        when (value?.trim()?.lowercase()) {
-            "sm" -> TextSize.SM
-            "lg" -> TextSize.LG
-            "xl" -> TextSize.XL
-            else -> TextSize.MD
-        }
-
     fun fontWeight(value: String?): FontWeight =
         when (value?.trim()?.lowercase()) {
             "medium" -> FontWeight.MEDIUM
+            "semibold", "semi_bold" -> FontWeight.SEMIBOLD
             "bold" -> FontWeight.BOLD
             else -> FontWeight.REGULAR
         }

@@ -47,6 +47,7 @@ internal object DigiaInstance : DigiaCEPDelegate {
     private val guideOrchestrator = GuideOrchestrator()
     private val surveyOrchestrator = SurveyOrchestrator()
     private var submissionReporter: SubmissionReporter? = null
+    private var completedSurveyToken: Long? = null
 
     val guideState = guideOrchestrator.state
     val surveyState = surveyOrchestrator.state
@@ -193,14 +194,31 @@ internal object DigiaInstance : DigiaCEPDelegate {
         response: Map<String, Any?>,
         answers: Map<String, SurveyAnswer> = emptyMap(),
     ) {
+        reportSurveyCompleted(response, answers)
+        surveyOrchestrator.dismiss()
+    }
+
+    fun reportSurveyCompleted(
+        response: Map<String, Any?>,
+        answers: Map<String, SurveyAnswer> = emptyMap(),
+    ) {
         val state = surveyOrchestrator.state.value ?: return
+        if (completedSurveyToken == state.token) return
+        completedSurveyToken = state.token
         displayCoordinator.trackInternal(
             InternalEngageEvent.SurveyCompleted(response),
             surveyPayload(state),
         )
         if (answers.isNotEmpty()) {
+            Log.d(
+                "DigiaInstance",
+                "survey submission started: campaignKey=${state.campaign.campaignKey}, campaignId=${state.campaign.id}, answers=${answers.size}",
+            )
             submissionReporter?.reportSurveyCompleted(state.campaign, answers, state.startedAtMs)
         }
+    }
+
+    fun dismissCompletedSurvey() {
         surveyOrchestrator.dismiss()
     }
 

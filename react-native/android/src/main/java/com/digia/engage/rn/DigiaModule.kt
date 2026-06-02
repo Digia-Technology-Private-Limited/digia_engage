@@ -69,7 +69,7 @@ internal class DigiaModule(
     ) {
         try {
             val cleanBaseUrl =
-                    baseUrl.trim().trimEnd('/').removeSuffix("/api/v1").takeIf { it.isNotBlank() }
+                    baseUrl?.trim()?.trimEnd('/')?.removeSuffix("/api/v1")?.takeIf { it.isNotBlank() }
             val config =
                     DigiaConfig(
                             apiKey = apiKey,
@@ -85,7 +85,6 @@ internal class DigiaModule(
                                         "none" -> DigiaLogLevel.NONE
                                         else -> DigiaLogLevel.ERROR
                                     },
-                            baseUrl = baseUrl?.takeIf { it.isNotBlank() },
                             fontFamily = fontFamily?.takeIf { it.isNotBlank() },
                     )
             Digia.initialize(reactContext.applicationContext, config)

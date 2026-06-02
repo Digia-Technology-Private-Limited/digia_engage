@@ -35,6 +35,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
@@ -47,11 +48,11 @@ import com.digia.engage.internal.SurveyAnswer
 import com.digia.engage.internal.model.AnswerLayout
 import com.digia.engage.internal.model.ElementStyle
 import com.digia.engage.internal.model.FontWeight
+import com.digia.engage.internal.model.NpsStyle
 import com.digia.engage.internal.model.SurveyBlock
 import com.digia.engage.internal.model.SurveyBlockType
 import com.digia.engage.internal.model.SurveyOption
 import com.digia.engage.internal.model.TextAlign
-import com.digia.engage.internal.model.TextSize
 
 /** Synthetic option id for a choice question's "Other" entry. */
 internal const val OTHER_CHOICE_ID = "__other__"
@@ -84,7 +85,7 @@ internal val BodyDefaults = TextDefaults(
     sizeSp = 14, weight = ComposeFontWeight.Normal, color = SurveyTokens.TextSecondary,
 )
 internal val OptionDefaults = TextDefaults(
-    sizeSp = 15, weight = ComposeFontWeight.Normal, color = SurveyTokens.TextPrimary,
+    sizeSp = 16, weight = ComposeFontWeight.Medium, color = SurveyTokens.TextPrimary,
 )
 
 internal fun ElementStyle.toTextStyle(accent: Color, default: TextDefaults): TextStyle {
@@ -92,15 +93,11 @@ internal fun ElementStyle.toTextStyle(accent: Color, default: TextDefaults): Tex
         runCatching { Color(android.graphics.Color.parseColor(it)) }.getOrNull()
     }
     return TextStyle(
-        fontSize = when (size) {
-            TextSize.SM -> (default.sizeSp - 2).sp
-            TextSize.MD -> default.sizeSp.sp
-            TextSize.LG -> (default.sizeSp + 2).sp
-            TextSize.XL -> (default.sizeSp + 6).sp
-        },
+        fontSize = if (sizePx > 0f) sizePx.sp else default.sizeSp.sp,
         fontWeight = when (weight) {
             FontWeight.REGULAR -> ComposeFontWeight.Normal
             FontWeight.MEDIUM -> ComposeFontWeight.Medium
+            FontWeight.SEMIBOLD -> ComposeFontWeight.SemiBold
             FontWeight.BOLD -> ComposeFontWeight.Bold
         },
         color = parsedColor ?: default.color,
@@ -129,7 +126,13 @@ internal fun SurveyQuestionContent(
             range = 5, accent = accent, answer = answer, onAnswer = onAnswer,
         )
         SurveyBlockType.NPS -> NpsQuestion(
-            accent = accent, answer = answer, onAnswer = onAnswer,
+            accent = accent, style = block.npsStyle, answer = answer, onAnswer = onAnswer,
+        )
+        SurveyBlockType.NPS_EMOJI -> NpsFaceQuestion(
+            accent = accent, style = block.npsStyle, faceSize = 28, answer = answer, onAnswer = onAnswer,
+        )
+        SurveyBlockType.NPS_SMILEY -> NpsFaceQuestion(
+            accent = accent, style = block.npsStyle, faceSize = 30, answer = answer, onAnswer = onAnswer,
         )
         SurveyBlockType.REACTION -> ReactionQuestion(
             block = block, accent = accent, answer = answer, onAnswer = onAnswer,
@@ -210,36 +213,68 @@ private fun StarRatingQuestion(
 
 // ── NPS: 11 square tiles, single-select ────────────────────────────────────
 
+/** Sentiment band colour for an NPS score (detractors ≤6, passives 7–8, promoters ≥9). */
+private fun npsBandColor(style: NpsStyle, score: Int): Color {
+    val hex = when {
+        score <= 6 -> style.scaleColors.detractors
+        score <= 8 -> style.scaleColors.passives
+        else -> style.scaleColors.promoters
+    }
+    return hex.toComposeColorOrNull() ?: Color.Gray
+}
+
+private fun String.toComposeColorOrNull(): Color? {
+    if (isBlank()) return null
+    return try {
+        Color(android.graphics.Color.parseColor(this))
+    } catch (_: IllegalArgumentException) {
+        null
+    }
+}
+
 @Composable
 private fun NpsQuestion(
     accent: Color,
+    style: NpsStyle?,
     answer: SurveyAnswer?,
     onAnswer: (SurveyAnswer) -> Unit,
 ) {
+    val nps = style ?: defaultNps()
     val selected = answer?.values?.firstOrNull()?.toIntOrNull()
+    val sel = nps.selectedTile
+    val baseRadius = (if (nps.isCircle) 999f else nps.borderRadius).dp
+    val selRadius = (if (sel.isCircle) 999f else sel.borderRadius).dp
+    val baseBg = nps.backgroundColorHex.toComposeColorOrNull() ?: Color.Transparent
+    val baseBorder = nps.borderColorHex.toComposeColorOrNull() ?: SurveyTokens.Border
+    val textColor = nps.textStyle.colorHex.toComposeColorOrNull() ?: SurveyTokens.TextPrimary
+    val textWeight = nps.textStyle.toTextStyle(accent, OptionDefaults).fontWeight ?: ComposeFontWeight.SemiBold
+    val textSize = if (nps.textStyle.sizePx > 0f) nps.textStyle.sizePx.sp else 13.sp
     Column {
         Row(horizontalArrangement = Arrangement.spacedBy(5.dp)) {
             for (i in 0..10) {
                 val isOn = selected == i
+                val band = npsBandColor(nps, i)
+                // Selected tile takes its own style; empty colours fall back to
+                // the sentiment band so the default look is preserved.
+                val fill = if (isOn) sel.backgroundColorHex.toComposeColorOrNull() ?: band else baseBg
+                val borderColor = if (isOn) sel.borderColorHex.toComposeColorOrNull() ?: band else baseBorder
+                val borderWidth = (if (isOn) sel.borderWidth else nps.borderWidth).dp
+                val radius = if (isOn) selRadius else baseRadius
                 Box(
                     modifier = Modifier
                         .weight(1f)
                         .aspectRatio(1f)
-                        .clip(RoundedCornerShape(6.dp))
-                        .background(if (isOn) accent else SurveyTokens.SurfaceSunken)
-                        .border(
-                            width = 1.dp,
-                            color = if (isOn) accent else SurveyTokens.Border,
-                            shape = RoundedCornerShape(6.dp),
-                        )
+                        .clip(RoundedCornerShape(radius))
+                        .background(fill)
+                        .border(borderWidth, borderColor, RoundedCornerShape(radius))
                         .clickable { onAnswer(SurveyAnswer(values = listOf(i.toString()))) },
                     contentAlignment = Alignment.Center,
                 ) {
                     Text(
                         text = i.toString(),
-                        color = if (isOn) Color.White else SurveyTokens.TextPrimary,
-                        fontWeight = ComposeFontWeight.SemiBold,
-                        fontSize = 13.sp,
+                        color = if (isOn) Color.White else textColor,
+                        fontWeight = textWeight,
+                        fontSize = textSize,
                     )
                 }
             }
@@ -249,6 +284,79 @@ private fun NpsQuestion(
             Text("Not likely", color = SurveyTokens.TextTertiary, fontSize = 11.sp)
             Spacer(Modifier.weight(1f))
             Text("Extremely likely", color = SurveyTokens.TextTertiary, fontSize = 11.sp)
+        }
+    }
+}
+
+/** Default NPS style when a block carries none (mirrors dashboard `defaultNpsStyle`). */
+private fun defaultNps(): NpsStyle = NpsStyle(
+    shape = "square", borderRadius = 8f, borderWidth = 1f,
+    borderColorHex = "#E4E6EB", backgroundColorHex = "#F4F5F8",
+    selectedTile = com.digia.engage.internal.model.NpsTileStyle.DEFAULT,
+    textStyle = ElementStyle(sizePx = 13f, weight = FontWeight.SEMIBOLD, align = TextAlign.CENTER, colorHex = "#1A1D24"),
+    scaleColors = NpsStyle.DEFAULT_SCALE,
+    tierEmojis = NpsStyle.DEFAULT_TIERS,
+    selectedBgColorHex = "#FFFFFF",
+    faces = emptyList(),
+    showFaceLabels = true,
+)
+
+// ── NPS face scale: emoji / smiley rounded-square tiles, single-select ──────
+
+@Composable
+private fun NpsFaceQuestion(
+    accent: Color,
+    style: NpsStyle?,
+    faceSize: Int,
+    answer: SurveyAnswer?,
+    onAnswer: (SurveyAnswer) -> Unit,
+) {
+    val nps = style ?: defaultNps()
+    val faces = nps.faces
+    val sel = nps.selectedTile
+    val baseRadius = (if (nps.isCircle) 999f else nps.borderRadius).dp
+    val selRadius = (if (sel.isCircle) 999f else sel.borderRadius).dp
+    val baseBg = nps.backgroundColorHex.toComposeColorOrNull() ?: SurveyTokens.SurfaceSunken
+    val baseBorder = nps.borderColorHex.toComposeColorOrNull() ?: SurveyTokens.Border
+    val labelColor = nps.textStyle.colorHex.toComposeColorOrNull() ?: SurveyTokens.TextPrimary
+    val labelWeight = nps.textStyle.toTextStyle(accent, OptionDefaults).fontWeight ?: ComposeFontWeight.SemiBold
+    val labelSize = if (nps.textStyle.sizePx > 0f) nps.textStyle.sizePx.sp else 13.sp
+    val selectedValue = answer?.values?.firstOrNull()?.toIntOrNull()
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.CenterHorizontally),
+    ) {
+        faces.forEachIndexed { index, face ->
+            val value = index + 1
+            val isOn = selectedValue == value
+            // Selected face takes its own style; empty colours fall back to the
+            // accent so the default highlight is preserved.
+            val fill = if (isOn) sel.backgroundColorHex.toComposeColorOrNull() ?: accent.copy(alpha = 0.12f) else baseBg
+            val borderColor = if (isOn) sel.borderColorHex.toComposeColorOrNull() ?: accent else baseBorder
+            val borderWidth = (if (isOn) sel.borderWidth else nps.borderWidth).dp
+            val radius = if (isOn) selRadius else baseRadius
+            Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Box(
+                    modifier = Modifier
+                        .size(56.dp)
+                        .scale(if (isOn) 1.1f else 1f)
+                        .clip(RoundedCornerShape(radius))
+                        .background(fill)
+                        .border(borderWidth, borderColor, RoundedCornerShape(radius))
+                        .clickable { onAnswer(SurveyAnswer(values = listOf(value.toString()))) },
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(text = face.emoji, fontSize = faceSize.sp, lineHeight = faceSize.sp)
+                }
+                if (nps.showFaceLabels && face.label.isNotBlank()) {
+                    Text(
+                        text = face.label,
+                        color = if (isOn) accent else labelColor,
+                        fontWeight = labelWeight,
+                        fontSize = labelSize,
+                    )
+                }
+            }
         }
     }
 }
@@ -495,6 +603,7 @@ private fun ChoiceCardQuestion(
             selected = selected[option.id] == true,
             multi = multi,
             accent = accent,
+            optionStyle = block.optionStyle,
             showMedia = block.showAnswerMedia,
             showDescription = block.showAnswerDescriptions,
             wide = true,
@@ -558,6 +667,7 @@ private fun ChoiceCardRow(
     selected: Boolean,
     multi: Boolean,
     accent: Color,
+    optionStyle: ElementStyle?,
     showMedia: Boolean,
     showDescription: Boolean,
     wide: Boolean,
@@ -574,7 +684,7 @@ private fun ChoiceCardRow(
                 shape = RoundedCornerShape(10.dp),
             )
             .clickable(onClick = onClick)
-            .padding(horizontal = 14.dp, vertical = 12.dp),
+            .padding(horizontal = 14.dp, vertical = 10.dp),
         verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -597,13 +707,13 @@ private fun ChoiceCardRow(
                     contentScale = androidx.compose.ui.layout.ContentScale.Crop,
                     modifier = Modifier
                         .size(36.dp)
-                        .clip(RoundedCornerShape(6.dp)),
+                        .clip(RoundedCornerShape(4.dp)),
                 )
-                Spacer(Modifier.width(10.dp))
+                Spacer(Modifier.width(12.dp))
             }
             Text(
                 text = option.label,
-                style = OptionDefaults.toStyle(),
+                style = optionStyle?.toTextStyle(accent, OptionDefaults) ?: OptionDefaults.toStyle(),
                 modifier = if (wide) Modifier.weight(1f) else Modifier,
             )
         }
