@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import {
     Animated,
     Dimensions,
@@ -18,6 +18,17 @@ import { digiaActionHandler, type ActionCallbacks } from './actionHandler';
 import type { DismissReason } from './types';
 import type { Action, SpotlightConfig, SpotlightStep, TooltipConfig, TooltipStep } from './templateTypes';
 import { interpolateVariables, type VariableMap } from './interpolate';
+
+// ─── Variable context ─────────────────────────────────────────────────────────
+// Provides the active campaign's variable map to all descendant components.
+// Avoids threading `variables` through every prop chain.
+
+const VariableContext = createContext<VariableMap | undefined>(undefined);
+
+function TextWithVariables({ children, ...props }: Omit<React.ComponentProps<typeof Text>, 'children'> & { children: string }) {
+    const variables = useContext(VariableContext);
+    return <Text {...props}>{interpolateVariables(children, variables)}</Text>;
+}
 
 // ─── @floating-ui/core platform adapter ──────────────────────────────────────
 
@@ -167,14 +178,12 @@ function calcArrowOffset(
 
 function ActionButton({
     action,
-    variables,
     btnPrimaryBg,
     btnPrimaryText,
     btnGhostText,
     onPress,
 }: {
     action: Action;
-    variables?: VariableMap;
     btnPrimaryBg: string;
     btnPrimaryText: string;
     btnGhostText: string;
@@ -187,9 +196,9 @@ function ActionButton({
             onPress={onPress}
             style={[s.button, isPrimary && { backgroundColor: btnPrimaryBg }]}
         >
-            <Text style={{ color: isPrimary ? btnPrimaryText : btnGhostText, fontSize: 13, fontWeight: '600', fontFamily }}>
-                {interpolateVariables(action.label, variables)}
-            </Text>
+            <TextWithVariables style={{ color: isPrimary ? btnPrimaryText : btnGhostText, fontSize: 13, fontWeight: '600', fontFamily }}>
+                {action.label}
+            </TextWithVariables>
         </Pressable>
     );
 }
@@ -212,7 +221,6 @@ function TooltipOverlay({
     const [resolvedPlacement, setResolvedPlacement] = useState<string>('bottom');
     const [floatingSize, setFloatingSize] = useState<{ w: number; h: number } | null>(null);
     const step = config.steps[stepIndex];
-    const variables = request.variables;
     const { width: screenW } = useWindowDimensions();
     const opacityAnim = useRef(new Animated.Value(1)).current;
     const pendingFadeIn = useRef(false);
@@ -321,109 +329,110 @@ function TooltipOverlay({
     }, [config.outsideTapBehavior, next, dismiss]);
 
     return (
-        <Modal transparent statusBarTranslucent animationType="none" visible>
-            {/* pointerEvents="box-none": container passes touches through; only children intercept.
-                This prevents the invisible measurement pass from blocking the screen. */}
-            <Animated.View style={[StyleSheet.absoluteFill, { opacity: opacityAnim }]} pointerEvents="box-none">
-                {floatPos ? (
-                    <>
-                        {/* Full-screen backdrop: blocks all touches once bubble is positioned */}
-                        <Pressable style={StyleSheet.absoluteFill} onPress={handleBackdropPress} />
-                        {/* Bubble as Pressable so tapping the bubble body also advances */}
-                        <Pressable
-                            onLayout={(e) => {
-                                const { width, height } = e.nativeEvent.layout;
-                                if (floatingSize?.w !== width || floatingSize?.h !== height) {
-                                    setFloatingSize({ w: width, h: height });
-                                }
-                            }}
-                            onPress={handleBackdropPress}
-                            style={[
-                                s.tooltipBubble,
-                                {
-                                    left: floatPos.x,
-                                    top: floatPos.y,
-                                    width: tooltipW,
-                                    backgroundColor: step.backgroundColor,
-                                    borderRadius: step.cornerRadius,
-                                    borderWidth: step.borderWidth,
-                                    borderColor: step.borderColor,
-                                    padding: step.padding,
-                                },
-                                step.shadow && s.shadow,
-                            ]}
-                        >
-                            {showArrow && (
-                                <GuideArrow
-                                    placement={resolvedPlacement}
-                                    color={step.arrowColor ?? step.backgroundColor}
-                                    borderColor={step.arrowBorderColor ?? step.borderColor}
-                                    size={arrowSize}
-                                    arrowOffset={arrowOffset}
-                                />
-                            )}
-                            <Text style={{ color: step.titleColor, fontSize: step.titleSize, fontWeight: step.titleWeight, fontFamily }}>
-                                {interpolateVariables(step.title, variables)}
-                            </Text>
-                            {!!step.body && (
-                                <Text style={{ marginTop: 4, color: step.bodyColor, fontSize: step.bodySize, fontFamily }}>
-                                    {interpolateVariables(step.body, variables)}
-                                </Text>
-                            )}
-                            <View style={s.actionRow}>
-                                {step.actions.map((action, i) => (
-                                    <ActionButton
-                                        key={i}
-                                        action={action}
-                                        variables={variables}
-                                        btnPrimaryBg={step.buttonPrimaryBackgroundColor}
-                                        btnPrimaryText={step.buttonPrimaryTextColor}
-                                        btnGhostText={step.buttonGhostTextColor}
-                                        onPress={() => {
-                                            const isMultiStep = config.steps.length > 1;
-                                            const isLastStep = stepIndex === config.steps.length - 1;
-                                            const actionUrl = 'url' in action ? (action as { url: string }).url : undefined;
-                                            request.onExperienceEvent({ type: 'clicked', stepIndex, stepTotal: config.steps.length, anchorKey: step.anchorKey, displayStyle: 'tooltip', ctaLabel: action.label, actionType: action.type, actionUrl });
-                                            if (isMultiStep) {
-                                                request.onExperienceEvent({ type: 'step_clicked', stepIndex, stepTotal: config.steps.length, anchorKey: step.anchorKey, displayStyle: 'tooltip', ctaLabel: action.label, actionType: action.type, actionUrl });
-                                            }
-                                            if (isMultiStep && isLastStep && action.type !== 'back') {
-                                                request.onExperienceEvent({ type: 'completed', stepIndex, stepTotal: config.steps.length, anchorKey: step.anchorKey, displayStyle: 'tooltip' });
-                                            }
-                                            void digiaActionHandler.execute(action, {
-                                                campaign_id: request.payloadId,
-                                                campaign_key: request.campaignKey,
-                                                campaign_type: 'guide',
-                                                source: { kind: 'button', button_label: action.label },
-                                                step_index: stepIndex,
-                                                step_total: config.steps.length,
-                                            }, actionCallbacks());
-                                        }}
+        <VariableContext.Provider value={request.variables}>
+            <Modal transparent statusBarTranslucent animationType="none" visible>
+                {/* pointerEvents="box-none": container passes touches through; only children intercept.
+                    This prevents the invisible measurement pass from blocking the screen. */}
+                <Animated.View style={[StyleSheet.absoluteFill, { opacity: opacityAnim }]} pointerEvents="box-none">
+                    {floatPos ? (
+                        <>
+                            {/* Full-screen backdrop: blocks all touches once bubble is positioned */}
+                            <Pressable style={StyleSheet.absoluteFill} onPress={handleBackdropPress} />
+                            {/* Bubble as Pressable so tapping the bubble body also advances */}
+                            <Pressable
+                                onLayout={(e) => {
+                                    const { width, height } = e.nativeEvent.layout;
+                                    if (floatingSize?.w !== width || floatingSize?.h !== height) {
+                                        setFloatingSize({ w: width, h: height });
+                                    }
+                                }}
+                                onPress={handleBackdropPress}
+                                style={[
+                                    s.tooltipBubble,
+                                    {
+                                        left: floatPos.x,
+                                        top: floatPos.y,
+                                        width: tooltipW,
+                                        backgroundColor: step.backgroundColor,
+                                        borderRadius: step.cornerRadius,
+                                        borderWidth: step.borderWidth,
+                                        borderColor: step.borderColor,
+                                        padding: step.padding,
+                                    },
+                                    step.shadow && s.shadow,
+                                ]}
+                            >
+                                {showArrow && (
+                                    <GuideArrow
+                                        placement={resolvedPlacement}
+                                        color={step.arrowColor ?? step.backgroundColor}
+                                        borderColor={step.arrowBorderColor ?? step.borderColor}
+                                        size={arrowSize}
+                                        arrowOffset={arrowOffset}
                                     />
+                                )}
+                                <TextWithVariables style={{ color: step.titleColor, fontSize: step.titleSize, fontWeight: step.titleWeight, fontFamily }}>
+                                    {step.title}
+                                </TextWithVariables>
+                                {!!step.body && (
+                                    <TextWithVariables style={{ marginTop: 4, color: step.bodyColor, fontSize: step.bodySize, fontFamily }}>
+                                        {step.body}
+                                    </TextWithVariables>
+                                )}
+                                <View style={s.actionRow}>
+                                    {step.actions.map((action, i) => (
+                                        <ActionButton
+                                            key={i}
+                                            action={action}
+                                            btnPrimaryBg={step.buttonPrimaryBackgroundColor}
+                                            btnPrimaryText={step.buttonPrimaryTextColor}
+                                            btnGhostText={step.buttonGhostTextColor}
+                                            onPress={() => {
+                                                const isMultiStep = config.steps.length > 1;
+                                                const isLastStep = stepIndex === config.steps.length - 1;
+                                                const actionUrl = 'url' in action ? (action as { url: string }).url : undefined;
+                                                request.onExperienceEvent({ type: 'clicked', stepIndex, stepTotal: config.steps.length, anchorKey: step.anchorKey, displayStyle: 'tooltip', ctaLabel: action.label, actionType: action.type, actionUrl });
+                                                if (isMultiStep) {
+                                                    request.onExperienceEvent({ type: 'step_clicked', stepIndex, stepTotal: config.steps.length, anchorKey: step.anchorKey, displayStyle: 'tooltip', ctaLabel: action.label, actionType: action.type, actionUrl });
+                                                }
+                                                if (isMultiStep && isLastStep && action.type !== 'back') {
+                                                    request.onExperienceEvent({ type: 'completed', stepIndex, stepTotal: config.steps.length, anchorKey: step.anchorKey, displayStyle: 'tooltip' });
+                                                }
+                                                void digiaActionHandler.execute(action, {
+                                                    campaign_id: request.payloadId,
+                                                    campaign_key: request.campaignKey,
+                                                    campaign_type: 'guide',
+                                                    source: { kind: 'button', button_label: action.label },
+                                                    step_index: stepIndex,
+                                                    step_total: config.steps.length,
+                                                }, actionCallbacks());
+                                            }}
+                                        />
+                                    ))}
+                                </View>
+                            </Pressable>
+                        </>
+                    ) : (
+                        // Off-screen measurement pass to determine bubble size before positioning.
+                        <View
+                            pointerEvents="none"
+                            onLayout={(e) => setFloatingSize({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height })}
+                            style={[s.tooltipBubble, { left: -9999, top: -9999, width: tooltipW, padding: step.padding }]}
+                        >
+                            <TextWithVariables style={{ fontSize: step.titleSize, fontFamily }}>{step.title}</TextWithVariables>
+                            {!!step.body && <TextWithVariables style={{ fontSize: step.bodySize, fontFamily }}>{step.body}</TextWithVariables>}
+                            <View style={s.actionRow}>
+                                {step.actions.map((a, i) => (
+                                    <View key={i} style={s.button}>
+                                        <TextWithVariables style={{ fontSize: 13, fontFamily }}>{a.label}</TextWithVariables>
+                                    </View>
                                 ))}
                             </View>
-                        </Pressable>
-                    </>
-                ) : (
-                    // Off-screen measurement pass to determine bubble size before positioning.
-                    <View
-                        pointerEvents="none"
-                        onLayout={(e) => setFloatingSize({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height })}
-                        style={[s.tooltipBubble, { left: -9999, top: -9999, width: tooltipW, padding: step.padding }]}
-                    >
-                        <Text style={{ fontSize: step.titleSize, fontFamily }}>{interpolateVariables(step.title, variables)}</Text>
-                        {!!step.body && <Text style={{ fontSize: step.bodySize, fontFamily }}>{interpolateVariables(step.body, variables)}</Text>}
-                        <View style={s.actionRow}>
-                            {step.actions.map((a, i) => (
-                                <View key={i} style={s.button}>
-                                    <Text style={{ fontSize: 13, fontFamily }}>{interpolateVariables(a.label, variables)}</Text>
-                                </View>
-                            ))}
                         </View>
-                    </View>
-                )}
-            </Animated.View>
-        </Modal>
+                    )}
+                </Animated.View>
+            </Modal>
+        </VariableContext.Provider>
     );
 }
 
@@ -452,12 +461,10 @@ function buildCutoutPath(
 
 function SpotlightCallout({
     step,
-    variables,
     layout,
     onActionPress,
 }: {
     step: SpotlightStep;
-    variables?: VariableMap;
     layout: AnchorLayout;
     onActionPress: (action: Action) => void;
 }) {
@@ -516,12 +523,12 @@ function SpotlightCallout({
                 onLayout={(e) => setFloatingSize({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height })}
                 style={[calloutStyle, { position: 'absolute', left: -9999, top: -9999 }]}
             >
-                <Text style={{ fontSize: step.titleSize, fontFamily }}>{interpolateVariables(step.title, variables)}</Text>
-                {!!step.body && <Text style={{ marginTop: 4, fontSize: step.bodySize, fontFamily }}>{interpolateVariables(step.body, variables)}</Text>}
+                <TextWithVariables style={{ fontSize: step.titleSize, fontFamily }}>{step.title}</TextWithVariables>
+                {!!step.body && <TextWithVariables style={{ marginTop: 4, fontSize: step.bodySize, fontFamily }}>{step.body}</TextWithVariables>}
                 <View style={s.actionRow}>
                     {step.actions.map((a, i) => (
                         <View key={i} style={s.button}>
-                            <Text style={{ fontSize: 13, fontFamily }}>{interpolateVariables(a.label, variables)}</Text>
+                            <TextWithVariables style={{ fontSize: 13, fontFamily }}>{a.label}</TextWithVariables>
                         </View>
                     ))}
                 </View>
@@ -546,20 +553,19 @@ function SpotlightCallout({
                     arrowOffset={arrowOffset}
                 />
             )}
-            <Text style={{ color: step.titleColor, fontSize: step.titleSize, fontWeight: step.titleWeight, fontFamily }}>
-                {interpolateVariables(step.title, variables)}
-            </Text>
+            <TextWithVariables style={{ color: step.titleColor, fontSize: step.titleSize, fontWeight: step.titleWeight, fontFamily }}>
+                {step.title}
+            </TextWithVariables>
             {!!step.body && (
-                <Text style={{ marginTop: 4, color: step.bodyColor, fontSize: step.bodySize, fontFamily }}>
-                    {interpolateVariables(step.body, variables)}
-                </Text>
+                <TextWithVariables style={{ marginTop: 4, color: step.bodyColor, fontSize: step.bodySize, fontFamily }}>
+                    {step.body}
+                </TextWithVariables>
             )}
             <View style={s.actionRow}>
                 {step.actions.map((action, i) => (
                     <ActionButton
                         key={i}
                         action={action}
-                        variables={variables}
                         btnPrimaryBg={step.buttonPrimaryBackgroundColor}
                         btnPrimaryText={step.buttonPrimaryTextColor}
                         btnGhostText={step.buttonGhostTextColor}
@@ -581,7 +587,6 @@ function SpotlightOverlay({
     const [stepIndex, setStepIndex] = useState(0);
     const [layout, setLayout] = useState<AnchorLayout | null>(null);
     const step = config.steps[stepIndex];
-    const variables = request.variables;
     const { width: screenW, height: screenH } = useWindowDimensions();
     const opacityAnim = useRef(new Animated.Value(1)).current;
     const pendingFadeIn = useRef(false);
@@ -691,43 +696,44 @@ function SpotlightOverlay({
         : '';
 
     return (
-        <Modal transparent statusBarTranslucent animationType="none" visible>
-            <Animated.View style={[StyleSheet.absoluteFill, { opacity: opacityAnim }]} pointerEvents="box-none">
-                {layout && (
-                    <>
-                        <Svg
-                            width={screenW}
-                            height={screenH}
-                            style={StyleSheet.absoluteFill}
-                            pointerEvents="none"
-                        >
-                            <Path
-                                fillRule="evenodd"
-                                d={`${screenPath} ${cutoutPath}`}
-                                fill={step.overlayColor}
-                                fillOpacity={step.overlayOpacity}
-                            />
-                            {step.highlightGlowWidth > 0 && (
+        <VariableContext.Provider value={request.variables}>
+            <Modal transparent statusBarTranslucent animationType="none" visible>
+                <Animated.View style={[StyleSheet.absoluteFill, { opacity: opacityAnim }]} pointerEvents="box-none">
+                    {layout && (
+                        <>
+                            <Svg
+                                width={screenW}
+                                height={screenH}
+                                style={StyleSheet.absoluteFill}
+                                pointerEvents="none"
+                            >
                                 <Path
-                                    d={cutoutPath}
-                                    fill="none"
-                                    stroke={step.highlightGlowColor}
-                                    strokeWidth={step.highlightGlowWidth}
+                                    fillRule="evenodd"
+                                    d={`${screenPath} ${cutoutPath}`}
+                                    fill={step.overlayColor}
+                                    fillOpacity={step.overlayOpacity}
                                 />
-                            )}
-                        </Svg>
-                        {/* Backdrop with configurable outside-tap behaviour */}
-                        <Pressable style={StyleSheet.absoluteFill} onPress={handleBackdropPress} />
-                        <SpotlightCallout
-                            step={step}
-                            variables={variables}
-                            layout={layout}
-                            onActionPress={handleActionPress}
-                        />
-                    </>
-                )}
-            </Animated.View>
-        </Modal>
+                                {step.highlightGlowWidth > 0 && (
+                                    <Path
+                                        d={cutoutPath}
+                                        fill="none"
+                                        stroke={step.highlightGlowColor}
+                                        strokeWidth={step.highlightGlowWidth}
+                                    />
+                                )}
+                            </Svg>
+                            {/* Backdrop with configurable outside-tap behaviour */}
+                            <Pressable style={StyleSheet.absoluteFill} onPress={handleBackdropPress} />
+                            <SpotlightCallout
+                                step={step}
+                                layout={layout}
+                                onActionPress={handleActionPress}
+                            />
+                        </>
+                    )}
+                </Animated.View>
+            </Modal>
+        </VariableContext.Provider>
     );
 }
 
