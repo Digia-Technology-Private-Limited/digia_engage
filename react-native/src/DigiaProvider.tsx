@@ -340,7 +340,7 @@ function TooltipOverlay({
 
     return (
         <VariableContext.Provider value={request.variables}>
-            <Modal transparent statusBarTranslucent animationType="none" visible>
+            <Modal transparent statusBarTranslucent animationType="none" visible onRequestClose={() => dismiss('back_gesture')}>
                 {/* pointerEvents="box-none": container passes touches through; only children intercept.
                     This prevents the invisible measurement pass from blocking the screen. */}
                 <Animated.View style={[StyleSheet.absoluteFill, { opacity: opacityAnim }]} pointerEvents="box-none">
@@ -715,7 +715,7 @@ function SpotlightOverlay({
 
     return (
         <VariableContext.Provider value={request.variables}>
-            <Modal transparent statusBarTranslucent animationType="none" visible>
+            <Modal transparent statusBarTranslucent animationType="none" visible onRequestClose={() => dismiss('back_gesture')}>
                 <Animated.View style={[StyleSheet.absoluteFill, { opacity: opacityAnim }]} pointerEvents="box-none">
                     {layout && (
                         <>
