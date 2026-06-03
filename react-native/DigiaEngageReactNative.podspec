@@ -28,7 +28,7 @@ Pod::Spec.new do |s|
   s.dependency 'React-Core'
 
   # ── Digia Engage iOS SDK ──────────────────────────────────────────────────
-  s.dependency 'DigiaEngage','~> 2.2.0'
+  s.dependency 'DigiaEngage','~> 2.3.0'
 
   # ── New Architecture (Fabric / TurboModules) support ─────────────────────
   install_modules_dependencies(s)
