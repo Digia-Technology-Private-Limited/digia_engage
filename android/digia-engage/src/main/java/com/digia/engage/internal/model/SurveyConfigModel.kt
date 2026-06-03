@@ -163,6 +163,7 @@ data class BlockMedia(
     val url: String,
     val alt: String,
     val position: MediaPosition,
+    val boxFit: String = "cover",
 ) {
     val hasUrl: Boolean get() = url.isNotBlank()
 
@@ -175,6 +176,7 @@ data class BlockMedia(
                 url = json.optString("url", ""),
                 alt = json.optString("alt", ""),
                 position = SurveyParse.mediaPosition(json.optString("position")),
+                boxFit = json.optString("boxFit", "cover"),
             )
         }
     }

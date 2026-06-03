@@ -723,7 +723,11 @@ private fun BlockMediaImage(media: BlockMedia) {
         AsyncImage(
             model = media.url,
             contentDescription = media.alt,
-            contentScale = ContentScale.Crop,
+            contentScale = when (media.boxFit) {
+                "contain" -> ContentScale.Fit
+                "fill" -> ContentScale.FillBounds
+                else -> ContentScale.Crop
+            },
             modifier = Modifier.fillMaxSize(),
         )
     }
@@ -763,19 +767,6 @@ private fun WelcomeCta(accent: Color, onStart: () -> Unit) {
 private fun ResultPagePanel(cta: CtaSettings, accent: Color, onDone: () -> Unit) {
     val stacked = cta.layout == CtaLayout.STACKED
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(10.dp))
-                .background(SurveyTokens.SurfaceSunken)
-                .padding(14.dp),
-        ) {
-            Text(
-                text = "✓ Response recorded. Aggregate results display here for users who completed.",
-                color = SurveyTokens.TextSecondary,
-                fontSize = 13.sp,
-            )
-        }
         Button(
             onClick = onDone,
             colors = ButtonDefaults.buttonColors(containerColor = ctaBg(cta, accent)),
