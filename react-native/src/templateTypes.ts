@@ -9,6 +9,7 @@ export type Action =
 
 export type TooltipStep = {
     anchorKey: string
+    delayInMs?: number
     title: string
     body: string
     placement: 'top' | 'bottom' | 'left' | 'right' | 'auto'
@@ -36,6 +37,7 @@ export type TooltipStep = {
 
 export type SpotlightStep = {
     anchorKey: string
+    delayInMs?: number
     title: string
     body: string
     calloutPosition: 'above' | 'below' | 'left' | 'right' | 'auto'
