@@ -9,7 +9,6 @@ import DigiaEngage
  *   registerBridge(): void
  *   setCurrentScreen(name): void
  *   triggerCampaign(id, content, cepContext): void
- *   triggerCampaignById(campaignId): void
  *   invalidateCampaign(campaignId): void
  *   createInitialPage(): void  // AppConfig initial route
  *
@@ -145,13 +144,6 @@ final class DigiaModule: RCTEventEmitter {
         Task { @MainActor in
             guard let delegate = self.rnPlugin.delegate else { return }
             delegate.onCampaignTriggered(payload)
-        }
-    }
-
-    @objc
-    func triggerCampaignById(_ campaignId: String) {
-        Task { @MainActor in
-            Digia.triggerCampaign(campaignId)
         }
     }
 

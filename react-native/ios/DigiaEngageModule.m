@@ -37,8 +37,6 @@ RCT_EXTERN_METHOD(setCurrentScreen : (NSString *)name)
 RCT_EXTERN_METHOD(triggerCampaign : (NSString *)id content : (NSDictionary *)
                       content cepContext : (NSDictionary *)cepContext)
 
-RCT_EXTERN_METHOD(triggerCampaignById : (NSString *)campaignId)
-
 RCT_EXTERN_METHOD(invalidateCampaign : (NSString *)campaignId)
 
 RCT_EXTERN_METHOD(registerAnchor : (NSString *)key x : (double)x y : (double)

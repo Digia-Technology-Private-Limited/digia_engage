@@ -320,38 +320,6 @@ internal object DigiaInstance : DigiaCEPDelegate {
         }
     }
 
-    fun triggerCampaign(campaignId: String) {
-        scope.launch(Dispatchers.Main.immediate) {
-            when (_sdkState.value) {
-                SDKState.NOT_INITIALIZED -> {
-                    logWarning("test trigger dropped — SDK not initialized: $campaignId")
-                    return@launch
-                }
-                SDKState.INITIALIZING -> {
-                    logWarning("test trigger dropped — SDK still initializing: $campaignId")
-                    return@launch
-                }
-                SDKState.FAILED -> {
-                    logWarning("test trigger dropped — SDK initialization failed: $campaignId")
-                    return@launch
-                }
-                SDKState.READY -> Unit
-            }
-
-            val trimmed = campaignId.trim()
-            if (trimmed.isBlank()) {
-                logWarning("test trigger dropped — campaign id is blank")
-                return@launch
-            }
-            val campaign = campaignStore.findById(trimmed) ?: campaignStore.find(trimmed)
-            if (campaign == null) {
-                logWarning("test trigger dropped — no campaign found for id '$trimmed'")
-                return@launch
-            }
-            routeCampaign(campaign)
-        }
-    }
-
     private fun routeCampaign(payload: InAppPayload) {
         doRouteCampaign(payload)
     }

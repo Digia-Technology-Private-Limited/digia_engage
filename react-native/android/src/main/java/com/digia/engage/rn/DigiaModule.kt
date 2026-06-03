@@ -7,7 +7,7 @@
  *
  * initialize(apiKey, environment, logLevel, baseUrl): Promise<void> register(): void
  * setCurrentScreen(name): void triggerCampaign(id, content, cepContext): void
- * triggerCampaignById(campaignId): void invalidateCampaign(campaignId): void
+ * invalidateCampaign(campaignId): void
  *
  * Architecture ──────────── The RN bridge mirrors the native Digia.initialize / Digia.register /
  * Digia.setCurrentScreen flow exactly. An internal [RNEventBridgePlugin] is the single native
@@ -145,12 +145,6 @@ internal class DigiaModule(
                         cepContext = cepContext.toHashMap().toMap(),
                 )
         )
-    }
-
-    /** Triggers a fetched Digia campaign directly by campaign id/key. */
-    @ReactMethod
-    fun triggerCampaignById(campaignId: String) {
-        Digia.triggerCampaign(campaignId)
     }
 
     // ─── invalidateCampaign ───────────────────────────────────────────────────
