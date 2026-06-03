@@ -10,6 +10,7 @@ import com.digia.engage.internal.SURVEY_FINISHED
 import com.digia.engage.internal.SurveyAnswer
 import com.digia.engage.internal.SurveyLogicHandler
 import com.digia.engage.internal.model.SurveyBlock
+import com.digia.engage.internal.model.SurveyBlockType
 import com.digia.engage.internal.model.SurveyConfigModel
 import com.digia.engage.internal.model.SurveyNode
 
@@ -62,6 +63,13 @@ internal class SurveyViewModel(val survey: SurveyConfigModel) : ViewModel() {
 
     fun setAnswer(nodeId: String, answer: SurveyAnswer) {
         answers[nodeId] = answer
+    }
+
+    fun nextBlockIsResultPage(): Boolean {
+        if (isComplete || currentNodeId == SURVEY_FINISHED) return false
+        val navigation = SurveyLogicHandler.nextStep(survey, currentNodeId, answers)
+        val nextNode = survey.nodeById(navigation.nextNodeId) ?: return false
+        return survey.blockFor(nextNode)?.type == SurveyBlockType.RESULT_PAGE
     }
 
     /** Records the current answer and moves to the branching-decided next node. */

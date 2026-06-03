@@ -15,52 +15,51 @@
 #import <React/RCTEventEmitter.h>
 #import <React/RCTViewManager.h>
 
-// ── NativeModule ──────────────────────────────────────────────────────────────
+// ── NativeModule
+// ──────────────────────────────────────────────────────────────
 
 // RCT_EXTERN_MODULE wires the Swift class DigiaModule (which inherits
-// RCTEventEmitter) to the React Native bridge under the name "DigiaEngageModule".
+// RCTEventEmitter) to the React Native bridge under the name
+// "DigiaEngageModule".
 
-@interface RCT_EXTERN_MODULE(DigiaEngageModule, RCTEventEmitter)
+@interface RCT_EXTERN_MODULE (DigiaEngageModule, RCTEventEmitter)
 
-RCT_EXTERN_METHOD(initialize:(NSString *)projectId
-                  environment:(NSString *)environment
-                  logLevel:(NSString *)logLevel
-                  baseUrl:(NSString *)baseUrl
-                  fontFamily:(NSString *)fontFamily
-                  resolve:(RCTPromiseResolveBlock)resolve
-                  reject:(RCTPromiseRejectBlock)reject)
+RCT_EXTERN_METHOD(initialize : (NSString *)projectId environment : (NSString *)
+                      environment logLevel : (NSString *)logLevel baseUrl : (
+                          NSString *)baseUrl fontFamily : (NSString *)
+                          fontFamily resolve : (RCTPromiseResolveBlock)
+                              resolve reject : (RCTPromiseRejectBlock)reject)
 
 RCT_EXTERN_METHOD(registerBridge)
 
-RCT_EXTERN_METHOD(setCurrentScreen:(NSString *)name)
+RCT_EXTERN_METHOD(setCurrentScreen : (NSString *)name)
 
-RCT_EXTERN_METHOD(triggerCampaign:(NSString *)id
-                  content:(NSDictionary *)content
-                  cepContext:(NSDictionary *)cepContext)
+RCT_EXTERN_METHOD(triggerCampaign : (NSString *)id content : (NSDictionary *)
+                      content cepContext : (NSDictionary *)cepContext)
 
-RCT_EXTERN_METHOD(invalidateCampaign:(NSString *)campaignId)
+RCT_EXTERN_METHOD(invalidateCampaign : (NSString *)campaignId)
 
-RCT_EXTERN_METHOD(registerAnchor:(NSString *)key
-                  x:(double)x
-                  y:(double)y
-                  width:(double)width
-                  height:(double)height)
+RCT_EXTERN_METHOD(registerAnchor : (NSString *)key x : (double)x y : (double)
+                      y width : (double)width height : (double)height)
 
-RCT_EXTERN_METHOD(unregisterAnchor:(NSString *)key)
+RCT_EXTERN_METHOD(unregisterAnchor : (NSString *)key)
+
+RCT_EXTERN_METHOD(getRegisteredComponents : (RCTPromiseResolveBlock)
+                      resolve reject : (RCTPromiseRejectBlock)reject)
 
 @end
 
+// ── ViewManagers
+// ──────────────────────────────────────────────────────────────
 
-// ── ViewManagers ──────────────────────────────────────────────────────────────
-
-@interface RCT_EXTERN_MODULE(DigiaHostView, RCTViewManager)
+@interface RCT_EXTERN_MODULE (DigiaHostView, RCTViewManager)
 @end
 
-@interface RCT_EXTERN_MODULE(DigiaSlotView, RCTViewManager)
+@interface RCT_EXTERN_MODULE (DigiaSlotView, RCTViewManager)
 RCT_EXPORT_VIEW_PROPERTY(placementKey, NSString)
 RCT_EXPORT_VIEW_PROPERTY(onContentSizeChange, RCTDirectEventBlock)
 @end
 
-@interface RCT_EXTERN_MODULE(DigiaAnchorView, RCTViewManager)
+@interface RCT_EXTERN_MODULE (DigiaAnchorView, RCTViewManager)
 RCT_EXPORT_VIEW_PROPERTY(anchorKey, NSString)
 @end

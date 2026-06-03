@@ -46,6 +46,8 @@ internal object DigiaInstance : DigiaCEPDelegate {
     private val anchorRegistry = AnchorRegistry()
     private val guideOrchestrator = GuideOrchestrator()
     private val surveyOrchestrator = SurveyOrchestrator()
+    private var submissionReporter: SubmissionReporter? = null
+    private var completedSurveyToken: Long? = null
 
     val guideState = guideOrchestrator.state
     val surveyState = surveyOrchestrator.state
@@ -71,6 +73,9 @@ internal object DigiaInstance : DigiaCEPDelegate {
         _sdkState.value = SDKState.INITIALIZING
         com.digia.engage.framework.DigiaFontConfig.fontFamily = config.fontFamily
         analyticsClient.configure(config)
+
+        val deviceId = resolveDeviceId(context)
+        submissionReporter = SubmissionReporter(config, deviceId, scope)
 
         scope.launch(Dispatchers.IO) {
             try {
@@ -185,12 +190,35 @@ internal object DigiaInstance : DigiaCEPDelegate {
         )
     }
 
-    fun markSurveyCompleted(response: Map<String, Any?>) {
+    fun markSurveyCompleted(
+        response: Map<String, Any?>,
+        answers: Map<String, SurveyAnswer> = emptyMap(),
+    ) {
+        reportSurveyCompleted(response, answers)
+        surveyOrchestrator.dismiss()
+    }
+
+    fun reportSurveyCompleted(
+        response: Map<String, Any?>,
+        answers: Map<String, SurveyAnswer> = emptyMap(),
+    ) {
         val state = surveyOrchestrator.state.value ?: return
+        if (completedSurveyToken == state.token) return
+        completedSurveyToken = state.token
         displayCoordinator.trackInternal(
             InternalEngageEvent.SurveyCompleted(response),
             surveyPayload(state),
         )
+        if (answers.isNotEmpty()) {
+            Log.d(
+                "DigiaInstance",
+                "survey submission started: campaignKey=${state.campaign.campaignKey}, campaignId=${state.campaign.id}, answers=${answers.size}",
+            )
+            submissionReporter?.reportSurveyCompleted(state.campaign, answers, state.startedAtMs)
+        }
+    }
+
+    fun dismissCompletedSurvey() {
         surveyOrchestrator.dismiss()
     }
 
@@ -202,6 +230,22 @@ internal object DigiaInstance : DigiaCEPDelegate {
 
     private fun surveyPayload(state: ActiveSurveyState): InAppPayload =
         campaignPayload(state.campaign)
+
+    private fun resolveDeviceId(context: Context): String {
+        val prefs = context.applicationContext
+            .getSharedPreferences("digia_engage", Context.MODE_PRIVATE)
+        prefs.getString("device_id", null)?.let { return it }
+        val androidId = runCatching {
+            android.provider.Settings.Secure.getString(
+                context.contentResolver,
+                android.provider.Settings.Secure.ANDROID_ID,
+            )
+        }.getOrNull()
+        val id = androidId?.takeIf { it.isNotBlank() && it != "9774d56d682e549c" }
+            ?: java.util.UUID.randomUUID().toString()
+        prefs.edit().putString("device_id", id).apply()
+        return id
+    }
 
     fun reportSlotImpression(payload: InAppPayload) {
         displayCoordinator.onSlotEvent(DigiaExperienceEvent.Impressed, payload)
@@ -273,38 +317,6 @@ internal object DigiaInstance : DigiaCEPDelegate {
         scope.launch(Dispatchers.Main.immediate) {
             displayCoordinator.dismissNudge(campaignId)
             displayCoordinator.dismissInline(campaignId)
-        }
-    }
-
-    fun triggerCampaign(campaignId: String) {
-        scope.launch(Dispatchers.Main.immediate) {
-            when (_sdkState.value) {
-                SDKState.NOT_INITIALIZED -> {
-                    logWarning("test trigger dropped — SDK not initialized: $campaignId")
-                    return@launch
-                }
-                SDKState.INITIALIZING -> {
-                    logWarning("test trigger dropped — SDK still initializing: $campaignId")
-                    return@launch
-                }
-                SDKState.FAILED -> {
-                    logWarning("test trigger dropped — SDK initialization failed: $campaignId")
-                    return@launch
-                }
-                SDKState.READY -> Unit
-            }
-
-            val trimmed = campaignId.trim()
-            if (trimmed.isBlank()) {
-                logWarning("test trigger dropped — campaign id is blank")
-                return@launch
-            }
-            val campaign = campaignStore.findById(trimmed) ?: campaignStore.find(trimmed)
-            if (campaign == null) {
-                logWarning("test trigger dropped — no campaign found for id '$trimmed'")
-                return@launch
-            }
-            routeCampaign(campaign)
         }
     }
 

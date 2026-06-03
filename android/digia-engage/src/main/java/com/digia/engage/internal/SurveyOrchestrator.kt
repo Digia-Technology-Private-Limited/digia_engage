@@ -13,6 +13,7 @@ import kotlinx.coroutines.flow.asStateFlow
 internal data class ActiveSurveyState(
     val campaign: CampaignModel,
     val token: Long,
+    val startedAtMs: Long = System.currentTimeMillis(),
 ) {
     val config: SurveyConfigModel
         get() = campaign.surveyConfig!!
