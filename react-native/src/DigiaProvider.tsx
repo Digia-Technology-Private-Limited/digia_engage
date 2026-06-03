@@ -220,6 +220,8 @@ function TooltipOverlay({
     const [floatPos, setFloatPos] = useState<FloatPos | null>(null);
     const [resolvedPlacement, setResolvedPlacement] = useState<string>('bottom');
     const [floatingSize, setFloatingSize] = useState<{ w: number; h: number } | null>(null);
+    const [readyStep, setReadyStep] = useState(-1);
+    const ready = readyStep === stepIndex;
     const step = config.steps[stepIndex];
     const { width: screenW } = useWindowDimensions();
     const opacityAnim = useRef(new Animated.Value(1)).current;
@@ -230,9 +232,21 @@ function TooltipOverlay({
     const showArrow = step.showArrow !== false;
     const gap = showArrow ? arrowSize + 4 : 8;
 
+    // Wait for the step's delayInMs before marking it ready. Re-runs on every step entry.
+    useEffect(() => {
+        const delay = step.delayInMs ?? 0;
+        if (delay <= 0) {
+            setReadyStep(stepIndex);
+            return;
+        }
+        const timer = setTimeout(() => setReadyStep(stepIndex), delay);
+        return () => clearTimeout(timer);
+    }, [stepIndex]); // eslint-disable-line react-hooks/exhaustive-deps
+
     useEffect(() => {
         setLayout(null);
         setFloatPos(null);
+        if (!ready) return;
         let skipCached = false;
         const unsub = digiaAnchorRegistry.subscribe(step.anchorKey, (l) => {
             if (!skipCached) return;
@@ -246,7 +260,7 @@ function TooltipOverlay({
         skipCached = true;
         digiaAnchorRegistry.remeasure(step.anchorKey);
         return unsub;
-    }, [step.anchorKey]); // eslint-disable-line react-hooks/exhaustive-deps
+    }, [step.anchorKey, ready]); // eslint-disable-line react-hooks/exhaustive-deps
 
     useEffect(() => {
         if (!layout || !floatingSize) return;
@@ -273,8 +287,9 @@ function TooltipOverlay({
         }
     }, [floatPos, opacityAnim]);
 
-    // Fire viewed/step_viewed when the step renders.
+    // Fire viewed/step_viewed when the step renders (after any delay has elapsed).
     useEffect(() => {
+        if (!ready) return;
         const isMultiStep = config.steps.length > 1;
         if (stepIndex === 0) {
             request.onExperienceEvent({ type: 'viewed', stepIndex: 0, stepTotal: config.steps.length, anchorKey: step.anchorKey, displayStyle: 'tooltip' });
@@ -283,7 +298,7 @@ function TooltipOverlay({
             request.onExperienceEvent({ type: 'step_viewed', stepIndex, stepTotal: config.steps.length, anchorKey: step.anchorKey, displayStyle: 'tooltip' });
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [stepIndex]);
+    }, [stepIndex, ready]);
 
     // Closes guide without firing analytics — used after CTA actions have already fired clicked events.
     const closeFromCTA = useCallback(() => {
@@ -596,13 +611,27 @@ function SpotlightOverlay({
 }) {
     const [stepIndex, setStepIndex] = useState(0);
     const [layout, setLayout] = useState<AnchorLayout | null>(null);
+    const [readyStep, setReadyStep] = useState(-1);
+    const ready = readyStep === stepIndex;
     const step = config.steps[stepIndex];
     const { width: screenW, height: screenH } = useWindowDimensions();
     const opacityAnim = useRef(new Animated.Value(1)).current;
     const pendingFadeIn = useRef(false);
 
+    // Wait for the step's delayInMs before marking it ready. Re-runs on every step entry.
+    useEffect(() => {
+        const delay = step.delayInMs ?? 0;
+        if (delay <= 0) {
+            setReadyStep(stepIndex);
+            return;
+        }
+        const timer = setTimeout(() => setReadyStep(stepIndex), delay);
+        return () => clearTimeout(timer);
+    }, [stepIndex]); // eslint-disable-line react-hooks/exhaustive-deps
+
     useEffect(() => {
         setLayout(null);
+        if (!ready) return; // hold off measuring/showing until the delay has elapsed
         let skipCached = false;
         const unsub = digiaAnchorRegistry.subscribe(step.anchorKey, (l) => {
             if (!skipCached) return;
@@ -616,7 +645,7 @@ function SpotlightOverlay({
         skipCached = true;
         digiaAnchorRegistry.remeasure(step.anchorKey);
         return unsub;
-    }, [step.anchorKey]); // eslint-disable-line react-hooks/exhaustive-deps
+    }, [step.anchorKey, ready]); // eslint-disable-line react-hooks/exhaustive-deps
 
     useEffect(() => {
         if (layout && pendingFadeIn.current) {
@@ -625,8 +654,9 @@ function SpotlightOverlay({
         }
     }, [layout, opacityAnim]);
 
-    // Fire viewed/step_viewed when the step renders.
+    // Fire viewed/step_viewed when the step renders (after any delay has elapsed).
     useEffect(() => {
+        if (!ready) return;
         const isMultiStep = config.steps.length > 1;
         if (stepIndex === 0) {
             request.onExperienceEvent({ type: 'viewed', stepIndex: 0, stepTotal: config.steps.length, anchorKey: step.anchorKey, displayStyle: 'spotlight' });
@@ -635,7 +665,7 @@ function SpotlightOverlay({
             request.onExperienceEvent({ type: 'step_viewed', stepIndex, stepTotal: config.steps.length, anchorKey: step.anchorKey, displayStyle: 'spotlight' });
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [stepIndex]);
+    }, [stepIndex, ready]);
 
     const closeFromCTA = useCallback(() => {
         Animated.timing(opacityAnim, { toValue: 0, duration: 150, useNativeDriver: true }).start(() => {
