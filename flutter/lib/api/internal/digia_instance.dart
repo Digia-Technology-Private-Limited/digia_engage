@@ -2,7 +2,11 @@ import 'package:flutter/widgets.dart';
 
 import '../../digia_engage.dart';
 import '../../digia_ui.dart';
+import 'campaign/campaign_fetcher.dart';
+import 'campaign/campaign_model.dart';
+import 'campaign/campaign_store.dart';
 import 'digia_overlay_controller.dart';
+import 'sdk_state.dart';
 
 /// Internal singleton that backs the public [Digia] static facade.
 ///
@@ -29,6 +33,18 @@ class DigiaInstance with WidgetsBindingObserver implements DigiaCEPDelegate {
   bool _hostMounted = false;
   bool _initialized = false;
 
+  /// Tracks engage campaign-fetch readiness. Used to buffer a campaign that
+  /// arrives while the SDK is still fetching (see [_pendingPayload]).
+  SDKState _sdkState = SDKState.notInitialized;
+  SDKState get sdkState => _sdkState;
+
+  /// In-memory cache of campaigns fetched from the Digia backend, keyed by
+  /// `campaignKey`. Consulted on every CEP-triggered campaign.
+  final CampaignStore _campaignStore = CampaignStore();
+
+  /// A campaign that arrived before the fetch completed; routed once ready.
+  InAppPayload? _pendingPayload;
+
   /// Shared with [DigiaHost]. Created once, lives for the app lifetime.
   final DigiaOverlayController _controller = DigiaOverlayController();
 
@@ -51,6 +67,7 @@ class DigiaInstance with WidgetsBindingObserver implements DigiaCEPDelegate {
     }
     _config = config;
     _initialized = true;
+    _sdkState = SDKState.initializing;
 
     WidgetsBinding.instance.addObserver(this);
 
@@ -89,6 +106,27 @@ class DigiaInstance with WidgetsBindingObserver implements DigiaCEPDelegate {
     _controller.onEvent = (event, payload) {
       _activePlugin?.notifyEvent(event, payload);
     };
+
+    // ── Fetch + cache engage campaigns (inline carousels) ────────────────────
+    // PreferencesStore is initialized by DigiaUI.initialize() above, so the
+    // device id (shared with Digia API auth) is available here.
+    try {
+      final deviceId = DUISettings.instance.getUuid();
+      final campaigns = await CampaignFetcher(config, deviceId).fetch();
+      _campaignStore.populate(campaigns);
+      if (_campaignStore.isEmpty) {
+        _logIfVerbose('No campaigns fetched — CampaignStore is empty.');
+      } else {
+        _logIfVerbose('Fetched ${campaigns.length} campaign(s).');
+      }
+    } catch (e) {
+      // A fetch failure must not break the legacy CEP-driven path; campaigns
+      // simply fall back to legacy routing when the store is empty.
+      debugPrint('[Digia] campaign fetch failed: $e');
+    }
+
+    _sdkState = SDKState.ready;
+    _flushPendingPayloadIfAny();
 
     _logIfVerbose('Digia initialized with apiKey=${config.apiKey}, '
         'environment=${config.environment.name}');
@@ -136,13 +174,77 @@ class DigiaInstance with WidgetsBindingObserver implements DigiaCEPDelegate {
 
   @override
   void onCampaignTriggered(InAppPayload payload) {
-    if (!_hostMounted) {
-      debugPrint(
-        '[Digia] WARNING: A campaign payload arrived but DigiaHost is not '
-        'mounted. Wrap your app root with DigiaHost to display experiences.',
-      );
+    // Buffer campaigns that arrive while the engage fetch is still in flight.
+    if (_sdkState == SDKState.initializing) {
+      if (_pendingPayload != null) {
+        debugPrint(
+          '[Digia] WARNING: pending payload replaced by newer payload: ${payload.id}',
+        );
+      }
+      _pendingPayload = payload;
+      return;
     }
+    _routeCampaign(payload);
+  }
 
+  // ─── Routing ───────────────────────────────────────────────────────────────
+
+  /// Routes a triggered campaign. First consults the campaign store (the
+  /// backend-fetched, key-based path); falls back to the legacy CEP-driven
+  /// `type`/`command` routing when no stored campaign matches.
+  void _routeCampaign(InAppPayload payload) {
+    final campaignKey = _resolveCampaignKey(payload);
+    if (campaignKey != null) {
+      final campaign = _campaignStore.find(campaignKey);
+      if (campaign != null) {
+        _routeStoredCampaign(campaign, payload);
+        return;
+      }
+    }
+    _routeLegacy(payload);
+  }
+
+  /// Extracts the campaign key from the payload, mirroring the Android lookup
+  /// order: CEP-set keys first, then the React Native bridge key, then the id.
+  String? _resolveCampaignKey(InAppPayload payload) {
+    final content = payload.content;
+    final candidates = <Object?>[
+      content['digia_campaign_key'],
+      content['campaign_key'],
+      content['digiaKey'],
+      payload.id,
+    ];
+    for (final candidate in candidates) {
+      if (candidate is String && candidate.trim().isNotEmpty) {
+        return candidate.trim();
+      }
+    }
+    return null;
+  }
+
+  /// Routes a campaign resolved from the store. Only inline carousels are
+  /// rendered; every other (recognised) type is dropped with a log.
+  void _routeStoredCampaign(CampaignModel campaign, InAppPayload payload) {
+    final config = campaign.config;
+    switch (config) {
+      case InlineCarouselCampaignConfig(:final inlineConfig):
+        _controller.addSlotConfig(inlineConfig, campaignId: campaign.id);
+        _controller.onEvent?.call(const ExperienceImpressed(), payload);
+        _logIfVerbose(
+          "inline carousel routed to slot '${inlineConfig.slotKey}' "
+          '(campaignKey=${campaign.campaignKey}).',
+        );
+      case UnsupportedCampaignConfig(:final reason):
+        debugPrint(
+          "[Digia] campaign '${campaign.campaignKey}' dropped: $reason",
+        );
+    }
+  }
+
+  /// Legacy CEP-driven routing, used when the campaign is not in the store.
+  /// Renders inline content via [DUIFactory] (viewId) and modal campaigns via
+  /// [DigiaHost].
+  void _routeLegacy(InAppPayload payload) {
     final type = (payload.content['type'] as String?)?.trim().toLowerCase();
     final command =
         (payload.content['command'] as String?)?.trim().toUpperCase();
@@ -167,19 +269,33 @@ class DigiaInstance with WidgetsBindingObserver implements DigiaCEPDelegate {
       _controller.onEvent?.call(
           const ExperienceImpressed(), payload); // Fire impression immediately
     } else {
+      if (!_hostMounted) {
+        debugPrint(
+          '[Digia] WARNING: A campaign payload arrived but DigiaHost is not '
+          'mounted. Wrap your app root with DigiaHost to display experiences.',
+        );
+      }
       // Modal campaigns (SHOW_BOTTOM_SHEET / SHOW_DIALOG): route to DigiaHost.
       _controller.show(payload);
     }
   }
 
+  /// Routes a campaign that arrived during initialization, once ready.
+  void _flushPendingPayloadIfAny() {
+    final payload = _pendingPayload;
+    if (payload == null) return;
+    _pendingPayload = null;
+    _routeCampaign(payload);
+  }
+
   @override
   void onCampaignInvalidated(String campaignId) {
-    // Check if it's an active overlay.
+    // Active modal overlay.
     if (_controller.activePayload?.id == campaignId) {
       _controller.dismiss();
     }
-    // Check if it's an inline campaign.
-    // _controller.removeSlotById(campaignId);
+    // Inline carousel slot config, if this campaign populated one.
+    _controller.removeSlotConfigByCampaignId(campaignId);
   }
 
   // ─── WidgetsBindingObserver ────────────────────────────────────────────────

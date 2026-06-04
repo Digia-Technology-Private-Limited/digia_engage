@@ -2,9 +2,11 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 
 import '../../src/framework/ui_factory.dart';
+import '../internal/campaign/inline_carousel_config.dart';
 import '../internal/digia_instance.dart';
 import '../models/digia_experience_event.dart';
 import '../models/in_app_payload.dart';
+import 'digia_inline_carousel.dart';
 
 /// Renders inline campaign content (banners, cards, widgets) at a specific
 /// placement position in scrolling content or screen layouts.
@@ -59,6 +61,11 @@ class _DigiaSlotState extends State<DigiaSlot> {
   /// avoiding rebuilds driven by parent widget rebuilds.
   InAppPayload? _currentPayload;
 
+  /// The inline carousel config currently active for this slot, if the
+  /// campaign was routed through the backend campaign store. Takes precedence
+  /// over [_currentPayload] when present.
+  InlineCarouselConfig? _currentConfig;
+
   @override
   void initState() {
     super.initState();
@@ -66,6 +73,7 @@ class _DigiaSlotState extends State<DigiaSlot> {
 
     // A campaign might already be in the controller when this slot mounts
     // (e.g., the campaign arrived before the page was opened).
+    _syncConfig();
     _scheduleImpressionIfNeeded();
   }
 
@@ -81,8 +89,19 @@ class _DigiaSlotState extends State<DigiaSlot> {
   // ─── Controller listener ──────────────────────────────────────────────────
 
   void _onInlineChanged() {
-    final scheduled = _scheduleImpressionIfNeeded();
-    if (scheduled) setState(() {});
+    final configChanged = _syncConfig();
+    final payloadChanged = _scheduleImpressionIfNeeded();
+    if (configChanged || payloadChanged) setState(() {});
+  }
+
+  /// Pulls the latest carousel config for this slot from the controller.
+  /// Returns `true` when it changed (a rebuild is needed).
+  bool _syncConfig() {
+    final config =
+        DigiaInstance.instance.controller.getSlotConfig(widget.placementKey);
+    if (identical(config, _currentConfig)) return false;
+    _currentConfig = config;
+    return true;
   }
 
   // ─── Impression tracking ──────────────────────────────────────────────────
@@ -126,6 +145,13 @@ class _DigiaSlotState extends State<DigiaSlot> {
 
   @override
   Widget build(BuildContext context) {
+    // Backend campaign-store route: render the native inline carousel.
+    final config = _currentConfig;
+    if (config != null) {
+      return DigiaInlineCarousel(config: config);
+    }
+
+    // Legacy CEP-driven route: render via DUIFactory (viewId).
     return _DigiaSlotContent(
       payload: _currentPayload,
       onDismiss: _dismiss,
