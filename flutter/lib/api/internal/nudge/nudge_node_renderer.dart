@@ -1,0 +1,174 @@
+import 'package:flutter/material.dart';
+import 'package:lottie/lottie.dart';
+
+import '../engage_fonts.dart';
+import 'nudge_content.dart';
+
+/// Strategy (GoF): renders a single kind of [NudgeNode] to a Flutter widget.
+///
+/// One concrete strategy per widget type, each with a single responsibility.
+/// The strategy returns only the node's own content — the shared box envelope is
+/// added separately by `NudgeBoxDecorator`.
+///
+/// `T` types each concrete strategy to its node; [renderDynamic] is the
+/// type-erased entry the registry calls, with the (registry-guaranteed) cast
+/// localised here.
+abstract base class NudgeNodeRenderer<T extends NudgeNode> {
+  const NudgeNodeRenderer();
+
+  Type get nodeType => T;
+
+  Widget render(T node, BuildContext context);
+
+  Widget renderDynamic(NudgeNode node, BuildContext context) =>
+      render(node as T, context);
+}
+
+/// Registry / dispatcher (Strategy selector). Open/closed: support a new widget
+/// by adding a renderer to [_defaults] (or injecting one) — no existing code
+/// changes. Unknown nodes degrade to an empty box rather than throwing.
+class NudgeNodeRendererRegistry {
+  final Map<Type, NudgeNodeRenderer> _byType;
+
+  NudgeNodeRendererRegistry([List<NudgeNodeRenderer>? renderers])
+      : _byType = {for (final r in renderers ?? _defaults) r.nodeType: r};
+
+  static const List<NudgeNodeRenderer> _defaults = [
+    NudgeTextRenderer(),
+    NudgeImageRenderer(),
+    NudgeButtonRenderer(),
+    NudgeGapRenderer(),
+    NudgeDividerRenderer(),
+    NudgeLottieRenderer(),
+  ];
+
+  Widget render(NudgeNode node, BuildContext context) {
+    final renderer = _byType[node.runtimeType];
+    return renderer?.renderDynamic(node, context) ?? const SizedBox.shrink();
+  }
+}
+
+// ─── concrete strategies ──────────────────────────────────────────────────────
+
+final class NudgeTextRenderer extends NudgeNodeRenderer<NudgeText> {
+  const NudgeTextRenderer();
+
+  @override
+  Widget render(NudgeText node, BuildContext context) => Text(
+        node.text,
+        textAlign: node.align,
+        style: TextStyle(
+          fontSize: node.fontSize,
+          fontWeight: node.weight,
+          color: node.color,
+          fontFamily: EngageFonts.fontFamily,
+        ),
+      );
+}
+
+final class NudgeImageRenderer extends NudgeNodeRenderer<NudgeImage> {
+  const NudgeImageRenderer();
+
+  @override
+  Widget render(NudgeImage node, BuildContext context) {
+    if (node.url.isEmpty) {
+      return NudgePlaceholder(label: 'No image URL', height: node.box.fixedHeight ?? 120);
+    }
+    return Image.network(
+      node.url,
+      fit: node.fit,
+      width: node.box.fillWidth ? double.infinity : null,
+      height: node.box.fixedHeight,
+      errorBuilder: (_, __, ___) =>
+          NudgePlaceholder(label: 'Image failed', height: node.box.fixedHeight ?? 120),
+    );
+  }
+}
+
+final class NudgeButtonRenderer extends NudgeNodeRenderer<NudgeButton> {
+  const NudgeButtonRenderer();
+
+  @override
+  Widget render(NudgeButton node, BuildContext context) => Material(
+        color: node.background,
+        borderRadius: BorderRadius.circular(node.radius),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          // TODO(nudge-actions): run node.onClick via the nudge action handler.
+          // See docs/nudge-action-handler-flow.md.
+          onTap: () {},
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            child: Center(
+              widthFactor: node.box.fillWidth ? null : 1,
+              child: Text(
+                node.label,
+                style: TextStyle(
+                  color: node.textColor,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  fontFamily: EngageFonts.fontFamily,
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+}
+
+final class NudgeGapRenderer extends NudgeNodeRenderer<NudgeGap> {
+  const NudgeGapRenderer();
+
+  @override
+  Widget render(NudgeGap node, BuildContext context) => SizedBox(height: node.height);
+}
+
+final class NudgeDividerRenderer extends NudgeNodeRenderer<NudgeDivider> {
+  const NudgeDividerRenderer();
+
+  @override
+  Widget render(NudgeDivider node, BuildContext context) => Padding(
+        padding: EdgeInsets.only(left: node.indent, right: node.endIndent),
+        child: Container(height: node.thickness, color: node.color),
+      );
+}
+
+final class NudgeLottieRenderer extends NudgeNodeRenderer<NudgeLottie> {
+  const NudgeLottieRenderer();
+
+  @override
+  Widget render(NudgeLottie node, BuildContext context) {
+    if (node.url.isEmpty) {
+      return NudgePlaceholder(label: 'No Lottie URL', height: node.height);
+    }
+    return Lottie.network(
+      node.url,
+      height: node.height,
+      repeat: node.loop,
+      animate: node.autoplay,
+      fit: BoxFit.contain,
+      errorBuilder: (_, __, ___) =>
+          NudgePlaceholder(label: 'Lottie failed', height: node.height),
+    );
+  }
+}
+
+/// Shared fallback box for missing/broken media, matching the dashboard preview.
+class NudgePlaceholder extends StatelessWidget {
+  final String label;
+  final double height;
+
+  const NudgePlaceholder({required this.label, required this.height, super.key});
+
+  @override
+  Widget build(BuildContext context) => Container(
+        height: height,
+        width: double.infinity,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: const Color(0xFFF1F1F5),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Text(label, style: const TextStyle(fontSize: 11, color: Color(0xFF9A9AAD))),
+      );
+}

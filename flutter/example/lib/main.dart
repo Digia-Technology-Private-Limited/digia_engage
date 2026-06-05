@@ -4,11 +4,10 @@ import 'package:flutter/material.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
+  // Minimal init — just an API key (matches the native SDKs). Optionally pass
+  // `environment`, `baseUrl`, `fontFamily`, or `logLevel`.
   await Digia.initialize(
-    DigiaConfig(
-      apiKey: 'YOUR_DIGIA_API_KEY',
-      flavor: Flavor.debug(),
-    ),
+    DigiaConfig(apiKey: 'YOUR_DIGIA_API_KEY'),
   );
 
   // Register your CEP plugin (e.g. MoEngage, CleverTap) when ready.

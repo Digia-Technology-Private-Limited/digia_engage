@@ -1,22 +1,31 @@
+import '../nudge/nudge_config.dart';
+import '../nudge/nudge_parser.dart';
 import 'inline_carousel_config.dart';
 import 'json_util.dart';
 
 /// The parsed, typed config for a campaign.
 ///
 /// Dart port of the Android `CampaignConfigModel` sealed interface. This
-/// Flutter SDK only renders inline carousels, so every non-carousel campaign
-/// type (guide, nudge, survey, inline-story) is represented by
-/// [UnsupportedCampaignConfig] — it is still kept in the store for routing/
-/// diagnostics, but is never rendered.
+/// Flutter SDK renders inline carousels and nudges (bottom sheet / dialog);
+/// every other type (guide, survey, inline-story) is represented by
+/// [UnsupportedCampaignConfig] — still kept in the store for routing/
+/// diagnostics, but never rendered.
 sealed class CampaignConfigModel {
   const CampaignConfigModel();
 }
 
-/// An inline carousel campaign — the only renderable type in this SDK.
+/// An inline carousel campaign, surfaced through a [DigiaSlot].
 class InlineCarouselCampaignConfig extends CampaignConfigModel {
   final InlineCarouselConfig inlineConfig;
 
   const InlineCarouselCampaignConfig(this.inlineConfig);
+}
+
+/// A nudge campaign — an overlay (bottom sheet / dialog) presented over the app.
+class NudgeCampaignConfig extends CampaignConfigModel {
+  final NudgeConfig nudgeConfig;
+
+  const NudgeCampaignConfig(this.nudgeConfig);
 }
 
 /// A campaign whose type is recognised but not rendered by the Flutter SDK.
@@ -46,10 +55,13 @@ class CampaignModel {
 
   /// Parses one campaign object from the `getCampaigns` response.
   ///
-  /// Returns `null` for entries missing required identity fields or with a
-  /// malformed inline carousel config. Non-inline campaign types are kept as
+  /// Returns `null` for entries missing required identity fields, or whose
+  /// (supported) config is malformed. Unrecognised campaign types are kept as
   /// [UnsupportedCampaignConfig] rather than dropped, so the store mirrors the
   /// full set of campaigns the backend returned.
+  ///
+  /// Config construction is delegated to [CampaignConfigFactory] (a registry of
+  /// per-type builders) so there is no `switch` to grow when a type is added.
   static CampaignModel? fromJson(Map<String, dynamic> json) {
     var id = optString(json, 'id');
     if (id.isEmpty) id = optString(json, '_id');
@@ -61,28 +73,14 @@ class CampaignModel {
     final campaignType = optString(json, 'campaignType');
     if (campaignType.isEmpty) return null;
 
-    late final CampaignConfigModel config;
-    switch (campaignType) {
-      case 'inline':
-        final templateConfig = optMap(json, 'templateConfig');
-        if (templateConfig == null) return null;
-        final templateType = optString(templateConfig, 'templateType', 'carousel');
-        if (templateType == 'story') {
-          config = const UnsupportedCampaignConfig(
-            'inline story rendering is not supported in the Flutter SDK',
-          );
-        } else {
-          final inline = InlineCarouselConfig.fromJson(templateConfig);
-          if (inline == null) return null;
-          config = InlineCarouselCampaignConfig(inline);
-        }
-        break;
-      default:
-        // guide / nudge / survey — recognised but intentionally not rendered.
-        config = UnsupportedCampaignConfig(
-          '$campaignType rendering is not supported in the Flutter SDK (inline only)',
-        );
-    }
+    final builder = CampaignConfigFactory.builderFor(campaignType);
+    // A registered builder yields a config, or `null` to drop a malformed one.
+    // An unknown type is recognised-but-unsupported (kept for diagnostics).
+    final config = builder == null
+        ? UnsupportedCampaignConfig(
+            '$campaignType rendering is not supported in the Flutter SDK')
+        : builder(json);
+    if (config == null) return null;
 
     return CampaignModel(
       id: id,
@@ -90,5 +88,45 @@ class CampaignModel {
       campaignType: campaignType,
       config: config,
     );
+  }
+}
+
+/// Builds a [CampaignConfigModel] from a campaign's JSON, or returns `null` to
+/// signal the campaign should be dropped (its config is missing/invalid).
+typedef CampaignConfigBuilder = CampaignConfigModel? Function(Map<String, dynamic> json);
+
+/// Factory (registry) mapping a `campaignType` to the builder that decodes its
+/// config. Supporting a new renderable type is an open/closed change: add one
+/// entry here — `CampaignModel.fromJson` is untouched, and unknown types keep
+/// falling through to [UnsupportedCampaignConfig].
+class CampaignConfigFactory {
+  const CampaignConfigFactory._();
+
+  static final Map<String, CampaignConfigBuilder> _builders = {
+    'inline': _inline,
+    'nudge': _nudge,
+  };
+
+  /// The builder for [campaignType], or `null` when the type is unknown.
+  static CampaignConfigBuilder? builderFor(String campaignType) =>
+      _builders[campaignType];
+
+  static CampaignConfigModel? _inline(Map<String, dynamic> json) {
+    final templateConfig = optMap(json, 'templateConfig');
+    if (templateConfig == null) return null;
+    if (optString(templateConfig, 'templateType', 'carousel') == 'story') {
+      return const UnsupportedCampaignConfig(
+        'inline story rendering is not supported in the Flutter SDK',
+      );
+    }
+    final inline = InlineCarouselConfig.fromJson(templateConfig);
+    return inline == null ? null : InlineCarouselCampaignConfig(inline);
+  }
+
+  static CampaignConfigModel? _nudge(Map<String, dynamic> json) {
+    final templateConfig = optMap(json, 'templateConfig');
+    if (templateConfig == null) return null;
+    final nudge = const NudgeParser().parse(templateConfig);
+    return nudge == null ? null : NudgeCampaignConfig(nudge);
   }
 }

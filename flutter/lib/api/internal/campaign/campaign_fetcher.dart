@@ -1,7 +1,6 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 
-import '../../../src/network/network_client.dart';
 import '../../models/digia_config.dart';
 import 'campaign_model.dart';
 
@@ -13,7 +12,6 @@ import 'campaign_model.dart';
 class CampaignFetcher {
   static const String _production = 'https://app.digia.tech';
   static const String _sandbox = 'https://dev.digia.tech';
-  static const String _defaultDevBaseUrl = 'https://app.digia.tech/api/v1';
 
   final DigiaConfig config;
   final String deviceId;
@@ -33,7 +31,6 @@ class CampaignFetcher {
         Headers.contentTypeHeader: Headers.jsonContentType,
       },
     ));
-    configureDeveloperOptions(dio, config.developerConfig);
 
     final response = await dio.post<dynamic>(fullUrl, data: '{}');
     final code = response.statusCode ?? 0;
@@ -44,24 +41,14 @@ class CampaignFetcher {
     return _parseCampaigns(_extractCampaignArray(response.data));
   }
 
-  /// Resolves the engage API origin. Defaults to the environment-specific host
-  /// (matching Android), but honours an explicit non-default
-  /// `developerConfig.baseUrl` so staging / self-hosted / proxied backends work.
+  /// Resolves the engage API origin, mirroring Android: an explicit
+  /// `config.baseUrl` wins; otherwise the host is derived from the environment.
   String _resolveBaseUrl() {
-    final envBase =
-        config.environment == DigiaEnvironment.sandbox ? _sandbox : _production;
-
-    final devBaseUrl = config.developerConfig?.baseUrl;
-    if (devBaseUrl != null &&
-        devBaseUrl.isNotEmpty &&
-        devBaseUrl != _defaultDevBaseUrl) {
-      final uri = Uri.tryParse(devBaseUrl);
-      if (uri != null && uri.hasScheme && uri.host.isNotEmpty) {
-        final port = uri.hasPort ? ':${uri.port}' : '';
-        return '${uri.scheme}://${uri.host}$port';
-      }
+    final explicit = config.baseUrl;
+    if (explicit != null && explicit.isNotEmpty) {
+      return explicit.replaceAll(RegExp(r'/+$'), '');
     }
-    return envBase;
+    return config.environment == DigiaEnvironment.sandbox ? _sandbox : _production;
   }
 
   /// Unwraps the campaign array from the response, accepting either a bare
