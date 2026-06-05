@@ -345,7 +345,10 @@ private fun SurveyPanel(
             cta = survey.settings.cta,
             accent = accent,
             showClose = showCloseButton && survey.settings.display.dismissible,
-            onStart = { welcomeDone = true },
+            onStart = {
+                DigiaInstance.reportSurveyClicked()
+                welcomeDone = true
+            },
             onClose = onClose,
         )
     } else {
@@ -553,6 +556,7 @@ private fun SurveyBody(
 
             when (block.type) {
                 SurveyBlockType.WELCOME -> WelcomeCta(accent = accent, onStart = {
+                    DigiaInstance.reportSurveyClicked()
                     DigiaInstance.reportSurveyAnswered(node.id, emptyMap())
                     vm.advance()
                 })

@@ -129,6 +129,10 @@ internal class DigiaSlotContainerView(context: Context) : FrameLayout(context) {
     fun measureAndDispatch() {
         val slot = _slotView ?: return
         val ctx = rnContext ?: return
+        // Posted/delayed runnables can fire after the view is detached (e.g. activity
+        // relaunch from a notification tap). Measuring a detached Compose view throws
+        // "Cannot locate windowRecomposer", so skip until it's attached again.
+        if (!slot.isAttachedToWindow) return
         val viewWidth = width
         if (viewWidth <= 0) return
 

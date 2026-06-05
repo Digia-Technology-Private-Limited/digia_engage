@@ -167,14 +167,20 @@ internal object DigiaInstance : DigiaCEPDelegate {
     // ── Survey lifecycle ────────────────────────────────────────────────────
     //
     // Event routing:
-    //   • CEP plugin sees: Clicked (on start), Dismissed.
+    //   • CEP plugin sees: Impressed (on show), Clicked (on start), Dismissed.
     //   • Internal analytics sees: SurveyAnswered, SurveyCompleted.
     //
     // The CEP intentionally does not see per-question Answered / Completed —
     // those are SDK-internal signals (handling TBD).
 
-    /** Fired once when the survey first becomes visible (treated as a click). */
+    /** Fired once when the survey first becomes visible (treated as an impression). */
     fun reportSurveyStarted() {
+        val state = surveyOrchestrator.state.value ?: return
+        displayCoordinator.notifyCEP(DigiaExperienceEvent.Impressed, surveyPayload(state))
+    }
+
+    /** Fired when the user taps Start on the welcome screen. */
+    fun reportSurveyClicked() {
         val state = surveyOrchestrator.state.value ?: return
         displayCoordinator.notifyCEP(
             DigiaExperienceEvent.Clicked(elementId = state.campaign.campaignKey),
@@ -195,6 +201,10 @@ internal object DigiaInstance : DigiaCEPDelegate {
         answers: Map<String, SurveyAnswer> = emptyMap(),
     ) {
         reportSurveyCompleted(response, answers)
+        val state = surveyOrchestrator.state.value
+        if (state != null) {
+            displayCoordinator.notifyCEP(DigiaExperienceEvent.Dismissed, surveyPayload(state))
+        }
         surveyOrchestrator.dismiss()
     }
 
