@@ -129,7 +129,8 @@ class _NudgeBody extends StatelessWidget {
     return Stack(
       children: [
         SingleChildScrollView(
-          child: Padding(padding: EdgeInsets.all(surface.padding), child: child),
+          child:
+              Padding(padding: EdgeInsets.all(surface.padding), child: child),
         ),
         if (surface.showCloseButton)
           Positioned(

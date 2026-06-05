@@ -1,5 +1,12 @@
 import 'package:flutter/material.dart'
-    show BoxFit, Color, CrossAxisAlignment, FontWeight, MainAxisAlignment, TextAlign;
+    show
+        BoxFit,
+        Color,
+        CrossAxisAlignment,
+        EdgeInsets,
+        FontWeight,
+        MainAxisAlignment,
+        TextAlign;
 
 /// Pure, render-ready model of a nudge's content tree.
 ///
@@ -20,8 +27,8 @@ class NudgeBox {
   final double? fixedWidth;
   final double? fixedHeight;
   final Color? background;
-  final double padding;
-  final double margin;
+  final EdgeInsets padding;
+  final EdgeInsets margin;
   final double borderRadius;
   final Color? borderColor;
   final double borderWidth;
@@ -32,8 +39,8 @@ class NudgeBox {
     this.fixedWidth,
     this.fixedHeight,
     this.background,
-    this.padding = 0,
-    this.margin = 0,
+    this.padding = EdgeInsets.zero,
+    this.margin = EdgeInsets.zero,
     this.borderRadius = 0,
     this.borderColor,
     this.borderWidth = 0,
@@ -127,6 +134,44 @@ class NudgeLottie extends NudgeNode {
     required this.height,
     required this.loop,
     required this.autoplay,
+  });
+}
+
+class NudgeCarousel extends NudgeNode {
+  final List<String> images;
+  final double height;
+  final bool autoPlay;
+  final int autoPlayInterval;
+  final bool loop;
+  final bool showIndicator;
+
+  const NudgeCarousel(
+    super.box, {
+    required this.images,
+    required this.height,
+    required this.autoPlay,
+    required this.autoPlayInterval,
+    required this.loop,
+    required this.showIndicator,
+  });
+}
+
+class NudgeVideo extends NudgeNode {
+  final String url;
+  final double height;
+  final bool autoplay;
+  final bool loop;
+  final bool showControls;
+  final bool muted;
+
+  const NudgeVideo(
+    super.box, {
+    required this.url,
+    required this.height,
+    required this.autoplay,
+    required this.loop,
+    required this.showControls,
+    required this.muted,
   });
 }
 

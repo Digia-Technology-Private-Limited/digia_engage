@@ -88,6 +88,8 @@ class NudgeParser {
     'fw/sized_box': _gap,
     'digia/styledHorizontalDivider': _divider,
     'digia/lottie': _lottie,
+    'digia/carousel': _carousel,
+    'digia/videoPlayer': _video,
   };
 
   static NudgeNode _text(NudgeBox box, Map<String, dynamic> props) {
@@ -143,6 +145,29 @@ class NudgeParser {
         autoplay: optBool(props, 'animate', true),
       );
 
+  static NudgeNode _carousel(NudgeBox box, Map<String, dynamic> props) => NudgeCarousel(
+        box,
+        images: (optList(props, 'images') ?? const [])
+            .whereType<String>()
+            .where((s) => s.isNotEmpty)
+            .toList(),
+        height: optDouble(props, 'height', 180),
+        autoPlay: optBool(props, 'autoPlay', true),
+        autoPlayInterval: optInt(props, 'autoPlayInterval', 3000),
+        loop: optBool(props, 'infiniteScroll', true),
+        showIndicator: optBool(props, 'showIndicator', true),
+      );
+
+  static NudgeNode _video(NudgeBox box, Map<String, dynamic> props) => NudgeVideo(
+        box,
+        url: optString(props, 'url'),
+        height: optDouble(props, 'height', 200),
+        autoplay: optBool(props, 'autoPlay', false),
+        loop: optBool(props, 'looping', false),
+        showControls: optBool(props, 'showControls', true),
+        muted: optBool(props, 'muted', false),
+      );
+
   // ─── common box ──────────────────────────────────────────────────────────────
 
   NudgeBox _box(Map<String, dynamic>? containerProps) {
@@ -156,8 +181,8 @@ class NudgeParser {
       fixedWidth: widthStr == '100%' ? null : double.tryParse(widthStr),
       fixedHeight: double.tryParse(optString(style, 'height')),
       background: _color(optString(style, 'bgColor', optString(style, 'backgroundColor'))),
-      padding: optDouble(style, 'padding', 0),
-      margin: optDouble(style, 'margin', 0),
+      padding: _edges(style['padding']),
+      margin: _edges(style['margin']),
       borderRadius: optDouble(style, 'borderRadius', 0),
       borderColor: border == null ? null : _color(optString(border, 'borderColor')),
       borderWidth: border == null ? 0 : optDouble(border, 'borderWidth', 0),
@@ -201,6 +226,26 @@ FontWeight _fontWeight(String value) => switch (value) {
       '700' => FontWeight.w700,
       _ => FontWeight.w400,
     };
+
+/// Per-side edges → [EdgeInsets]. Accepts a `{left,top,right,bottom}` map or a
+/// legacy uniform number; anything else is zero.
+EdgeInsets _edges(Object? value) {
+  if (value is num) return EdgeInsets.all(value.toDouble());
+  if (value is Map) {
+    double side(String k) {
+      final v = value[k];
+      return v is num ? v.toDouble() : 0;
+    }
+
+    return EdgeInsets.only(
+      left: side('left'),
+      top: side('top'),
+      right: side('right'),
+      bottom: side('bottom'),
+    );
+  }
+  return EdgeInsets.zero;
+}
 
 NudgeSelfAlign? _selfAlign(String value) => switch (value) {
       'start' => NudgeSelfAlign.start,

@@ -1,6 +1,9 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:lottie/lottie.dart';
 
+import '../../../src/framework/internal_widgets/internal_carousel.dart';
+import '../../../src/framework/internal_widgets/internal_video_player.dart';
 import '../engage_fonts.dart';
 import 'nudge_content.dart';
 
@@ -40,6 +43,8 @@ class NudgeNodeRendererRegistry {
     NudgeGapRenderer(),
     NudgeDividerRenderer(),
     NudgeLottieRenderer(),
+    NudgeCarouselRenderer(),
+    NudgeVideoRenderer(),
   ];
 
   Widget render(NudgeNode node, BuildContext context) {
@@ -149,6 +154,74 @@ final class NudgeLottieRenderer extends NudgeNodeRenderer<NudgeLottie> {
       fit: BoxFit.contain,
       errorBuilder: (_, __, ___) =>
           NudgePlaceholder(label: 'Lottie failed', height: node.height),
+    );
+  }
+}
+
+final class NudgeCarouselRenderer extends NudgeNodeRenderer<NudgeCarousel> {
+  const NudgeCarouselRenderer();
+
+  @override
+  Widget render(NudgeCarousel node, BuildContext context) {
+    if (node.images.isEmpty) {
+      return NudgePlaceholder(label: 'No images', height: node.height);
+    }
+    final radius =
+        node.box.borderRadius > 0 ? BorderRadius.circular(node.box.borderRadius) : BorderRadius.zero;
+
+    final slides = node.images
+        .map((url) => ClipRRect(
+              borderRadius: radius,
+              child: CachedNetworkImage(
+                imageUrl: url,
+                fit: BoxFit.cover,
+                width: double.infinity,
+                errorWidget: (_, __, ___) => const SizedBox.shrink(),
+              ),
+            ))
+        .toList();
+
+    // One full-width slide per view (viewportFraction 1.0) to match the
+    // dashboard's snap carousel.
+    return InternalCarousel(
+      height: node.height,
+      autoPlay: node.autoPlay,
+      autoPlayInterval: node.autoPlayInterval,
+      infiniteScroll: node.loop,
+      viewportFraction: 1,
+      showIndicator: node.showIndicator,
+      dotColor: const Color(0xFFCBD5E1),
+      activeDotColor: const Color(0xFF4945FF),
+      children: slides,
+    );
+  }
+}
+
+final class NudgeVideoRenderer extends NudgeNodeRenderer<NudgeVideo> {
+  const NudgeVideoRenderer();
+
+  @override
+  Widget render(NudgeVideo node, BuildContext context) {
+    if (node.url.isEmpty) {
+      return NudgePlaceholder(label: 'No video URL', height: node.height);
+    }
+    final radius =
+        node.box.borderRadius > 0 ? BorderRadius.circular(node.box.borderRadius) : BorderRadius.zero;
+
+    return ClipRRect(
+      borderRadius: radius,
+      child: SizedBox(
+        height: node.height,
+        width: double.infinity,
+        // `muted` is parsed but InternalVideoPlayer has no volume control yet;
+        // chewie plays with its default volume.
+        child: InternalVideoPlayer(
+          videoUrl: node.url,
+          autoPlay: node.autoplay,
+          looping: node.loop,
+          showControls: node.showControls,
+        ),
+      ),
     );
   }
 }

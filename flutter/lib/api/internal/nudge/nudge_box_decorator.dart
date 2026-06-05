@@ -16,10 +16,11 @@ class NudgeBoxDecorator {
   Widget decorate(NudgeBox box, Widget child) {
     final radius = box.borderRadius > 0 ? BorderRadius.circular(box.borderRadius) : null;
     final hasDecoration = box.background != null || box.borderWidth > 0 || radius != null;
+    final hasPadding = box.padding != EdgeInsets.zero;
     final hasFrame = box.fillWidth ||
         box.fixedWidth != null ||
         box.fixedHeight != null ||
-        box.padding > 0 ||
+        hasPadding ||
         hasDecoration;
 
     Widget result = child;
@@ -28,7 +29,7 @@ class NudgeBoxDecorator {
       result = Container(
         width: box.fillWidth ? double.infinity : box.fixedWidth,
         height: box.fixedHeight,
-        padding: box.padding > 0 ? EdgeInsets.all(box.padding) : null,
+        padding: hasPadding ? box.padding : null,
         clipBehavior: radius != null ? Clip.antiAlias : Clip.none,
         decoration: hasDecoration
             ? BoxDecoration(
@@ -46,8 +47,8 @@ class NudgeBoxDecorator {
       );
     }
 
-    if (box.margin > 0) {
-      result = Padding(padding: EdgeInsets.all(box.margin), child: result);
+    if (box.margin != EdgeInsets.zero) {
+      result = Padding(padding: box.margin, child: result);
     }
 
     final selfAlign = box.selfAlign;
