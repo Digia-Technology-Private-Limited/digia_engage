@@ -9,8 +9,6 @@ import 'campaign/campaign_model.dart';
 import 'campaign/campaign_store.dart';
 import 'digia_overlay_controller.dart';
 import 'engage_fonts.dart';
-import 'nudge/nudge_config.dart';
-import 'nudge/nudge_presenter.dart';
 import 'sdk_state.dart';
 
 /// Internal singleton that backs the public [Digia] static facade.
@@ -48,7 +46,7 @@ class DigiaInstance with WidgetsBindingObserver implements DigiaCEPDelegate {
   final CampaignStore _campaignStore = CampaignStore();
 
   /// A campaign that arrived before the fetch completed; routed once ready.
-  InAppPayload? _pendingPayload;
+  CEPTriggerPayload? _pendingPayload;
 
   /// Shared with [DigiaHost]. Created once, lives for the app lifetime.
   final DigiaOverlayController _controller = DigiaOverlayController();
@@ -60,7 +58,7 @@ class DigiaInstance with WidgetsBindingObserver implements DigiaCEPDelegate {
   DigiaOverlayController get controller => _controller;
 
   /// Gets the active inline campaign for a given placement key, if any.
-  InAppPayload? getInlineCampaign(String placementKey) =>
+  CEPTriggerPayload? getInlineCampaign(String placementKey) =>
       _controller.getSlot(placementKey);
 
   // ─── Lifecycle ─────────────────────────────────────────────────────────────
@@ -183,26 +181,26 @@ class DigiaInstance with WidgetsBindingObserver implements DigiaCEPDelegate {
   // ─── DigiaCEPDelegate ──────────────────────────────────────────────────────
 
   @override
-  void onCampaignTriggered(InAppPayload payload) {
+  void onCampaignTriggered(CEPTriggerPayload payload) {
     // State gating mirrors Android's DigiaInstance.onCampaignTriggered.
     switch (_sdkState) {
       case SDKState.notInitialized:
         debugPrint(
-          '[Digia] campaign dropped — SDK not initialized: ${payload.id}',
+          '[Digia] campaign dropped — SDK not initialized: ${payload.campaignKey}',
         );
         return;
       case SDKState.initializing:
         // Buffer campaigns that arrive while the engage fetch is in flight.
         if (_pendingPayload != null) {
           debugPrint(
-            '[Digia] WARNING: pending payload replaced by newer payload: ${payload.id}',
+            '[Digia] WARNING: pending payload replaced by newer payload: ${payload.campaignKey}',
           );
         }
         _pendingPayload = payload;
         return;
       case SDKState.failed:
         debugPrint(
-          '[Digia] campaign dropped — SDK initialization failed: ${payload.id}',
+          '[Digia] campaign dropped — SDK initialization failed: ${payload.campaignKey}',
         );
         return;
       case SDKState.ready:
@@ -212,42 +210,19 @@ class DigiaInstance with WidgetsBindingObserver implements DigiaCEPDelegate {
 
   // ─── Routing ───────────────────────────────────────────────────────────────
 
-  /// Routes a triggered campaign. First consults the campaign store (the
-  /// backend-fetched, key-based path); falls back to the legacy CEP-driven
-  /// `type`/`command` routing when no stored campaign matches.
-  void _routeCampaign(InAppPayload payload) {
-    final campaignKey = _resolveCampaignKey(payload);
-    if (campaignKey != null) {
-      final campaign = _campaignStore.find(campaignKey);
-      if (campaign != null) {
-        _routeStoredCampaign(campaign, payload);
-        return;
-      }
+  /// Routes a triggered campaign by looking up the campaign key in the store.
+  void _routeCampaign(CEPTriggerPayload payload) {
+    final campaign = _campaignStore.find(payload.campaignKey);
+    if (campaign != null) {
+      _routeStoredCampaign(campaign, payload);
+      return;
     }
-    _routeLegacy(payload);
-  }
-
-  /// Extracts the campaign key from the payload, mirroring the Android lookup
-  /// order: CEP-set keys first, then the React Native bridge key, then the id.
-  String? _resolveCampaignKey(InAppPayload payload) {
-    final content = payload.content;
-    final candidates = <Object?>[
-      content['digia_campaign_key'],
-      content['campaign_key'],
-      content['digiaKey'],
-      payload.id,
-    ];
-    for (final candidate in candidates) {
-      if (candidate is String && candidate.trim().isNotEmpty) {
-        return candidate.trim();
-      }
-    }
-    return null;
+    debugPrint('[Digia] campaign not found in store: ${payload.campaignKey}');
   }
 
   /// Routes a campaign resolved from the store. Only inline carousels are
   /// rendered; every other (recognised) type is dropped with a log.
-  void _routeStoredCampaign(CampaignModel campaign, InAppPayload payload) {
+  void _routeStoredCampaign(CampaignModel campaign, CEPTriggerPayload payload) {
     final config = campaign.config;
     switch (config) {
       case InlineCarouselCampaignConfig(:final inlineConfig):
@@ -257,8 +232,9 @@ class DigiaInstance with WidgetsBindingObserver implements DigiaCEPDelegate {
           "inline carousel routed to slot '${inlineConfig.slotKey}' "
           '(campaignKey=${campaign.campaignKey}).',
         );
-      case NudgeCampaignConfig(:final nudgeConfig):
-        _presentNudge(nudgeConfig, payload, campaign.id, campaign.campaignKey);
+      case NudgeCampaignConfig():
+        _controller.show(payload);
+        _logIfVerbose('nudge scheduled (campaignKey=${campaign.campaignKey}).');
       case UnsupportedCampaignConfig(:final reason):
         debugPrint(
           "[Digia] campaign '${campaign.campaignKey}' dropped: $reason",
@@ -266,76 +242,18 @@ class DigiaInstance with WidgetsBindingObserver implements DigiaCEPDelegate {
     }
   }
 
-  /// Presents a nudge (bottom sheet / dialog) over the app via the root
-  /// navigator. Fires an impression on present and a dismissal when it closes.
-  void _presentNudge(
-    NudgeConfig nudgeConfig,
-    InAppPayload payload,
-    String campaignId,
-    String campaignKey,
-  ) {
-    final context = _navigator?.context;
-    if (context == null) {
-      debugPrint(
-        "[Digia] nudge '$campaignKey' dropped: no navigator. Add "
-        'DigiaNavigatorObserver to MaterialApp.navigatorObservers.',
-      );
-      return;
+  /// Resolves the [CampaignModel] for the active payload so [DigiaHost] can
+  /// switch on its config type and present the correct experience.
+  /// Returns null (and auto-dismisses) when no matching campaign is found.
+  CampaignModel? resolveActiveCampaign() {
+    final payload = _controller.activePayload;
+    if (payload == null) return null;
+    final campaign = _campaignStore.find(payload.campaignKey);
+    if (campaign == null) {
+      _controller.dismiss();
+      return null;
     }
-
-    _controller.onEvent?.call(const ExperienceImpressed(), payload);
-    _logIfVerbose('nudge presented (campaignKey=$campaignKey).');
-
-    presentNudge(
-      context: context,
-      config: nudgeConfig,
-      actionContext: EngageActionContext(
-        campaignId: campaignId,
-        campaignKey: campaignKey,
-        surface: EngageSurface.nudge,
-      ),
-    ).whenComplete(() {
-      _controller.onEvent?.call(const ExperienceDismissed(), payload);
-    });
-  }
-
-  /// Legacy CEP-driven routing, used when the campaign is not in the store.
-  /// Renders inline content via [DUIFactory] (viewId) and modal campaigns via
-  /// [DigiaHost].
-  void _routeLegacy(InAppPayload payload) {
-    final type = (payload.content['type'] as String?)?.trim().toLowerCase();
-    final command =
-        (payload.content['command'] as String?)?.trim().toUpperCase();
-
-    if ((type == null || type.isEmpty) &&
-        (command == null || command.isEmpty)) {
-      debugPrint(
-        '[Digia] WARNING: campaign dropped: neither type nor command is set: ${payload.id}',
-      );
-      return;
-    }
-
-    if (type == 'inline') {
-      final placementKey = payload.content['placementKey'] as String?;
-      if (placementKey == null || placementKey.isEmpty) {
-        debugPrint(
-          '[Digia] WARNING: inline payload dropped: placementKey is required when type is set: ${payload.id}',
-        );
-        return;
-      }
-      _controller.addSlot(placementKey, payload);
-      _controller.onEvent?.call(
-          const ExperienceImpressed(), payload); // Fire impression immediately
-    } else {
-      if (!_hostMounted) {
-        debugPrint(
-          '[Digia] WARNING: A campaign payload arrived but DigiaHost is not '
-          'mounted. Wrap your app root with DigiaHost to display experiences.',
-        );
-      }
-      // Modal campaigns (SHOW_BOTTOM_SHEET / SHOW_DIALOG): route to DigiaHost.
-      _controller.show(payload);
-    }
+    return campaign;
   }
 
   /// Routes a campaign that arrived during initialization, once ready.
@@ -349,7 +267,7 @@ class DigiaInstance with WidgetsBindingObserver implements DigiaCEPDelegate {
   @override
   void onCampaignInvalidated(String campaignId) {
     // Active modal overlay.
-    if (_controller.activePayload?.id == campaignId) {
+    if (_controller.activePayload?.cepCampaignId == campaignId) {
       _controller.dismiss();
     }
     // Inline carousel slot config, if this campaign populated one.

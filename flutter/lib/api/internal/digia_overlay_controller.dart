@@ -1,7 +1,7 @@
 import 'package:flutter/foundation.dart';
 
+import '../models/cep_trigger_payload.dart';
 import '../models/digia_experience_event.dart';
-import '../models/in_app_payload.dart';
 import 'campaign/inline_carousel_config.dart';
 
 /// Internal controller that coordinates between [DigiaInstance] (imperative)
@@ -13,8 +13,8 @@ import 'campaign/inline_carousel_config.dart';
 ///
 /// Never exposed to app developers.
 class DigiaOverlayController extends ChangeNotifier {
-  InAppPayload? _activePayload;
-  final Map<String, InAppPayload> _slotPayloads = <String, InAppPayload>{};
+  CEPTriggerPayload? _activePayload;
+  final Map<String, CEPTriggerPayload> _slotPayloads = <String, CEPTriggerPayload>{};
 
   /// Inline carousel configs keyed by their `slotKey` (the [DigiaSlot]
   /// placement key). Populated when a campaign-store-routed inline campaign is
@@ -26,35 +26,35 @@ class DigiaOverlayController extends ChangeNotifier {
   final Map<String, String> _slotConfigCampaignIds = <String, String>{};
 
   /// The currently active campaign payload, or null when no experience is shown.
-  InAppPayload? get activePayload => _activePayload;
-  Map<String, InAppPayload> get slotPayloads => Map.unmodifiable(_slotPayloads);
+  CEPTriggerPayload? get activePayload => _activePayload;
+  Map<String, CEPTriggerPayload> get slotPayloads => Map.unmodifiable(_slotPayloads);
   Map<String, InlineCarouselConfig> get slotConfigs =>
       Map.unmodifiable(_slotConfigs);
 
-  /// Called by [DigiaInstance] when a new experience is ready to render.
-  /// Notifies [DigiaHost] to rebuild and display the overlay.
-  void show(InAppPayload payload) {
+  /// Called by [DigiaInstance] when a new modal experience is ready to render.
+  /// Notifies [DigiaHost] to present the overlay.
+  void show(CEPTriggerPayload payload) {
     _activePayload = payload;
     notifyListeners();
   }
 
   /// Called by [DigiaInstance] on invalidation, or by [DigiaHost] when
   /// the user dismisses the experience.
-  /// Notifies [DigiaHost] to rebuild and remove the overlay.
   void dismiss() {
     _activePayload = null;
     notifyListeners();
   }
 
-  void addSlot(String placementKey, InAppPayload payload) {
+  void addSlot(String placementKey, CEPTriggerPayload payload) {
     _slotPayloads[placementKey] = payload;
     notifyListeners();
   }
 
-  InAppPayload? getSlot(String placementKey) => _slotPayloads[placementKey];
+  CEPTriggerPayload? getSlot(String placementKey) => _slotPayloads[placementKey];
 
   void removeSlotById(String campaignId) {
-    _slotPayloads.removeWhere((_, payload) => payload.id == campaignId);
+    _slotPayloads.removeWhere(
+        (_, payload) => payload.cepCampaignId == campaignId);
     notifyListeners();
   }
 
@@ -98,5 +98,5 @@ class DigiaOverlayController extends ChangeNotifier {
   /// Set by [DigiaInstance] at init time.
   /// [DigiaHost] calls this when a user interaction event occurs.
   /// [DigiaInstance] handles the event and forwards it to the active plugin.
-  void Function(DigiaExperienceEvent, InAppPayload)? onEvent;
+  void Function(DigiaExperienceEvent, CEPTriggerPayload)? onEvent;
 }

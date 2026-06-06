@@ -1,11 +1,7 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 
-import '../../src/framework/ui_factory.dart';
 import '../internal/campaign/inline_carousel_config.dart';
 import '../internal/digia_instance.dart';
-import '../models/digia_experience_event.dart';
-import '../models/in_app_payload.dart';
 import 'digia_inline_carousel.dart';
 
 /// Renders inline campaign content (banners, cards, widgets) at a specific
@@ -52,46 +48,28 @@ class DigiaSlot extends StatefulWidget {
 }
 
 class _DigiaSlotState extends State<DigiaSlot> {
-  /// ID of the last payload we already fired an impression for.
-  /// Prevents re-firing on every setState rebuild.
-  String? _impressedPayloadId;
-
-  /// The payload currently being displayed.
-  /// Stored in state so build reads from here, not the controller directly,
-  /// avoiding rebuilds driven by parent widget rebuilds.
-  InAppPayload? _currentPayload;
-
-  /// The inline carousel config currently active for this slot, if the
-  /// campaign was routed through the backend campaign store. Takes precedence
-  /// over [_currentPayload] when present.
+  /// The inline carousel config currently active for this slot, populated when
+  /// a campaign-store-routed inline campaign is triggered.
   InlineCarouselConfig? _currentConfig;
 
   @override
   void initState() {
     super.initState();
-    DigiaInstance.instance.controller.addListener(_onInlineChanged);
-
-    // A campaign might already be in the controller when this slot mounts
-    // (e.g., the campaign arrived before the page was opened).
+    DigiaInstance.instance.controller.addListener(_onControllerChanged);
     _syncConfig();
-    _scheduleImpressionIfNeeded();
   }
 
   @override
   void dispose() {
-    DigiaInstance.instance.controller.removeListener(_onInlineChanged);
+    DigiaInstance.instance.controller.removeListener(_onControllerChanged);
     // Do NOT remove the campaign on dispose. Inline campaigns are "sticky" —
     // they persist for when the user returns to this page. Only server
     // invalidation or an explicit user dismiss should clear them.
     super.dispose();
   }
 
-  // ─── Controller listener ──────────────────────────────────────────────────
-
-  void _onInlineChanged() {
-    final configChanged = _syncConfig();
-    final payloadChanged = _scheduleImpressionIfNeeded();
-    if (configChanged || payloadChanged) setState(() {});
+  void _onControllerChanged() {
+    if (_syncConfig()) setState(() {});
   }
 
   /// Pulls the latest carousel config for this slot from the controller.
@@ -104,127 +82,10 @@ class _DigiaSlotState extends State<DigiaSlot> {
     return true;
   }
 
-  // ─── Impression tracking ──────────────────────────────────────────────────
-
-  /// Fires [ExperienceImpressed] the first time a unique payload renders in
-  /// this slot. Safe to call multiple times — no-ops if already impressed.
-  ///
-  /// Returns `true` if the payload changed (a rebuild is needed).
-  bool _scheduleImpressionIfNeeded() {
-    final payload =
-        DigiaInstance.instance.controller.getSlot(widget.placementKey);
-
-    if (payload?.id == _currentPayload?.id) return false;
-
-    _currentPayload = payload;
-
-    if (payload == null || payload.id == _impressedPayloadId) return true;
-
-    _impressedPayloadId = payload.id;
-    // WidgetsBinding.instance.addPostFrameCallback((_) {
-    //   if (!mounted) return;
-    //   DigiaInstance.instance.inlineController.onEvent
-    //       ?.call(const ExperienceImpressed(), payload);
-    // });
-    return true;
-  }
-
-  // ─── Dismiss ──────────────────────────────────────────────────────────────
-
-  /// Called when the user explicitly dismisses the inline content
-  /// (e.g., a close button inside the campaign component).
-  ///
-  /// Fires [ExperienceDismissed] and removes the campaign from the controller,
-  /// collapsing this slot to nothing until a new campaign arrives.
-  void _dismiss(InAppPayload payload) {
-    // DigiaInstance.instance.inlineController.onEvent
-    //     ?.call(const ExperienceDismissed(), payload);
-    // DigiaInstance.instance.inlineController
-    //     .dismissCampaign(widget.placementKey);
-  }
-
   @override
   Widget build(BuildContext context) {
-    // Backend campaign-store route: render the native inline carousel.
     final config = _currentConfig;
-    if (config != null) {
-      return DigiaInlineCarousel(config: config);
-    }
-
-    // Legacy CEP-driven route: render via DUIFactory (viewId).
-    return _DigiaSlotContent(
-      payload: _currentPayload,
-      onDismiss: _dismiss,
-      placeholder: widget.placeholder,
-    );
-  }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-
-/// Internal widget that renders the active inline campaign content for a
-/// given [payload], or collapses to nothing when no content is active.
-class _DigiaSlotContent extends StatelessWidget {
-  /// The campaign payload resolved by the parent [_DigiaSlotState].
-  final InAppPayload? payload;
-
-  /// Called when the campaign component requests a dismiss
-  /// (e.g., user taps a close CTA inside the rendered component).
-  final ValueChanged<InAppPayload> onDismiss;
-
-  /// Widget to show when no campaign is active. Defaults to [SizedBox.shrink].
-  final Widget? placeholder;
-
-  const _DigiaSlotContent({
-    required this.payload,
-    required this.onDismiss,
-    this.placeholder,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    if (payload == null) return placeholder ?? const SizedBox.shrink();
-
-    final content = payload!.content;
-    final viewId = content['viewId'] as String?;
-
-    if (viewId == null || viewId.isEmpty) {
-      return placeholder ?? const SizedBox.shrink();
-    }
-
-    try {
-      return DUIFactory().createComponent(viewId, content);
-    } catch (e, stack) {
-      debugPrint('[Digia] DigiaSlot render error for "$viewId": $e\n$stack');
-      if (kDebugMode) {
-        return _DigiaSlotError(viewId: viewId, error: e);
-      }
-      return placeholder ?? const SizedBox.shrink();
-    }
-  }
-}
-
-class _DigiaSlotError extends StatelessWidget {
-  final String viewId;
-  final Object error;
-
-  const _DigiaSlotError({required this.viewId, required this.error});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        border: Border.all(color: const Color(0xFFD32F2F)),
-        color: const Color(0x1FD32F2F),
-      ),
-      padding: const EdgeInsets.all(8),
-      child: Text(
-        '[DigiaSlot($viewId)] Render error:\n$error',
-        style: const TextStyle(
-          color: Color(0xFFD32F2F),
-          fontSize: 12,
-        ),
-      ),
-    );
+    if (config != null) return DigiaInlineCarousel(config: config);
+    return widget.placeholder ?? const SizedBox.shrink();
   }
 }
