@@ -268,4 +268,4 @@ react-native/ios/           iOS bridge
 
 ## License
 
-MIT © Digia Technology Private Limited
+Business Source License 1.1 (BUSL-1.1) © Digia Technology Private Limited — see [LICENSE](LICENSE)

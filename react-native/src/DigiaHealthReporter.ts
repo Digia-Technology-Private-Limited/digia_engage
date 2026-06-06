@@ -27,7 +27,7 @@ export class DigiaHealthReporter {
 
     report(eventType: HealthEventType, detail: Record<string, unknown>): void {
         if (!this._projectId) return;
-        // TODO: TO BE PICKED LATER @aditya-digia — health event backend endpoint being removed
+        // Health-event reporting is currently disabled.
         // fetch(`${this._baseUrl}/engage/sdk/recordHealthEvent`, {
         //     method: 'POST',
         //     headers: {
