@@ -79,16 +79,39 @@ final class NudgeImageRenderer extends NudgeNodeRenderer<NudgeImage> {
   @override
   Widget render(NudgeImage node, BuildContext context) {
     if (node.url.isEmpty) {
-      return NudgePlaceholder(label: 'No image URL', height: node.box.fixedHeight ?? 120);
+      return _placeholder(node);
+    }
+    // Aspect ratio (when set) drives the height; otherwise use the box's fixed
+    // height, then natural size.
+    if (node.aspectRatio > 0) {
+      return AspectRatio(
+        aspectRatio: node.aspectRatio,
+        child: Image.network(
+          node.url,
+          fit: node.fit,
+          width: double.infinity,
+          height: double.infinity,
+          errorBuilder: (_, __, ___) => _placeholder(node),
+        ),
+      );
     }
     return Image.network(
       node.url,
       fit: node.fit,
       width: node.box.fillWidth ? double.infinity : null,
       height: node.box.fixedHeight,
-      errorBuilder: (_, __, ___) =>
-          NudgePlaceholder(label: 'Image failed', height: node.box.fixedHeight ?? 120),
+      errorBuilder: (_, __, ___) => _placeholder(node),
     );
+  }
+
+  Widget _placeholder(NudgeImage node) {
+    if (node.aspectRatio > 0) {
+      return AspectRatio(
+        aspectRatio: node.aspectRatio,
+        child: const NudgePlaceholder(label: 'Image', height: double.infinity),
+      );
+    }
+    return NudgePlaceholder(label: 'No image URL', height: node.box.fixedHeight ?? 120);
   }
 }
 

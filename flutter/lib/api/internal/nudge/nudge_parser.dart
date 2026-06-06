@@ -110,6 +110,7 @@ class NudgeParser {
         box,
         url: optString(optMap(props, 'src') ?? const {}, 'imageSrc'),
         fit: _boxFit(optString(props, 'fit', 'cover')),
+        aspectRatio: optDouble(props, 'aspectRatio', 0),
       );
 
   static NudgeNode _button(NudgeBox box, Map<String, dynamic> props) {

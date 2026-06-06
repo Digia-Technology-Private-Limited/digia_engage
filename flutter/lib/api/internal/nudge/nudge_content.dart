@@ -80,7 +80,10 @@ class NudgeImage extends NudgeNode {
   final String url;
   final BoxFit fit;
 
-  const NudgeImage(super.box, {required this.url, required this.fit});
+  /// Width-to-height ratio; `0` = off (use the box's fixed height / natural size).
+  final double aspectRatio;
+
+  const NudgeImage(super.box, {required this.url, required this.fit, required this.aspectRatio});
 }
 
 class NudgeButton extends NudgeNode {
