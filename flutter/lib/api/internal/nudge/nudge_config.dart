@@ -15,6 +15,10 @@ class NudgeSurface {
 
   /// Surface background; null inherits white at render time.
   final Color? backgroundColor;
+
+  /// Scrim/barrier colour behind the surface; null inherits the default
+  /// (black at 30% opacity) at render time.
+  final Color? barrierColor;
   final double cornerRadius;
 
   /// Uniform inner padding around the content tree, in logical pixels.
@@ -38,6 +42,7 @@ class NudgeSurface {
   const NudgeSurface({
     required this.displayType,
     required this.backgroundColor,
+    required this.barrierColor,
     required this.cornerRadius,
     required this.padding,
     required this.backdropDismissible,

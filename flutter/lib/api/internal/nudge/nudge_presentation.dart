@@ -34,6 +34,8 @@ class BottomSheetPresentation implements NudgePresentation {
       isDismissible: surface.backdropDismissible,
       enableDrag: surface.draggable,
       backgroundColor: Colors.transparent,
+      // null lets the framework apply its own default scrim.
+      barrierColor: surface.barrierColor,
       builder: (_) => _SheetFrame(surface: surface, child: content),
     );
   }
@@ -53,6 +55,9 @@ class DialogPresentation implements NudgePresentation {
       context: context,
       useRootNavigator: true,
       barrierDismissible: surface.backdropDismissible,
+      // showDialog's barrierColor defaults to black54, so fall back explicitly
+      // (a null here would render a transparent, invisible scrim).
+      barrierColor: surface.barrierColor ?? Colors.black54,
       builder: (_) => _DialogFrame(surface: surface, child: content),
     );
   }

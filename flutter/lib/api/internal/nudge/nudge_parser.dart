@@ -39,6 +39,7 @@ class NudgeParser {
           ? NudgeDisplayType.dialog
           : NudgeDisplayType.bottomSheet,
       backgroundColor: _color(optString(map, 'backgroundColor')),
+      barrierColor: _color(optString(map, 'barrierColor')),
       cornerRadius: optDouble(map, 'cornerRadius', 18),
       padding: optDouble(map, 'padding', 20),
       backdropDismissible: optBool(map, 'backdropDismissible', true),
@@ -116,9 +117,13 @@ class NudgeParser {
   static NudgeNode _button(NudgeBox box, Map<String, dynamic> props) {
     final text = optMap(props, 'text') ?? const {};
     final textStyle = optMap(text, 'textStyle') ?? const {};
+    final font = optMap(optMap(textStyle, 'fontToken') ?? const {}, 'font') ?? const {};
     return NudgeButton(
       box,
       label: optString(text, 'text', 'Button'),
+      variant: _buttonVariant(optString(props, 'variant', 'fill')),
+      fontSize: optDouble(font, 'size', 16),
+      weight: _fontWeight(optString(font, 'weight', '600')),
       background: _color(optString(optMap(props, 'defaultStyle') ?? const {}, 'backgroundColor')) ??
           const Color(0xFF4945FF),
       textColor: _color(optString(textStyle, 'textColor')) ?? const Color(0xFFFFFFFF),
@@ -248,6 +253,13 @@ EdgeInsets _edges(Object? value) {
   }
   return EdgeInsets.zero;
 }
+
+NudgeButtonVariant _buttonVariant(String value) => switch (value) {
+      'outline' => NudgeButtonVariant.outline,
+      'text' => NudgeButtonVariant.text,
+      'elevated' => NudgeButtonVariant.elevated,
+      _ => NudgeButtonVariant.fill,
+    };
 
 NudgeSelfAlign? _selfAlign(String value) => switch (value) {
       'start' => NudgeSelfAlign.start,

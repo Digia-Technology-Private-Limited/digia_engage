@@ -119,35 +119,52 @@ final class NudgeButtonRenderer extends NudgeNodeRenderer<NudgeButton> {
   const NudgeButtonRenderer();
 
   @override
-  Widget render(NudgeButton node, BuildContext context) => Material(
-        color: node.background,
+  Widget render(NudgeButton node, BuildContext context) {
+    final filled = node.variant == NudgeButtonVariant.fill ||
+        node.variant == NudgeButtonVariant.elevated;
+    // fill/elevated: solid bg + textColor label. outline/text: transparent bg,
+    // background colour becomes the accent for the border + label.
+    final background = filled ? node.background : const Color(0x00000000);
+    final foreground = filled ? node.textColor : node.background;
+    final elevation = node.variant == NudgeButtonVariant.elevated ? 3.0 : 0.0;
+
+    return Material(
+      color: background,
+      elevation: elevation,
+      shadowColor: const Color(0x55000000),
+      shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(node.radius),
-        clipBehavior: Clip.antiAlias,
-        child: InkWell(
-          onTap: node.actions.isEmpty
-              ? null
-              : () => EngageActionRunner.shared.run(
-                    node.actions,
-                    EngageActionScope.fromContext(context),
-                    EngageActionContextScope.of(context) ?? EngageActionContext.unknown,
-                  ),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            child: Center(
-              widthFactor: node.box.fillWidth ? null : 1,
-              child: Text(
-                node.label,
-                style: TextStyle(
-                  color: node.textColor,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                  fontFamily: EngageFonts.fontFamily,
+        side: node.variant == NudgeButtonVariant.outline
+            ? BorderSide(color: node.background, width: 1.5)
+            : BorderSide.none,
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: node.actions.isEmpty
+            ? null
+            : () => EngageActionRunner.shared.run(
+                  node.actions,
+                  EngageActionScope.fromContext(context),
+                  EngageActionContextScope.of(context) ?? EngageActionContext.unknown,
                 ),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          child: Center(
+            widthFactor: node.box.fillWidth ? null : 1,
+            child: Text(
+              node.label,
+              style: TextStyle(
+                color: foreground,
+                fontSize: node.fontSize,
+                fontWeight: node.weight,
+                fontFamily: EngageFonts.fontFamily,
               ),
             ),
           ),
         ),
-      );
+      ),
+    );
+  }
 }
 
 final class NudgeGapRenderer extends NudgeNodeRenderer<NudgeGap> {

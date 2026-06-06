@@ -86,8 +86,15 @@ class NudgeImage extends NudgeNode {
   const NudgeImage(super.box, {required this.url, required this.fit, required this.aspectRatio});
 }
 
+/// Visual style of a button. `fill`/`elevated` use background + textColor;
+/// `outline`/`text` use background as the accent (border + label).
+enum NudgeButtonVariant { fill, outline, text, elevated }
+
 class NudgeButton extends NudgeNode {
   final String label;
+  final NudgeButtonVariant variant;
+  final double fontSize;
+  final FontWeight weight;
   final Color background;
   final Color textColor;
   final double radius;
@@ -98,6 +105,9 @@ class NudgeButton extends NudgeNode {
   const NudgeButton(
     super.box, {
     required this.label,
+    required this.variant,
+    required this.fontSize,
+    required this.weight,
     required this.background,
     required this.textColor,
     required this.radius,
