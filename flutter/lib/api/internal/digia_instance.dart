@@ -3,6 +3,7 @@ import 'package:flutter/widgets.dart';
 import '../../digia_engage.dart';
 import '../../digia_ui.dart';
 import '../../src/preferences_store.dart';
+import 'action/engage_action_handler.dart';
 import 'campaign/campaign_fetcher.dart';
 import 'campaign/campaign_model.dart';
 import 'campaign/campaign_store.dart';
@@ -113,6 +114,9 @@ class DigiaInstance with WidgetsBindingObserver implements DigiaCEPDelegate {
       _controller.onEvent = (event, payload) {
         _activePlugin?.notifyEvent(event, payload);
       };
+
+      // Register the host's action override (if any) on the shared runner.
+      EngageActionRunner.shared.interceptor = config.onAction;
 
       // ── Fetch + cache engage campaigns ──────────────────────────────────
       await PreferencesStore.instance.initialize();
@@ -254,7 +258,7 @@ class DigiaInstance with WidgetsBindingObserver implements DigiaCEPDelegate {
           '(campaignKey=${campaign.campaignKey}).',
         );
       case NudgeCampaignConfig(:final nudgeConfig):
-        _presentNudge(nudgeConfig, payload, campaign.campaignKey);
+        _presentNudge(nudgeConfig, payload, campaign.id, campaign.campaignKey);
       case UnsupportedCampaignConfig(:final reason):
         debugPrint(
           "[Digia] campaign '${campaign.campaignKey}' dropped: $reason",
@@ -267,6 +271,7 @@ class DigiaInstance with WidgetsBindingObserver implements DigiaCEPDelegate {
   void _presentNudge(
     NudgeConfig nudgeConfig,
     InAppPayload payload,
+    String campaignId,
     String campaignKey,
   ) {
     final context = _navigator?.context;
@@ -281,7 +286,15 @@ class DigiaInstance with WidgetsBindingObserver implements DigiaCEPDelegate {
     _controller.onEvent?.call(const ExperienceImpressed(), payload);
     _logIfVerbose('nudge presented (campaignKey=$campaignKey).');
 
-    presentNudge(context: context, config: nudgeConfig).whenComplete(() {
+    presentNudge(
+      context: context,
+      config: nudgeConfig,
+      actionContext: EngageActionContext(
+        campaignId: campaignId,
+        campaignKey: campaignKey,
+        surface: EngageSurface.nudge,
+      ),
+    ).whenComplete(() {
       _controller.onEvent?.call(const ExperienceDismissed(), payload);
     });
   }

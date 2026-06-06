@@ -2,6 +2,7 @@ import '../../../src/dui_dev_config.dart';
 import '../../../src/init/environment.dart';
 import '../../../src/init/flavor.dart';
 import '../../../src/init/options.dart';
+import '../internal/action/engage_action_context.dart';
 
 /// Log verbosity levels for the Digia SDK.
 enum DigiaLogLevel {
@@ -64,12 +65,21 @@ class DigiaConfig {
   /// Mirrors Android's `DigiaConfig.fontFamily`.
   final String? fontFamily;
 
+  /// Optional host override for engage **navigation** actions — open URL / deep
+  /// link ([LinkAction], with their target). Inspect it + the
+  /// [EngageActionContext] and return `true` to handle the link yourself (the
+  /// SDK then skips opening it); return `false`/`null` to let the default run.
+  /// Hide/share are always handled by the SDK and never reach this hook.
+  /// Mirrors React Native's `onAction`.
+  final EngageActionInterceptor? onAction;
+
   DigiaConfig({
     required this.apiKey,
     this.logLevel = DigiaLogLevel.error,
     this.environment = DigiaEnvironment.production,
     this.baseUrl,
     this.fontFamily,
+    this.onAction,
   });
 
   /// Builds the internal [DigiaUIOptions] used by [DigiaUI.initialize].

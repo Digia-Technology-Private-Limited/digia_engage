@@ -8,6 +8,8 @@ import 'package:flutter/material.dart'
         MainAxisAlignment,
         TextAlign;
 
+import '../action/engage_action.dart';
+
 /// Pure, render-ready model of a nudge's content tree.
 ///
 /// These are plain immutable value objects — they hold no parsing or rendering
@@ -87,10 +89,8 @@ class NudgeButton extends NudgeNode {
   final Color textColor;
   final double radius;
 
-  /// The raw `onClick` flow exactly as authored, kept untouched for now. Tap
-  /// handling is intentionally NOT wired yet — see
-  /// `docs/nudge-action-handler-flow.md` for the planned handler structure.
-  final Map<String, dynamic>? onClick;
+  /// Ordered actions to run on tap (may be empty). Run by EngageActionRunner.
+  final List<EngageAction> actions;
 
   const NudgeButton(
     super.box, {
@@ -98,7 +98,7 @@ class NudgeButton extends NudgeNode {
     required this.background,
     required this.textColor,
     required this.radius,
-    required this.onClick,
+    required this.actions,
   });
 }
 

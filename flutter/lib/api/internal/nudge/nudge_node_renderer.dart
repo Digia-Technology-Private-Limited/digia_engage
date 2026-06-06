@@ -4,6 +4,8 @@ import 'package:lottie/lottie.dart';
 
 import '../../../src/framework/internal_widgets/internal_carousel.dart';
 import '../../../src/framework/internal_widgets/internal_video_player.dart';
+import '../action/engage_action_context.dart';
+import '../action/engage_action_handler.dart';
 import '../engage_fonts.dart';
 import 'nudge_content.dart';
 
@@ -99,9 +101,13 @@ final class NudgeButtonRenderer extends NudgeNodeRenderer<NudgeButton> {
         borderRadius: BorderRadius.circular(node.radius),
         clipBehavior: Clip.antiAlias,
         child: InkWell(
-          // TODO(nudge-actions): run node.onClick via the nudge action handler.
-          // See docs/nudge-action-handler-flow.md.
-          onTap: () {},
+          onTap: node.actions.isEmpty
+              ? null
+              : () => EngageActionRunner.shared.run(
+                    node.actions,
+                    EngageActionScope.fromContext(context),
+                    EngageActionContextScope.of(context) ?? EngageActionContext.unknown,
+                  ),
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             child: Center(
@@ -208,11 +214,16 @@ final class NudgeVideoRenderer extends NudgeNodeRenderer<NudgeVideo> {
     final radius =
         node.box.borderRadius > 0 ? BorderRadius.circular(node.box.borderRadius) : BorderRadius.zero;
 
+    // A fixed-height, full-width black box (matching the dashboard preview). The
+    // player keeps its own aspect ratio and is centered; any letterbox is black,
+    // so it reads as one clean video box rather than white gaps around the frame.
     return ClipRRect(
       borderRadius: radius,
-      child: SizedBox(
+      child: Container(
         height: node.height,
         width: double.infinity,
+        color: const Color(0xFF000000),
+        alignment: Alignment.center,
         // `muted` is parsed but InternalVideoPlayer has no volume control yet;
         // chewie plays with its default volume.
         child: InternalVideoPlayer(

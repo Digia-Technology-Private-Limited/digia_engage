@@ -60,6 +60,20 @@ class DialogPresentation implements NudgePresentation {
 
 // ─── frames (composition) ──────────────────────────────────────────────────────
 
+/// The inner content area: surface padding applied **outside** the scroll view
+/// (so it stays fixed, like the dashboard's surface padding), with content
+/// scrolling within it.
+Widget _paddedContent(NudgeSurface surface, Widget child) => Padding(
+      padding: EdgeInsets.all(surface.padding),
+      child: SingleChildScrollView(child: child),
+    );
+
+Widget _closeButton(BuildContext context) => Positioned(
+      top: 12,
+      right: 12,
+      child: _CloseButton(onTap: () => Navigator.of(context).maybePop()),
+    );
+
 class _SheetFrame extends StatelessWidget {
   final NudgeSurface surface;
   final Widget child;
@@ -79,11 +93,18 @@ class _SheetFrame extends StatelessWidget {
         clipBehavior: Clip.antiAlias,
         child: SafeArea(
           top: false,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
+          child: Stack(
             children: [
-              if (surface.showHandle) const _DragHandle(),
-              Flexible(child: _NudgeBody(surface: surface, child: child)),
+              Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // The handle is its own affordance at the very top — distinct
+                  // from the content's inner padding.
+                  if (surface.showHandle) const _DragHandle(),
+                  Flexible(child: _paddedContent(surface, child)),
+                ],
+              ),
+              if (surface.showCloseButton) _closeButton(context),
             ],
           ),
         ),
@@ -110,35 +131,14 @@ class _DialogFrame extends StatelessWidget {
       clipBehavior: Clip.antiAlias,
       child: SizedBox(
         width: width,
-        child: _NudgeBody(surface: surface, child: child),
-      ),
-    );
-  }
-}
-
-/// Padded, scrollable content area shared by both frames, with the optional
-/// close affordance overlaid top-right.
-class _NudgeBody extends StatelessWidget {
-  final NudgeSurface surface;
-  final Widget child;
-
-  const _NudgeBody({required this.surface, required this.child});
-
-  @override
-  Widget build(BuildContext context) {
-    return Stack(
-      children: [
-        SingleChildScrollView(
-          child:
-              Padding(padding: EdgeInsets.all(surface.padding), child: child),
+        // Dialog sizes to content (unbounded height) → content lays out naturally.
+        child: Stack(
+          children: [
+            _paddedContent(surface, child),
+            if (surface.showCloseButton) _closeButton(context),
+          ],
         ),
-        if (surface.showCloseButton)
-          Positioned(
-            top: 12,
-            right: 12,
-            child: _CloseButton(onTap: () => Navigator.of(context).maybePop()),
-          ),
-      ],
+      ),
     );
   }
 }
@@ -148,12 +148,12 @@ class _DragHandle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Container(
-        width: 40,
+        width: 36,
         height: 4,
-        margin: const EdgeInsets.only(top: 10, bottom: 2),
+        margin: const EdgeInsets.only(top: 12, bottom: 8),
         decoration: BoxDecoration(
-          color: const Color(0xFFD0D0D8),
-          borderRadius: BorderRadius.circular(2),
+          color: const Color(0xFFE0E0E6),
+          borderRadius: BorderRadius.circular(100),
         ),
       );
 }

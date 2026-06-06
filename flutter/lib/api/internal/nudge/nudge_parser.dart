@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../action/engage_action_parser.dart';
 import '../campaign/json_util.dart';
 import 'nudge_config.dart';
 import 'nudge_content.dart';
@@ -121,7 +122,7 @@ class NudgeParser {
           const Color(0xFF4945FF),
       textColor: _color(optString(textStyle, 'textColor')) ?? const Color(0xFFFFFFFF),
       radius: optDouble(optMap(props, 'shape') ?? const {}, 'borderRadius', 8),
-      onClick: optMap(props, 'onClick'),
+      actions: const EngageActionParser().parse(optMap(props, 'onClick')),
     );
   }
 
