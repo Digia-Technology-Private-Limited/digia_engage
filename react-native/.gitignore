@@ -1,6 +1,10 @@
 # Dependencies
 node_modules/
 
+# Lockfile — this is a published library; a lib's lockfile is ignored by
+# consumers and only hides dependency-range drift. (Apps DO commit theirs.)
+package-lock.json
+
 # Build output
 lib/
 
