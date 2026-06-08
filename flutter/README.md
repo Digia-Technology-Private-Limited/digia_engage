@@ -1,3 +1,5 @@
+# Digia Engage — Flutter SDK
+
 [![pub.dev](https://img.shields.io/pub/v/digia_engage.svg)](https://pub.dev/packages/digia_engage)
 [![Flutter](https://img.shields.io/badge/Flutter-3.0+-blue.svg)](https://flutter.dev)
 [![License](https://img.shields.io/badge/license-BSL%201.1-green.svg)](LICENSE)
@@ -22,7 +24,7 @@
 
 ```yaml
 dependencies:
-  digia_engage: ^1.1.0
+  digia_engage: ^1.1.2
 ```
 
 ---
@@ -37,8 +39,6 @@ Call once in `main()` before `runApp()`.
 await Digia.initialize(
   DigiaConfig(
     apiKey: 'YOUR_API_KEY',
-    flavor: Flavor.release(),
-    strategy: NetworkFirstStrategy(timeoutInMs: 2000),
   ),
 );
 ```
@@ -103,10 +103,12 @@ Static facade — the single entry point for all SDK calls.
 
 | Property | Type | Description |
 |---|---|---|
-| `apiKey` | `String` | Your Digia project API key. |
-| `flavor` | `Flavor` | `Flavor.release()` or `Flavor.debug()`. |
-| `strategy` | `InitStrategy` | `NetworkFirstStrategy` or `CacheFirstStrategy`. |
-| `environment` | `Environment` | Optional — defaults to production. |
+| `apiKey` | `String` | **Required.** Environment-specific API key from the Digia dashboard. |
+| `environment` | `DigiaEnvironment` | Target environment. Defaults to `DigiaEnvironment.production` (`.sandbox` for testing). |
+| `logLevel` | `DigiaLogLevel` | Log verbosity. Defaults to `DigiaLogLevel.error` (`.none` / `.verbose`). |
+| `baseUrl` | `String?` | Optional override for the engage API host. Derived from `environment` when null. |
+| `fontFamily` | `String?` | Optional global font family applied to all Digia-rendered text. |
+| `onAction` | `EngageActionInterceptor?` | Optional hook to intercept navigation actions (open URL / deep link). Return `true` to handle the link yourself. |
 
 ---
 
@@ -173,22 +175,28 @@ class MyCEPPlugin implements DigiaCEPPlugin {
 
   @override
   void setup(DigiaCEPDelegate delegate) {
-    // Subscribe to in-app events from your CEP SDK and pass payloads
-    // to delegate.onExperienceReady(payload)
+    // Subscribe to in-app campaigns from your CEP SDK and pass payloads to
+    // delegate.onCampaignTriggered(payload). Call
+    // delegate.onCampaignInvalidated(id) when a campaign is no longer valid.
   }
 
   @override
-  void teardown() { /* clean up subscriptions */ }
-
-  @override
-  void notifyEvent(DigiaExperienceEvent event, InAppPayload payload) {
-    // Forward impression/dismiss events back to your CEP
+  void forwardScreen(String name) {
+    // Forward the screen name to your CEP's screen-tracking API
   }
 
   @override
-  void forwardScreen(String screenName) {
-    // Forward screen name to your CEP
+  void notifyEvent(DigiaExperienceEvent event, CEPTriggerPayload payload) {
+    // Forward impression/click/dismiss events back to your CEP
   }
+
+  @override
+  DiagnosticReport healthCheck() {
+    // Return plugin health diagnostics for runtime checks
+  }
+
+  @override
+  void teardown() { /* deregister CEP callbacks, clear the delegate */ }
 }
 ```
 
@@ -202,12 +210,13 @@ Digia.register(MyCEPPlugin());
 
 ## Experience Events
 
-The SDK fires two events during a campaign lifecycle, forwarded to your CEP plugin via `notifyEvent`:
+The SDK fires these events during a campaign lifecycle, forwarded to your CEP plugin via `notifyEvent`:
 
 | Event | When |
 |---|---|
 | `ExperienceImpressed` | The first time a campaign renders (modal shown / slot built) |
-| `ExperienceDismissed` | The user explicitly closes the campaign |
+| `ExperienceClicked` | The user interacts with an actionable element (carries an optional `elementId`) |
+| `ExperienceDismissed` | The experience is dismissed — by the user or programmatically |
 
 ---
 
