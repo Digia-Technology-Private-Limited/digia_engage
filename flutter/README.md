@@ -181,7 +181,7 @@ class MyCEPPlugin implements DigiaCEPPlugin {
   void teardown() { /* clean up subscriptions */ }
 
   @override
-  void notifyEvent(DigiaExperienceEvent event, InAppPayload payload) {
+  void notifyEvent(DigiaExperienceEvent event, CEPTriggerPayload payload) {
     // Forward impression/dismiss events back to your CEP
   }
 
