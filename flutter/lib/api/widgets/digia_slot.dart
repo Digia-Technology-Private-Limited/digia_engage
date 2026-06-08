@@ -6,6 +6,7 @@ import '../internal/action/engage_action_handler.dart';
 import '../internal/campaign/campaign_model.dart';
 import '../internal/campaign/inline_carousel_config.dart';
 import '../internal/digia_instance.dart';
+import '../internal/variable_scope.dart';
 import 'digia_inline_carousel.dart';
 import 'digia_inline_story.dart';
 
@@ -91,8 +92,14 @@ class _DigiaSlotState extends State<DigiaSlot> {
   /// Opens a carousel slide's `deepLink` through the engage action runner, so
   /// the host's `onAction` override is consulted before the SDK's default open.
   void _onCarouselItemTap(CarouselItem item) {
-    final deepLink = item.deepLink;
-    if (deepLink == null || deepLink.isEmpty) return;
+    final rawDeepLink = item.deepLink;
+    if (rawDeepLink == null || rawDeepLink.isEmpty) return;
+    // Resolve `{{ placeholder }}` variables in the deeplink against the slot's
+    // trigger payload before opening it.
+    final variables =
+        DigiaInstance.instance.controller.getSlot(widget.placementKey)?.variables;
+    final deepLink = interpolateVariables(rawDeepLink, variables);
+    if (deepLink.isEmpty) return;
     EngageActionRunner.shared.run(
       [OpenDeeplinkAction(deepLink)],
       EngageActionScope.fromContext(context),
@@ -108,8 +115,11 @@ class _DigiaSlotState extends State<DigiaSlot> {
   Widget build(BuildContext context) {
     switch (_currentConfig) {
       case InlineCarouselCampaignConfig(:final inlineConfig):
+        final payload =
+            DigiaInstance.instance.controller.getSlot(widget.placementKey);
         return DigiaInlineCarousel(
           config: inlineConfig,
+          variables: payload?.variables,
           onItemTap: _onCarouselItemTap,
         );
       case InlineStoryCampaignConfig(:final storyConfig):

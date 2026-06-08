@@ -6,6 +6,7 @@ import '../../internal/action/engage_action.dart';
 import '../../internal/action/engage_action_context.dart';
 import '../../internal/action/engage_action_handler.dart';
 import '../../internal/campaign/inline_story_config.dart';
+import '../../internal/variable_scope.dart';
 
 /// Pushes the full-screen story viewer for [config], starting at [initialIndex].
 ///
@@ -293,7 +294,7 @@ class _DigiaStoryOverlayState extends State<_DigiaStoryOverlay>
                     padding:
                         const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
                     child: _StoryCtaButton(
-                      text: _interpolate(item.ctaText!, widget.variables),
+                      text: interpolateVariables(item.ctaText!, widget.variables),
                       textColor: _parseHexColor(item.ctaTextColor) ??
                           Colors.white,
                       backgroundColor: _parseHexColor(item.ctaBackgroundColor) ??
@@ -477,18 +478,6 @@ class _StoryCtaButton extends StatelessWidget {
       ),
     );
   }
-}
-
-final _placeholderPattern = RegExp(r'\{\{\s*([A-Za-z_][A-Za-z0-9_]*)\s*\}\}');
-
-/// Replaces `{{ name }}` placeholders using [variables] (matches Android's
-/// `interpolate`). Unmatched placeholders collapse to empty strings.
-String _interpolate(String text, Map<String, String>? variables) {
-  if (variables == null || variables.isEmpty) return text;
-  return text.replaceAllMapped(
-    _placeholderPattern,
-    (m) => variables[m.group(1)] ?? '',
-  );
 }
 
 /// Parses `#RRGGBB` or `#AARRGGBB` hex strings. Returns `null` for unparseable

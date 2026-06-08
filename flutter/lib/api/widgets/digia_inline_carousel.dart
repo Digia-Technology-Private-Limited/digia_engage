@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 
 import '../../src/framework/internal_widgets/internal_carousel.dart';
 import '../internal/campaign/inline_carousel_config.dart';
+import '../internal/variable_scope.dart';
 
 /// Renders an [InlineCarouselConfig] as a native image carousel.
 ///
@@ -15,10 +16,15 @@ class DigiaInlineCarousel extends StatelessWidget {
   /// Invoked when a slide is tapped, carrying the slide's `deepLink` (if any).
   final void Function(CarouselItem item)? onItemTap;
 
+  /// Runtime variables from the trigger payload, interpolated into each slide's
+  /// `imageUrl` (`{{ placeholder }}` syntax). Null/empty leaves URLs verbatim.
+  final Map<String, String>? variables;
+
   const DigiaInlineCarousel({
     super.key,
     required this.config,
     this.onItemTap,
+    this.variables,
   });
 
   @override
@@ -27,7 +33,7 @@ class DigiaInlineCarousel extends StatelessWidget {
 
     final slides = config.items.map((item) {
       final image = CachedNetworkImage(
-        imageUrl: item.imageUrl,
+        imageUrl: interpolateVariables(item.imageUrl, variables),
         fit: BoxFit.cover,
         width: double.infinity,
         errorWidget: (_, __, ___) => const SizedBox.shrink(),
