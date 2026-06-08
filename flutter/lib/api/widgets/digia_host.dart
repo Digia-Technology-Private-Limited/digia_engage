@@ -78,6 +78,7 @@ class _DigiaHostState extends State<DigiaHost> {
         case NudgeCampaignConfig(:final nudgeConfig):
           _presentNudge(campaign, nudgeConfig);
         case InlineCarouselCampaignConfig():
+        case InlineStoryCampaignConfig():
           // Inline campaigns are handled by DigiaSlot — nothing to do here.
           _controller.dismiss();
         case UnsupportedCampaignConfig():

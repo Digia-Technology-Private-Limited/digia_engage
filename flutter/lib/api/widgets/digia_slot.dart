@@ -1,8 +1,13 @@
 import 'package:flutter/widgets.dart';
 
+import '../internal/action/engage_action.dart';
+import '../internal/action/engage_action_context.dart';
+import '../internal/action/engage_action_handler.dart';
+import '../internal/campaign/campaign_model.dart';
 import '../internal/campaign/inline_carousel_config.dart';
 import '../internal/digia_instance.dart';
 import 'digia_inline_carousel.dart';
+import 'digia_inline_story.dart';
 
 /// Renders inline campaign content (banners, cards, widgets) at a specific
 /// placement position in scrolling content or screen layouts.
@@ -48,9 +53,10 @@ class DigiaSlot extends StatefulWidget {
 }
 
 class _DigiaSlotState extends State<DigiaSlot> {
-  /// The inline carousel config currently active for this slot, populated when
-  /// a campaign-store-routed inline campaign is triggered.
-  InlineCarouselConfig? _currentConfig;
+  /// The inline campaign config currently active for this slot (carousel or
+  /// story), populated when a campaign-store-routed inline campaign is
+  /// triggered. A slot key only ever holds one inline kind.
+  CampaignConfigModel? _currentConfig;
 
   @override
   void initState() {
@@ -72,20 +78,49 @@ class _DigiaSlotState extends State<DigiaSlot> {
     if (_syncConfig()) setState(() {});
   }
 
-  /// Pulls the latest carousel config for this slot from the controller.
+  /// Pulls the latest inline config for this slot from the controller.
   /// Returns `true` when it changed (a rebuild is needed).
   bool _syncConfig() {
     final config =
-        DigiaInstance.instance.controller.getSlotConfig(widget.placementKey);
+        DigiaInstance.instance.controller.getInlineConfig(widget.placementKey);
     if (identical(config, _currentConfig)) return false;
     _currentConfig = config;
     return true;
   }
 
+  /// Opens a carousel slide's `deepLink` through the engage action runner, so
+  /// the host's `onAction` override is consulted before the SDK's default open.
+  void _onCarouselItemTap(CarouselItem item) {
+    final deepLink = item.deepLink;
+    if (deepLink == null || deepLink.isEmpty) return;
+    EngageActionRunner.shared.run(
+      [OpenDeeplinkAction(deepLink)],
+      EngageActionScope.fromContext(context),
+      const EngageActionContext(
+        campaignId: '',
+        campaignKey: '',
+        surface: EngageSurface.inline,
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    final config = _currentConfig;
-    if (config != null) return DigiaInlineCarousel(config: config);
-    return widget.placeholder ?? const SizedBox.shrink();
+    switch (_currentConfig) {
+      case InlineCarouselCampaignConfig(:final inlineConfig):
+        return DigiaInlineCarousel(
+          config: inlineConfig,
+          onItemTap: _onCarouselItemTap,
+        );
+      case InlineStoryCampaignConfig(:final storyConfig):
+        final payload =
+            DigiaInstance.instance.controller.getSlot(widget.placementKey);
+        return DigiaInlineStory(
+          config: storyConfig,
+          variables: payload?.variables,
+        );
+      case _:
+        return widget.placeholder ?? const SizedBox.shrink();
+    }
   }
 }

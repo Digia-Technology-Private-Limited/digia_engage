@@ -226,10 +226,21 @@ class DigiaInstance with WidgetsBindingObserver implements DigiaCEPDelegate {
     final config = campaign.config;
     switch (config) {
       case InlineCarouselCampaignConfig(:final inlineConfig):
-        _controller.addSlotConfig(inlineConfig, campaignId: campaign.id);
+        _controller.addInlineSlot(inlineConfig.slotKey, config, payload);
         _controller.onEvent?.call(const ExperienceImpressed(), payload);
+        _controller.onEvent?.call(const ExperienceDismissed(), payload);
+
         _logIfVerbose(
           "inline carousel routed to slot '${inlineConfig.slotKey}' "
+          '(campaignKey=${campaign.campaignKey}).',
+        );
+      case InlineStoryCampaignConfig(:final storyConfig):
+        _controller.addInlineSlot(storyConfig.slotKey, config, payload);
+        _controller.onEvent?.call(const ExperienceImpressed(), payload);
+        _controller.onEvent?.call(const ExperienceDismissed(), payload);
+
+        _logIfVerbose(
+          "inline story routed to slot '${storyConfig.slotKey}' "
           '(campaignKey=${campaign.campaignKey}).',
         );
       case NudgeCampaignConfig():
@@ -270,8 +281,8 @@ class DigiaInstance with WidgetsBindingObserver implements DigiaCEPDelegate {
     if (_controller.activePayload?.cepCampaignId == campaignId) {
       _controller.dismiss();
     }
-    // Inline carousel slot config, if this campaign populated one.
-    _controller.removeSlotConfigByCampaignId(campaignId);
+    // Inline slot (carousel or story), if this campaign populated one.
+    _controller.removeInlineSlotByCampaignId(campaignId);
   }
 
   // ─── WidgetsBindingObserver ────────────────────────────────────────────────

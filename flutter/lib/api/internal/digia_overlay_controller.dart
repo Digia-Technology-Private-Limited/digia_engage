@@ -2,7 +2,7 @@ import 'package:flutter/foundation.dart';
 
 import '../models/cep_trigger_payload.dart';
 import '../models/digia_experience_event.dart';
-import 'campaign/inline_carousel_config.dart';
+import 'campaign/campaign_model.dart';
 
 /// Internal controller that coordinates between [DigiaInstance] (imperative)
 /// and [DigiaHost] (declarative widget tree).
@@ -14,22 +14,22 @@ import 'campaign/inline_carousel_config.dart';
 /// Never exposed to app developers.
 class DigiaOverlayController extends ChangeNotifier {
   CEPTriggerPayload? _activePayload;
-  final Map<String, CEPTriggerPayload> _slotPayloads = <String, CEPTriggerPayload>{};
 
-  /// Inline carousel configs keyed by their `slotKey` (the [DigiaSlot]
-  /// placement key). Populated when a campaign-store-routed inline campaign is
-  /// triggered.
-  final Map<String, InlineCarouselConfig> _slotConfigs =
-      <String, InlineCarouselConfig>{};
+  /// Per-slot trigger context, keyed by `slotKey`. Holds the [CEPTriggerPayload]
+  /// — its `cepCampaignId` (used to invalidate the slot) and `variables` (used
+  /// for story CTA copy). It does **not** hold what to render.
+  final Map<String, CEPTriggerPayload> _slotPayloads =
+      <String, CEPTriggerPayload>{};
 
-  /// `slotKey -> campaignId`, so invalidation can clear a slot config by id.
-  final Map<String, String> _slotConfigCampaignIds = <String, String>{};
+  /// Per-slot resolved render config, keyed by `slotKey`. The carousel/story
+  /// config is looked up from the campaign store at trigger time — it is **not**
+  /// part of the payload, so it has to be kept here. One map covers both inline
+  /// kinds (a slot key only ever holds one); [DigiaSlot] switches on the type.
+  final Map<String, CampaignConfigModel> _slotConfigs =
+      <String, CampaignConfigModel>{};
 
   /// The currently active campaign payload, or null when no experience is shown.
   CEPTriggerPayload? get activePayload => _activePayload;
-  Map<String, CEPTriggerPayload> get slotPayloads => Map.unmodifiable(_slotPayloads);
-  Map<String, InlineCarouselConfig> get slotConfigs =>
-      Map.unmodifiable(_slotConfigs);
 
   /// Called by [DigiaInstance] when a new modal experience is ready to render.
   /// Notifies [DigiaHost] to present the overlay.
@@ -45,53 +45,44 @@ class DigiaOverlayController extends ChangeNotifier {
     notifyListeners();
   }
 
-  void addSlot(String placementKey, CEPTriggerPayload payload) {
-    _slotPayloads[placementKey] = payload;
+  // ─── Inline slots (carousel / story — campaign-store routed) ───────────────
+
+  /// Stores the resolved [config] and its trigger [payload] for [slotKey]. The
+  /// payload's `cepCampaignId` is what [removeInlineSlotByCampaignId] matches on,
+  /// so no separate id map is needed.
+  void addInlineSlot(
+    String slotKey,
+    CampaignConfigModel config,
+    CEPTriggerPayload payload,
+  ) {
+    _slotConfigs[slotKey] = config;
+    _slotPayloads[slotKey] = payload;
     notifyListeners();
   }
 
-  CEPTriggerPayload? getSlot(String placementKey) => _slotPayloads[placementKey];
+  /// The render config for [slotKey], or null when no inline campaign is active.
+  CampaignConfigModel? getInlineConfig(String slotKey) => _slotConfigs[slotKey];
 
-  void removeSlotById(String campaignId) {
-    _slotPayloads.removeWhere(
-        (_, payload) => payload.cepCampaignId == campaignId);
-    notifyListeners();
-  }
+  /// The trigger payload for [slotKey] (story CTA variables read this).
+  CEPTriggerPayload? getSlot(String slotKey) => _slotPayloads[slotKey];
 
-  void clearSlots() {
-    _slotPayloads.clear();
-    notifyListeners();
-  }
-
-  // ─── Inline carousel slot configs (campaign-store routed) ──────────────────
-
-  /// Stores [config] for its slot, optionally tagging it with [campaignId] so
-  /// it can later be cleared via [removeSlotConfigByCampaignId].
-  void addSlotConfig(InlineCarouselConfig config, {String? campaignId}) {
-    _slotConfigs[config.slotKey] = config;
-    if (campaignId != null) _slotConfigCampaignIds[config.slotKey] = campaignId;
-    notifyListeners();
-  }
-
-  InlineCarouselConfig? getSlotConfig(String placementKey) =>
-      _slotConfigs[placementKey];
-
-  void removeSlotConfigByCampaignId(String campaignId) {
-    final keys = _slotConfigCampaignIds.entries
-        .where((e) => e.value == campaignId)
+  /// Clears every inline slot whose payload was triggered by [cepCampaignId].
+  void removeInlineSlotByCampaignId(String cepCampaignId) {
+    final keys = _slotPayloads.entries
+        .where((e) => e.value.cepCampaignId == cepCampaignId)
         .map((e) => e.key)
         .toList();
     if (keys.isEmpty) return;
     for (final key in keys) {
       _slotConfigs.remove(key);
-      _slotConfigCampaignIds.remove(key);
+      _slotPayloads.remove(key);
     }
     notifyListeners();
   }
 
-  void clearSlotConfigs() {
+  void clearInlineSlots() {
     _slotConfigs.clear();
-    _slotConfigCampaignIds.clear();
+    _slotPayloads.clear();
     notifyListeners();
   }
 

@@ -1,13 +1,14 @@
 import '../nudge/nudge_config.dart';
 import '../nudge/nudge_parser.dart';
 import 'inline_carousel_config.dart';
+import 'inline_story_config.dart';
 import 'json_util.dart';
 
 /// The parsed, typed config for a campaign.
 ///
 /// Dart port of the Android `CampaignConfigModel` sealed interface. This
-/// Flutter SDK renders inline carousels and nudges (bottom sheet / dialog);
-/// every other type (guide, survey, inline-story) is represented by
+/// Flutter SDK renders inline carousels, inline stories, and nudges (bottom
+/// sheet / dialog); every other type (guide, survey) is represented by
 /// [UnsupportedCampaignConfig] — still kept in the store for routing/
 /// diagnostics, but never rendered.
 sealed class CampaignConfigModel {
@@ -19,6 +20,14 @@ class InlineCarouselCampaignConfig extends CampaignConfigModel {
   final InlineCarouselConfig inlineConfig;
 
   const InlineCarouselCampaignConfig(this.inlineConfig);
+}
+
+/// An inline story campaign, surfaced through a [DigiaSlot] as a row of tappable
+/// story cards that open a full-screen viewer.
+class InlineStoryCampaignConfig extends CampaignConfigModel {
+  final InlineStoryConfig storyConfig;
+
+  const InlineStoryCampaignConfig(this.storyConfig);
 }
 
 /// A nudge campaign — an overlay (bottom sheet / dialog) presented over the app.
@@ -115,9 +124,8 @@ class CampaignConfigFactory {
     final templateConfig = optMap(json, 'templateConfig');
     if (templateConfig == null) return null;
     if (optString(templateConfig, 'templateType', 'carousel') == 'story') {
-      return const UnsupportedCampaignConfig(
-        'inline story rendering is not supported in the Flutter SDK',
-      );
+      final story = InlineStoryConfig.fromJson(templateConfig);
+      return story == null ? null : InlineStoryCampaignConfig(story);
     }
     final inline = InlineCarouselConfig.fromJson(templateConfig);
     return inline == null ? null : InlineCarouselCampaignConfig(inline);
