@@ -8,7 +8,7 @@ Pod::Spec.new do |s|
     (Jetpack Compose) using the New Architecture (TurboModules / Fabric).
   DESC
 
-  s.license          = { :type => 'MIT', :file => '../LICENSE' }
+  s.license          = { :type => 'BUSL-1.1', :file => 'LICENSE' }
 
   s.authors          = { 'Digia Technology Private Limited' => 'https://digia.tech' }
   s.homepage         = 'https://github.com/Digia-Technology-Private-Limited/digia_engage'

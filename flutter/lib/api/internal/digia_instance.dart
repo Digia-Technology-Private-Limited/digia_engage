@@ -2,6 +2,7 @@ import 'package:flutter/widgets.dart';
 
 import '../../digia_engage.dart';
 import '../../digia_ui.dart';
+import '../../src/analytics/analytics_service.dart';
 import '../../src/preferences_store.dart';
 import 'action/engage_action_handler.dart';
 import 'campaign/campaign_fetcher.dart';
@@ -109,7 +110,19 @@ class DigiaInstance with WidgetsBindingObserver implements DigiaCEPDelegate {
 
       // Wire the event callback — when DigiaHost reports a user interaction,
       // route it to the active plugin.
-      _controller.onEvent = (event, payload) {
+      _controller.onEvent = (event, payload) async {
+        final campaign = _campaignStore.find(payload.campaignKey);
+        await DigiaAnalyticsService.instance.captureExperienceEvent(
+          event,
+          payload,
+          campaignType: campaign?.campaignType,
+          campaignId: campaign?.id,
+        );
+
+        if (event.flushOnCapture) {
+          await DigiaAnalyticsService.instance.flush();
+        }
+
         _activePlugin?.notifyEvent(event, payload);
       };
 
@@ -118,6 +131,8 @@ class DigiaInstance with WidgetsBindingObserver implements DigiaCEPDelegate {
 
       // ── Fetch + cache engage campaigns ──────────────────────────────────
       await PreferencesStore.instance.initialize();
+      await DigiaAnalyticsService.instance
+          .initialize(config.analyticsConfig, config.apiKey);
       final deviceId = DUISettings.instance.getUuid();
       final campaigns = await CampaignFetcher(config, deviceId).fetch();
       _campaignStore.populate(campaigns);
@@ -162,6 +177,38 @@ class DigiaInstance with WidgetsBindingObserver implements DigiaCEPDelegate {
     }
     _activePlugin!.forwardScreen(name);
     _logIfVerbose('Screen forwarded to plugin: $name');
+  }
+
+  Future<void> setUserId(String userId) async {
+    if (!_initialized) {
+      debugPrint('[Digia] setUserId() called before initialize().');
+      return;
+    }
+    await DigiaAnalyticsService.instance.setUserId(userId);
+  }
+
+  Future<void> clearUserId() async {
+    if (!_initialized) {
+      debugPrint('[Digia] clearUserId() called before initialize().');
+      return;
+    }
+    await DigiaAnalyticsService.instance.clearUserId();
+  }
+
+  String getAnonymousId() {
+    if (!_initialized) {
+      debugPrint('[Digia] getAnonymousId() called before initialize().');
+      return '';
+    }
+    return DigiaAnalyticsService.instance.getAnonymousId();
+  }
+
+  Future<void> flushAnalytics() async {
+    if (!_initialized) {
+      debugPrint('[Digia] flushAnalytics() called before initialize().');
+      return;
+    }
+    await DigiaAnalyticsService.instance.flush();
   }
 
   // ─── Host mount tracking ───────────────────────────────────────────────────
@@ -290,6 +337,7 @@ class DigiaInstance with WidgetsBindingObserver implements DigiaCEPDelegate {
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     // detached = permanent process destruction. Not paused (every background).
+    DigiaAnalyticsService.instance.appLifecycleChanged(state);
     if (state == AppLifecycleState.detached) {
       _activePlugin?.teardown();
       _activePlugin = null;

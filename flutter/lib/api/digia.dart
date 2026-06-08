@@ -84,4 +84,30 @@ abstract final class Digia {
   static void setCurrentScreen(String name) {
     DigiaInstance.instance.setCurrentScreen(name);
   }
+
+  /// Associates a host user identifier with the current install.
+  ///
+  /// The identifier is persisted and attached to analytics events
+  /// captured after this call. Use [clearUserId] to remove it.
+  static Future<void> setUserId(String userId) {
+    return DigiaInstance.instance.setUserId(userId);
+  }
+
+  /// Clears the persisted user identifier.
+  ///
+  /// This preserves the install's anonymous identifier but resets
+  /// the analytics session for the next event.
+  static Future<void> clearUserId() {
+    return DigiaInstance.instance.clearUserId();
+  }
+
+  /// Returns the current anonymous identifier for this install.
+  static String getAnonymousId() {
+    return DigiaInstance.instance.getAnonymousId();
+  }
+
+  /// Flushes any queued analytics events immediately.
+  static Future<void> flushAnalytics() {
+    return DigiaInstance.instance.flushAnalytics();
+  }
 }

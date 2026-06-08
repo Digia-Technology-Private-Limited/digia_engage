@@ -3,6 +3,7 @@ import '../../../src/init/environment.dart';
 import '../../../src/init/flavor.dart';
 import '../../../src/init/options.dart';
 import '../internal/action/engage_action_context.dart';
+import 'analytics_config.dart';
 
 /// Log verbosity levels for the Digia SDK.
 enum DigiaLogLevel {
@@ -73,6 +74,10 @@ class DigiaConfig {
   /// Mirrors React Native's `onAction`.
   final EngageActionInterceptor? onAction;
 
+  /// Analytics collection and dispatch configuration.
+  /// Defaults to [DigiaAnalyticsConfig] with standard production settings.
+  final DigiaAnalyticsConfig analyticsConfig;
+
   DigiaConfig({
     required this.apiKey,
     this.logLevel = DigiaLogLevel.error,
@@ -80,6 +85,7 @@ class DigiaConfig {
     this.baseUrl,
     this.fontFamily,
     this.onAction,
+    this.analyticsConfig = const DigiaAnalyticsConfig(),
   });
 
   /// Builds the internal [DigiaUIOptions] used by [DigiaUI.initialize].
