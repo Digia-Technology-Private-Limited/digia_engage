@@ -24,7 +24,7 @@
 
 ```yaml
 dependencies:
-  digia_engage: ^1.1.2
+  digia_engage: ^1.2.0
 ```
 
 ---
@@ -48,7 +48,7 @@ await Digia.initialize(
 After your CEP SDK is ready, register its adapter:
 
 ```dart
-Digia.register(MoEngagePlugin(instance: moEngageInstance));
+Digia.register(CEPPlugin(instance: cepInstance));
 ```
 
 ### 3. Add `DigiaHost` and `DigiaNavigatorObserver`
@@ -161,62 +161,6 @@ Automatically reports the current route name to the CEP as a screen-change event
 ```dart
 navigatorObservers: [DigiaNavigatorObserver()]
 ```
-
----
-
-## CEP Plugin Interface
-
-To connect a new CEP, implement `DigiaCEPPlugin`:
-
-```dart
-class MyCEPPlugin implements DigiaCEPPlugin {
-  @override
-  String get identifier => 'my_cep';
-
-  @override
-  void setup(DigiaCEPDelegate delegate) {
-    // Subscribe to in-app campaigns from your CEP SDK and pass payloads to
-    // delegate.onCampaignTriggered(payload). Call
-    // delegate.onCampaignInvalidated(id) when a campaign is no longer valid.
-  }
-
-  @override
-  void forwardScreen(String name) {
-    // Forward the screen name to your CEP's screen-tracking API
-  }
-
-  @override
-  void notifyEvent(DigiaExperienceEvent event, CEPTriggerPayload payload) {
-    // Forward impression/click/dismiss events back to your CEP
-  }
-
-  @override
-  DiagnosticReport healthCheck() {
-    // Return plugin health diagnostics for runtime checks
-  }
-
-  @override
-  void teardown() { /* deregister CEP callbacks, clear the delegate */ }
-}
-```
-
-Then register it:
-
-```dart
-Digia.register(MyCEPPlugin());
-```
-
----
-
-## Experience Events
-
-The SDK fires these events during a campaign lifecycle, forwarded to your CEP plugin via `notifyEvent`:
-
-| Event | When |
-|---|---|
-| `ExperienceImpressed` | The first time a campaign renders (modal shown / slot built) |
-| `ExperienceClicked` | The user interacts with an actionable element (carries an optional `elementId`) |
-| `ExperienceDismissed` | The experience is dismissed — by the user or programmatically |
 
 ---
 
