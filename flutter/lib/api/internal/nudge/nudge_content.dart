@@ -50,6 +50,21 @@ class NudgeBox {
   });
 
   static const none = NudgeBox();
+
+  /// A copy with the fixed height cleared — used when another mechanism (e.g. an
+  /// image's aspect ratio) owns the height and the box must not clamp it.
+  NudgeBox withoutFixedHeight() => NudgeBox(
+        fillWidth: fillWidth,
+        fixedWidth: fixedWidth,
+        fixedHeight: null,
+        background: background,
+        padding: padding,
+        margin: margin,
+        borderRadius: borderRadius,
+        borderColor: borderColor,
+        borderWidth: borderWidth,
+        selfAlign: selfAlign,
+      );
 }
 
 // ─── nodes (sealed → exhaustive, type-safe rendering) ────────────────────────

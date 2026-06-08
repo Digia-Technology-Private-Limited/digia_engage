@@ -107,12 +107,18 @@ class NudgeParser {
     );
   }
 
-  static NudgeNode _image(NudgeBox box, Map<String, dynamic> props) => NudgeImage(
-        box,
-        url: optString(optMap(props, 'src') ?? const {}, 'imageSrc'),
-        fit: _boxFit(optString(props, 'fit', 'cover')),
-        aspectRatio: optDouble(props, 'aspectRatio', 0),
-      );
+  static NudgeNode _image(NudgeBox box, Map<String, dynamic> props) {
+    final aspectRatio = optDouble(props, 'aspectRatio', 0);
+    // Aspect ratio owns the height; ignore any fixed box height (older payloads
+    // may carry a stale one) so the AspectRatio fills the width instead of being
+    // clamped to a small fixed-height box.
+    return NudgeImage(
+      aspectRatio > 0 ? box.withoutFixedHeight() : box,
+      url: optString(optMap(props, 'src') ?? const {}, 'imageSrc'),
+      fit: _boxFit(optString(props, 'fit', 'cover')),
+      aspectRatio: aspectRatio,
+    );
+  }
 
   static NudgeNode _button(NudgeBox box, Map<String, dynamic> props) {
     final text = optMap(props, 'text') ?? const {};
