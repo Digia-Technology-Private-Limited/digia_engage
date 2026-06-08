@@ -1,3 +1,4 @@
+import 'analytics_config.dart';
 import '../../../src/dui_dev_config.dart';
 import '../../../src/init/environment.dart';
 import '../../../src/init/flavor.dart';
@@ -88,6 +89,10 @@ class DigiaConfig {
   /// base URL when omitted.
   final DeveloperConfig? developerConfig;
 
+  /// Optional analytics configuration for event batching, queueing, and
+  /// endpoint settings.
+  final DigiaAnalyticsConfig analyticsConfig;
+
   DigiaConfig({
     required this.apiKey,
     this.logLevel = DigiaLogLevel.error,
@@ -95,7 +100,9 @@ class DigiaConfig {
     Flavor? flavor,
     this.networkConfiguration,
     this.developerConfig,
-  }) : flavor = flavor ??
+    DigiaAnalyticsConfig? analyticsConfig,
+  })  : analyticsConfig = analyticsConfig ?? const DigiaAnalyticsConfig(),
+        flavor = flavor ??
             Flavor.debug(
               environment: environment == DigiaEnvironment.production
                   ? Environment.production

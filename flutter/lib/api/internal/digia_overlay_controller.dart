@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 
 import '../models/digia_experience_event.dart';
@@ -54,5 +56,5 @@ class DigiaOverlayController extends ChangeNotifier {
   /// Set by [DigiaInstance] at init time.
   /// [DigiaHost] calls this when a user interaction event occurs.
   /// [DigiaInstance] handles the event and forwards it to the active plugin.
-  void Function(DigiaExperienceEvent, InAppPayload)? onEvent;
+  FutureOr<void> Function(DigiaExperienceEvent, InAppPayload)? onEvent;
 }
