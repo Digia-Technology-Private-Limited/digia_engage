@@ -34,6 +34,7 @@ class BottomSheetPresentation implements NudgePresentation {
       isDismissible: surface.backdropDismissible,
       enableDrag: surface.draggable,
       backgroundColor: Colors.transparent,
+      useSafeArea: true,
       // null lets the framework apply its own default scrim.
       barrierColor: surface.barrierColor,
       builder: (_) => _SheetFrame(surface: surface, child: content),
@@ -88,16 +89,16 @@ class _SheetFrame extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final radius = Radius.circular(surface.cornerRadius);
-    return Padding(
-      padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
-      child: Container(
-        decoration: BoxDecoration(
-          color: surface.backgroundColor ?? Colors.white,
-          borderRadius: BorderRadius.vertical(top: radius),
-        ),
-        clipBehavior: Clip.antiAlias,
-        child: SafeArea(
-          top: false,
+    return SafeArea(
+      child: Padding(
+        padding:
+            EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
+        child: Container(
+          decoration: BoxDecoration(
+            color: surface.backgroundColor ?? Colors.white,
+            borderRadius: BorderRadius.vertical(top: radius),
+          ),
+          clipBehavior: Clip.antiAlias,
           child: Stack(
             children: [
               Column(
@@ -127,9 +128,10 @@ class _DialogFrame extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final width = MediaQuery.sizeOf(context).width * surface.widthFraction;
+
     return Dialog(
       backgroundColor: surface.backgroundColor ?? Colors.white,
-      insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+      insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(surface.cornerRadius),
       ),

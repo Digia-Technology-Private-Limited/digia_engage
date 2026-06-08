@@ -89,8 +89,8 @@ final class NudgeImageRenderer extends NudgeNodeRenderer<NudgeImage> {
         child: Image.network(
           node.url,
           fit: node.fit,
-          width: double.infinity,
-          height: double.infinity,
+          // width: double.maxFinite,
+          // height: double.infinity,
           errorBuilder: (_, __, ___) => _placeholder(node),
         ),
       );
@@ -111,7 +111,8 @@ final class NudgeImageRenderer extends NudgeNodeRenderer<NudgeImage> {
         child: const NudgePlaceholder(label: 'Image', height: double.infinity),
       );
     }
-    return NudgePlaceholder(label: 'No image URL', height: node.box.fixedHeight ?? 120);
+    return NudgePlaceholder(
+        label: 'No image URL', height: node.box.fixedHeight ?? 120);
   }
 }
 
@@ -145,7 +146,8 @@ final class NudgeButtonRenderer extends NudgeNodeRenderer<NudgeButton> {
             : () => EngageActionRunner.shared.run(
                   node.actions,
                   EngageActionScope.fromContext(context),
-                  EngageActionContextScope.of(context) ?? EngageActionContext.unknown,
+                  EngageActionContextScope.of(context) ??
+                      EngageActionContext.unknown,
                 ),
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -171,7 +173,8 @@ final class NudgeGapRenderer extends NudgeNodeRenderer<NudgeGap> {
   const NudgeGapRenderer();
 
   @override
-  Widget render(NudgeGap node, BuildContext context) => SizedBox(height: node.height);
+  Widget render(NudgeGap node, BuildContext context) =>
+      SizedBox(height: node.height);
 }
 
 final class NudgeDividerRenderer extends NudgeNodeRenderer<NudgeDivider> {
@@ -212,8 +215,9 @@ final class NudgeCarouselRenderer extends NudgeNodeRenderer<NudgeCarousel> {
     if (node.images.isEmpty) {
       return NudgePlaceholder(label: 'No images', height: node.height);
     }
-    final radius =
-        node.box.borderRadius > 0 ? BorderRadius.circular(node.box.borderRadius) : BorderRadius.zero;
+    final radius = node.box.borderRadius > 0
+        ? BorderRadius.circular(node.box.borderRadius)
+        : BorderRadius.zero;
 
     final slides = node.images
         .map((url) => ClipRRect(
@@ -251,8 +255,9 @@ final class NudgeVideoRenderer extends NudgeNodeRenderer<NudgeVideo> {
     if (node.url.isEmpty) {
       return NudgePlaceholder(label: 'No video URL', height: node.height);
     }
-    final radius =
-        node.box.borderRadius > 0 ? BorderRadius.circular(node.box.borderRadius) : BorderRadius.zero;
+    final radius = node.box.borderRadius > 0
+        ? BorderRadius.circular(node.box.borderRadius)
+        : BorderRadius.zero;
 
     // A fixed-height, full-width black box (matching the dashboard preview). The
     // player keeps its own aspect ratio and is centered; any letterbox is black,
@@ -282,7 +287,8 @@ class NudgePlaceholder extends StatelessWidget {
   final String label;
   final double height;
 
-  const NudgePlaceholder({required this.label, required this.height, super.key});
+  const NudgePlaceholder(
+      {required this.label, required this.height, super.key});
 
   @override
   Widget build(BuildContext context) => Container(
@@ -293,6 +299,7 @@ class NudgePlaceholder extends StatelessWidget {
           color: const Color(0xFFF1F1F5),
           borderRadius: BorderRadius.circular(8),
         ),
-        child: Text(label, style: const TextStyle(fontSize: 11, color: Color(0xFF9A9AAD))),
+        child: Text(label,
+            style: const TextStyle(fontSize: 11, color: Color(0xFF9A9AAD))),
       );
 }
