@@ -36,8 +36,8 @@ abstract final class Digia {
   /// `runApp()` — and `await` the result before any other Digia call.
   ///
   /// Internally this starts the real src services: SharedPreferences,
-  /// NetworkClient, DSL config loading (remote or local asset depending on
-  /// the [DigiaConfig.flavor]), and wires [DigiaUIManager].
+  /// NetworkClient, DSL config loading, fetches engage campaigns, and wires
+  /// [DigiaUIManager].
   ///
   /// The SDK enters degraded mode if [register] is not subsequently called:
   /// all calls are accepted and logged, but no experiences are displayed.
