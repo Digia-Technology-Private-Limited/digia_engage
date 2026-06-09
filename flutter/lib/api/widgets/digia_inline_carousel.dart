@@ -13,27 +13,31 @@ import '../internal/variable_scope.dart';
 class DigiaInlineCarousel extends StatelessWidget {
   final InlineCarouselConfig config;
 
-  /// Invoked when a slide is tapped, carrying the slide's `deepLink` (if any).
+  /// Invoked when a slide is tapped, carrying the slide with its `{{ }}`
+  /// placeholders already resolved against the active [VariableScope].
   final void Function(CarouselItem item)? onItemTap;
-
-  /// Runtime variables from the trigger payload, interpolated into each slide's
-  /// `imageUrl` (`{{ placeholder }}` syntax). Null/empty leaves URLs verbatim.
-  final Map<String, String>? variables;
 
   const DigiaInlineCarousel({
     super.key,
     required this.config,
     this.onItemTap,
-    this.variables,
   });
 
   @override
   Widget build(BuildContext context) {
     final indicator = config.indicator;
+    // Variables come from the [VariableScopeProvider] that DigiaSlot places
+    // above this widget — both the image URL and the tapped deeplink resolve
+    // against it (`{{ placeholder }}` syntax).
+    final scope = VariableScopeProvider.of(context);
 
     final slides = config.items.map((item) {
+      final resolved = CarouselItem(
+        imageUrl: scope.resolve(item.imageUrl),
+        deepLink: item.deepLink == null ? null : scope.resolve(item.deepLink!),
+      );
       final image = CachedNetworkImage(
-        imageUrl: interpolateVariables(item.imageUrl, variables),
+        imageUrl: resolved.imageUrl,
         fit: BoxFit.cover,
         width: double.infinity,
         errorWidget: (_, __, ___) => const SizedBox.shrink(),
@@ -42,7 +46,7 @@ class DigiaInlineCarousel extends StatelessWidget {
       if (onItemTap == null) return image;
       return GestureDetector(
         behavior: HitTestBehavior.opaque,
-        onTap: () => onItemTap!.call(item),
+        onTap: () => onItemTap!.call(resolved),
         child: image,
       );
     }).toList();
