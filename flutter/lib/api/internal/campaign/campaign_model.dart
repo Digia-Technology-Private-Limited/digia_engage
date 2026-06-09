@@ -12,14 +12,26 @@ import 'json_util.dart';
 /// [UnsupportedCampaignConfig] — still kept in the store for routing/
 /// diagnostics, but never rendered.
 sealed class CampaignConfigModel {
-  const CampaignConfigModel();
+  /// Dashboard-declared variable defaults (`templateConfig.variables`), shared
+  /// by every campaign type. When a render scope is built, the CEP trigger
+  /// payload's variables are layered on top of these (CEP wins), so a `{{ }}`
+  /// placeholder falls back to its dashboard default when the trigger omits it.
+  /// Values keep their JSON type and are stringified only at substitution.
+  final Map<String, dynamic> defaultVariables;
+
+  const CampaignConfigModel({
+    this.defaultVariables = const <String, dynamic>{},
+  });
 }
 
 /// An inline carousel campaign, surfaced through a [DigiaSlot].
 class InlineCarouselCampaignConfig extends CampaignConfigModel {
   final InlineCarouselConfig inlineConfig;
 
-  const InlineCarouselCampaignConfig(this.inlineConfig);
+  const InlineCarouselCampaignConfig(
+    this.inlineConfig, {
+    super.defaultVariables,
+  });
 }
 
 /// An inline story campaign, surfaced through a [DigiaSlot] as a row of tappable
@@ -27,14 +39,20 @@ class InlineCarouselCampaignConfig extends CampaignConfigModel {
 class InlineStoryCampaignConfig extends CampaignConfigModel {
   final InlineStoryConfig storyConfig;
 
-  const InlineStoryCampaignConfig(this.storyConfig);
+  const InlineStoryCampaignConfig(
+    this.storyConfig, {
+    super.defaultVariables,
+  });
 }
 
 /// A nudge campaign — an overlay (bottom sheet / dialog) presented over the app.
 class NudgeCampaignConfig extends CampaignConfigModel {
   final NudgeConfig nudgeConfig;
 
-  const NudgeCampaignConfig(this.nudgeConfig);
+  const NudgeCampaignConfig(
+    this.nudgeConfig, {
+    super.defaultVariables,
+  });
 }
 
 /// A campaign whose type is recognised but not rendered by the Flutter SDK.
@@ -123,18 +141,33 @@ class CampaignConfigFactory {
   static CampaignConfigModel? _inline(Map<String, dynamic> json) {
     final templateConfig = optMap(json, 'templateConfig');
     if (templateConfig == null) return null;
+    final variables = _declaredVariables(templateConfig);
     if (optString(templateConfig, 'templateType', 'carousel') == 'story') {
       final story = InlineStoryConfig.fromJson(templateConfig);
-      return story == null ? null : InlineStoryCampaignConfig(story);
+      return story == null
+          ? null
+          : InlineStoryCampaignConfig(story, defaultVariables: variables);
     }
     final inline = InlineCarouselConfig.fromJson(templateConfig);
-    return inline == null ? null : InlineCarouselCampaignConfig(inline);
+    return inline == null
+        ? null
+        : InlineCarouselCampaignConfig(inline, defaultVariables: variables);
   }
 
   static CampaignConfigModel? _nudge(Map<String, dynamic> json) {
     final templateConfig = optMap(json, 'templateConfig');
     if (templateConfig == null) return null;
     final nudge = const NudgeParser().parse(templateConfig);
-    return nudge == null ? null : NudgeCampaignConfig(nudge);
+    return nudge == null
+        ? null
+        : NudgeCampaignConfig(nudge,
+            defaultVariables: _declaredVariables(templateConfig));
   }
+
+  /// The dashboard-declared variable defaults block on a `templateConfig`, or an
+  /// empty map when absent. Values keep their JSON type (stringified later, at
+  /// interpolation), so a declared `count: 3` survives as a number here.
+  static Map<String, dynamic> _declaredVariables(
+          Map<String, dynamic> templateConfig) =>
+      optMap(templateConfig, 'variables') ?? const <String, dynamic>{};
 }

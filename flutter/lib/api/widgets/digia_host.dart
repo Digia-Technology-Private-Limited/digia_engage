@@ -6,6 +6,7 @@ import '../internal/digia_instance.dart';
 import '../internal/digia_overlay_controller.dart';
 import '../internal/nudge/nudge_config.dart';
 import '../internal/nudge/nudge_presenter.dart';
+import '../internal/variable_scope.dart';
 import '../models/digia_experience_event.dart';
 
 /// Wraps the application root and renders in-app message overlays
@@ -105,6 +106,11 @@ class _DigiaHostState extends State<DigiaHost> {
         campaignKey: campaign.campaignKey,
         surface: EngageSurface.nudge,
       ),
+      // Dashboard-declared defaults first, CEP trigger variables layered on top.
+      scope: VariableScope({
+        ...campaign.config.defaultVariables,
+        ...?payload.variables,
+      }),
     ).whenComplete(() {
       _controller.onEvent?.call(const ExperienceDismissed(), payload);
       _controller.dismiss();

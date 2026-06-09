@@ -6,6 +6,7 @@ import '../internal/action/engage_action_handler.dart';
 import '../internal/campaign/campaign_model.dart';
 import '../internal/campaign/inline_carousel_config.dart';
 import '../internal/digia_instance.dart';
+import '../internal/variable_scope.dart';
 import 'digia_inline_carousel.dart';
 import 'digia_inline_story.dart';
 
@@ -91,6 +92,8 @@ class _DigiaSlotState extends State<DigiaSlot> {
   /// Opens a carousel slide's `deepLink` through the engage action runner, so
   /// the host's `onAction` override is consulted before the SDK's default open.
   void _onCarouselItemTap(CarouselItem item) {
+    // The deeplink arrives already resolved against the slot's [VariableScope]
+    // (see DigiaInlineCarousel), so it only needs to be opened here.
     final deepLink = item.deepLink;
     if (deepLink == null || deepLink.isEmpty) return;
     EngageActionRunner.shared.run(
@@ -104,21 +107,34 @@ class _DigiaSlotState extends State<DigiaSlot> {
     );
   }
 
+  /// Wraps inline content in the slot's [VariableScope], built from the trigger
+  /// payload's variables, so descendants resolve `{{ placeholder }}` copy
+  /// through [VariableScopeProvider] (same mechanism as nudges).
+  Widget _scoped(Widget child) {
+    final payload =
+        DigiaInstance.instance.controller.getSlot(widget.placementKey);
+    // Dashboard-declared defaults first, CEP trigger variables layered on top.
+    return VariableScopeProvider(
+      scope: VariableScope({
+        ...?_currentConfig?.defaultVariables,
+        ...?payload?.variables,
+      }),
+      child: child,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     switch (_currentConfig) {
       case InlineCarouselCampaignConfig(:final inlineConfig):
-        return DigiaInlineCarousel(
-          config: inlineConfig,
-          onItemTap: _onCarouselItemTap,
+        return _scoped(
+          DigiaInlineCarousel(
+            config: inlineConfig,
+            onItemTap: _onCarouselItemTap,
+          ),
         );
       case InlineStoryCampaignConfig(:final storyConfig):
-        final payload =
-            DigiaInstance.instance.controller.getSlot(widget.placementKey);
-        return DigiaInlineStory(
-          config: storyConfig,
-          variables: payload?.variables,
-        );
+        return _scoped(DigiaInlineStory(config: storyConfig));
       case _:
         return widget.placeholder ?? const SizedBox.shrink();
     }

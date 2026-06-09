@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 
 import '../../src/framework/internal_widgets/internal_carousel.dart';
 import '../internal/campaign/inline_carousel_config.dart';
+import '../internal/variable_scope.dart';
 
 /// Renders an [InlineCarouselConfig] as a native image carousel.
 ///
@@ -12,7 +13,8 @@ import '../internal/campaign/inline_carousel_config.dart';
 class DigiaInlineCarousel extends StatelessWidget {
   final InlineCarouselConfig config;
 
-  /// Invoked when a slide is tapped, carrying the slide's `deepLink` (if any).
+  /// Invoked when a slide is tapped, carrying the slide with its `{{ }}`
+  /// placeholders already resolved against the active [VariableScope].
   final void Function(CarouselItem item)? onItemTap;
 
   const DigiaInlineCarousel({
@@ -24,10 +26,18 @@ class DigiaInlineCarousel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final indicator = config.indicator;
+    // Variables come from the [VariableScopeProvider] that DigiaSlot places
+    // above this widget — both the image URL and the tapped deeplink resolve
+    // against it (`{{ placeholder }}` syntax).
+    final scope = VariableScopeProvider.of(context);
 
     final slides = config.items.map((item) {
+      final resolved = CarouselItem(
+        imageUrl: scope.resolve(item.imageUrl),
+        deepLink: item.deepLink == null ? null : scope.resolve(item.deepLink!),
+      );
       final image = CachedNetworkImage(
-        imageUrl: item.imageUrl,
+        imageUrl: resolved.imageUrl,
         fit: BoxFit.cover,
         width: double.infinity,
         errorWidget: (_, __, ___) => const SizedBox.shrink(),
@@ -36,7 +46,7 @@ class DigiaInlineCarousel extends StatelessWidget {
       if (onItemTap == null) return image;
       return GestureDetector(
         behavior: HitTestBehavior.opaque,
-        onTap: () => onItemTap!.call(item),
+        onTap: () => onItemTap!.call(resolved),
         child: image,
       );
     }).toList();

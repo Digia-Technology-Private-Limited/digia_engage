@@ -7,6 +7,7 @@ import '../../../src/framework/internal_widgets/internal_video_player.dart';
 import '../action/engage_action_context.dart';
 import '../action/engage_action_handler.dart';
 import '../engage_fonts.dart';
+import '../variable_scope.dart';
 import 'nudge_content.dart';
 
 /// Strategy (GoF): renders a single kind of [NudgeNode] to a Flutter widget.
@@ -62,7 +63,7 @@ final class NudgeTextRenderer extends NudgeNodeRenderer<NudgeText> {
 
   @override
   Widget render(NudgeText node, BuildContext context) => Text(
-        node.text,
+        VariableScopeProvider.of(context).resolve(node.text),
         textAlign: node.align,
         style: TextStyle(
           fontSize: node.fontSize,
@@ -78,7 +79,8 @@ final class NudgeImageRenderer extends NudgeNodeRenderer<NudgeImage> {
 
   @override
   Widget render(NudgeImage node, BuildContext context) {
-    if (node.url.isEmpty) {
+    final url = VariableScopeProvider.of(context).resolve(node.url);
+    if (url.isEmpty) {
       return _placeholder(node);
     }
     // Aspect ratio (when set) drives the height; otherwise use the box's fixed
@@ -87,7 +89,7 @@ final class NudgeImageRenderer extends NudgeNodeRenderer<NudgeImage> {
       return AspectRatio(
         aspectRatio: node.aspectRatio,
         child: Image.network(
-          node.url,
+          url,
           fit: node.fit,
           // width: double.maxFinite,
           // height: double.infinity,
@@ -96,7 +98,7 @@ final class NudgeImageRenderer extends NudgeNodeRenderer<NudgeImage> {
       );
     }
     return Image.network(
-      node.url,
+      url,
       fit: node.fit,
       width: node.box.fillWidth ? double.infinity : null,
       height: node.box.fixedHeight,
@@ -154,7 +156,7 @@ final class NudgeButtonRenderer extends NudgeNodeRenderer<NudgeButton> {
           child: Center(
             widthFactor: node.box.fillWidth ? null : 1,
             child: Text(
-              node.label,
+              VariableScopeProvider.of(context).resolve(node.label),
               style: TextStyle(
                 color: foreground,
                 fontSize: node.fontSize,
@@ -192,11 +194,12 @@ final class NudgeLottieRenderer extends NudgeNodeRenderer<NudgeLottie> {
 
   @override
   Widget render(NudgeLottie node, BuildContext context) {
-    if (node.url.isEmpty) {
+    final url = VariableScopeProvider.of(context).resolve(node.url);
+    if (url.isEmpty) {
       return NudgePlaceholder(label: 'No Lottie URL', height: node.height);
     }
     return Lottie.network(
-      node.url,
+      url,
       height: node.height,
       repeat: node.loop,
       animate: node.autoplay,
@@ -212,14 +215,19 @@ final class NudgeCarouselRenderer extends NudgeNodeRenderer<NudgeCarousel> {
 
   @override
   Widget render(NudgeCarousel node, BuildContext context) {
-    if (node.images.isEmpty) {
+    final scope = VariableScopeProvider.of(context);
+    final images = node.images
+        .map(scope.resolve)
+        .where((url) => url.isNotEmpty)
+        .toList();
+    if (images.isEmpty) {
       return NudgePlaceholder(label: 'No images', height: node.height);
     }
     final radius = node.box.borderRadius > 0
         ? BorderRadius.circular(node.box.borderRadius)
         : BorderRadius.zero;
 
-    final slides = node.images
+    final slides = images
         .map((url) => ClipRRect(
               borderRadius: radius,
               child: CachedNetworkImage(
@@ -252,7 +260,8 @@ final class NudgeVideoRenderer extends NudgeNodeRenderer<NudgeVideo> {
 
   @override
   Widget render(NudgeVideo node, BuildContext context) {
-    if (node.url.isEmpty) {
+    final url = VariableScopeProvider.of(context).resolve(node.url);
+    if (url.isEmpty) {
       return NudgePlaceholder(label: 'No video URL', height: node.height);
     }
     final radius = node.box.borderRadius > 0
@@ -272,7 +281,7 @@ final class NudgeVideoRenderer extends NudgeNodeRenderer<NudgeVideo> {
         // `muted` is parsed but InternalVideoPlayer has no volume control yet;
         // chewie plays with its default volume.
         child: InternalVideoPlayer(
-          videoUrl: node.url,
+          videoUrl: url,
           autoPlay: node.autoplay,
           looping: node.loop,
           showControls: node.showControls,
