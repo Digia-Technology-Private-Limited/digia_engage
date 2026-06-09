@@ -1,3 +1,5 @@
+# Digia Engage — Flutter SDK
+
 [![pub.dev](https://img.shields.io/pub/v/digia_engage.svg)](https://pub.dev/packages/digia_engage)
 [![Flutter](https://img.shields.io/badge/Flutter-3.0+-blue.svg)](https://flutter.dev)
 [![License](https://img.shields.io/badge/license-BSL%201.1-green.svg)](LICENSE)
@@ -22,7 +24,7 @@
 
 ```yaml
 dependencies:
-  digia_engage: ^1.1.0
+  digia_engage: ^1.2.0
 ```
 
 ---
@@ -37,8 +39,6 @@ Call once in `main()` before `runApp()`.
 await Digia.initialize(
   DigiaConfig(
     apiKey: 'YOUR_API_KEY',
-    flavor: Flavor.release(),
-    strategy: NetworkFirstStrategy(timeoutInMs: 2000),
   ),
 );
 ```
@@ -48,7 +48,7 @@ await Digia.initialize(
 After your CEP SDK is ready, register its adapter:
 
 ```dart
-Digia.register(MoEngagePlugin(instance: moEngageInstance));
+Digia.register(CEPPlugin(instance: cepInstance));
 ```
 
 ### 3. Add `DigiaHost` and `DigiaNavigatorObserver`
@@ -103,10 +103,12 @@ Static facade — the single entry point for all SDK calls.
 
 | Property | Type | Description |
 |---|---|---|
-| `apiKey` | `String` | Your Digia project API key. |
-| `flavor` | `Flavor` | `Flavor.release()` or `Flavor.debug()`. |
-| `strategy` | `InitStrategy` | `NetworkFirstStrategy` or `CacheFirstStrategy`. |
-| `environment` | `Environment` | Optional — defaults to production. |
+| `apiKey` | `String` | **Required.** Environment-specific API key from the Digia dashboard. |
+| `environment` | `DigiaEnvironment` | Target environment. Defaults to `DigiaEnvironment.production` (`.sandbox` for testing). |
+| `logLevel` | `DigiaLogLevel` | Log verbosity. Defaults to `DigiaLogLevel.error` (`.none` / `.verbose`). |
+| `baseUrl` | `String?` | Optional override for the engage API host. Derived from `environment` when null. |
+| `fontFamily` | `String?` | Optional global font family applied to all Digia-rendered text. |
+| `onAction` | `EngageActionInterceptor?` | Optional hook to intercept navigation actions (open URL / deep link). Return `true` to handle the link yourself. |
 
 ---
 

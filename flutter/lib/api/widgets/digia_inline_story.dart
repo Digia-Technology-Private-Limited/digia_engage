@@ -4,6 +4,7 @@ import 'package:video_player/video_player.dart';
 
 import '../internal/action/engage_action_context.dart';
 import '../internal/campaign/inline_story_config.dart';
+import '../internal/variable_scope.dart';
 import 'story/digia_story_overlay.dart';
 
 /// Renders an [InlineStoryConfig] as a horizontally scrolling row of story
@@ -15,17 +16,17 @@ import 'story/digia_story_overlay.dart';
 class DigiaInlineStory extends StatelessWidget {
   final InlineStoryConfig config;
 
-  /// Runtime variables from the trigger, forwarded to the viewer for CTA copy.
-  final Map<String, String>? variables;
-
   const DigiaInlineStory({
     super.key,
     required this.config,
-    this.variables,
   });
 
   @override
   Widget build(BuildContext context) {
+    // The trigger's variables come from the [VariableScopeProvider] DigiaSlot
+    // places above this widget; forward the scope to the (route-pushed) viewer
+    // so its CTA copy resolves against the same variables.
+    final scope = VariableScopeProvider.of(context);
     final card = config.card;
     final spacing = card.spacing.toDouble();
     final cardHeight = card.height.toDouble();
@@ -47,7 +48,7 @@ class DigiaInlineStory extends StatelessWidget {
               context: context,
               config: config,
               initialIndex: index,
-              variables: variables,
+              scope: scope,
               actionContext: const EngageActionContext(
                 campaignId: '',
                 campaignKey: '',

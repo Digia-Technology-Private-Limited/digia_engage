@@ -2,6 +2,7 @@ import 'package:flutter/widgets.dart';
 
 import '../action/engage_action_context.dart';
 import '../action/engage_action_handler.dart';
+import '../variable_scope.dart';
 import 'nudge_config.dart';
 import 'nudge_presentation.dart';
 import 'nudge_view.dart';
@@ -20,17 +21,22 @@ Future<void> presentNudge({
   required BuildContext context,
   required NudgeConfig config,
   EngageActionContext actionContext = EngageActionContext.unknown,
+  VariableScope scope = VariableScope.empty,
 }) {
   final presentation =
       _presentations[config.surface.displayType] ?? const BottomSheetPresentation();
 
-  // Wrap the content so button taps can hand the host the campaign context.
+  // Wrap the content so button taps can hand the host the campaign context, and
+  // so the renderers can interpolate `{{ placeholder }}` copy against [scope].
   return presentation.present(
     context: context,
     surface: config.surface,
     content: EngageActionContextScope(
       actionContext: actionContext,
-      child: NudgeView(content: config.content),
+      child: VariableScopeProvider(
+        scope: scope,
+        child: NudgeView(content: config.content),
+      ),
     ),
   );
 }

@@ -6,18 +6,21 @@ import '../../internal/action/engage_action.dart';
 import '../../internal/action/engage_action_context.dart';
 import '../../internal/action/engage_action_handler.dart';
 import '../../internal/campaign/inline_story_config.dart';
+import '../../internal/variable_scope.dart';
 
 /// Pushes the full-screen story viewer for [config], starting at [initialIndex].
 ///
 /// Mirrors the Android `DigiaStoryOverlay` (a full-screen modal driven by the
-/// same `InlineStoryConfig`). [variables] are the trigger's runtime variables,
-/// used to interpolate CTA copy. [actionContext] is forwarded to the engage
-/// action runner so CTA links flow through the host's `onAction` override.
+/// same `InlineStoryConfig`). [scope] carries the trigger's runtime variables,
+/// used to interpolate CTA copy — it is re-provided inside the pushed route
+/// (InheritedWidgets don't cross route boundaries). [actionContext] is forwarded
+/// to the engage action runner so CTA links flow through the host's `onAction`
+/// override.
 Future<void> openStoryOverlay({
   required BuildContext context,
   required InlineStoryConfig config,
   required int initialIndex,
-  Map<String, String>? variables,
+  VariableScope scope = VariableScope.empty,
   EngageActionContext actionContext = EngageActionContext.unknown,
 }) {
   return Navigator.of(context, rootNavigator: true).push(
@@ -25,11 +28,13 @@ Future<void> openStoryOverlay({
       opaque: false,
       barrierColor: Colors.black,
       transitionDuration: const Duration(milliseconds: 200),
-      pageBuilder: (_, __, ___) => _DigiaStoryOverlay(
-        config: config,
-        initialIndex: initialIndex,
-        variables: variables,
-        actionContext: actionContext,
+      pageBuilder: (_, __, ___) => VariableScopeProvider(
+        scope: scope,
+        child: _DigiaStoryOverlay(
+          config: config,
+          initialIndex: initialIndex,
+          actionContext: actionContext,
+        ),
       ),
       transitionsBuilder: (_, animation, __, child) =>
           FadeTransition(opacity: animation, child: child),
@@ -42,13 +47,11 @@ Future<void> openStoryOverlay({
 class _DigiaStoryOverlay extends StatefulWidget {
   final InlineStoryConfig config;
   final int initialIndex;
-  final Map<String, String>? variables;
   final EngageActionContext actionContext;
 
   const _DigiaStoryOverlay({
     required this.config,
     required this.initialIndex,
-    required this.variables,
     required this.actionContext,
   });
 
@@ -293,7 +296,7 @@ class _DigiaStoryOverlayState extends State<_DigiaStoryOverlay>
                     padding:
                         const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
                     child: _StoryCtaButton(
-                      text: _interpolate(item.ctaText!, widget.variables),
+                      text: VariableScopeProvider.of(context).resolve(item.ctaText!),
                       textColor: _parseHexColor(item.ctaTextColor) ??
                           Colors.white,
                       backgroundColor: _parseHexColor(item.ctaBackgroundColor) ??
@@ -477,18 +480,6 @@ class _StoryCtaButton extends StatelessWidget {
       ),
     );
   }
-}
-
-final _placeholderPattern = RegExp(r'\{\{\s*([A-Za-z_][A-Za-z0-9_]*)\s*\}\}');
-
-/// Replaces `{{ name }}` placeholders using [variables] (matches Android's
-/// `interpolate`). Unmatched placeholders collapse to empty strings.
-String _interpolate(String text, Map<String, String>? variables) {
-  if (variables == null || variables.isEmpty) return text;
-  return text.replaceAllMapped(
-    _placeholderPattern,
-    (m) => variables[m.group(1)] ?? '',
-  );
 }
 
 /// Parses `#RRGGBB` or `#AARRGGBB` hex strings. Returns `null` for unparseable
