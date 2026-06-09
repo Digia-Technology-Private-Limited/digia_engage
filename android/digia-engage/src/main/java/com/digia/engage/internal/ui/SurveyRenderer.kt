@@ -35,11 +35,13 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -56,6 +58,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight as ComposeFontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -63,15 +66,20 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
+import com.digia.engage.framework.DigiaFontConfig
 import com.digia.engage.internal.ActiveSurveyState
 import com.digia.engage.internal.DigiaInstance
 import com.digia.engage.internal.model.BlockMedia
 import com.digia.engage.internal.model.BottomSheetHeightMode
+import com.digia.engage.internal.model.CtaArrangement
+import com.digia.engage.internal.model.CtaLayout
+import com.digia.engage.internal.model.CtaSettings
 import com.digia.engage.internal.model.DialogWidthPreset
 import com.digia.engage.internal.model.MediaPosition
 import com.digia.engage.internal.model.SurveyBlock
 import com.digia.engage.internal.model.SurveyBlockType
 import com.digia.engage.internal.model.PaginationStyle
+import com.digia.engage.internal.model.ProgressIndicatorStyle
 import com.digia.engage.internal.model.SurveyConfigModel
 import com.digia.engage.internal.model.SurveyDisplayType
 import com.digia.engage.internal.model.SurveyNode
@@ -92,7 +100,30 @@ internal fun SurveyRenderer() {
     val state by DigiaInstance.surveyState.collectAsState()
     val active = state ?: return
     key(active.token) {
-        SurveySession(active)
+        ProvideSurveyFont {
+            SurveySession(active)
+        }
+    }
+}
+
+/**
+ * Applies the global [DigiaConfig.fontFamily][com.digia.engage.DigiaConfig.fontFamily]
+ * to all survey text, matching campaigns and guides. Raw `Text(...)` calls inherit
+ * the family through [LocalTextStyle]; styled text built via `toTextStyle` / `toStyle`
+ * sets the family directly. CompositionLocals propagate into the survey's `Dialog`
+ * sub-composition, so this single wrap covers both dialog and bottom-sheet displays.
+ * A no-op when no global family is configured, preserving the prior system-font look.
+ */
+@Composable
+private fun ProvideSurveyFont(content: @Composable () -> Unit) {
+    val family = DigiaFontConfig.composeFontFamily()
+    if (family == null) {
+        content()
+    } else {
+        CompositionLocalProvider(
+            LocalTextStyle provides LocalTextStyle.current.merge(TextStyle(fontFamily = family)),
+            content = content,
+        )
     }
 }
 
@@ -117,7 +148,7 @@ private fun SurveySession(state: ActiveSurveyState) {
     val display = survey.settings.display
 
     fun finish(completed: Boolean) {
-        if (completed) DigiaInstance.markSurveyCompleted(vm.responsePayload())
+        if (completed) DigiaInstance.markSurveyCompleted(vm.responsePayload(), vm.answers.toMap())
         else DigiaInstance.markSurveyDismissed()
     }
 
@@ -209,12 +240,12 @@ private fun SurveySession(state: ActiveSurveyState) {
                                     )
                                 }
                             }
-                            SurveyBody(
+                            SurveyPanel(
                                 vm = vm,
                                 survey = survey,
                                 accent = accent,
-                                modifier = Modifier,
                                 onClose = { finish(completed = false) },
+                                onCompletedClose = { DigiaInstance.dismissCompletedSurvey() },
                                 showCloseButton = sheet.backdropDismissible,
                             )
                         }
@@ -245,19 +276,20 @@ private fun SurveySession(state: ActiveSurveyState) {
                     Surface(
                         color = background,
                         shape = RoundedCornerShape(dialog.cornerRadius.dp),
-                        modifier = dialogWidthModifier(dialog.width, dialog.customWidth)
-                            .padding(24.dp)
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp)
                             .clickable(
                                 indication = null,
                                 interactionSource = remember { MutableInteractionSource() },
                             ) {},
                     ) {
-                        SurveyBody(
+                        SurveyPanel(
                             vm = vm,
                             survey = survey,
                             accent = accent,
-                            modifier = Modifier,
                             onClose = { finish(completed = false) },
+                            onCompletedClose = { DigiaInstance.dismissCompletedSurvey() },
                             showCloseButton = dialog.showCloseButton,
                         )
                     }
@@ -291,6 +323,94 @@ private fun dialogWidthModifier(preset: DialogWidthPreset, customPx: Int): Modif
     return Modifier.width(widthDp)
 }
 
+/**
+ * Gates the welcome screen (fixed intro chrome, not a graph node) before the
+ * node flow. Shows [WelcomeScreen] first when a visible welcome block exists,
+ * then hands off to [SurveyBody].
+ */
+@Composable
+private fun SurveyPanel(
+    vm: SurveyViewModel,
+    survey: SurveyConfigModel,
+    accent: Color,
+    onClose: () -> Unit,
+    onCompletedClose: () -> Unit,
+    showCloseButton: Boolean,
+) {
+    val welcome = survey.welcomeBlock()
+    var welcomeDone by remember { mutableStateOf(false) }
+    if (welcome != null && !welcomeDone) {
+        WelcomeScreen(
+            block = welcome,
+            cta = survey.settings.cta,
+            accent = accent,
+            showClose = showCloseButton && survey.settings.display.dismissible,
+            onStart = { welcomeDone = true },
+            onClose = onClose,
+        )
+    } else {
+        SurveyBody(
+            vm = vm,
+            survey = survey,
+            accent = accent,
+            modifier = Modifier,
+            onClose = onClose,
+            onCompletedClose = onCompletedClose,
+            showCloseButton = showCloseButton,
+        )
+    }
+}
+
+@Composable
+private fun WelcomeScreen(
+    block: SurveyBlock,
+    cta: CtaSettings,
+    accent: Color,
+    showClose: Boolean,
+    onStart: () -> Unit,
+    onClose: () -> Unit,
+) {
+    val blockBg = block.backgroundColorHex.toComposeColorOrNull()
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .then(if (blockBg != null) Modifier.background(blockBg) else Modifier)
+            .padding(horizontal = 16.dp, vertical = 14.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        if (showClose) {
+            Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Spacer(Modifier.weight(1f))
+                IconButton(onClick = onClose, modifier = Modifier.size(26.dp)) {
+                    Icon(
+                        imageVector = Icons.Filled.Close,
+                        contentDescription = "Close survey",
+                        tint = SurveyTokens.TextTertiary,
+                    )
+                }
+            }
+        }
+        if (block.showMedia && block.media.position == MediaPosition.TOP) {
+            BlockMediaImage(block.media)
+        }
+        BlockTitle(block, accent)
+        if (block.showMedia && block.media.position == MediaPosition.INLINE) {
+            BlockMediaImage(block.media)
+        }
+        val stacked = cta.layout == CtaLayout.STACKED
+        Button(
+            onClick = onStart,
+            colors = ButtonDefaults.buttonColors(containerColor = ctaBg(cta, accent)),
+            shape = RoundedCornerShape(cta.cornerRadius.dp),
+            modifier = Modifier
+                .padding(top = 2.dp)
+                .then(if (stacked) Modifier.fillMaxWidth() else Modifier),
+        ) {
+            Text(cta.startLabel, color = ctaText(cta), fontWeight = ComposeFontWeight.SemiBold)
+        }
+    }
+}
+
 @Composable
 private fun SurveyBody(
     vm: SurveyViewModel,
@@ -298,12 +418,14 @@ private fun SurveyBody(
     accent: Color,
     modifier: Modifier,
     onClose: () -> Unit,
+    onCompletedClose: () -> Unit,
     showCloseButton: Boolean,
 ) {
     val node = vm.currentNode ?: return
     val block = survey.blockFor(node) ?: return
     val pagination = survey.settings.pagination
     val timerCfg = survey.settings.timer
+    val cta = survey.settings.cta
 
     BackHandler(enabled = true) {
         when {
@@ -314,6 +436,14 @@ private fun SurveyBody(
 
     val position = visibleIndexOf(survey, node) + 1
     val total = survey.nodes.size.coerceAtLeast(1)
+    var completionReported by remember { mutableStateOf(false) }
+
+    fun reportCompletionIfResultIsNext() {
+        if (!completionReported && vm.nextBlockIsResultPage()) {
+            DigiaInstance.reportSurveyCompleted(vm.responsePayload(), vm.answers.toMap())
+            completionReported = true
+        }
+    }
 
     // ── Timer state ────────────────────────────────────────────────────────
     // Ticks once per second whenever the timer is enabled. Pauses on content
@@ -341,16 +471,19 @@ private fun SurveyBody(
             delay(250)
             if (vm.currentNode?.id == node.id) {
                 DigiaInstance.reportSurveyAnswered(node.id, currentAnswer.toMap())
+                reportCompletionIfResultIsNext()
                 vm.advance()
             }
         }
     }
 
+    val blockBg = block.backgroundColorHex.toComposeColorOrNull()
     Column(
         modifier = modifier
             .fillMaxWidth()
+            .then(if (blockBg != null) Modifier.background(blockBg) else Modifier)
             .imePadding()
-            .padding(horizontal = 16.dp, vertical = 14.dp),
+            .padding(14.dp),
     ) {
         // Top row: progress + counter + timer + close
         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
@@ -363,6 +496,7 @@ private fun SurveyBody(
                     segments = total,
                     currentSegment = position,
                     accent = accent,
+                    indicator = pagination.progressIndicatorStyle,
                     modifier = Modifier.weight(1f),
                 )
             } else {
@@ -422,7 +556,7 @@ private fun SurveyBody(
                     DigiaInstance.reportSurveyAnswered(node.id, emptyMap())
                     vm.advance()
                 })
-                SurveyBlockType.RESULT_PAGE -> ResultPagePanel(accent = accent, onDone = { vm.advance() })
+                SurveyBlockType.RESULT_PAGE -> ResultPagePanel(cta = cta, accent = accent, onDone = onCompletedClose)
                 SurveyBlockType.TEXT_MEDIA -> if (!block.media.hasUrl) MediaPlaceholder()
                 else -> SurveyQuestionContent(
                     block = block,
@@ -448,17 +582,19 @@ private fun SurveyBody(
         if (showNext) {
             Spacer(Modifier.height(18.dp))
             FooterRow(
+                cta = cta,
                 accent = accent,
                 canGoBack = vm.canGoBack,
                 onBack = { vm.back() },
                 nextEnabled = vm.canAdvance(),
-                nextLabel = footerNextLabel(survey, node, block),
+                nextLabel = footerNextLabel(survey, node, block, cta),
                 onNext = {
                     if (!block.type.isContent) {
                         vm.answers[node.id]?.takeIf { it.isAnswered }?.let { ans ->
                             DigiaInstance.reportSurveyAnswered(node.id, ans.toMap())
                         }
                     }
+                    reportCompletionIfResultIsNext()
                     vm.advance()
                 },
             )
@@ -475,11 +611,16 @@ private fun ProgressBar(
     segments: Int,
     currentSegment: Int,
     accent: Color,
+    indicator: ProgressIndicatorStyle,
     modifier: Modifier,
 ) {
+    val activeColor = indicator.activeColorHex.toComposeColorOrNull() ?: accent
+    val trackColor = indicator.trackColorHex.toComposeColorOrNull() ?: SurveyTokens.SurfaceSunken
+    val barHeight = indicator.height.dp
+    val barShape = RoundedCornerShape(indicator.cornerRadius.dp)
     if (style == PaginationStyle.SEGMENTED && segments > 1) {
         Row(
-            modifier = modifier.height(3.dp),
+            modifier = modifier.height(barHeight),
             horizontalArrangement = Arrangement.spacedBy(3.dp),
         ) {
             for (i in 1..segments) {
@@ -488,8 +629,8 @@ private fun ProgressBar(
                     modifier = Modifier
                         .weight(1f)
                         .fillMaxHeight()
-                        .clip(RoundedCornerShape(2.dp))
-                        .background(if (on) accent else SurveyTokens.SurfaceSunken),
+                        .clip(barShape)
+                        .background(if (on) activeColor else trackColor),
                 )
             }
         }
@@ -497,15 +638,15 @@ private fun ProgressBar(
     }
     Box(
         modifier = modifier
-            .height(3.dp)
-            .clip(RoundedCornerShape(2.dp))
-            .background(SurveyTokens.SurfaceSunken),
+            .height(barHeight)
+            .clip(barShape)
+            .background(trackColor),
     ) {
         Box(
             modifier = Modifier
                 .fillMaxHeight()
                 .fillMaxWidth(progress.coerceIn(0f, 1f))
-                .background(accent),
+                .background(activeColor),
         )
     }
 }
@@ -533,7 +674,7 @@ private fun TimerChip(remainingSecs: Int, warningAtSecs: Int, accent: Color) {
 
 @Composable
 private fun CategoryPill(block: SurveyBlock, accent: Color) {
-    if (block.type.isContent) return
+    if (block.type.isContent || !block.showTag) return
     val label = categoryLabel(block.type) ?: return
     Box(
         modifier = Modifier
@@ -556,6 +697,7 @@ private fun BlockTitle(block: SurveyBlock, accent: Color) {
         Text(
             text = block.title.text,
             style = block.title.style.toTextStyle(accent, default = TitleDefaults),
+            modifier = Modifier.fillMaxWidth(),
         )
     }
     val body = block.body
@@ -563,6 +705,7 @@ private fun BlockTitle(block: SurveyBlock, accent: Color) {
         Text(
             text = body.text,
             style = body.style.toTextStyle(accent, default = BodyDefaults),
+            modifier = Modifier.fillMaxWidth(),
         )
     }
 }
@@ -580,7 +723,11 @@ private fun BlockMediaImage(media: BlockMedia) {
         AsyncImage(
             model = media.url,
             contentDescription = media.alt,
-            contentScale = ContentScale.Crop,
+            contentScale = when (media.boxFit) {
+                "contain" -> ContentScale.Fit
+                "fill" -> ContentScale.FillBounds
+                else -> ContentScale.Crop
+            },
             modifier = Modifier.fillMaxSize(),
         )
     }
@@ -617,32 +764,40 @@ private fun WelcomeCta(accent: Color, onStart: () -> Unit) {
 }
 
 @Composable
-private fun ResultPagePanel(accent: Color, onDone: () -> Unit) {
+private fun ResultPagePanel(cta: CtaSettings, accent: Color, onDone: () -> Unit) {
+    val stacked = cta.layout == CtaLayout.STACKED
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(10.dp))
-                .background(SurveyTokens.SurfaceSunken)
-                .padding(14.dp),
-        ) {
-            Text(
-                text = "✓ Response recorded. Aggregate results display here for users who completed.",
-                color = SurveyTokens.TextSecondary,
-                fontSize = 13.sp,
-            )
-        }
-        OutlinedButton(
+        Button(
             onClick = onDone,
-            shape = RoundedCornerShape(8.dp),
+            colors = ButtonDefaults.buttonColors(containerColor = ctaBg(cta, accent)),
+            shape = RoundedCornerShape(cta.cornerRadius.dp),
+            modifier = if (stacked) Modifier.fillMaxWidth() else Modifier,
         ) {
-            Text("Done", color = SurveyTokens.TextPrimary)
+            Text(cta.doneLabel, color = ctaText(cta), fontWeight = ComposeFontWeight.SemiBold)
         }
+    }
+}
+
+/** Resolved CTA background — explicit hex, else the theme accent. */
+private fun ctaBg(cta: CtaSettings, accent: Color): Color =
+    cta.bgColorHex.toComposeColorOrNull() ?: accent
+
+/** Resolved CTA text colour — explicit hex, else white. */
+private fun ctaText(cta: CtaSettings): Color =
+    cta.textColorHex.toComposeColorOrNull() ?: Color.White
+
+private fun String.toComposeColorOrNull(): Color? {
+    if (isBlank()) return null
+    return try {
+        Color(android.graphics.Color.parseColor(this))
+    } catch (_: IllegalArgumentException) {
+        null
     }
 }
 
 @Composable
 private fun FooterRow(
+    cta: CtaSettings,
     accent: Color,
     canGoBack: Boolean,
     onBack: () -> Unit,
@@ -650,33 +805,73 @@ private fun FooterRow(
     nextLabel: String,
     onNext: () -> Unit,
 ) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.End,
-    ) {
-        if (canGoBack) {
-            TextButton(onClick = onBack) {
-                Text("← Back", color = SurveyTokens.TextSecondary)
-            }
-            Spacer(Modifier.weight(1f))
-        }
+    val bg = ctaBg(cta, accent)
+    val textColor = ctaText(cta)
+    val shape = RoundedCornerShape(cta.cornerRadius.dp)
+    val contentPad = androidx.compose.foundation.layout.PaddingValues(
+        horizontal = 18.dp, vertical = 10.dp,
+    )
+
+    val nextButton: @Composable (Modifier) -> Unit = { mod ->
         Button(
             onClick = onNext,
             enabled = nextEnabled,
             colors = ButtonDefaults.buttonColors(
-                containerColor = accent,
-                disabledContainerColor = accent.copy(alpha = 0.35f),
+                containerColor = bg,
+                disabledContainerColor = bg.copy(alpha = 0.35f),
             ),
-            shape = RoundedCornerShape(8.dp),
-            contentPadding = androidx.compose.foundation.layout.PaddingValues(
-                horizontal = 18.dp, vertical = 10.dp,
-            ),
+            shape = shape,
+            contentPadding = contentPad,
+            modifier = mod,
         ) {
-            Text(nextLabel, color = Color.White, fontWeight = ComposeFontWeight.SemiBold)
+            Text(nextLabel, color = textColor, fontWeight = ComposeFontWeight.SemiBold)
         }
     }
+
+    if (cta.layout == CtaLayout.STACKED) {
+        // Full-width buttons, primary on top, Back below.
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            nextButton(Modifier.fillMaxWidth())
+            if (canGoBack) {
+                OutlinedButton(
+                    onClick = onBack,
+                    shape = shape,
+                    contentPadding = contentPad,
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Text(cta.backLabel, color = SurveyTokens.TextPrimary)
+                }
+            }
+        }
+        return
+    }
+
+    // Inline row, distributed by the chosen arrangement.
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = ctaArrangement(cta.arrangement),
+    ) {
+        if (canGoBack) {
+            TextButton(onClick = onBack) {
+                Text(cta.backLabel, color = SurveyTokens.TextSecondary)
+            }
+        }
+        nextButton(Modifier)
+    }
 }
+
+private fun ctaArrangement(arrangement: CtaArrangement): Arrangement.Horizontal =
+    when (arrangement) {
+        CtaArrangement.SPACE_BETWEEN -> Arrangement.SpaceBetween
+        CtaArrangement.SPACE_EVENLY -> Arrangement.SpaceEvenly
+        CtaArrangement.CENTER -> Arrangement.spacedBy(12.dp, Alignment.CenterHorizontally)
+        CtaArrangement.START -> Arrangement.spacedBy(12.dp, Alignment.Start)
+        CtaArrangement.END -> Arrangement.spacedBy(12.dp, Alignment.End)
+    }
 
 // ── helpers ────────────────────────────────────────────────────────────────
 
@@ -692,8 +887,9 @@ private fun footerNextLabel(
     survey: SurveyConfigModel,
     node: SurveyNode,
     block: SurveyBlock,
+    cta: CtaSettings,
 ): String {
-    if (block.type == SurveyBlockType.TEXT_MEDIA) return "Next"
+    if (block.type == SurveyBlockType.TEXT_MEDIA) return cta.nextLabel
     val target = node.branching.defaultTarget
     val noRules = node.branching.rules.isEmpty()
     val terminates = noRules && when (target.kind) {
@@ -702,14 +898,16 @@ private fun footerNextLabel(
             survey.nodes.indexOfFirst { it.id == node.id } == survey.nodes.lastIndex
         else -> false
     }
-    return if (terminates) "Finish" else "Next"
+    return if (terminates) cta.doneLabel else cta.nextLabel
 }
 
 private fun categoryLabel(type: SurveyBlockType): String? = when (type) {
     SurveyBlockType.SINGLE_SELECT -> "Select one answer"
     SurveyBlockType.MULTI_SELECT -> "Select all that apply"
     SurveyBlockType.RATING -> "Rate it"
-    SurveyBlockType.NPS -> "Promoter score"
+    SurveyBlockType.NPS,
+    SurveyBlockType.NPS_EMOJI,
+    SurveyBlockType.NPS_SMILEY -> "Promoter score"
     SurveyBlockType.REACTION -> "Reaction poll"
     SurveyBlockType.THIS_OR_THAT -> "This or that"
     SurveyBlockType.TIER_LIST -> "Tier list"

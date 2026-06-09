@@ -14,6 +14,7 @@ export { DigiaHostView } from './DigiaHostView';
 export { DigiaHost } from './DigiaProvider';
 export { DigiaSlotView } from './DigiaSlotView';
 export { DigiaAnchorView } from './DigiaAnchorView';
+export type { DigiaAnchorViewRef } from './DigiaAnchorView';
 export type { ActionContext, ActionResult, CampaignType, DigiaAction, DigiaConfig, DigiaDelegate, DigiaExperienceEvent, DigiaPlugin, InAppBrowserAdapter, InAppPayload, OnAction } from './types';
 export { defaultInAppBrowser } from './defaultInAppBrowser';
 export { DigiaHealthReporter, HealthEventType, digiaHealthReporter } from './DigiaHealthReporter';

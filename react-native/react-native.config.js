@@ -1,7 +1,7 @@
 /**
  * react-native.config.js
  *
- * Configures React Native CLI auto-linking for @digia/engage-react-native.
+ * Configures React Native CLI auto-linking for @digia-engage/core.
  * This tells the RN CLI where to find the Android library module and the
  * iOS podspec so that `npx react-native link` / auto-linking works without
  * any manual steps in host app project files.

@@ -1,5 +1,5 @@
 // swift-tools-version:5.9
-// Package.swift — Swift Package Manager integration for @digia/engage-react-native.
+// Package.swift — Swift Package Manager integration for @digia-engage/core.
 //
 // This file is used when the host app integrates React Native via Swift Package
 // Manager (RN 0.74+).  It pulls the Digia Engage iOS SDK directly from the

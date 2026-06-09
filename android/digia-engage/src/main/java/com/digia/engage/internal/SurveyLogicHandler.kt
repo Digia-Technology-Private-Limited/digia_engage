@@ -73,7 +73,7 @@ internal object SurveyLogicHandler {
         return resolveTarget(survey, currentNodeId, branching.defaultTarget, answers)
     }
 
-    /** Whether [block] passes its [SurveyBlock.showWhen] given the answers so far. */
+    /** Whether [block] passes its authored `showWhen` gate. */
     fun isVisible(
         block: SurveyBlock,
         ownerNodeId: String,

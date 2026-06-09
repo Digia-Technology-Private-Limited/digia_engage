@@ -1,6 +1,6 @@
+import '../models/cep_trigger_payload.dart';
 import '../models/diagnostic_report.dart';
 import '../models/digia_experience_event.dart';
-import '../models/in_app_payload.dart';
 import 'digia_cep_delegate.dart';
 
 /// Implemented by each CEP plugin package.
@@ -39,9 +39,9 @@ abstract class DigiaCEPPlugin {
   ///    CleverTap: syncTemplate (viewed/clicked) / dismissTemplate
   ///    MoEngage:  trackSelfHandledImpression / etc.
   ///
-  /// payload.cepContext carries CEP-specific identifiers the plugin
-  /// wrote during _mapToInAppPayload() — use them here for correlation.
-  void notifyEvent(DigiaExperienceEvent event, InAppPayload payload);
+  /// payload.cepMetadata carries CEP-specific identifiers the plugin
+  /// wrote during _mapToCEPTriggerPayload() — use them here for correlation.
+  void notifyEvent(DigiaExperienceEvent event, CEPTriggerPayload payload);
 
   /// Returns plugin health diagnostics for runtime checks.
   DiagnosticReport healthCheck();

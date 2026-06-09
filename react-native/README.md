@@ -266,6 +266,76 @@ react-native/ios/           iOS bridge
 
 ---
 
+## Build & publishing (hybrid model)
+
+This package is published using the **hybrid** React Native library layout (the
+[`react-native-builder-bob`](https://github.com/callstack/react-native-builder-bob)
+convention): the npm tarball ships **both** the compiled output (`lib/`) **and**
+the original TypeScript source (`src/`).
+
+### What the entry fields mean
+
+| `package.json` field | Points to | Used by |
+|---|---|---|
+| `main` | `lib/commonjs/index` | Node / CommonJS consumers, Jest |
+| `module` | `lib/module/index` | Bundlers that understand ESM |
+| `types` | `lib/typescript/index.d.ts` | TypeScript |
+| `react-native` / `source` | `src/index` | **Metro** — RN apps bundle straight from source |
+
+Because Metro resolves the `react-native`/`source` field, a React Native app that
+consumes this package bundles the **actual `.ts` source**. That gives our users
+the best developer experience:
+
+- **Stack traces** point at real `src/*.ts` lines, not transpiled output.
+- **Step-debugging** walks through the real source.
+- **Go-to-definition** lands on the real source — we ship `.d.ts` **and**
+  `.d.ts.map` (declaration maps) alongside `src/`, so an IDE jumps from the type
+  definition through to the `.ts` it came from.
+
+The compiled `lib/` is a robust fallback for any tool that does *not* honour the
+`react-native` field (Node, Jest, web bundlers, type resolvers), so the package
+never breaks outside Metro.
+
+### Why not ship raw `src/` only?
+
+Shipping only `src/*.ts` works in RN (Metro strips the types) but breaks
+everywhere else — bundlers skip `node_modules` transpilation by default, and a
+consumer's stricter `tsconfig` would re-type-check our source and surface errors
+they can't fix. The hybrid layout keeps the great RN DX *and* stays safe for
+every other consumer.
+
+### Build config that makes this work
+
+`tsconfig.build.json` (used only to generate type definitions):
+
+- `declaration: true` — emit `.d.ts`
+- `declarationMap: true` — emit `.d.ts.map` so go-to-definition reaches `src/`
+- `sourceMap: true` + `inlineSources: true` — map compiled JS back to source
+- `rootDir: "src"` — keeps `index.d.ts` at the top of `lib/typescript/`
+- **No** `declarationDir` / `noEmit` here — `bob` sets those via the CLI; leaving
+  them in the config produces conflict warnings
+
+`files` includes both `src` and `lib` so the maps resolve on the consumer's disk.
+
+### Publishing
+
+The `prepare` script runs `bob build` automatically on install and publish, so
+the build toolchain (`typescript`, `react-native-builder-bob`) must be installed
+first:
+
+```bash
+npm install         # installs devDeps AND runs prepare → bob build
+npm pack --dry-run  # verify lib/ + src/ + maps are in the tarball
+npm publish
+```
+
+> **Heads-up:** `package-lock.json` is **gitignored** for this library (a lib's
+> lockfile is ignored by consumers and only hides dependency-range drift). On a
+> fresh CI clone there is no lockfile, so use `npm install` — **not** `npm ci`,
+> which requires one.
+
+**Never hand-edit `lib/`** — it is generated. Edit `src/` and rebuild.
+
 ## License
 
-MIT © Digia Technology Private Limited
+Business Source License 1.1 (BUSL-1.1) © Digia Technology Private Limited — see [LICENSE](LICENSE)

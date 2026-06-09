@@ -168,28 +168,37 @@ class _InternalCarouselState extends State<InternalCarousel> {
 
     return Column(
       mainAxisSize: MainAxisSize.min,
+      // Stretch so the carousel (and indicator) fill the available width. The
+      // default crossAxisAlignment (center) hands children loose width
+      // constraints, which collapses the carousel to a tiny intrinsic width.
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Flexible(child: child),
         Padding(
           padding: const EdgeInsets.only(top: 8.0),
-          child: ValueListenableBuilder<int>(
-            valueListenable: _currentPageNotifier,
-            builder: (context, value, _) {
-              return IndicatorBuilder(
-                indicatorEffect: widget.indicatorEffectType,
-                currentPageNotifier: _currentPageNotifier,
-                itemCount: widget.itemBuilder != null
-                    ? widget.itemCount
-                    : widget.children.length,
-                carouselController: _carouselController,
-                offset: widget.offset,
-                dotHeight: widget.dotHeight,
-                dotWidth: widget.dotWidth,
-                spacing: widget.spacing,
-                dotColor: widget.dotColor,
-                activeDotColor: widget.activeDotColor,
-              );
-            },
+          // The Column stretches its children to full width; centre the dots
+          // so they sit in the middle rather than aligning to the start.
+          child: Center(
+            heightFactor: 1,
+            child: ValueListenableBuilder<int>(
+              valueListenable: _currentPageNotifier,
+              builder: (context, value, _) {
+                return IndicatorBuilder(
+                  indicatorEffect: widget.indicatorEffectType,
+                  currentPageNotifier: _currentPageNotifier,
+                  itemCount: widget.itemBuilder != null
+                      ? widget.itemCount
+                      : widget.children.length,
+                  carouselController: _carouselController,
+                  offset: widget.offset,
+                  dotHeight: widget.dotHeight,
+                  dotWidth: widget.dotWidth,
+                  spacing: widget.spacing,
+                  dotColor: widget.dotColor,
+                  activeDotColor: widget.activeDotColor,
+                );
+              },
+            ),
           ),
         ),
       ],

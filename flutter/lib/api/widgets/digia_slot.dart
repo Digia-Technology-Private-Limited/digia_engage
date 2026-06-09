@@ -1,10 +1,14 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 
-import '../../src/framework/ui_factory.dart';
+import '../internal/action/engage_action.dart';
+import '../internal/action/engage_action_context.dart';
+import '../internal/action/engage_action_handler.dart';
+import '../internal/campaign/campaign_model.dart';
+import '../internal/campaign/inline_carousel_config.dart';
 import '../internal/digia_instance.dart';
-import '../models/digia_experience_event.dart';
-import '../models/in_app_payload.dart';
+import '../internal/variable_scope.dart';
+import 'digia_inline_carousel.dart';
+import 'digia_inline_story.dart';
 
 /// Renders inline campaign content (banners, cards, widgets) at a specific
 /// placement position in scrolling content or screen layouts.
@@ -50,155 +54,89 @@ class DigiaSlot extends StatefulWidget {
 }
 
 class _DigiaSlotState extends State<DigiaSlot> {
-  /// ID of the last payload we already fired an impression for.
-  /// Prevents re-firing on every setState rebuild.
-  String? _impressedPayloadId;
-
-  /// The payload currently being displayed.
-  /// Stored in state so build reads from here, not the controller directly,
-  /// avoiding rebuilds driven by parent widget rebuilds.
-  InAppPayload? _currentPayload;
+  /// The inline campaign config currently active for this slot (carousel or
+  /// story), populated when a campaign-store-routed inline campaign is
+  /// triggered. A slot key only ever holds one inline kind.
+  CampaignConfigModel? _currentConfig;
 
   @override
   void initState() {
     super.initState();
-    DigiaInstance.instance.controller.addListener(_onInlineChanged);
-
-    // A campaign might already be in the controller when this slot mounts
-    // (e.g., the campaign arrived before the page was opened).
-    _scheduleImpressionIfNeeded();
+    DigiaInstance.instance.controller.addListener(_onControllerChanged);
+    _syncConfig();
   }
 
   @override
   void dispose() {
-    DigiaInstance.instance.controller.removeListener(_onInlineChanged);
+    DigiaInstance.instance.controller.removeListener(_onControllerChanged);
     // Do NOT remove the campaign on dispose. Inline campaigns are "sticky" —
     // they persist for when the user returns to this page. Only server
     // invalidation or an explicit user dismiss should clear them.
     super.dispose();
   }
 
-  // ─── Controller listener ──────────────────────────────────────────────────
-
-  void _onInlineChanged() {
-    final scheduled = _scheduleImpressionIfNeeded();
-    if (scheduled) setState(() {});
+  void _onControllerChanged() {
+    if (_syncConfig()) setState(() {});
   }
 
-  // ─── Impression tracking ──────────────────────────────────────────────────
-
-  /// Fires [ExperienceImpressed] the first time a unique payload renders in
-  /// this slot. Safe to call multiple times — no-ops if already impressed.
-  ///
-  /// Returns `true` if the payload changed (a rebuild is needed).
-  bool _scheduleImpressionIfNeeded() {
-    final payload =
-        DigiaInstance.instance.controller.getSlot(widget.placementKey);
-
-    if (payload?.id == _currentPayload?.id) return false;
-
-    _currentPayload = payload;
-
-    if (payload == null || payload.id == _impressedPayloadId) return true;
-
-    _impressedPayloadId = payload.id;
-    // WidgetsBinding.instance.addPostFrameCallback((_) {
-    //   if (!mounted) return;
-    //   DigiaInstance.instance.inlineController.onEvent
-    //       ?.call(const ExperienceImpressed(), payload);
-    // });
+  /// Pulls the latest inline config for this slot from the controller.
+  /// Returns `true` when it changed (a rebuild is needed).
+  bool _syncConfig() {
+    final config =
+        DigiaInstance.instance.controller.getInlineConfig(widget.placementKey);
+    if (identical(config, _currentConfig)) return false;
+    _currentConfig = config;
     return true;
   }
 
-  // ─── Dismiss ──────────────────────────────────────────────────────────────
-
-  /// Called when the user explicitly dismisses the inline content
-  /// (e.g., a close button inside the campaign component).
-  ///
-  /// Fires [ExperienceDismissed] and removes the campaign from the controller,
-  /// collapsing this slot to nothing until a new campaign arrives.
-  void _dismiss(InAppPayload payload) {
-    // DigiaInstance.instance.inlineController.onEvent
-    //     ?.call(const ExperienceDismissed(), payload);
-    // DigiaInstance.instance.inlineController
-    //     .dismissCampaign(widget.placementKey);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return _DigiaSlotContent(
-      payload: _currentPayload,
-      onDismiss: _dismiss,
-      placeholder: widget.placeholder,
-    );
-  }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-
-/// Internal widget that renders the active inline campaign content for a
-/// given [payload], or collapses to nothing when no content is active.
-class _DigiaSlotContent extends StatelessWidget {
-  /// The campaign payload resolved by the parent [_DigiaSlotState].
-  final InAppPayload? payload;
-
-  /// Called when the campaign component requests a dismiss
-  /// (e.g., user taps a close CTA inside the rendered component).
-  final ValueChanged<InAppPayload> onDismiss;
-
-  /// Widget to show when no campaign is active. Defaults to [SizedBox.shrink].
-  final Widget? placeholder;
-
-  const _DigiaSlotContent({
-    required this.payload,
-    required this.onDismiss,
-    this.placeholder,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    if (payload == null) return placeholder ?? const SizedBox.shrink();
-
-    final content = payload!.content;
-    final viewId = content['viewId'] as String?;
-
-    if (viewId == null || viewId.isEmpty) {
-      return placeholder ?? const SizedBox.shrink();
-    }
-
-    try {
-      return DUIFactory().createComponent(viewId, content);
-    } catch (e, stack) {
-      debugPrint('[Digia] DigiaSlot render error for "$viewId": $e\n$stack');
-      if (kDebugMode) {
-        return _DigiaSlotError(viewId: viewId, error: e);
-      }
-      return placeholder ?? const SizedBox.shrink();
-    }
-  }
-}
-
-class _DigiaSlotError extends StatelessWidget {
-  final String viewId;
-  final Object error;
-
-  const _DigiaSlotError({required this.viewId, required this.error});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        border: Border.all(color: const Color(0xFFD32F2F)),
-        color: const Color(0x1FD32F2F),
-      ),
-      padding: const EdgeInsets.all(8),
-      child: Text(
-        '[DigiaSlot($viewId)] Render error:\n$error',
-        style: const TextStyle(
-          color: Color(0xFFD32F2F),
-          fontSize: 12,
-        ),
+  /// Opens a carousel slide's `deepLink` through the engage action runner, so
+  /// the host's `onAction` override is consulted before the SDK's default open.
+  void _onCarouselItemTap(CarouselItem item) {
+    // The deeplink arrives already resolved against the slot's [VariableScope]
+    // (see DigiaInlineCarousel), so it only needs to be opened here.
+    final deepLink = item.deepLink;
+    if (deepLink == null || deepLink.isEmpty) return;
+    EngageActionRunner.shared.run(
+      [OpenDeeplinkAction(deepLink)],
+      EngageActionScope.fromContext(context),
+      const EngageActionContext(
+        campaignId: '',
+        campaignKey: '',
+        surface: EngageSurface.inline,
       ),
     );
+  }
+
+  /// Wraps inline content in the slot's [VariableScope], built from the trigger
+  /// payload's variables, so descendants resolve `{{ placeholder }}` copy
+  /// through [VariableScopeProvider] (same mechanism as nudges).
+  Widget _scoped(Widget child) {
+    final payload =
+        DigiaInstance.instance.controller.getSlot(widget.placementKey);
+    // Dashboard-declared defaults first, CEP trigger variables layered on top.
+    return VariableScopeProvider(
+      scope: VariableScope({
+        ...?_currentConfig?.defaultVariables,
+        ...?payload?.variables,
+      }),
+      child: child,
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    switch (_currentConfig) {
+      case InlineCarouselCampaignConfig(:final inlineConfig):
+        return _scoped(
+          DigiaInlineCarousel(
+            config: inlineConfig,
+            onItemTap: _onCarouselItemTap,
+          ),
+        );
+      case InlineStoryCampaignConfig(:final storyConfig):
+        return _scoped(DigiaInlineStory(config: storyConfig));
+      case _:
+        return widget.placeholder ?? const SizedBox.shrink();
+    }
   }
 }

@@ -8,7 +8,7 @@ Pod::Spec.new do |s|
     (Jetpack Compose) using the New Architecture (TurboModules / Fabric).
   DESC
 
-  s.license          = { :type => 'MIT', :file => '../LICENSE' }
+  s.license          = { :type => 'BUSL-1.1', :file => 'LICENSE' }
 
   s.authors          = { 'Digia Technology Private Limited' => 'https://digia.tech' }
   s.homepage         = 'https://github.com/Digia-Technology-Private-Limited/digia_engage'
@@ -28,7 +28,7 @@ Pod::Spec.new do |s|
   s.dependency 'React-Core'
 
   # ── Digia Engage iOS SDK ──────────────────────────────────────────────────
-  s.dependency 'DigiaEngage','~> 2.2.0'
+  s.dependency 'DigiaEngage','~> 2.3.1'
 
   # ── New Architecture (Fabric / TurboModules) support ─────────────────────
   install_modules_dependencies(s)
