@@ -117,6 +117,11 @@ class NudgeButton extends NudgeNode {
   /// Ordered actions to run on tap (may be empty). Run by EngageActionRunner.
   final List<EngageAction> actions;
 
+  /// Marks this as the experience's primary call-to-action. Tapping a primary
+  /// button emits an `ExperienceClicked` analytics event (in addition to running
+  /// any [actions]); non-primary buttons only run their actions.
+  final bool isPrimary;
+
   const NudgeButton(
     super.box, {
     required this.label,
@@ -127,6 +132,7 @@ class NudgeButton extends NudgeNode {
     required this.textColor,
     required this.radius,
     required this.actions,
+    required this.isPrimary,
   });
 }
 
