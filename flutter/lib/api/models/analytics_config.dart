@@ -28,6 +28,6 @@ class DigiaAnalyticsConfig {
     this.maxBatchSize = 100,
     this.queueMaxEvents = 5000,
     this.sessionTimeoutMs = 30 * 60 * 1000,
-    this.endpointUrl = 'http://10.0.2.2:3000/api/v1/engage/sdk/track',
+    this.endpointUrl = 'https://app.digia.tech/api/v1/engage/sdk/track',
   });
 }
