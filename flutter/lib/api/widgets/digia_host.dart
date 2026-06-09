@@ -6,6 +6,7 @@ import '../internal/digia_instance.dart';
 import '../internal/digia_overlay_controller.dart';
 import '../internal/nudge/nudge_config.dart';
 import '../internal/nudge/nudge_presenter.dart';
+import '../internal/survey/ui/survey_renderer.dart';
 import '../internal/variable_scope.dart';
 import '../models/digia_experience_event.dart';
 
@@ -82,6 +83,10 @@ class _DigiaHostState extends State<DigiaHost> {
         case InlineStoryCampaignConfig():
           // Inline campaigns are handled by DigiaSlot — nothing to do here.
           _controller.dismiss();
+        case SurveyCampaignConfig():
+          // Surveys are driven by the SurveyOrchestrator + SurveyRenderer, not
+          // the overlay-controller path — nothing to present here.
+          _controller.dismiss();
         case UnsupportedCampaignConfig():
           _controller.dismiss();
       }
@@ -119,6 +124,15 @@ class _DigiaHostState extends State<DigiaHost> {
 
   @override
   Widget build(BuildContext context) {
-    return widget.child;
+    // The survey overlay draws its own scrim + panel above the app (nudges use
+    // pushed routes instead, so they need no slot here). Stacking it at the
+    // [DigiaHost] level — above the navigator — keeps it over all app content.
+    return Stack(
+      textDirection: TextDirection.ltr,
+      children: [
+        widget.child,
+        const SurveyRenderer(),
+      ],
+    );
   }
 }

@@ -1,5 +1,6 @@
 import '../nudge/nudge_config.dart';
 import '../nudge/nudge_parser.dart';
+import '../survey/survey_config.dart';
 import 'inline_carousel_config.dart';
 import 'inline_story_config.dart';
 import 'json_util.dart';
@@ -51,6 +52,17 @@ class NudgeCampaignConfig extends CampaignConfigModel {
 
   const NudgeCampaignConfig(
     this.nudgeConfig, {
+    super.defaultVariables,
+  });
+}
+
+/// A survey campaign — a branching questionnaire presented as an overlay
+/// (bottom sheet / dialog) via the [SurveyOrchestrator] and `SurveyRenderer`.
+class SurveyCampaignConfig extends CampaignConfigModel {
+  final SurveyConfigModel surveyConfig;
+
+  const SurveyCampaignConfig(
+    this.surveyConfig, {
     super.defaultVariables,
   });
 }
@@ -132,6 +144,7 @@ class CampaignConfigFactory {
   static final Map<String, CampaignConfigBuilder> _builders = {
     'inline': _inline,
     'nudge': _nudge,
+    'survey': _survey,
   };
 
   /// The builder for [campaignType], or `null` when the type is unknown.
@@ -162,6 +175,23 @@ class CampaignConfigFactory {
         ? null
         : NudgeCampaignConfig(nudge,
             defaultVariables: _declaredVariables(templateConfig));
+  }
+
+  static CampaignConfigModel? _survey(Map<String, dynamic> json) {
+    // The survey schema arrives as `surveyConfig`, or a `templateConfig` whose
+    // `templateType == "survey"` (mirrors Android's `parseSurveyConfig`).
+    var surveyJson = optMap(json, 'surveyConfig');
+    if (surveyJson == null) {
+      final tc = optMap(json, 'templateConfig');
+      if (tc != null && optString(tc, 'templateType') == 'survey') surveyJson = tc;
+    }
+    if (surveyJson == null) return null;
+    var fallbackId = optString(json, 'id');
+    if (fallbackId.isEmpty) fallbackId = optString(json, '_id');
+    final survey = SurveyConfigModel.fromJson(surveyJson, fallbackId);
+    if (survey == null) return null;
+    return SurveyCampaignConfig(survey,
+        defaultVariables: _declaredVariables(surveyJson));
   }
 
   /// The dashboard-declared variable defaults block on a `templateConfig`, or an
