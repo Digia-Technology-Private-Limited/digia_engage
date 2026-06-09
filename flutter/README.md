@@ -164,6 +164,55 @@ navigatorObservers: [DigiaNavigatorObserver()]
 
 ---
 
+## CEP Plugin Interface
+
+To connect a new CEP, implement `DigiaCEPPlugin`:
+
+```dart
+class MyCEPPlugin implements DigiaCEPPlugin {
+  @override
+  String get identifier => 'my_cep';
+
+  @override
+  void setup(DigiaCEPDelegate delegate) {
+    // Subscribe to in-app events from your CEP SDK and pass payloads
+    // to delegate.onExperienceReady(payload)
+  }
+
+  @override
+  void teardown() { /* clean up subscriptions */ }
+
+  @override
+  void notifyEvent(DigiaExperienceEvent event, CEPTriggerPayload payload) {
+    // Forward impression/dismiss events back to your CEP
+  }
+
+  @override
+  void forwardScreen(String screenName) {
+    // Forward screen name to your CEP
+  }
+}
+```
+
+Then register it:
+
+```dart
+Digia.register(MyCEPPlugin());
+```
+
+---
+
+## Experience Events
+
+The SDK fires two events during a campaign lifecycle, forwarded to your CEP plugin via `notifyEvent`:
+
+| Event | When |
+|---|---|
+| `ExperienceImpressed` | The first time a campaign renders (modal shown / slot built) |
+| `ExperienceDismissed` | The user explicitly closes the campaign |
+
+---
+
 ## License
 
 This project is licensed under the Business Source License 1.1 (BSL 1.1) - see the LICENSE file for details. The BSL 1.1 allows personal and commercial use with certain restrictions around competing platforms. On August 5, 2029, the license will automatically convert to Apache License 2.0.
