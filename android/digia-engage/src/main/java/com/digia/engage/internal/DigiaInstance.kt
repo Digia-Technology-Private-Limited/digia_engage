@@ -11,6 +11,7 @@ import com.digia.engage.DigiaCEPPlugin
 import com.digia.engage.DigiaConfig
 import com.digia.engage.DigiaExperienceEvent
 import com.digia.engage.InAppPayload
+import com.digia.engage.internal.logging.Logger
 import com.digia.engage.internal.model.CampaignModel
 import java.util.UUID
 import java.util.concurrent.atomic.AtomicBoolean
@@ -48,7 +49,6 @@ internal object DigiaInstance : DigiaCEPDelegate {
     private val surveyOrchestrator = SurveyOrchestrator()
     private var submissionReporter: SubmissionReporter? = null
     private var completedSurveyToken: Long? = null
-    private var frequencyStore: FrequencyStore? = null
 
     val guideState = guideOrchestrator.state
     val surveyState = surveyOrchestrator.state
@@ -71,29 +71,29 @@ internal object DigiaInstance : DigiaCEPDelegate {
 
     fun initialize(context: Context, config: DigiaConfig) {
         if (!initializationStarted.compareAndSet(false, true)) return
+        Logger.configure(config.logLevel)
+        Logger.verbose("Digia SDK initializing | projectId=${config.apiKey.take(8)}… env=${config.environment}")
         _sdkState.value = SDKState.INITIALIZING
-        com.digia.engage.framework.DigiaFontConfig.fontFamily = config.fontFamily
+        com.digia.engage.internal.DigiaFontConfig.fontFamily = config.fontFamily
         analyticsClient.configure(config)
 
         val deviceId = resolveDeviceId(context)
         submissionReporter = SubmissionReporter(config, deviceId, scope)
-        frequencyStore = FrequencyStore(context.applicationContext.getSharedPreferences("digia_frequency", Context.MODE_PRIVATE))
 
         scope.launch(Dispatchers.IO) {
             try {
                 val deviceId = loadOrCreateDeviceId(context.applicationContext)
                 val fetcher = CampaignFetcher(config, deviceId)
                 val campaigns = fetcher.fetch()
-                android.util.Log.d("DigiaDebug", "[initialize] fetched ${campaigns.size} campaigns: ${campaigns.map { it.campaignKey }}")
                 campaignStore.populate(campaigns)
                 scope.launch(Dispatchers.Main.immediate) {
                     initialized.set(true)
                     _isUiReady.value = true
                     _sdkState.value = SDKState.READY
+                    Logger.verbose("Digia SDK ready | campaigns=${campaigns.size}")
                     registerLifecycleObserver()
                     pluginRegistry.runHealthCheck()
-                    if (campaignStore.isEmpty()) logWarning("No campaigns fetched — CampaignStore is empty")
-                    android.util.Log.d("DigiaDebug", "[initialize] pendingPayload=${pendingPayload?.id} — flushing now")
+                    if (campaignStore.isEmpty()) Logger.warning("No campaigns fetched — check your projectId and network connection")
                     flushPendingPayloadIfAny()
                 }.join()
             } catch (t: Throwable) {
@@ -102,17 +102,19 @@ internal object DigiaInstance : DigiaCEPDelegate {
                     _isUiReady.value = false
                     _sdkState.value = SDKState.FAILED
                 }
-                logWarning("Digia.initialize failed: ${t.message}")
+                Logger.error("Digia SDK init failed: ${t.message}")
             }
         }
     }
 
     fun register(plugin: DigiaCEPPlugin) {
+        Logger.verbose("Plugin registered: ${plugin.identifier}")
         pluginRegistry.register(plugin)
         screenTracker.currentScreen?.let(pluginRegistry::forwardScreen)
     }
 
     fun setCurrentScreen(name: String) {
+        Logger.verbose("Screen: $name")
         screenTracker.setScreen(name)
     }
 
@@ -260,16 +262,6 @@ internal object DigiaInstance : DigiaCEPDelegate {
     fun reportNudgeImpression() {
         val payload = controller.nudgeOverlay.value?.payload ?: return
         displayCoordinator.onOverlayEvent(DigiaExperienceEvent.Impressed, payload)
-        // Record frequency impression
-        val campaignKey = (payload.content["campaign_key"] as? String) ?: return
-        val store = frequencyStore ?: return
-        val now = System.currentTimeMillis()
-        val prev = store.get(campaignKey)
-        store.set(campaignKey, FrequencyState(
-            shownCount = (prev?.shownCount ?: 0) + 1,
-            firstShownAt = prev?.firstShownAt ?: now,
-            stoppedAt = null,
-        ))
     }
 
     fun emitNudgeClick(elementId: String?) {
@@ -279,6 +271,7 @@ internal object DigiaInstance : DigiaCEPDelegate {
 
     fun markNudgeDismissed() {
         val payload = controller.nudgeOverlay.value?.payload ?: return
+        Logger.verbose("Nudge dismissed: id=${payload.id}")
         displayCoordinator.onOverlayEvent(DigiaExperienceEvent.Dismissed, payload)
         controller.dismissNudge()
     }
@@ -327,34 +320,33 @@ internal object DigiaInstance : DigiaCEPDelegate {
 
     override fun onCampaignTriggered(payload: InAppPayload) {
         scope.launch(Dispatchers.Main.immediate) {
-            android.util.Log.d("DigiaDebug", "[onCampaignTriggered] id=${payload.id} state=${_sdkState.value} storeEmpty=${campaignStore.isEmpty()}")
+            Logger.verbose("Campaign received from CEP: id=${payload.id} sdkState=${_sdkState.value}")
             when (_sdkState.value) {
                 SDKState.NOT_INITIALIZED -> {
-                    logWarning("campaign dropped — SDK not initialized: ${payload.id}")
+                    Logger.error("Campaign dropped — SDK not initialized (call Digia.initialize() first): id=${payload.id}")
                     return@launch
                 }
                 SDKState.INITIALIZING -> {
                     if (pendingPayload != null) {
-                        logWarning("pending payload replaced by newer payload: ${payload.id}")
+                        Logger.warning("Pending campaign replaced by newer trigger: id=${payload.id}")
+                    } else {
+                        Logger.verbose("SDK still initializing — campaign queued: id=${payload.id}")
                     }
                     pendingPayload = payload
                     return@launch
                 }
                 SDKState.FAILED -> {
-                    logWarning("campaign dropped — SDK initialization failed: ${payload.id}")
+                    Logger.error("Campaign dropped — SDK init failed: id=${payload.id}")
                     return@launch
                 }
                 SDKState.READY -> Unit
             }
-            try {
-                routeCampaign(payload)
-            } catch (t: Throwable) {
-                android.util.Log.e("DigiaDebug", "[onCampaignTriggered] routeCampaign threw: ${t.message}", t)
-            }
+            routeCampaign(payload)
         }
     }
 
     override fun onCampaignInvalidated(campaignId: String) {
+        Logger.verbose("Campaign invalidated by CEP: id=$campaignId")
         scope.launch(Dispatchers.Main.immediate) {
             displayCoordinator.dismissNudge(campaignId)
             displayCoordinator.dismissInline(campaignId)
@@ -371,45 +363,29 @@ internal object DigiaInstance : DigiaCEPDelegate {
             ?: (payload.content["campaign_key"] as? String)
             ?: (payload.content["digiaKey"] as? String)
             ?: payload.id.takeIf { it.isNotBlank() })?.trim()
-        android.util.Log.d("DigiaDebug", "[doRouteCampaign] id=${payload.id} resolvedKey=$campaignKey content=${payload.content.keys}")
         if (campaignKey.isNullOrBlank()) {
-            logWarning("payload dropped: missing campaign_key: ${payload.id}")
+            Logger.error("Campaign dropped — missing campaign_key in payload: id=${payload.id}. Ensure the CEP plugin sets campaign_key in content.")
             return
         }
         val campaign = campaignStore.find(campaignKey)
-        android.util.Log.d("DigiaDebug", "[doRouteCampaign] campaignStore.find('$campaignKey') => ${if (campaign != null) "FOUND type=${campaign.campaignType}" else "NOT FOUND"}")
         if (campaign == null) {
-            logWarning("payload dropped: no campaign found for key '$campaignKey'")
+            Logger.error("Campaign dropped — no campaign found for key '$campaignKey'. Check the key matches a published campaign on the Digia dashboard.")
             return
         }
+        Logger.verbose("Campaign resolved: key=$campaignKey type=${campaign.campaignType}")
         routeCampaign(campaign, payload)
     }
 
     private fun routeCampaign(campaign: CampaignModel, payload: InAppPayload = campaignPayload(campaign)) {
         val campaignKey = campaign.campaignKey
         val routedPayload = payloadForCampaign(campaign, payload)
-        android.util.Log.d("DigiaDebug", "[routeCampaign] routing '$campaignKey' type=${campaign.campaignType} nudgeConfig=${campaign.nudgeConfig != null}")
+        Logger.verbose("Routing campaign: key=$campaignKey type=${campaign.campaignType}")
         when (campaign.campaignType) {
             "guide" -> guideOrchestrator.start(campaign, extractVariables(payload.content))
             "nudge" -> {
                 val nudgeConfig = campaign.nudgeConfig
-                if (nudgeConfig == null) {
-                    android.util.Log.e("DigiaDebug", "[routeCampaign] nudgeConfig is null for campaign '$campaignKey' — campaign not properly configured as nudge")
-                    return
-                }
-                // Native frequency gate — JS bridge skips frequency for nudges
-                val freq = campaign.frequency
-                if (FrequencyEvaluator.hasPolicy(freq)) {
-                    val state = frequencyStore?.get(campaignKey)
-                    val result = FrequencyEvaluator.evaluate(freq, state, System.currentTimeMillis())
-                    if (!result.allow) {
-                        logWarning("[Digia] nudge frequency_capped campaign_key=$campaignKey reason=${result.reason}")
-                        return
-                    }
-                }
-                val triggerVars = extractVariables(payload.content)
-                val mergedVars = if (triggerVars != null) campaign.defaultVariables + triggerVars else campaign.defaultVariables
-                displayCoordinator.routeNudge(nudgeConfig, nudgePayload(campaign, routedPayload, nudgeConfig), mergedVars)
+                    ?: error("unexpected config for nudge campaign '$campaignKey'")
+                displayCoordinator.routeNudge(nudgeConfig, nudgePayload(campaign, routedPayload, nudgeConfig))
             }
             "inline" -> when (val cfg = campaign.config) {
                 is com.digia.engage.internal.model.CampaignConfigModel.Inline ->
@@ -420,7 +396,7 @@ internal object DigiaInstance : DigiaCEPDelegate {
             }
             "survey" -> {
                 if (!surveyOrchestrator.start(campaign)) {
-                    logWarning("survey campaign dropped: another survey is on screen: $campaignKey")
+                    Logger.warning("Survey campaign skipped — another survey is already on screen: key=$campaignKey")
                 }
             }
             else -> error("Unknown campaign_type: ${campaign.campaignType}")
@@ -453,22 +429,14 @@ internal object DigiaInstance : DigiaCEPDelegate {
         payload.copy(
             content = payload.content + mapOf(
                 "campaign_type" to "nudge",
-                "display_style" to config.surface.displayType.displayStyle,
+                "display_style" to config.templateType.displayStyle,
             ),
         )
 
     private fun flushPendingPayloadIfAny() {
-        val payload = pendingPayload ?: run {
-            android.util.Log.d("DigiaDebug", "[flushPendingPayloadIfAny] no pending payload")
-            return
-        }
-        android.util.Log.d("DigiaDebug", "[flushPendingPayloadIfAny] flushing id=${payload.id}")
+        val payload = pendingPayload ?: return
         pendingPayload = null
-        try {
-            routeCampaign(payload)
-        } catch (t: Throwable) {
-            android.util.Log.e("DigiaDebug", "[flushPendingPayloadIfAny] routeCampaign threw: ${t.message}", t)
-        }
+        routeCampaign(payload)
     }
 
     private fun registerLifecycleObserver() {
@@ -500,7 +468,7 @@ internal object DigiaInstance : DigiaCEPDelegate {
     }
 
     private fun logWarning(message: String) {
-        Log.w("DigiaInstance", message)
+        Logger.warning(message)
     }
 
     @Suppress("unused")

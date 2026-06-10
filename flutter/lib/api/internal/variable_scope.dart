@@ -43,13 +43,14 @@ Object? resolveValue(String text, Map<String, dynamic>? variables) {
   final whole = _wholeTokenPattern.firstMatch(text.trim());
   if (whole != null && variables != null) {
     final key = whole.group(1)!;
-    if (variables.containsKey(key)) return variables[key];
+    if (variables.containsKey(key)) {
+      return variables[key];
+    }
   }
   return interpolateVariables(text, variables);
 }
 
-final _wholeTokenPattern =
-    RegExp(r'^\{\{\s*([A-Za-z_][A-Za-z0-9_]*)\s*\}\}$');
+final _wholeTokenPattern = RegExp(r'^\{\{\s*([A-Za-z_][A-Za-z0-9_]*)\s*\}\}$');
 
 /// An immutable set of runtime variables a surface is rendered against, with a
 /// [resolve] convenience for interpolating a single string.

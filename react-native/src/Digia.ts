@@ -82,6 +82,7 @@ class DigiaClass implements DigiaDelegate {
         this._apiBaseUrl = this._resolveApiBaseUrl(config);
         this._logLevel = logLevel;
         this._fontFamily = config.fontFamily?.trim() || undefined;
+        this._log(`Digia SDK initializing | projectId=${config.projectId.slice(0, 8)}… env=${environment}`);
         digiaHealthReporter.init(config.projectId, this._apiBaseUrl);
 
         digiaActionHandler.configure({
@@ -95,14 +96,14 @@ class DigiaClass implements DigiaDelegate {
         try {
             await nativeDigiaModule.initialize(config.projectId, environment, logLevel, config.baseUrl, config.fontFamily);
         } catch (e) {
-            // Health-event reporting is currently disabled.
-            // digiaHealthReporter.report(HealthEventType.fetch_failed, { error_code: 0, platform: 'react_native' });
+            this._error(`Digia SDK native init failed: ${e instanceof Error ? e.message : String(e)}`);
             throw e;
         }
 
         this._deviceId = await this._loadOrCreateDeviceId();
         await frequencyStore.checkProjectId(config.projectId);
         await this._refreshCampaignStore();
+        this._log(`Digia SDK ready | campaigns=${this._campaignsByKey.size}`);
     }
 
     /**
@@ -122,7 +123,10 @@ class DigiaClass implements DigiaDelegate {
      */
     register(plugin: DigiaPlugin): void {
         if (this._plugins.has(plugin.identifier)) {
+            this._log(`Plugin replaced: ${plugin.identifier}`);
             this._plugins.get(plugin.identifier)!.teardown();
+        } else {
+            this._log(`Plugin registered: ${plugin.identifier}`);
         }
         // Wire the native bridge plugin once, before the first plugin's setup()
         // so the delegate is ready when JS campaigns start flowing.
@@ -154,6 +158,7 @@ class DigiaClass implements DigiaDelegate {
      * All registered plugins will have forwardScreen() called automatically.
      */
     setCurrentScreen(name: string): void {
+        this._log(`Screen: ${name}`);
         this._currentScreen = name;
         nativeDigiaModule.setCurrentScreen(name);
         this._plugins.forEach((plugin) => plugin.forwardScreen(name));
@@ -194,13 +199,13 @@ class DigiaClass implements DigiaDelegate {
         if (campaignKey) {
             const campaign = this._campaignsByKey.get(campaignKey);
 
-            if (campaign && campaign.campaign_type !== 'nudge' && hasPolicy(campaign.frequency)) {
+            if (campaign && hasPolicy(campaign.frequency)) {
                 const policy = campaign.frequency!;
                 const isSession = isSessionPolicy(policy);
                 const state = await this._getFrequencyState(campaignKey, isSession);
                 const result = evaluate(policy, state, Date.now());
                 if (!result.allow) {
-                    this._log(`frequency_capped campaign_key=${campaignKey} reason=${result.reason}`);
+                    this._warn(`Campaign frequency capped: key=${campaignKey} reason=${result.reason}`);
                     return;
                 }
             }
@@ -250,10 +255,8 @@ class DigiaClass implements DigiaDelegate {
                 return;
             }
 
-            if (campaign?.campaign_type === 'nudge') {
-                this._log(`nudge campaign triggered campaign_key=${campaignKey}, forwarding to native (native enforces frequency)`);
-            } else if (!campaign) {
-                this._log(`campaign_key_mismatch: no campaign found for key="${campaignKey}"`);
+            if (!campaign) {
+                this._error(`Campaign not found for key="${campaignKey}" — check this key matches a published campaign on the Digia dashboard. Available keys: [${[...this._campaignsByKey.keys()].join(', ')}]`);
                 digiaHealthReporter.report(HealthEventType.campaign_key_mismatch, {
                     campaign_key: campaignKey,
                     payload_id: payload.id,
@@ -264,7 +267,6 @@ class DigiaClass implements DigiaDelegate {
         }
 
         this._activePayloads.set(payload.id, payload);
-        this._log(`triggerCampaign id=${payload.id} content=${JSON.stringify(payload.content)}`);
         nativeDigiaModule.triggerCampaign(payload.id, payload.content, payload.cepContext);
     }
 
@@ -309,7 +311,6 @@ class DigiaClass implements DigiaDelegate {
     private _forwardExperienceEvent(
         data: { campaignId: string; type: string; elementId?: string },
     ): void {
-        this._log(`engage-event type=${data.type} campaignId=${data.campaignId} tracked=${this._activePayloads.has(data.campaignId)}`);
         const payload = this._activePayloads.get(data.campaignId);
         if (!payload) return;
 
@@ -446,7 +447,7 @@ class DigiaClass implements DigiaDelegate {
             this._log(`loaded ${campaigns.length} campaign(s): [${[...this._campaignsByKey.keys()].join(', ')}]`);
         } catch (e) {
             const reason = e instanceof Error ? e.message : String(e);
-            this._log(`getCampaigns FAILED: ${reason}`);
+            this._error(`Campaign fetch failed: ${reason} — check your projectId and network connectivity`);
             digiaHealthReporter.report(HealthEventType.fetch_failed, {
                 error_code: 0,
                 platform: 'react_native',
@@ -624,6 +625,18 @@ class DigiaClass implements DigiaDelegate {
         if (this._logLevel !== 'verbose') return;
         // eslint-disable-next-line no-console
         console.log(`[Digia] ${message}`);
+    }
+
+    private _warn(message: string): void {
+        if (this._logLevel === 'none') return;
+        // eslint-disable-next-line no-console
+        console.warn(`[Digia] ${message}`);
+    }
+
+    private _error(message: string): void {
+        if (this._logLevel === 'none') return;
+        // eslint-disable-next-line no-console
+        console.error(`[Digia] ${message}`);
     }
 
 }

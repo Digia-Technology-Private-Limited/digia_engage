@@ -35,9 +35,8 @@ abstract final class Digia {
   /// Call this once at application startup — typically in `main()` before
   /// `runApp()` — and `await` the result before any other Digia call.
   ///
-  /// Internally this starts the real src services: SharedPreferences,
-  /// NetworkClient, DSL config loading, fetches engage campaigns, and wires
-  /// [DigiaUIManager].
+  /// Internally this starts the real SDK services: SharedPreferences,
+  /// fetches engage campaigns, and wires the overlay controller.
   ///
   /// The SDK enters degraded mode if [register] is not subsequently called:
   /// all calls are accepted and logged, but no experiences are displayed.

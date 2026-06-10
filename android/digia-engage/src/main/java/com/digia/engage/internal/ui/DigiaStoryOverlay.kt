@@ -47,9 +47,9 @@ import com.digia.engage.internal.extractVariables
 import com.digia.engage.internal.interpolate
 import com.digia.engage.internal.model.StoryCtaAction
 import com.digia.engage.internal.model.StoryItemConfig
-import com.digia.engage.framework.story.LocalStoryVideoCallback
-import com.digia.engage.framework.story.StoryIndicatorConfig
-import com.digia.engage.framework.story.StoryPresenter
+import com.digia.engage.internal.story.LocalStoryVideoCallback
+import com.digia.engage.internal.story.StoryIndicatorConfig
+import com.digia.engage.internal.story.StoryPresenter
 import kotlin.time.Duration.Companion.milliseconds
 
 @Composable

@@ -1,13 +1,18 @@
 package com.digia.engage.internal.model
 
-/** Whether a nudge presents as a bottom sheet or a centered dialog. */
-internal enum class NudgeDisplayType {
+import com.digia.engage.internal.ui.nudge.NudgeColumn
+import com.digia.engage.internal.ui.nudge.NudgeParser
+import org.json.JSONObject
+
+internal enum class NudgeTemplateType {
     BOTTOM_SHEET,
     DIALOG;
 
     companion object {
-        fun fromString(value: String?): NudgeDisplayType =
-            if (value == "dialog") DIALOG else BOTTOM_SHEET
+        fun fromString(value: String?): NudgeTemplateType = when (value) {
+            "dialog" -> DIALOG
+            else -> BOTTOM_SHEET
+        }
     }
 
     val displayStyle: String
@@ -17,28 +22,51 @@ internal enum class NudgeDisplayType {
         }
 }
 
-/**
- * The presentation chrome for a nudge — mirrors Flutter NudgeSurface.
- * All fields match the dashboard wire format exactly.
- */
-internal data class NudgeSurface(
-    val displayType: NudgeDisplayType = NudgeDisplayType.BOTTOM_SHEET,
-    val backgroundColor: Int? = null,
-    val barrierColor: Int? = null,
-    val cornerRadius: Float = 18f,
-    val padding: Float = 20f,
-    val backdropDismissible: Boolean = true,
-    val showCloseButton: Boolean = false,
-    val showHandle: Boolean = true,
-    val draggable: Boolean = true,
-    val widthFraction: Float = 0.86f,
-)
+internal data class NudgeContainerConfig(
+    val bgColor: String = "#FFFFFF",
+    val cornerRadius: Float = 16f,
+    val padding: Float = 16f,
+    val dismissOnOutsideTap: Boolean = true,
+    val scrimColor: String = "#66000000",
+    val maxHeightRatio: Float = 0.7f,
+    val dragHandle: Boolean = true,
+    val width: Float? = null,
+) {
+    companion object {
+        fun fromJson(json: JSONObject?): NudgeContainerConfig {
+            if (json == null) return NudgeContainerConfig()
+            val defaults = NudgeContainerConfig()
+            return NudgeContainerConfig(
+                bgColor = json.optString("bgColor", defaults.bgColor),
+                cornerRadius = json.optDouble("cornerRadius", defaults.cornerRadius.toDouble()).toFloat(),
+                padding = json.optDouble("padding", defaults.padding.toDouble()).toFloat(),
+                dismissOnOutsideTap = json.optBoolean("dismissOnOutsideTap", defaults.dismissOnOutsideTap),
+                scrimColor = json.optString("scrimColor", defaults.scrimColor),
+                maxHeightRatio = json.optDouble("maxHeightRatio", defaults.maxHeightRatio.toDouble()).toFloat(),
+                dragHandle = json.optBoolean("dragHandle", defaults.dragHandle),
+                width = if (json.has("width") && !json.isNull("width")) {
+                    json.optDouble("width").toFloat()
+                } else {
+                    defaults.width
+                },
+            )
+        }
+    }
+}
 
-/**
- * Parsed `templateConfig` for a nudge campaign.
- * [surface] is the presentation chrome; [content] is the typed widget tree.
- */
 internal data class NudgeConfig(
-    val surface: NudgeSurface,
-    val content: NudgeColumn,
-)
+    val templateType: NudgeTemplateType,
+    val container: NudgeContainerConfig,
+    val layout: NudgeColumn,
+) {
+    companion object {
+        fun fromJson(json: JSONObject): NudgeConfig? {
+            val layout = NudgeParser().parse(json) ?: return null
+            return NudgeConfig(
+                templateType = NudgeTemplateType.fromString(json.optString("templateType")),
+                container = NudgeContainerConfig.fromJson(json.optJSONObject("container")),
+                layout = layout,
+            )
+        }
+    }
+}

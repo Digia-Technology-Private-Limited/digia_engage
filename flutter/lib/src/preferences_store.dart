@@ -2,7 +2,13 @@ import 'dart:convert';
 
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'framework/utils/json_util.dart';
+Object? _tryJsonDecode(String source) {
+  try {
+    return jsonDecode(source);
+  } catch (_) {
+    return null;
+  }
+}
 
 class PreferencesStore {
   static final PreferencesStore _instance = PreferencesStore._();
@@ -33,7 +39,7 @@ class PreferencesStore {
 
     // For complex objects, try to decode JSON if it's a string
     if (value is String) {
-      final decoded = tryJsonDecode(value);
+      final decoded = _tryJsonDecode(value);
       return decoded as T? ?? defaultValue;
     }
 
