@@ -11,6 +11,7 @@ data class DigiaConfig(
      * (e.g. "sans-serif", or a family bundled and registered with the system).
      */
     val fontFamily: String? = null,
+    val analyticsConfig: AnalyticsConfig = AnalyticsConfig(),
 )
 
 enum class DigiaLogLevel {

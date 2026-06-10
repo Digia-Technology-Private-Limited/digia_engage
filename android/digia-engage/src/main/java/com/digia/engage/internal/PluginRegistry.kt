@@ -1,5 +1,6 @@
 package com.digia.engage.internal
 
+import com.digia.engage.CEPTriggerPayload
 import com.digia.engage.DigiaCEPDelegate
 import com.digia.engage.DigiaCEPPlugin
 import com.digia.engage.DigiaExperienceEvent
@@ -23,7 +24,11 @@ internal class PluginRegistry(
     }
 
     fun notifyEvent(event: DigiaExperienceEvent, payload: InAppPayload) {
-        activePlugin?.notifyEvent(event, payload)
+        activePlugin?.notifyEvent(event, CEPTriggerPayload(
+            cepCampaignId = payload.id,
+            campaignKey = payload.content["campaign_key"] as? String ?: payload.id,
+            cepMetadata = payload.cepContext,
+        ))
     }
 
     fun runHealthCheck() {

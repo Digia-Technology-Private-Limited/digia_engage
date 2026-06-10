@@ -169,6 +169,22 @@ class DigiaClass implements DigiaDelegate {
     }
 
     /**
+     * Associate a known user ID with subsequent analytics events.
+     * Call after login; rotates the analytics session automatically.
+     */
+    setUserId(userId: string): void {
+        nativeDigiaModule.setUserId(userId);
+    }
+
+    /**
+     * Clear the user ID (e.g. on logout).
+     * Subsequent events are attributed to the anonymous ID and a new session.
+     */
+    clearUserId(): void {
+        nativeDigiaModule.clearUserId();
+    }
+
+    /**
      * Global font family configured via {@link initialize}, or `undefined` when
      * none was set. Used by the JS-rendered guide overlays (tooltip/spotlight)
      * so their text matches native-rendered campaigns.
@@ -293,7 +309,7 @@ class DigiaClass implements DigiaDelegate {
 
     private _fireCustomEvent(
         eventName: string,
-        properties?: Record<string, unknown>,
+        _properties?: Record<string, unknown>,
         context?: ActionContext,
     ): void {
         const payload = context ? this._activePayloads.get(context.campaign_id) : null;
@@ -343,6 +359,16 @@ class DigiaClass implements DigiaDelegate {
         const eventName = this._guideEventName(event.type);
         const properties = this._buildGuideProperties(event, campaignId, campaignKey);
         this._plugins.forEach((p) => p.track?.(eventName, properties));
+
+        // Forward main experience events to native analytics.
+        // step_* and completed events are guide-specific and have no native equivalent.
+        if (event.type === 'viewed') {
+            nativeDigiaModule.trackEvent('impressed', campaignId, campaignKey, 'guide', null);
+        } else if (event.type === 'clicked') {
+            nativeDigiaModule.trackEvent('clicked', campaignId, campaignKey, 'guide', event.elementId ?? null);
+        } else if (event.type === 'dismissed') {
+            nativeDigiaModule.trackEvent('dismissed', campaignId, campaignKey, 'guide', null);
+        }
 
         if (event.type === 'viewed') {
             void this._bumpFrequencyImpression(campaignKey);

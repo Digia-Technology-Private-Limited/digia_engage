@@ -4,7 +4,7 @@ interface DigiaCEPPlugin {
     val identifier: String
     fun setup(delegate: DigiaCEPDelegate)
     fun forwardScreen(name: String)
-    fun notifyEvent(event: DigiaExperienceEvent, payload: InAppPayload)
+    fun notifyEvent(event: DigiaExperienceEvent, payload: CEPTriggerPayload)
     fun healthCheck(): DiagnosticReport
     fun teardown()
 }

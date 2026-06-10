@@ -28,4 +28,15 @@ object Digia {
         DigiaInstance.unregisterAnchor(key)
     }
 
+    fun setUserId(userId: String) {
+        DigiaInstance.setUserId(userId)
+    }
+
+    fun clearUserId() {
+        DigiaInstance.clearUserId()
+    }
+
+    fun captureAnalyticsEvent(event: DigiaExperienceEvent, payload: InAppPayload) {
+        DigiaInstance.captureAnalyticsEvent(event, payload)
+    }
 }

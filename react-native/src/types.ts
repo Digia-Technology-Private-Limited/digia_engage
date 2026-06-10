@@ -16,7 +16,6 @@ export interface CEPTriggerPayload {
     variables?: Record<string, string>;
 }
 
-
 export type CampaignType = 'nudge' | 'guide' | 'inline' | 'survey';
 
 // ─── Experience events (CEP lifecycle — used by notifyEvent) ──────────────────

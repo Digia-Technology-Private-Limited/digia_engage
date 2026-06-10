@@ -2,13 +2,14 @@ package com.digia.engage.internal
 
 import com.digia.engage.DigiaExperienceEvent
 import com.digia.engage.InAppPayload
+import com.digia.engage.internal.analytics.AnalyticsService
 import com.digia.engage.internal.model.InlineCarouselConfig
 import com.digia.engage.internal.model.InlineStoryConfig
 
 internal class DisplayCoordinator(
     private val overlayController: DigiaOverlayController,
     private val pluginRegistry: PluginRegistry,
-    private val analyticsClient: AnalyticsClient,
+    private val getAnalyticsService: () -> AnalyticsService?,
 ) {
     fun routeNudge(payload: InAppPayload) {
         overlayController.show(payload)
@@ -40,12 +41,12 @@ internal class DisplayCoordinator(
 
     fun onOverlayEvent(event: DigiaExperienceEvent, payload: InAppPayload) {
         pluginRegistry.notifyEvent(event, payload)
-        analyticsClient.track(event, payload)
+        getAnalyticsService()?.capture(event, payload)
     }
 
     fun onSlotEvent(event: DigiaExperienceEvent, payload: InAppPayload) {
         pluginRegistry.notifyEvent(event, payload)
-        analyticsClient.track(event, payload)
+        getAnalyticsService()?.capture(event, payload)
     }
 
     /** Forward only to the active CEP plugin — used for survey Clicked/Dismissed. */
@@ -55,6 +56,6 @@ internal class DisplayCoordinator(
 
     /** Record only into internal analytics — used for survey Answered/Completed. */
     fun trackInternal(event: InternalEngageEvent, payload: InAppPayload) {
-        analyticsClient.trackInternal(event, payload)
+        getAnalyticsService()?.captureInternal(event, payload)
     }
 }
