@@ -1,7 +1,3 @@
-import '../../../src/dui_dev_config.dart';
-import '../../../src/init/environment.dart';
-import '../../../src/init/flavor.dart';
-import '../../../src/init/options.dart';
 import '../internal/action/engage_action_context.dart';
 import 'analytics_config.dart';
 
@@ -87,21 +83,4 @@ class DigiaConfig {
     this.onAction,
     this.analyticsConfig = const DigiaAnalyticsConfig(),
   });
-
-  /// Builds the internal [DigiaUIOptions] used by [DigiaUI.initialize].
-  ///
-  /// This is an internal conversion — app developers never call this. The DSL
-  /// layer's flavor and developer config are derived from [environment]; they
-  /// are not part of the public surface.
-  DigiaUIOptions toOptions() {
-    return DigiaUIOptions.internal(
-      accessKey: apiKey,
-      flavor: Flavor.debug(
-        environment: environment == DigiaEnvironment.production
-            ? Environment.production
-            : Environment.development,
-      ),
-      developerConfig: const DeveloperConfig(),
-    );
-  }
 }

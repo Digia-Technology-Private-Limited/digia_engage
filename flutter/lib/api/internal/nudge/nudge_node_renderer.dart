@@ -2,10 +2,12 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:lottie/lottie.dart';
 
-import '../../../src/framework/internal_widgets/internal_carousel.dart';
-import '../../../src/framework/internal_widgets/internal_video_player.dart';
+import '../../../src/components/carousel/internal_carousel.dart';
+import '../../../src/components/video/internal_video_player.dart';
+import '../../models/digia_experience_event.dart';
 import '../action/engage_action_context.dart';
 import '../action/engage_action_handler.dart';
+import '../digia_instance.dart';
 import '../engage_fonts.dart';
 import '../variable_scope.dart';
 import 'nudge_content.dart';
@@ -143,14 +145,7 @@ final class NudgeButtonRenderer extends NudgeNodeRenderer<NudgeButton> {
       ),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
-        onTap: node.actions.isEmpty
-            ? null
-            : () => EngageActionRunner.shared.run(
-                  node.actions,
-                  EngageActionScope.fromContext(context),
-                  EngageActionContextScope.of(context) ??
-                      EngageActionContext.unknown,
-                ),
+        onTap: _onTap(node, context),
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           child: Center(
@@ -168,6 +163,30 @@ final class NudgeButtonRenderer extends NudgeNodeRenderer<NudgeButton> {
         ),
       ),
     );
+  }
+
+  /// Builds the tap handler. A primary button is the experience's call-to-action:
+  /// tapping it emits an `ExperienceClicked` analytics event before running its
+  /// actions. A button with neither actions nor the primary flag is inert.
+  VoidCallback? _onTap(NudgeButton node, BuildContext context) {
+    final hasActions = node.actions.isNotEmpty;
+    if (!hasActions && !node.isPrimary) return null;
+    return () {
+      if (node.isPrimary) {
+        final controller = DigiaInstance.instance.controller;
+        final payload = controller.activePayload;
+        if (payload != null) {
+          controller.onEvent?.call(const ExperienceClicked(), payload);
+        }
+      }
+      if (hasActions) {
+        EngageActionRunner.shared.run(
+          node.actions,
+          EngageActionScope.fromContext(context),
+          EngageActionContextScope.of(context) ?? EngageActionContext.unknown,
+        );
+      }
+    };
   }
 }
 
@@ -216,10 +235,8 @@ final class NudgeCarouselRenderer extends NudgeNodeRenderer<NudgeCarousel> {
   @override
   Widget render(NudgeCarousel node, BuildContext context) {
     final scope = VariableScopeProvider.of(context);
-    final images = node.images
-        .map(scope.resolve)
-        .where((url) => url.isNotEmpty)
-        .toList();
+    final images =
+        node.images.map(scope.resolve).where((url) => url.isNotEmpty).toList();
     if (images.isEmpty) {
       return NudgePlaceholder(label: 'No images', height: node.height);
     }

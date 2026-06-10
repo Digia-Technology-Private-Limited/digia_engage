@@ -132,7 +132,8 @@ class CampaignModel {
 
 /// Builds a [CampaignConfigModel] from a campaign's JSON, or returns `null` to
 /// signal the campaign should be dropped (its config is missing/invalid).
-typedef CampaignConfigBuilder = CampaignConfigModel? Function(Map<String, dynamic> json);
+typedef CampaignConfigBuilder = CampaignConfigModel? Function(
+    Map<String, dynamic> json);
 
 /// Factory (registry) mapping a `campaignType` to the builder that decodes its
 /// config. Supporting a new renderable type is an open/closed change: add one
@@ -183,7 +184,8 @@ class CampaignConfigFactory {
     var surveyJson = optMap(json, 'surveyConfig');
     if (surveyJson == null) {
       final tc = optMap(json, 'templateConfig');
-      if (tc != null && optString(tc, 'templateType') == 'survey') surveyJson = tc;
+      if (tc != null && optString(tc, 'templateType') == 'survey')
+        surveyJson = tc;
     }
     if (surveyJson == null) return null;
     var fallbackId = optString(json, 'id');
@@ -198,6 +200,22 @@ class CampaignConfigFactory {
   /// empty map when absent. Values keep their JSON type (stringified later, at
   /// interpolation), so a declared `count: 3` survives as a number here.
   static Map<String, dynamic> _declaredVariables(
-          Map<String, dynamic> templateConfig) =>
-      optMap(templateConfig, 'variables') ?? const <String, dynamic>{};
+      Map<String, dynamic> templateConfig) {
+    final list = optList(templateConfig, 'variables');
+    if (list != null) {
+      final result = <String, dynamic>{};
+      for (final entry in list) {
+        if (entry is Map) {
+          final name = entry['name'];
+          if (name is String && name.isNotEmpty) {
+            result[name] = entry.containsKey('fallbackValue')
+                ? entry['fallbackValue']
+                : entry['sampleValue'];
+          }
+        }
+      }
+      return result;
+    }
+    return const <String, dynamic>{};
+  }
 }

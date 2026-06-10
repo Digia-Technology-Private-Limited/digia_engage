@@ -1,8 +1,8 @@
 import 'package:flutter/widgets.dart';
 
 import '../../digia_engage.dart';
-import '../../digia_ui.dart';
 import '../../src/analytics/analytics_service.dart';
+import '../../src/engage_settings.dart';
 import '../../src/preferences_store.dart';
 import 'action/engage_action_handler.dart';
 import 'campaign/campaign_fetcher.dart';
@@ -92,31 +92,6 @@ class DigiaInstance with WidgetsBindingObserver implements DigiaCEPDelegate {
     // any failure leaves the SDK in [SDKState.failed] and resets the
     // started flag so a later call can retry.
     try {
-      // ── Wire the real src services ──────────────────────────────────────
-      // DigiaUI.initialize() sets up PreferencesStore, NetworkClient, and
-      // loads the DSL config (app_config / functions) from the server or
-      // local assets depending on the chosen Flavor.
-      // final digiaUI = await DigiaUI.initialize(config.toOptions());
-      // Initialize the Digia UI manager with the provided configuration
-      // DigiaUIManager().initialize(digiaUI);
-
-      // Initialize global app state with configuration from DSL
-      // DUIAppState().init(digiaUI.dslConfig.appState ?? []);
-
-      // Set up the UI factory with custom resources and providers
-      // DUIFactory().initialize(
-      //     // pageConfigProvider: pageConfigProvider,
-      //     // icons: icons,
-      //     // images: {
-      //     //   ...(DigiaUIManager().assetImages.asMap().map((k, v) => MapEntry(
-      //     //       v.assetData.localPath,
-      //     //       NetworkImage(
-      //     //           '${v.assetData.image?.baseUrl}${v.assetData.image?.path}')))),
-      //     //   ...?images
-      //     // },
-      //     // fontFactory: fontFactory,
-      //     );
-
       // Wire the event callback — when DigiaHost reports a user interaction,
       // route it to the active plugin.
       _controller.onEvent = (event, payload) async {
@@ -142,7 +117,7 @@ class DigiaInstance with WidgetsBindingObserver implements DigiaCEPDelegate {
       await PreferencesStore.instance.initialize();
       await DigiaAnalyticsService.instance
           .initialize(config.analyticsConfig, config.apiKey);
-      final deviceId = DUISettings.instance.getUuid();
+      final deviceId = EngageSettings.instance.getUuid();
       final campaigns = await CampaignFetcher(config, deviceId).fetch();
       _campaignStore.populate(campaigns);
 

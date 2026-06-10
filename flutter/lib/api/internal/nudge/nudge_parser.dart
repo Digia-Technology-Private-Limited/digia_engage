@@ -135,6 +135,7 @@ class NudgeParser {
       textColor: _color(optString(textStyle, 'textColor')) ?? const Color(0xFFFFFFFF),
       radius: optDouble(optMap(props, 'shape') ?? const {}, 'borderRadius', 8),
       actions: const EngageActionParser().parse(optMap(props, 'onClick')),
+      isPrimary: optBool(props, 'isPrimary', false),
     );
   }
 
