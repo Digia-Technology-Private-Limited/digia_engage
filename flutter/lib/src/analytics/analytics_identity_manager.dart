@@ -1,7 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:uuid/uuid.dart';
 
-import '../../dui_settings.dart';
+import '../engage_settings.dart';
 import '../preferences_store.dart';
 
 const _kAnalyticsUserIdKey = 'digia_analytics.user_id';
@@ -25,8 +25,7 @@ class AnalyticsIdentityManager {
     try {
       _sessionTimeoutMs = sessionTimeoutMs;
 
-      // Use device UUID from DUISettings as the persistent anonymous ID
-      _anonymousId = DUISettings.instance.getUuid();
+      _anonymousId = EngageSettings.instance.getUuid();
 
       _userId = PreferencesStore.instance.read<String>(_kAnalyticsUserIdKey);
       _sessionId =
