@@ -1,7 +1,7 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 
-import '../../src/framework/internal_widgets/internal_carousel.dart';
+import '../../src/components/carousel/internal_carousel.dart';
 import '../internal/campaign/inline_carousel_config.dart';
 import '../internal/variable_scope.dart';
 
