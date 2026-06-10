@@ -1,7 +1,7 @@
 name: digia_engage
 description: Flutter SDK for rendering server-driven UIs using JSON from Digia
   Studio. Supports dynamic layouts, state, actions, and custom widgets.
-version: 1.3.2
+version: 1.4.0
 repository: https://github.com/Digia-Technology-Private-Limited/digia_engage.git
 homepage: https://digia.tech
 documentation: https://docs.digia.tech
