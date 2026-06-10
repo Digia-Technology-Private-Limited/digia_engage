@@ -135,7 +135,9 @@ class ElementStyle {
   static ElementStyle fromJson(Map<String, dynamic>? json) {
     if (json == null) return const ElementStyle();
     return ElementStyle(
-      sizePx: (SurveyParse.optDouble(json, 'size') ?? 0).clamp(0, double.infinity).toDouble(),
+      sizePx: (SurveyParse.optDouble(json, 'size') ?? 0)
+          .clamp(0, double.infinity)
+          .toDouble(),
       weight: SurveyParse.fontWeight(json['weight'] as String?),
       align: SurveyParse.textAlign(json['align'] as String?),
       colorHex: SurveyParse.str(json, 'color'),
@@ -180,8 +182,9 @@ class SurveyOption {
   static SurveyOption? fromJson(Map<String, dynamic> json) {
     final id = SurveyParse.str(json, 'id');
     if (id.isEmpty) return null;
-    final label =
-        SurveyParse.str(json, 'label').isNotEmpty ? SurveyParse.str(json, 'label') : SurveyParse.str(json, 'value', id);
+    final label = SurveyParse.str(json, 'label').isNotEmpty
+        ? SurveyParse.str(json, 'label')
+        : SurveyParse.str(json, 'value', id);
     final mediaJson = SurveyParse.obj(json, 'media');
     final media = mediaJson == null ? null : BlockMedia.fromJson(mediaJson);
     final description = SurveyParse.str(json, 'description');
@@ -237,7 +240,8 @@ class NpsSentiment {
     required this.promoters,
   });
 
-  static NpsSentiment fromJson(Map<String, dynamic>? json, NpsSentiment defaults) {
+  static NpsSentiment fromJson(
+      Map<String, dynamic>? json, NpsSentiment defaults) {
     if (json == null) return defaults;
     String pick(String key, String def) {
       final v = SurveyParse.str(json, key);
@@ -337,8 +341,8 @@ class NpsStyle {
 
   bool get isCircle => shape == 'circle';
 
-  static const defaultScale =
-      NpsSentiment(detractors: '#F2675A', passives: '#D7C928', promoters: '#55B82E');
+  static const defaultScale = NpsSentiment(
+      detractors: '#F2675A', passives: '#D7C928', promoters: '#55B82E');
   static const defaultTiers =
       NpsSentiment(detractors: '😡', passives: '😐', promoters: '😍');
 
@@ -355,12 +359,16 @@ class NpsStyle {
       borderWidth: SurveyParse.optDouble(json, 'borderWidth') ?? 1,
       borderColorHex: orDefault('borderColor', '#E4E6EB'),
       backgroundColorHex: orDefault('backgroundColor', '#F4F5F8'),
-      selectedTile: NpsTileStyle.fromJson(SurveyParse.obj(json, 'selectedTile')),
+      selectedTile:
+          NpsTileStyle.fromJson(SurveyParse.obj(json, 'selectedTile')),
       textStyle: ElementStyle.fromJson(SurveyParse.obj(json, 'textStyle')),
-      scaleColors: NpsSentiment.fromJson(SurveyParse.obj(json, 'scaleColors'), defaultScale),
-      tierEmojis: NpsSentiment.fromJson(SurveyParse.obj(json, 'tierEmojis'), defaultTiers),
+      scaleColors: NpsSentiment.fromJson(
+          SurveyParse.obj(json, 'scaleColors'), defaultScale),
+      tierEmojis: NpsSentiment.fromJson(
+          SurveyParse.obj(json, 'tierEmojis'), defaultTiers),
       selectedBgColorHex: orDefault('selectedBgColor', '#FFFFFF'),
-      faces: SurveyParse.mapArray(SurveyParse.list(json, 'faces'), NpsFace.fromJson),
+      faces: SurveyParse.mapArray(
+          SurveyParse.list(json, 'faces'), NpsFace.fromJson),
       showFaceLabels: SurveyParse.boolean(json, 'showFaceLabels', true),
     );
   }
@@ -435,10 +443,13 @@ class BranchTarget {
   final String? nodeId;
   final String url;
 
-  const BranchTarget({required this.kind, required this.nodeId, required this.url});
+  const BranchTarget(
+      {required this.kind, required this.nodeId, required this.url});
 
-  static const next = BranchTarget(kind: BranchTargetKind.next, nodeId: null, url: '');
-  static const end = BranchTarget(kind: BranchTargetKind.end, nodeId: null, url: '');
+  static const next =
+      BranchTarget(kind: BranchTargetKind.next, nodeId: null, url: '');
+  static const end =
+      BranchTarget(kind: BranchTargetKind.end, nodeId: null, url: '');
 
   static BranchTarget fromJson(Map<String, dynamic>? json) {
     if (json == null) return next;
@@ -455,7 +466,8 @@ class BranchRule {
   final ConditionExpr whenExpr;
   final BranchTarget target;
 
-  const BranchRule({required this.id, required this.whenExpr, required this.target});
+  const BranchRule(
+      {required this.id, required this.whenExpr, required this.target});
 
   static BranchRule? fromJson(Map<String, dynamic> json) {
     final id = SurveyParse.str(json, 'id');
@@ -496,9 +508,11 @@ class NodeBranching {
     if (json == null) return linearNext;
     return NodeBranching(
       type: SurveyParse.branchingType(json['type'] as String?),
-      rules: SurveyParse.mapArray(SurveyParse.list(json, 'rules'), BranchRule.fromJson),
+      rules: SurveyParse.mapArray(
+          SurveyParse.list(json, 'rules'), BranchRule.fromJson),
       parentNodeId: SurveyParse.optId(json, 'parentNodeId'),
-      defaultTarget: BranchTarget.fromJson(SurveyParse.obj(json, 'defaultTarget')),
+      defaultTarget:
+          BranchTarget.fromJson(SurveyParse.obj(json, 'defaultTarget')),
     );
   }
 }
@@ -573,15 +587,19 @@ class SurveyBlock {
     if (id.isEmpty) return null;
     final type = SurveyParse.blockType(json['type'] as String?);
     if (type == null) return null;
-    final options = SurveyParse.mapArray(SurveyParse.list(json, 'options'), SurveyOption.fromJson);
+    final options = SurveyParse.mapArray(
+        SurveyParse.list(json, 'options'), SurveyOption.fromJson);
     final optionStyleJson = SurveyParse.obj(json, 'optionStyle');
     return SurveyBlock(
       id: id,
       type: type,
-      title: RichText.fromJson(SurveyParse.obj(json, 'title')) ?? const RichText(''),
+      title: RichText.fromJson(SurveyParse.obj(json, 'title')) ??
+          const RichText(''),
       body: RichText.fromJson(SurveyParse.obj(json, 'body')),
       options: options.isEmpty ? SurveyParse.fallbackOptions(type) : options,
-      optionStyle: optionStyleJson == null ? null : ElementStyle.fromJson(optionStyleJson),
+      optionStyle: optionStyleJson == null
+          ? null
+          : ElementStyle.fromJson(optionStyleJson),
       npsStyle: NpsStyle.fromJson(SurveyParse.obj(json, 'npsStyle')),
       required: SurveyParse.boolean(json, 'required', false),
       hidden: SurveyParse.boolean(json, 'hidden', false),
@@ -589,7 +607,8 @@ class SurveyBlock {
       media: BlockMedia.fromJson(SurveyParse.obj(json, 'media')),
       showTag: SurveyParse.boolean(json, 'showTag', true),
       showAnswerMedia: SurveyParse.boolean(json, 'showAnswerMedia', false),
-      showAnswerDescriptions: SurveyParse.boolean(json, 'showAnswerDescriptions', false),
+      showAnswerDescriptions:
+          SurveyParse.boolean(json, 'showAnswerDescriptions', false),
       shuffle: SurveyParse.boolean(json, 'shuffle', false),
       allowOther: SurveyParse.boolean(json, 'allowOther', false),
       flexibleHeight: SurveyParse.boolean(json, 'flexibleHeight', false),
@@ -609,7 +628,8 @@ class SurveyNode {
   final String blockId;
   final NodeBranching branching;
 
-  const SurveyNode({required this.id, required this.blockId, required this.branching});
+  const SurveyNode(
+      {required this.id, required this.blockId, required this.branching});
 
   static SurveyNode? fromJson(Map<String, dynamic> json) {
     final id = SurveyParse.str(json, 'id');
@@ -658,9 +678,11 @@ class DialogProps {
       width: SurveyParse.dialogWidth(json['width'] as String?),
       customWidth: SurveyParse.optInt(json, 'customWidth', 0),
       cornerRadius: SurveyParse.optInt(json, 'cornerRadius', 20),
-      backdropOpacity:
-          (SurveyParse.optDouble(json, 'backdropOpacity') ?? 0.4).clamp(0, 1).toDouble(),
-      backdropDismissible: SurveyParse.boolean(json, 'backdropDismissible', true),
+      backdropOpacity: (SurveyParse.optDouble(json, 'backdropOpacity') ?? 0.4)
+          .clamp(0, 1)
+          .toDouble(),
+      backdropDismissible:
+          SurveyParse.boolean(json, 'backdropDismissible', true),
       showCloseButton: SurveyParse.boolean(json, 'showCloseButton', true),
     );
   }
@@ -702,7 +724,8 @@ class BottomSheetProps {
       cornerRadius: SurveyParse.optInt(json, 'cornerRadius', 20),
       showHandle: SurveyParse.boolean(json, 'showHandle', true),
       draggable: SurveyParse.boolean(json, 'draggable', true),
-      backdropDismissible: SurveyParse.boolean(json, 'backdropDismissible', true),
+      backdropDismissible:
+          SurveyParse.boolean(json, 'backdropDismissible', true),
     );
   }
 }
@@ -735,7 +758,8 @@ class SurveyDisplay {
     return SurveyDisplay(
       type: SurveyParse.displayType(json['type'] as String?),
       dialog: DialogProps.fromJson(SurveyParse.obj(json, 'dialog')),
-      bottomSheet: BottomSheetProps.fromJson(SurveyParse.obj(json, 'bottomSheet')),
+      bottomSheet:
+          BottomSheetProps.fromJson(SurveyParse.obj(json, 'bottomSheet')),
     );
   }
 }
@@ -766,9 +790,12 @@ class ProgressIndicatorStyle {
     return ProgressIndicatorStyle(
       activeColorHex: SurveyParse.str(json, 'activeColor'),
       trackColorHex: SurveyParse.str(json, 'trackColor'),
-      height: (SurveyParse.optDouble(json, 'height') ?? 3).clamp(1, double.infinity).toDouble(),
-      cornerRadius:
-          (SurveyParse.optDouble(json, 'cornerRadius') ?? 2).clamp(0, double.infinity).toDouble(),
+      height: (SurveyParse.optDouble(json, 'height') ?? 3)
+          .clamp(1, double.infinity)
+          .toDouble(),
+      cornerRadius: (SurveyParse.optDouble(json, 'cornerRadius') ?? 2)
+          .clamp(0, double.infinity)
+          .toDouble(),
     );
   }
 }
@@ -804,11 +831,13 @@ class PaginationSettings {
     return PaginationSettings(
       numberOfPages: SurveyParse.boolean(json, 'numberOfPages', false),
       progressbar: SurveyParse.boolean(json, 'progressbar', true),
-      onlyShowOnQuestionBlock: SurveyParse.boolean(json, 'onlyShowOnQuestionBlock', true),
+      onlyShowOnQuestionBlock:
+          SurveyParse.boolean(json, 'onlyShowOnQuestionBlock', true),
       backButton: SurveyParse.boolean(json, 'backButton', true),
-      paginationStyle: SurveyParse.paginationStyle(json['paginationStyle'] as String?),
-      progressIndicatorStyle:
-          ProgressIndicatorStyle.fromJson(SurveyParse.obj(json, 'progressIndicatorStyle')),
+      paginationStyle:
+          SurveyParse.paginationStyle(json['paginationStyle'] as String?),
+      progressIndicatorStyle: ProgressIndicatorStyle.fromJson(
+          SurveyParse.obj(json, 'progressIndicatorStyle')),
     );
   }
 }
@@ -840,10 +869,14 @@ class SurveyTimerSettings {
     if (json == null) return defaults;
     return SurveyTimerSettings(
       enabled: SurveyParse.boolean(json, 'timer', false),
-      pauseOnNonTimerBlock: SurveyParse.boolean(json, 'pauseOnNonTimerBlock', false),
-      timeLimitSeconds: SurveyParse.optInt(json, 'timeLimit', 0).clamp(0, 1 << 30),
-      warningAtSeconds: SurveyParse.optInt(json, 'warningAt', 0).clamp(0, 1 << 30),
-      autoPauseBetweenBlocks: SurveyParse.boolean(json, 'autoPauseBetweenBlocks', false),
+      pauseOnNonTimerBlock:
+          SurveyParse.boolean(json, 'pauseOnNonTimerBlock', false),
+      timeLimitSeconds:
+          SurveyParse.optInt(json, 'timeLimit', 0).clamp(0, 1 << 30),
+      warningAtSeconds:
+          SurveyParse.optInt(json, 'warningAt', 0).clamp(0, 1 << 30),
+      autoPauseBetweenBlocks:
+          SurveyParse.boolean(json, 'autoPauseBetweenBlocks', false),
     );
   }
 }
@@ -901,7 +934,9 @@ class CtaSettings {
       startLabel: orDefault('startLabel', defaults.startLabel),
       bgColorHex: SurveyParse.str(json, 'bgColor'),
       textColorHex: SurveyParse.str(json, 'textColor'),
-      cornerRadius: SurveyParse.optInt(json, 'cornerRadius', defaults.cornerRadius).clamp(0, 48),
+      cornerRadius:
+          SurveyParse.optInt(json, 'cornerRadius', defaults.cornerRadius)
+              .clamp(0, 48),
     );
   }
 }
@@ -935,7 +970,8 @@ class SurveySettings {
   static SurveySettings fromJson(Map<String, dynamic>? json) {
     if (json == null) return defaults;
     return SurveySettings(
-      pagination: PaginationSettings.fromJson(SurveyParse.obj(json, 'pagination')),
+      pagination:
+          PaginationSettings.fromJson(SurveyParse.obj(json, 'pagination')),
       autoAdvance: SurveyParse.boolean(json, 'autoAdvance', false),
       chooseButton: SurveyParse.boolean(json, 'chooseButton', true),
       cta: CtaSettings.fromJson(SurveyParse.obj(json, 'cta')),
@@ -1005,7 +1041,8 @@ class SurveyConfigModel {
 
   SurveyBlock? blockFor(SurveyNode node) => blocksById[node.blockId];
 
-  SurveyNode? rootNode() => nodeById(rootNodeId) ?? (nodes.isEmpty ? null : nodes.first);
+  SurveyNode? rootNode() =>
+      nodeById(rootNodeId) ?? (nodes.isEmpty ? null : nodes.first);
 
   /// The welcome screen shown before the node flow, if present and not hidden.
   /// Welcome blocks are fixed intro chrome, not graph nodes.
@@ -1016,7 +1053,7 @@ class SurveyConfigModel {
     return null;
   }
 
-  static SurveyConfigModel? fromJson(Map<String, dynamic> json, String fallbackId) {
+  static SurveyConfigModel? fromJson(Map<String, dynamic> json) {
     final blocksArr = SurveyParse.list(json, 'blocks');
     final nodesArr = SurveyParse.list(json, 'nodes');
     if (blocksArr == null || nodesArr == null) return null;
@@ -1037,12 +1074,17 @@ class SurveyConfigModel {
       return fallback;
     }
 
-    final id = firstNonBlank(
-      [SurveyParse.str(json, 'id'), SurveyParse.str(json, '_id'), SurveyParse.str(json, 'templateId')],
-      fallbackId,
-    );
+    final id = firstNonBlank([
+      SurveyParse.str(json, 'id'),
+      SurveyParse.str(json, '_id'),
+      SurveyParse.str(json, 'templateId')
+    ], '');
     final name = firstNonBlank(
-      [SurveyParse.str(json, 'name'), SurveyParse.str(json, 'surveyName'), SurveyParse.str(json, 'title')],
+      [
+        SurveyParse.str(json, 'name'),
+        SurveyParse.str(json, 'surveyName'),
+        SurveyParse.str(json, 'title')
+      ],
       '',
     );
 
@@ -1064,7 +1106,8 @@ class SurveyConfigModel {
 
 /// Lenient JSON readers mirroring Android's `SurveyParse` (`JSONObject.optX`).
 abstract final class SurveyParse {
-  static List<T> mapArray<T>(List<dynamic>? arr, T? Function(Map<String, dynamic>) mapper) {
+  static List<T> mapArray<T>(
+      List<dynamic>? arr, T? Function(Map<String, dynamic>) mapper) {
     if (arr == null) return const [];
     final out = <T>[];
     for (final raw in arr) {
@@ -1087,7 +1130,8 @@ abstract final class SurveyParse {
   }
 
   /// Reads a string field; missing / explicit-null / "null" coerce to [fallback].
-  static String str(Map<String, dynamic> json, String key, [String fallback = '']) {
+  static String str(Map<String, dynamic> json, String key,
+      [String fallback = '']) {
     final v = json[key];
     if (v == null) return fallback;
     final s = v is String ? v : v.toString();
@@ -1151,7 +1195,10 @@ abstract final class SurveyParse {
       value?.trim().toLowerCase().replaceAll('-', '_');
 
   static SurveyBlockType? blockType(String? value) => switch (_norm(value)) {
-        'single_select' || 'single_choice' || 'single' => SurveyBlockType.singleSelect,
+        'single_select' ||
+        'single_choice' ||
+        'single' =>
+          SurveyBlockType.singleSelect,
         'multi_select' ||
         'multiple_select' ||
         'multiple_choice' ||
@@ -1162,7 +1209,11 @@ abstract final class SurveyParse {
         'nps' || 'nps_gauge' || 'nps_slider' => SurveyBlockType.nps,
         'nps_emoji' => SurveyBlockType.npsEmoji,
         'nps_smiley' => SurveyBlockType.npsSmiley,
-        'reaction' || 'smiley' || 'smiley_scale' || 'csat' => SurveyBlockType.reaction,
+        'reaction' ||
+        'smiley' ||
+        'smiley_scale' ||
+        'csat' =>
+          SurveyBlockType.reaction,
         'this_or_that' => SurveyBlockType.thisOrThat,
         'tier_list' => SurveyBlockType.tierList,
         'upvote' => SurveyBlockType.upvote,
@@ -1173,7 +1224,11 @@ abstract final class SurveyParse {
         'date' => SurveyBlockType.date,
         'welcome' => SurveyBlockType.welcome,
         'text_media' || 'content' => SurveyBlockType.textMedia,
-        'result_page' || 'thank_you' || 'thankyou' || 'completed' => SurveyBlockType.resultPage,
+        'result_page' ||
+        'thank_you' ||
+        'thankyou' ||
+        'completed' =>
+          SurveyBlockType.resultPage,
         _ => null,
       };
 
@@ -1181,46 +1236,58 @@ abstract final class SurveyParse {
         'equals' || 'is' || 'equal' => ConditionOperator.equals,
         'not_equals' || 'is_not' || 'not_equal' => ConditionOperator.notEquals,
         'contains' || 'answer_contains' => ConditionOperator.contains,
-        'not_contains' || 'answer_does_not_contain' => ConditionOperator.notContains,
+        'not_contains' ||
+        'answer_does_not_contain' =>
+          ConditionOperator.notContains,
         'includes_all' => ConditionOperator.includesAll,
         'includes_any' || 'any' => ConditionOperator.includesAny,
         'is_exactly' || 'all' => ConditionOperator.isExactly,
         'greater_than' || 'gt' => ConditionOperator.greaterThan,
         'less_than' || 'lt' => ConditionOperator.lessThan,
         'is_between' || 'between' => ConditionOperator.isBetween,
-        'is_answered' || 'known' || 'has_any_value' || 'question_is_answered' =>
+        'is_answered' ||
+        'known' ||
+        'has_any_value' ||
+        'question_is_answered' =>
           ConditionOperator.isAnswered,
-        'is_not_answered' || 'not_known' || 'question_is_not_answered' =>
+        'is_not_answered' ||
+        'not_known' ||
+        'question_is_not_answered' =>
           ConditionOperator.isNotAnswered,
         _ => null,
       };
 
-  static BoolOp boolOp(String? value, BoolOp fallback) => switch (value?.trim().toLowerCase()) {
+  static BoolOp boolOp(String? value, BoolOp fallback) =>
+      switch (value?.trim().toLowerCase()) {
         'and' => BoolOp.and,
         'or' => BoolOp.or,
         _ => fallback,
       };
 
-  static BranchTargetKind targetKind(String? value) => switch (value?.trim().toLowerCase()) {
+  static BranchTargetKind targetKind(String? value) =>
+      switch (value?.trim().toLowerCase()) {
         'node' => BranchTargetKind.node,
         'url' => BranchTargetKind.url,
         'end' => BranchTargetKind.end,
         _ => BranchTargetKind.next,
       };
 
-  static BranchingType branchingType(String? value) => switch (value?.trim().toLowerCase()) {
+  static BranchingType branchingType(String? value) =>
+      switch (value?.trim().toLowerCase()) {
         'by_condition' => BranchingType.byCondition,
         'by_parent' => BranchingType.byParent,
         _ => BranchingType.linear,
       };
 
-  static MediaPosition mediaPosition(String? value) => switch (value?.trim().toLowerCase()) {
+  static MediaPosition mediaPosition(String? value) =>
+      switch (value?.trim().toLowerCase()) {
         'inline' => MediaPosition.inline,
         'background' => MediaPosition.background,
         _ => MediaPosition.top,
       };
 
-  static AnswerLayout answerLayout(String? value) => switch (value?.trim().toLowerCase()) {
+  static AnswerLayout answerLayout(String? value) =>
+      switch (value?.trim().toLowerCase()) {
         'row' => AnswerLayout.row,
         'grid' => AnswerLayout.grid,
         _ => AnswerLayout.column,
@@ -1228,47 +1295,54 @@ abstract final class SurveyParse {
 
   static SurveyFontWeight fontWeight(String? value) => switch (_norm(value)) {
         'medium' => SurveyFontWeight.medium,
-        'semibold' => SurveyFontWeight.semibold,
+        'semibold' || 'semi_bold' => SurveyFontWeight.semibold,
         'bold' => SurveyFontWeight.bold,
         _ => SurveyFontWeight.regular,
       };
 
-  static SurveyTextAlign textAlign(String? value) => switch (value?.trim().toLowerCase()) {
+  static SurveyTextAlign textAlign(String? value) =>
+      switch (value?.trim().toLowerCase()) {
         'center' => SurveyTextAlign.center,
         'right' => SurveyTextAlign.right,
         _ => SurveyTextAlign.left,
       };
 
-  static SurveyDisplayType displayType(String? value) => switch (value?.trim().toLowerCase()) {
+  static SurveyDisplayType displayType(String? value) =>
+      switch (value?.trim().toLowerCase()) {
         'dialog' || 'center' => SurveyDisplayType.dialog,
         _ => SurveyDisplayType.bottomSheet,
       };
 
-  static DialogWidthPreset dialogWidth(String? value) => switch (value?.trim().toLowerCase()) {
+  static DialogWidthPreset dialogWidth(String? value) =>
+      switch (value?.trim().toLowerCase()) {
         'small' => DialogWidthPreset.small,
         'large' => DialogWidthPreset.large,
         'custom' => DialogWidthPreset.custom,
         _ => DialogWidthPreset.medium,
       };
 
-  static BottomSheetHeightMode sheetHeight(String? value) => switch (value?.trim().toLowerCase()) {
+  static BottomSheetHeightMode sheetHeight(String? value) =>
+      switch (value?.trim().toLowerCase()) {
         'half' => BottomSheetHeightMode.half,
         'full' => BottomSheetHeightMode.full,
         'custom' => BottomSheetHeightMode.custom,
         _ => BottomSheetHeightMode.wrap,
       };
 
-  static PaginationStyle paginationStyle(String? value) => switch (value?.trim().toLowerCase()) {
+  static PaginationStyle paginationStyle(String? value) =>
+      switch (value?.trim().toLowerCase()) {
         'segmented' => PaginationStyle.segmented,
         _ => PaginationStyle.continuous,
       };
 
-  static CtaLayout ctaLayout(String? value) => switch (value?.trim().toLowerCase()) {
+  static CtaLayout ctaLayout(String? value) =>
+      switch (value?.trim().toLowerCase()) {
         'inline' || 'row' => CtaLayout.inline,
         _ => CtaLayout.stacked,
       };
 
-  static CtaArrangement ctaArrangement(String? value) => switch (value?.trim().toLowerCase()) {
+  static CtaArrangement ctaArrangement(String? value) =>
+      switch (value?.trim().toLowerCase()) {
         'space_evenly' => CtaArrangement.spaceEvenly,
         'center' => CtaArrangement.center,
         'start' => CtaArrangement.start,

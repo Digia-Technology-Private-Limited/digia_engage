@@ -61,6 +61,23 @@ class _DigiaHostState extends State<DigiaHost> {
     _controller = DigiaInstance.instance.controller;
     _controller.addListener(_onControllerChanged);
     DigiaInstance.instance.onHostMounted();
+    _attachNavigatorFromKey();
+  }
+
+  /// Surveys present via Navigator routes and need a context below the app's
+  /// [Navigator]. [DigiaHost] sits above it (in [MaterialApp.builder]), so it
+  /// can't read that context directly — it relies on [navigatorKey]. The key's
+  /// [NavigatorState] only exists once the child [Navigator] has built, so we
+  /// attach after the first frame. ([DigiaNavigatorObserver] also attaches, but
+  /// only on route changes; this makes the key the deterministic path.)
+  void _attachNavigatorFromKey() {
+    final key = widget.navigatorKey;
+    if (key == null) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final nav = key.currentState;
+      if (nav != null) DigiaInstance.instance.attachNavigator(nav);
+    });
   }
 
   @override

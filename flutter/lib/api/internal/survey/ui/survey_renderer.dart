@@ -6,6 +6,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../digia_instance.dart';
 import '../survey_config.dart';
 import '../survey_controller.dart';
+import '../survey_logic_handler.dart';
 import '../survey_orchestrator.dart';
 import 'survey_question_widgets.dart';
 import 'survey_tokens.dart';
@@ -13,6 +14,13 @@ import 'survey_tokens.dart';
 /// Frame-settling buffer added before the survey is shown.
 const _renderDelay = Duration(milliseconds: 150);
 
+// ─────────────────────────────────────────────────────────────────────────────
+// OLD renderer: a hand-rolled inline scrim + panel drawn above the app (no
+// Navigator route). Replaced by the Flutter-modal renderer further below, which
+// presents via showModalBottomSheet / showDialog. Kept here, commented out, for
+// reference / rollback.
+// ─────────────────────────────────────────────────────────────────────────────
+/*
 /// Top-level survey overlay — mounted once inside [DigiaHost]. Observes the
 /// [SurveyOrchestrator] and presents the active survey as a bottom sheet or
 /// dialog drawn inline above the app (its own scrim + panel), mirroring the
@@ -315,6 +323,294 @@ class _DialogPresentation extends StatelessWidget {
     );
   }
 }
+*/
+
+// ── renderer: presents the active survey via Flutter's native modals ──────────
+
+/// Top-level survey host — mounted once inside [DigiaHost]. Observes the
+/// [SurveyOrchestrator] and presents the active survey using Flutter's own
+/// [showModalBottomSheet] / [showDialog] routes (rather than a hand-rolled
+/// inline scrim + panel).
+///
+/// Because those are Navigator routes, presentation needs a context below the
+/// app's [Navigator]; the SDK exposes one via [DigiaInstance.navigator] (the
+/// same context nudges use). The widget itself renders nothing.
+class SurveyRenderer extends StatefulWidget {
+  const SurveyRenderer({super.key});
+
+  @override
+  State<SurveyRenderer> createState() => _SurveyRendererState();
+}
+
+class _SurveyRendererState extends State<SurveyRenderer> {
+  late final SurveyOrchestrator _orchestrator;
+
+  /// Token of the survey we've already begun handling, so an orchestrator
+  /// rebuild can't present the same showing twice.
+  int? _handledToken;
+
+  /// Navigator context of the currently-open modal route, while one is open.
+  BuildContext? _routeNavContext;
+  bool _routeOpen = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _orchestrator = DigiaInstance.instance.surveyOrchestrator;
+    _orchestrator.addListener(_onOrchestratorChanged);
+    _maybePresent();
+  }
+
+  @override
+  void dispose() {
+    _orchestrator.removeListener(_onOrchestratorChanged);
+    super.dispose();
+  }
+
+  void _onOrchestratorChanged() {
+    if (_orchestrator.state == null) {
+      // The survey was cleared (completed / dismissed / invalidated). The
+      // teardown call already fired analytics; we just close any open modal.
+      if (_routeOpen) {
+        final ctx = _routeNavContext;
+        _routeOpen = false;
+        _routeNavContext = null;
+        if (ctx != null && ctx.mounted) Navigator.of(ctx).pop();
+      }
+      return;
+    }
+    _maybePresent();
+  }
+
+  void _maybePresent() {
+    final state = _orchestrator.state;
+    if (state == null || _handledToken == state.token) return;
+    _handledToken = state.token;
+    final survey = state.config;
+    Future.delayed(
+      Duration(milliseconds: survey.timeDelayMs) + _renderDelay,
+      () {
+        if (!mounted) return;
+        // The survey may have been cleared while we waited out the delay.
+        if (_orchestrator.state?.token != state.token) return;
+        _present(state);
+      },
+    );
+  }
+
+  Future<void> _present(ActiveSurveyState state) async {
+    final navContext = DigiaInstance.instance.navigator?.context;
+    if (navContext == null || !navContext.mounted) {
+      // No navigator route available — clear the survey so it doesn't wedge the
+      // single-survey-at-a-time orchestrator.
+      debugPrint(
+        '[Digia] Survey not shown: no navigator context. Wire '
+        'DigiaHost.navigatorKey to MaterialApp.navigatorKey.',
+      );
+      _orchestrator.dismiss();
+      return;
+    }
+
+    final survey = state.config;
+    final accent = Color(survey.theme.accentColor);
+    final background = Color(survey.theme.backgroundColor);
+    final display = survey.settings.display;
+    final controller = SurveyController(survey);
+
+    final showClose = display.type == SurveyDisplayType.dialog
+        ? display.dialog.showCloseButton
+        : display.bottomSheet.backdropDismissible;
+
+    final content = _SurveyModalContent(
+      controller: controller,
+      survey: survey,
+      accent: accent,
+      showCloseButton: showClose,
+    );
+
+    DigiaInstance.instance.reportSurveyStarted();
+    _routeOpen = true;
+    _routeNavContext = navContext;
+
+    switch (display.type) {
+      case SurveyDisplayType.bottomSheet:
+        await _showSheet(navContext, display.bottomSheet, background, content);
+      case SurveyDisplayType.dialog:
+        await _showDialog(navContext, display.dialog, background, content);
+    }
+
+    _routeOpen = false;
+    _routeNavContext = null;
+
+    // The route closed without a teardown call having cleared the survey — i.e.
+    // a Flutter swipe / barrier gesture popped it — so report the dismissal.
+    if (_orchestrator.state?.token == state.token) {
+      DigiaInstance.instance.markSurveyDismissed();
+    }
+    controller.dispose();
+  }
+
+  Future<bool?> _showSheet(
+    BuildContext ctx,
+    BottomSheetProps sheet,
+    Color background,
+    Widget content,
+  ) {
+    final screenHeight = MediaQuery.of(ctx).size.height;
+    final maxHeight = switch (sheet.heightMode) {
+      BottomSheetHeightMode.wrap => null,
+      BottomSheetHeightMode.half => screenHeight * 0.5,
+      BottomSheetHeightMode.full => screenHeight,
+      BottomSheetHeightMode.custom =>
+        screenHeight * (sheet.customHeight.clamp(10, 100) / 100),
+    };
+    return showModalBottomSheet<bool>(
+      context: ctx,
+      isScrollControlled: true,
+      isDismissible: sheet.backdropDismissible,
+      enableDrag: sheet.draggable,
+      showDragHandle: sheet.showHandle,
+      useSafeArea: true,
+      backgroundColor: background,
+      barrierColor: Colors.black.withValues(alpha: 0.4),
+      shape: RoundedRectangleBorder(
+        borderRadius:
+            BorderRadius.vertical(top: Radius.circular(sheet.cornerRadius.toDouble())),
+      ),
+      constraints: maxHeight == null ? null : BoxConstraints(maxHeight: maxHeight),
+      builder: (_) => content,
+    );
+  }
+
+  Future<bool?> _showDialog(
+    BuildContext ctx,
+    DialogProps dialog,
+    Color background,
+    Widget content,
+  ) {
+    final media = MediaQuery.of(ctx);
+    final maxWidth = switch (dialog.width) {
+      DialogWidthPreset.small => media.size.width * 0.6,
+      DialogWidthPreset.medium => media.size.width * 0.8,
+      DialogWidthPreset.large => media.size.width * 0.95,
+      DialogWidthPreset.custom => dialog.customWidth.clamp(200, 1 << 20).toDouble(),
+    };
+    return showDialog<bool>(
+      context: ctx,
+      barrierDismissible: dialog.backdropDismissible,
+      barrierColor: Colors.black.withValues(alpha: dialog.backdropOpacity),
+      builder: (_) => Dialog(
+        backgroundColor: background,
+        insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+        clipBehavior: Clip.antiAlias,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(dialog.cornerRadius.toDouble()),
+        ),
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxWidth: maxWidth,
+            maxHeight: media.size.height * 0.85,
+          ),
+          child: content,
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) => const SizedBox.shrink();
+}
+
+/// The content rendered inside the modal route: the welcome gate + survey body
+/// ([_SurveyPanel]) plus the cross-step concerns the old `_SurveySession`
+/// owned — redirect-url launching and completion teardown.
+///
+/// Teardown calls here only clear the orchestrator; [_SurveyRendererState]
+/// reacts to that by popping the route, so this widget never pops itself (which
+/// keeps a single owner of the route and avoids double-pop races).
+class _SurveyModalContent extends StatefulWidget {
+  final SurveyController controller;
+  final SurveyConfigModel survey;
+  final Color accent;
+  final bool showCloseButton;
+
+  const _SurveyModalContent({
+    required this.controller,
+    required this.survey,
+    required this.accent,
+    required this.showCloseButton,
+  });
+
+  @override
+  State<_SurveyModalContent> createState() => _SurveyModalContentState();
+}
+
+class _SurveyModalContentState extends State<_SurveyModalContent> {
+  String? _lastRedirect;
+  bool _finishing = false;
+
+  SurveyController get _c => widget.controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _c.addListener(_onControllerChanged);
+  }
+
+  @override
+  void dispose() {
+    _c.removeListener(_onControllerChanged);
+    super.dispose();
+  }
+
+  void _onControllerChanged() {
+    final redirect = _c.redirectUrl;
+    if (redirect != null && redirect != _lastRedirect) {
+      _lastRedirect = redirect;
+      unawaited(_openRedirect(redirect));
+    }
+    if (_c.isComplete && !_finishing) {
+      _finishing = true;
+      DigiaInstance.instance.markSurveyCompleted(_c.responsePayload(), _c.answers);
+    }
+    if (mounted) setState(() {});
+  }
+
+  Future<void> _openRedirect(String url) async {
+    final uri = Uri.tryParse(url);
+    if (uri == null) return;
+    try {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } catch (_) {/* best effort */}
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_c.isComplete) return const SizedBox.shrink();
+    final display = widget.survey.settings.display;
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (didPop) return;
+        // System-back / barrier tap: step back through the survey first, else
+        // dismiss it (when the display allows dismissal).
+        if (_c.canGoBack) {
+          _c.back();
+        } else if (display.dismissible) {
+          DigiaInstance.instance.markSurveyDismissed();
+        }
+      },
+      child: _SurveyPanel(
+        controller: _c,
+        survey: widget.survey,
+        accent: widget.accent,
+        onClose: () => DigiaInstance.instance.markSurveyDismissed(),
+        onCompletedClose: () => DigiaInstance.instance.dismissCompletedSurvey(),
+        showCloseButton: widget.showCloseButton,
+      ),
+    );
+  }
+}
 
 // ── panel (welcome gate → body) ────────────────────────────────────────────────
 
@@ -455,6 +751,11 @@ class _SurveyBodyState extends State<_SurveyBody> {
   Timer? _autoAdvanceTimer;
   String? _autoAdvanceArmedFor;
 
+  /// Last (node, answer) the clicked/answered event was emitted for. Guards
+  /// against the manual Next CTA and the auto-advance timer both reporting the
+  /// same step (which surfaced as the clicked event firing twice on a CTA tap).
+  String? _lastAnsweredKey;
+
   SurveyController get _c => widget.controller;
   SurveyConfigModel get _survey => widget.survey;
 
@@ -504,7 +805,7 @@ class _SurveyBodyState extends State<_SurveyBody> {
 
   void _reportCompletionIfResultIsNext() {
     if (!_completionReported && _c.nextBlockIsResultPage()) {
-      DigiaInstance.instance.reportSurveyCompleted(_c.responsePayload());
+      DigiaInstance.instance.reportSurveyCompleted(_c.responsePayload(), _c.answers);
       _completionReported = true;
     }
   }
@@ -526,17 +827,30 @@ class _SurveyBodyState extends State<_SurveyBody> {
     _autoAdvanceTimer = Timer(const Duration(milliseconds: 250), () {
       if (!mounted) return;
       if (_c.currentNode?.id != node.id) return;
-      DigiaInstance.instance.reportSurveyAnswered(node.id, answer.toMap());
+      _reportAnswered(node, answer);
       _reportCompletionIfResultIsNext();
       _c.advance();
     });
   }
 
+  /// Emits the per-step answered/clicked event, de-duplicated. Both the manual
+  /// Next CTA and the auto-advance timer can report the same step; this ensures
+  /// the clicked event fires at most once per (node, answer).
+  void _reportAnswered(SurveyNode node, SurveyAnswer answer) {
+    final key = '${node.id}:${answer.values.join(',')}:${answer.comment ?? ''}';
+    if (_lastAnsweredKey == key) return;
+    _lastAnsweredKey = key;
+    DigiaInstance.instance.reportSurveyAnswered(node.id, answer.toMap());
+  }
+
   void _onNext(SurveyNode node, SurveyBlock block) {
+    // A manual Next supersedes any armed auto-advance for this node — cancel it
+    // so the answered/clicked event can't be emitted twice for the same step.
+    _autoAdvanceTimer?.cancel();
     if (!block.type.isContent) {
       final ans = _c.answers[node.id];
       if (ans != null && ans.isAnswered) {
-        DigiaInstance.instance.reportSurveyAnswered(node.id, ans.toMap());
+        _reportAnswered(node, ans);
       }
     }
     _reportCompletionIfResultIsNext();
@@ -688,6 +1002,7 @@ class _SurveyBodyState extends State<_SurveyBody> {
       default:
         return SurveyQuestionContent(
           block: block,
+          nodeId: node.id,
           answer: _c.answers[node.id],
           accent: widget.accent,
           onAnswer: (a) => _c.setAnswer(node.id, a),
@@ -964,11 +1279,13 @@ class _FooterRow extends StatelessWidget {
     return Row(
       mainAxisAlignment: _rowArrangement(cta.arrangement),
       children: [
-        if (canGoBack)
+        if (canGoBack) ...[
           TextButton(
             onPressed: onBack,
             child: Text(cta.backLabel, style: const TextStyle(color: SurveyTokens.textSecondary)),
           ),
+          const SizedBox(width: 12),
+        ],
         nextButton(fullWidth: false),
       ],
     );

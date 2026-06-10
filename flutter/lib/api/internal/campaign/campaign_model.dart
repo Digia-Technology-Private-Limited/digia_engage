@@ -181,19 +181,12 @@ class CampaignConfigFactory {
   static CampaignConfigModel? _survey(Map<String, dynamic> json) {
     // The survey schema arrives as `surveyConfig`, or a `templateConfig` whose
     // `templateType == "survey"` (mirrors Android's `parseSurveyConfig`).
-    var surveyJson = optMap(json, 'surveyConfig');
-    if (surveyJson == null) {
-      final tc = optMap(json, 'templateConfig');
-      if (tc != null && optString(tc, 'templateType') == 'survey')
-        surveyJson = tc;
-    }
-    if (surveyJson == null) return null;
-    var fallbackId = optString(json, 'id');
-    if (fallbackId.isEmpty) fallbackId = optString(json, '_id');
-    final survey = SurveyConfigModel.fromJson(surveyJson, fallbackId);
+    final templateConfig = optMap(json, 'templateConfig');
+    if (templateConfig == null) return null;
+    final survey = SurveyConfigModel.fromJson(templateConfig);
     if (survey == null) return null;
     return SurveyCampaignConfig(survey,
-        defaultVariables: _declaredVariables(surveyJson));
+        defaultVariables: _declaredVariables(templateConfig));
   }
 
   /// The dashboard-declared variable defaults block on a `templateConfig`, or an

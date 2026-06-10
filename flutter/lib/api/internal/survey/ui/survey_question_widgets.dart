@@ -12,12 +12,18 @@ const String otherChoiceId = '__other__';
 /// `SurveyQuestionContent`. [onAnswer] is called whenever the answer changes.
 class SurveyQuestionContent extends StatelessWidget {
   final SurveyBlock block;
+
+  /// Owning node id. Used to key the stateful question widgets so the same
+  /// block reused across several nodes gets isolated, freshly-hydrated state
+  /// instead of leaking the previous node's selection.
+  final String nodeId;
   final SurveyAnswer? answer;
   final Color accent;
   final ValueChanged<SurveyAnswer> onAnswer;
 
   const SurveyQuestionContent({
     required this.block,
+    required this.nodeId,
     required this.answer,
     required this.accent,
     required this.onAnswer,
@@ -43,7 +49,7 @@ class SurveyQuestionContent extends StatelessWidget {
         return _ThisOrThatQuestion(block: block, accent: accent, answer: answer, onAnswer: onAnswer);
       case SurveyBlockType.tierList:
         return _TierListQuestion(
-            key: ValueKey('tier_${block.id}'),
+            key: ValueKey('tier_$nodeId'),
             block: block,
             accent: accent,
             answer: answer,
@@ -52,14 +58,14 @@ class SurveyQuestionContent extends StatelessWidget {
       case SurveyBlockType.multiSelect:
       case SurveyBlockType.upvote:
         return _ChoiceCardQuestion(
-            key: ValueKey('choice_${block.id}'),
+            key: ValueKey('choice_$nodeId'),
             block: block,
             accent: accent,
             answer: answer,
             onAnswer: onAnswer);
       case SurveyBlockType.shortText:
         return _TextQuestion(
-            key: ValueKey('text_${block.id}'),
+            key: ValueKey('text_$nodeId'),
             accent: accent,
             answer: answer,
             onAnswer: onAnswer,
@@ -68,7 +74,7 @@ class SurveyQuestionContent extends StatelessWidget {
             placeholder: 'Type your answer…');
       case SurveyBlockType.longText:
         return _TextQuestion(
-            key: ValueKey('text_${block.id}'),
+            key: ValueKey('text_$nodeId'),
             accent: accent,
             answer: answer,
             onAnswer: onAnswer,
@@ -78,7 +84,7 @@ class SurveyQuestionContent extends StatelessWidget {
             minHeight: 100);
       case SurveyBlockType.number:
         return _TextQuestion(
-            key: ValueKey('text_${block.id}'),
+            key: ValueKey('text_$nodeId'),
             accent: accent,
             answer: answer,
             onAnswer: onAnswer,
@@ -89,7 +95,7 @@ class SurveyQuestionContent extends StatelessWidget {
             validator: (input) => _validateNumber(input, block.numberMin, block.numberMax));
       case SurveyBlockType.email:
         return _TextQuestion(
-            key: ValueKey('text_${block.id}'),
+            key: ValueKey('text_$nodeId'),
             accent: accent,
             answer: answer,
             onAnswer: onAnswer,
@@ -99,7 +105,7 @@ class SurveyQuestionContent extends StatelessWidget {
             validator: _validateEmail);
       case SurveyBlockType.date:
         return _TextQuestion(
-            key: ValueKey('text_${block.id}'),
+            key: ValueKey('text_$nodeId'),
             accent: accent,
             answer: answer,
             onAnswer: onAnswer,
