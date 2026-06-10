@@ -6,4 +6,4 @@
 react-native/.build/
 react-native/lib/
 *.xcuserstate
-xcuserdata/
+xcuserdata/.worktrees/
