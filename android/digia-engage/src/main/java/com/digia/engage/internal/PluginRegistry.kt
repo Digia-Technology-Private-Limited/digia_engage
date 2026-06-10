@@ -4,7 +4,7 @@ import com.digia.engage.DigiaCEPDelegate
 import com.digia.engage.DigiaCEPPlugin
 import com.digia.engage.DigiaExperienceEvent
 import com.digia.engage.InAppPayload
-import com.digia.engage.framework.logging.Logger
+import com.digia.engage.internal.logging.Logger
 
 internal class PluginRegistry(
     private val delegate: DigiaCEPDelegate,

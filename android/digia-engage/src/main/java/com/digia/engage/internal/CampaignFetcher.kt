@@ -3,7 +3,7 @@ package com.digia.engage.internal
 import com.digia.engage.DigiaConfig
 import com.digia.engage.DigiaEndpoints
 import com.digia.engage.DigiaEnvironment
-import com.digia.engage.framework.logging.Logger
+import com.digia.engage.internal.logging.Logger
 import com.digia.engage.internal.model.CampaignModel
 import java.io.IOException
 import java.net.HttpURLConnection

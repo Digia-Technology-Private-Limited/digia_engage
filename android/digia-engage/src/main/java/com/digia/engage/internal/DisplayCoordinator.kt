@@ -2,7 +2,7 @@ package com.digia.engage.internal
 
 import com.digia.engage.DigiaExperienceEvent
 import com.digia.engage.InAppPayload
-import com.digia.engage.framework.logging.Logger
+import com.digia.engage.internal.logging.Logger
 import com.digia.engage.internal.model.InlineCarouselConfig
 import com.digia.engage.internal.model.InlineStoryConfig
 import com.digia.engage.internal.model.NudgeConfig

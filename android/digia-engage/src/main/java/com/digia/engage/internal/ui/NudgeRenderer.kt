@@ -1,6 +1,5 @@
 package com.digia.engage.internal.ui
 
-import LocalUIResources
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -23,7 +22,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -40,26 +38,13 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
-import com.digia.engage.framework.DefaultVirtualWidgetRegistry
-import com.digia.engage.framework.RenderPayload
-import com.digia.engage.framework.UIResources
-import com.digia.engage.framework.actions.ActionExecutor
-import com.digia.engage.framework.actions.ActionProvider
-import com.digia.engage.framework.widgets.registerEngageWidgets
 import com.digia.engage.internal.DigiaInstance
 import com.digia.engage.internal.NudgeOverlayState
 import com.digia.engage.internal.model.NudgeContainerConfig
 import com.digia.engage.internal.model.NudgeTemplateType
+import com.digia.engage.internal.ui.nudge.NudgeColumnContent
 import kotlin.math.roundToInt
 
-/**
- * Top-level nudge overlay — mounted once inside `DigiaHost`. Renders the campaign's
- * native DUI widget tree (`config.layout`) through the recursive SDUI renderer, wrapped
- * in a hand-rolled bottom sheet or dialog. We deliberately avoid Material3
- * `ModalBottomSheet` (its `onDismissRequest` can't reject scrim taps, so
- * `dismissOnOutsideTap = false` is impossible to honour) and the DSL-based
- * `BottomSheetManager`.
- */
 @Composable
 internal fun NudgeRenderer() {
     val state by DigiaInstance.controller.nudgeOverlay.collectAsState()
@@ -77,23 +62,10 @@ private fun NudgeSession(state: NudgeOverlayState) {
         DigiaInstance.reportNudgeImpression()
     }
 
-    // Build the registry once for this session. The no-op componentBuilder is safe:
-    // a nudge layout only references whitelisted leaf widgets, never DUI components.
-    val node = remember(state.config) {
-        val registry = DefaultVirtualWidgetRegistry(componentBuilder = { _, _ -> })
-        registry.registerEngageWidgets()
-        registry.createWidget(state.config.layout, null)
-    }
-    val actionExecutor = remember { ActionExecutor(NudgeActionProcessorFactory()) }
-
     fun dismiss() = DigiaInstance.markNudgeDismissed()
 
     val content: @Composable () -> Unit = {
-        CompositionLocalProvider(LocalUIResources provides UIResources()) {
-            ActionProvider(actionExecutor) {
-                node.ToWidget(RenderPayload(scopeContext = null))
-            }
-        }
+        NudgeColumnContent(state.config.layout, ::dismiss)
     }
 
     when (state.config.templateType) {
@@ -110,7 +82,9 @@ private fun BottomSheetChrome(
 ) {
     val screenHeight = LocalConfiguration.current.screenHeightDp
     var dragOffset by remember { mutableFloatStateOf(0f) }
-    val dismissThresholdPx = with(LocalConfiguration.current) { 150f * (screenHeightDp / 800f).coerceAtLeast(1f) }
+    val dismissThresholdPx = with(LocalConfiguration.current) {
+        150f * (screenHeightDp / 800f).coerceAtLeast(1f)
+    }
     val draggableState = rememberDraggableState { delta ->
         dragOffset = (dragOffset + delta).coerceAtLeast(0f)
     }
@@ -118,8 +92,6 @@ private fun BottomSheetChrome(
     Dialog(
         onDismissRequest = { if (container.dismissOnOutsideTap) onDismiss() },
         properties = DialogProperties(
-            // Back is handled by our own BackHandler so a non-dismissible sheet
-            // consumes the press instead of letting it propagate to the activity.
             dismissOnBackPress = false,
             dismissOnClickOutside = false,
             usePlatformDefaultWidth = false,
@@ -235,6 +207,5 @@ private fun DialogChrome(
     }
 }
 
-/** Parse an `#RRGGBB` / `#AARRGGBB` hex string, falling back to transparent on error. */
 private fun parseColor(hex: String): Color =
     runCatching { Color(android.graphics.Color.parseColor(hex)) }.getOrElse { Color.Transparent }

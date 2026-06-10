@@ -44,7 +44,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign as ComposeTextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.digia.engage.framework.DigiaFontConfig
+import com.digia.engage.internal.DigiaFontConfig
 import com.digia.engage.internal.SurveyAnswer
 import com.digia.engage.internal.model.AnswerLayout
 import com.digia.engage.internal.model.ElementStyle

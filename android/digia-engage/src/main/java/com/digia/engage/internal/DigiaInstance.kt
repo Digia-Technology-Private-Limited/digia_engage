@@ -11,7 +11,7 @@ import com.digia.engage.DigiaCEPPlugin
 import com.digia.engage.DigiaConfig
 import com.digia.engage.DigiaExperienceEvent
 import com.digia.engage.InAppPayload
-import com.digia.engage.framework.logging.Logger
+import com.digia.engage.internal.logging.Logger
 import com.digia.engage.internal.model.CampaignModel
 import java.util.UUID
 import java.util.concurrent.atomic.AtomicBoolean
@@ -74,7 +74,7 @@ internal object DigiaInstance : DigiaCEPDelegate {
         Logger.configure(config.logLevel)
         Logger.verbose("Digia SDK initializing | projectId=${config.apiKey.take(8)}… env=${config.environment}")
         _sdkState.value = SDKState.INITIALIZING
-        com.digia.engage.framework.DigiaFontConfig.fontFamily = config.fontFamily
+        com.digia.engage.internal.DigiaFontConfig.fontFamily = config.fontFamily
         analyticsClient.configure(config)
 
         val deviceId = resolveDeviceId(context)

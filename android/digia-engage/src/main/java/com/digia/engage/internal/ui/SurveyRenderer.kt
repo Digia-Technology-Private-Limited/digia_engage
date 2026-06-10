@@ -66,7 +66,7 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
-import com.digia.engage.framework.DigiaFontConfig
+import com.digia.engage.internal.DigiaFontConfig
 import com.digia.engage.internal.ActiveSurveyState
 import com.digia.engage.internal.DigiaInstance
 import com.digia.engage.internal.model.BlockMedia
