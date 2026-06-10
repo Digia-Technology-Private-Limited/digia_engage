@@ -5,7 +5,6 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.compositionLocalOf
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.digia.engage.framework.navigation.NavigationManager
 
 val LocalStateTree = compositionLocalOf { StateTree() }
 
@@ -34,8 +33,7 @@ fun StateScope(
         onDispose {
             // Walk up the tree to check if this context or any ancestor page is in the backstack.
             // This covers both page-level and internal component StateScopeS inside a pushed page.
-            val isUnderBackstack = generateSequence(stateContext) { tree.parentOf(it) }
-                .any { ctx -> ctx.namespace != null && NavigationManager.isPageInBackstack(ctx.namespace) }
+            val isUnderBackstack = false
 
             if (!isUnderBackstack) {
                 tree.detach(stateContext)

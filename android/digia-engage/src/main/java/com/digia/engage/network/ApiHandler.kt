@@ -3,7 +3,6 @@ package com.digia.engage.network
 import android.webkit.MimeTypeMap
 import com.digia.engage.framework.datatype.Variable
 import com.digia.engage.framework.datatype.adaptedfile.AdaptedFile
-import com.digia.engage.init.DigiaUIManager
 import java.io.File
 
 /**
@@ -12,8 +11,8 @@ import java.io.File
 object ApiHandler {
     private val apiVariableRegex = Regex("\\{\\{([\\w.\\-]+)\\}\\}")
     
-    private var networkClient: NetworkClient? = DigiaUIManager.getInstance().networkClient
-    private var environmentVariables: Map<String, Variable>? = DigiaUIManager.getInstance().environmentVariables
+    private var networkClient: NetworkClient? = null
+    private var environmentVariables: Map<String, Variable>? = null
     private var resourceProxyUrl: String? = null
 
 

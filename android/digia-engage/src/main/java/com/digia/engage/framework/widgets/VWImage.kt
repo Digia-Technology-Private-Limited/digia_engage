@@ -37,8 +37,6 @@ import com.digia.engage.framework.models.Props
 import com.digia.engage.framework.models.VWNodeData
 import com.digia.engage.framework.utils.JsonLike
 import com.digia.engage.framework.widgets.image.BlurHashDecoder
-import com.digia.engage.init.DigiaUIManager
-import java.net.URLEncoder
 
 /**
  * Sealed class representing the resolved image source. Eliminates string comparisons and provides
@@ -202,15 +200,9 @@ internal fun resolveImageUrl(imageSrc: String, sourceType: String, resources: UI
     }
 }
 
-/** Applies resource proxy URL if configured. */
+/** Applies resource proxy URL if configured. No proxy in Engage SDK. */
 private fun applyProxyIfNeeded(url: String): String {
-    val proxyUrl = DigiaUIManager.getInstance().host?.resourceProxyUrl
-
-    if (proxyUrl == null) {
-        return url
-    }
-
-    return proxyUrl + URLEncoder.encode(url, "UTF-8")
+    return url
 }
 
 /** Unified image rendering function that handles all source types. */

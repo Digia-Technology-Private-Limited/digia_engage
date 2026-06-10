@@ -6,12 +6,23 @@ import com.digia.engage.framework.actions.base.Action
 import com.digia.engage.framework.actions.base.ActionId
 import com.digia.engage.framework.actions.base.ActionProcessor
 import com.digia.engage.framework.actions.base.ActionType
-import com.digia.engage.framework.analytics.AnalyticEvent
-import com.digia.engage.framework.analytics.AnalyticsHandler
 import com.digia.engage.framework.expr.ScopeContext
 import com.digia.engage.framework.models.ExprOr
 import com.digia.engage.framework.state.StateContext
 import com.digia.engage.framework.utils.JsonLike
+
+/** Minimal analytic event data class (framework/analytics was removed). */
+data class AnalyticEvent(val name: String, val payload: Map<String, Any?>? = null) {
+    companion object {
+        fun fromJson(json: JsonLike): AnalyticEvent {
+            val name = json["name"] as? String ?: ""
+            val payload = json["payload"] as? Map<String, Any?>
+            return AnalyticEvent(name = name, payload = payload)
+        }
+    }
+
+    fun toJson(): JsonLike = mapOf("name" to name, "payload" to payload)
+}
 
 data class FireEventAction(
     override var actionId: ActionId? = null,
@@ -30,7 +41,10 @@ data class FireEventAction(
         fun fromJson(json: JsonLike): FireEventAction {
             val eventsData = json["events"] as? List<*> ?: emptyList<Any>()
             val events = eventsData.mapNotNull { eventData ->
-                (eventData as? JsonLike)?.let { AnalyticEvent.fromJson(it) }
+                (eventData as? Map<*, *>)?.let { map ->
+                    @Suppress("UNCHECKED_CAST")
+                    AnalyticEvent.fromJson(map as JsonLike)
+                }
             }
             return FireEventAction(events = events)
         }
@@ -46,11 +60,8 @@ class FireEventProcessor : ActionProcessor<FireEventAction>() {
         resourceProvider: UIResources?,
         id: String
     ): Any? {
-        AnalyticsHandler.execute(
-            context = context,
-            events = action.events,
-            scopeContext = scopeContext
-        )
+        // Fire events are handled at the Engage SDK level via DigiaCEPDelegate.
+        // No-op here in the framework layer.
         return null
     }
 }

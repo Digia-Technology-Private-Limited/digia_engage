@@ -10,7 +10,6 @@ import com.digia.engage.framework.models.ExprOr
 import com.digia.engage.framework.state.StateContext
 import com.digia.engage.framework.utils.JsonLike
 import com.digia.engage.framework.UIResources
-import kotlinx.coroutines.launch
 
 
 /**
@@ -45,8 +44,6 @@ class DismissDialogProcessor : ActionProcessor<DismissDialogAction>() {
         resourcesProvider: UIResources?,
         id: String
     ): Any? {
-        val dialogManager = com.digia.engage.init.DigiaUIManager.getInstance().dialogManager
-        dialogManager?.dismiss()
         return null
     }
 }

@@ -45,7 +45,7 @@ import com.digia.engage.framework.RenderPayload
 import com.digia.engage.framework.UIResources
 import com.digia.engage.framework.actions.ActionExecutor
 import com.digia.engage.framework.actions.ActionProvider
-import com.digia.engage.framework.widgets.registerBuiltInWidgets
+import com.digia.engage.framework.widgets.registerEngageWidgets
 import com.digia.engage.internal.DigiaInstance
 import com.digia.engage.internal.NudgeOverlayState
 import com.digia.engage.internal.model.NudgeContainerConfig
@@ -81,7 +81,7 @@ private fun NudgeSession(state: NudgeOverlayState) {
     // a nudge layout only references whitelisted leaf widgets, never DUI components.
     val node = remember(state.config) {
         val registry = DefaultVirtualWidgetRegistry(componentBuilder = { _, _ -> })
-        registry.registerBuiltInWidgets()
+        registry.registerEngageWidgets()
         registry.createWidget(state.config.layout, null)
     }
     val actionExecutor = remember { ActionExecutor(NudgeActionProcessorFactory()) }

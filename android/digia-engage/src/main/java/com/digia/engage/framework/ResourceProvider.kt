@@ -1,7 +1,6 @@
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
-import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.painter.Painter
@@ -9,9 +8,6 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.TextStyle
 import com.digia.engage.framework.DUIFontFactory
 import com.digia.engage.framework.UIResources
-import com.digia.engage.init.DigiaUIManager
-import com.digia.engage.init.SDKThemeResolver
-import com.digia.engage.init.ThemeMode
 import com.digia.engage.network.APIModel
 
 /* ---------------------------------------------------------
@@ -35,18 +31,6 @@ fun ResourceProvider(
         apiModels: Map<String, APIModel>? = null,
         content: @Composable () -> Unit
 ) {
-    val themeMode = DigiaUIManager.getInstance().themeMode
-    val systemIsDark = isSystemInDarkTheme()
-
-    val isDarkTheme =
-            when (themeMode) {
-                ThemeMode.SYSTEM -> systemIsDark
-                ThemeMode.DARK -> true
-                ThemeMode.LIGHT -> false
-            }
-
-    // 🔑 Push resolved value into SDK (side-effect)
-    SideEffect { SDKThemeResolver.update(isDarkTheme) }
     CompositionLocalProvider(
             LocalUIResources provides resources,
             LocalApiModels provides (apiModels ?: emptyMap())
@@ -60,7 +44,7 @@ fun ResourceProvider(
 @Composable
 fun resourceColor(key: String): Color? {
     val resources = LocalUIResources.current
-    val isDark = SDKThemeResolver.isDark()
+    val isDark = isSystemInDarkTheme()
 
     return (if (isDark) resources.darkColors else resources.colors)?.get(key)
             ?: ColorUtil.fromString(key)
@@ -110,7 +94,7 @@ fun resourceAssetUrl(key: String): String? {
  * --------------------------------------------------------- */
 
 fun resourceColor(key: String, resources: UIResources?): Color? {
-    val isDark = SDKThemeResolver.isDark()
+    val isDark = false
 
     return (if (isDark) resources?.darkColors else resources?.colors)?.get(key)
             ?: ColorUtil.fromString(key)

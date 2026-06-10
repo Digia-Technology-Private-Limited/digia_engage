@@ -4,8 +4,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import com.digia.engage.framework.RenderPayload
 import com.digia.engage.framework.models.Props
-import com.digia.engage.init.DigiaUIManager
-import com.digia.engage.utils.DashboardHost
 
 /** Base class for all virtual widgets Mirrors Flutter VirtualWidget */
 import java.lang.ref.WeakReference
@@ -65,17 +63,7 @@ fun RenderNode(widget: VirtualNode, payload: RenderPayload) {
     when (val result = widget.tryBuild(payload)) {
         is RenderResult.Ok -> result.content()
         is RenderResult.Error -> {
-            if (
-                DigiaUIManager.getInstance().host is DashboardHost
-
-            ) {
-                DefaultErrorWidget(
-                    refName = widget.refName ?: "",
-                    errorMessage = result.error.message ?: result.error.toString()
-                )
-            } else {
-                throw result.error
-            }
+            throw result.error
         }
     }
 }

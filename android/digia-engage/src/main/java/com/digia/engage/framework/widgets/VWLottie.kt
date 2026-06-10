@@ -27,7 +27,6 @@ import androidx.compose.material.icons.outlined.Info
 import com.digia.engage.framework.actions.LocalActionExecutor
 import com.digia.engage.framework.actions.base.ActionFlow
 import com.digia.engage.framework.state.LocalStateContextProvider
-import com.digia.engage.init.DigiaUIManager
 import LocalUIResources
 
 /** Lottie widget properties */
@@ -156,13 +155,8 @@ class VWLottie(
         // Determine composition spec based on path type
         val compositionSpec = when {
             path.startsWith("http") || path.startsWith("https") -> {
-                val host= DigiaUIManager.getInstance().host
-                var resourceUrl=path
-                if(host?.resourceProxyUrl!=null){
-                    resourceUrl="${host.resourceProxyUrl}${java.net.URLEncoder.encode(path,"UTF-8")}"
-                }
                 // Network URL
-                LottieCompositionSpec.Url(resourceUrl)
+                LottieCompositionSpec.Url(path)
             }
             else -> {
                 // Asset path

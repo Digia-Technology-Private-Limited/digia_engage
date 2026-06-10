@@ -2,8 +2,6 @@ package com.digia.engage.network
 
 import android.content.Context
 import android.os.Build
-import com.digia.engage.utils.DeveloperConfig
-import com.digia.engage.utils.HostApp
 import com.google.gson.Gson
 import com.google.gson.GsonBuilder
 import com.google.gson.JsonDeserializationContext
@@ -30,6 +28,12 @@ import javax.net.ssl.HostnameVerifier
 import javax.net.ssl.SSLContext
 import javax.net.ssl.TrustManager
 import javax.net.ssl.X509TrustManager
+
+// Stubs for DeveloperConfig and HostApp — DUI framework originals were removed
+class DeveloperConfig(val proxyUrl: String? = null, val inspector: InspectorConfig? = null)
+class InspectorConfig(val networkObserver: NetworkObserverConfig? = null)
+class NetworkObserverConfig(val interceptor: Interceptor? = null)
+enum class HostApp { DASHBOARD }
 
 class NetworkClient(
     val baseUrl: String,

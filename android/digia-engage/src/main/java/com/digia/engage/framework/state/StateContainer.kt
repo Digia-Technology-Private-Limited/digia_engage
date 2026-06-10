@@ -12,7 +12,6 @@ import com.digia.engage.framework.datatype.DataTypeCreator
 import com.digia.engage.framework.datatype.Variable
 import com.digia.engage.framework.expr.DefaultScopeContext
 import com.digia.engage.framework.models.Props
-import com.digia.engage.framework.navigation.NavigationManager
 
 /**
  * Virtual State Container Widget
