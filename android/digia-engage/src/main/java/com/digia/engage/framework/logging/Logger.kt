@@ -1,59 +1,49 @@
 package com.digia.engage.framework.logging
 
-import android.os.Build
+import android.util.Log
+import com.digia.engage.DigiaLogLevel
 
-/// A utility class for logging messages.
-/// Uses println when in debug mode.
-///
-class Logger {
-    /// Private constructor to prevent instantiation
-    private constructor()
+/**
+ * Central logger for the Digia Engage SDK.
+ *
+ * Call [configure] once during SDK init to set the log level from [DigiaConfig.logLevel]:
+ *   - NONE    → no output
+ *   - ERROR   → warnings and errors only (default)
+ *   - VERBOSE → all diagnostic output, helpful when campaigns are not showing
+ */
+object Logger {
+    private const val TAG = "Digia"
 
-    companion object {
-        /// Checks if the app is in debug mode
-        private val isDebugMode: Boolean
-            get() = try {
-                // Try BuildConfig.DEBUG first (most common)
-//                val buildConfigClass = Class.forName("com.digia.engage.BuildConfig")
-//                val debugField = buildConfigClass.getField("DEBUG")
-//                debugField.getBoolean(null)
-                false
-            } catch (e: Exception) {
-                // Fallback: check build type
-                Build.TYPE == "debug" || Build.TYPE == "eng"
-            }
+    @Volatile var level: DigiaLogLevel = DigiaLogLevel.ERROR
 
-        /// Logs a message only when in debug mode
-        fun log(message: String, tag: String? = null) {
-            if (isDebugMode) {
-                val logMessage = tag?.let { "[$it] $message" } ?: message
-                println(logMessage)
-            }
+    fun configure(logLevel: DigiaLogLevel) {
+        level = logLevel
+    }
+
+    /** Detailed diagnostic log — only emitted when logLevel is VERBOSE. */
+    fun verbose(message: String) {
+        if (level == DigiaLogLevel.VERBOSE) Log.d(TAG, message)
+    }
+
+    /** General info log — only emitted when logLevel is VERBOSE. */
+    fun log(message: String, tag: String? = null) {
+        if (level == DigiaLogLevel.VERBOSE) Log.d(tag ?: TAG, message)
+    }
+
+    /** Warning / error — emitted unless logLevel is NONE. */
+    fun error(message: String, tag: String? = null, error: Any? = null) {
+        if (level != DigiaLogLevel.NONE) {
+            val full = if (error != null) "$message — $error" else message
+            Log.w(tag ?: TAG, full)
         }
+    }
 
-        /// Logs an error message only when in debug mode
-        fun error(message: String, tag: String? = null, error: Any? = null) {
-            if (isDebugMode) {
-                val logMessage = tag?.let { "[$it] ERROR: $message" } ?: "ERROR: $message"
-                val fullMessage = error?.let { "$logMessage - $error" } ?: logMessage
-                println(fullMessage)
-            }
-        }
+    /** Alias of [error] for semantic clarity at call sites. */
+    fun warning(message: String, tag: String? = null) {
+        if (level != DigiaLogLevel.NONE) Log.w(tag ?: TAG, message)
+    }
 
-        /// Logs an info message only when in debug mode
-        fun info(message: String, tag: String? = null) {
-            if (isDebugMode) {
-                val logMessage = tag?.let { "[$it] INFO: $message" } ?: "INFO: $message"
-                println(logMessage)
-            }
-        }
-
-        /// Logs a warning message only when in debug mode
-        fun warning(message: String, tag: String? = null) {
-            if (isDebugMode) {
-                val logMessage = tag?.let { "[$it] WARNING: $message" } ?: "WARNING: $message"
-                println(logMessage)
-            }
-        }
+    fun info(message: String, tag: String? = null) {
+        if (level == DigiaLogLevel.VERBOSE) Log.i(tag ?: TAG, message)
     }
 }

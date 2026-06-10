@@ -3,6 +3,7 @@ package com.digia.engage.internal
 import com.digia.engage.DigiaConfig
 import com.digia.engage.DigiaEndpoints
 import com.digia.engage.DigiaEnvironment
+import com.digia.engage.framework.logging.Logger
 import com.digia.engage.internal.model.CampaignModel
 import java.io.IOException
 import java.net.HttpURLConnection
@@ -21,10 +22,7 @@ internal class CampaignFetcher(private val config: DigiaConfig, private val devi
                         .trimEnd('/')
 
         val fullUrl = "$baseUrl/api/v1/engage/sdk/getCampaigns"
-        android.util.Log.d(
-                "Digia",
-                "[CampaignFetcher] fetching: $fullUrl (env=${config.environment})"
-        )
+        Logger.verbose("Fetching campaigns | url=$fullUrl env=${config.environment}")
         val url = URL(fullUrl)
         val connection =
                 (url.openConnection() as HttpURLConnection).apply {
@@ -39,11 +37,16 @@ internal class CampaignFetcher(private val config: DigiaConfig, private val devi
                 }
 
         val code = connection.responseCode
-        // android.util.Log.d("Digia", "[CampaignFetcher] response: HTTP $code")
-        if (code != 200) throw IOException("getCampaigns failed: HTTP $code")
+        Logger.verbose("Campaign fetch response: HTTP $code")
+        if (code != 200) {
+            Logger.error("Campaign fetch failed | HTTP $code — check your projectId ('${config.apiKey.take(8)}…') and network connectivity")
+            throw IOException("getCampaigns failed: HTTP $code")
+        }
 
         val body = connection.inputStream.bufferedReader().readText()
-        return parseCampaigns(extractCampaignArray(body))
+        val campaigns = parseCampaigns(extractCampaignArray(body))
+        Logger.verbose("Campaigns fetched | count=${campaigns.size}")
+        return campaigns
     }
 
     private fun extractCampaignArray(body: String): JSONArray {

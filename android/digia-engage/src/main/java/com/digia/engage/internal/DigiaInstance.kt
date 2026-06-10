@@ -11,6 +11,7 @@ import com.digia.engage.DigiaCEPPlugin
 import com.digia.engage.DigiaConfig
 import com.digia.engage.DigiaExperienceEvent
 import com.digia.engage.InAppPayload
+import com.digia.engage.framework.logging.Logger
 import com.digia.engage.internal.model.CampaignModel
 import java.util.UUID
 import java.util.concurrent.atomic.AtomicBoolean
@@ -70,6 +71,8 @@ internal object DigiaInstance : DigiaCEPDelegate {
 
     fun initialize(context: Context, config: DigiaConfig) {
         if (!initializationStarted.compareAndSet(false, true)) return
+        Logger.configure(config.logLevel)
+        Logger.verbose("Digia SDK initializing | projectId=${config.apiKey.take(8)}… env=${config.environment}")
         _sdkState.value = SDKState.INITIALIZING
         com.digia.engage.framework.DigiaFontConfig.fontFamily = config.fontFamily
         analyticsClient.configure(config)
@@ -87,9 +90,10 @@ internal object DigiaInstance : DigiaCEPDelegate {
                     initialized.set(true)
                     _isUiReady.value = true
                     _sdkState.value = SDKState.READY
+                    Logger.verbose("Digia SDK ready | campaigns=${campaigns.size}")
                     registerLifecycleObserver()
                     pluginRegistry.runHealthCheck()
-                    if (campaignStore.isEmpty()) logWarning("No campaigns fetched — CampaignStore is empty")
+                    if (campaignStore.isEmpty()) Logger.warning("No campaigns fetched — check your projectId and network connection")
                     flushPendingPayloadIfAny()
                 }.join()
             } catch (t: Throwable) {
@@ -98,17 +102,19 @@ internal object DigiaInstance : DigiaCEPDelegate {
                     _isUiReady.value = false
                     _sdkState.value = SDKState.FAILED
                 }
-                logWarning("Digia.initialize failed: ${t.message}")
+                Logger.error("Digia SDK init failed: ${t.message}")
             }
         }
     }
 
     fun register(plugin: DigiaCEPPlugin) {
+        Logger.verbose("Plugin registered: ${plugin.identifier}")
         pluginRegistry.register(plugin)
         screenTracker.currentScreen?.let(pluginRegistry::forwardScreen)
     }
 
     fun setCurrentScreen(name: String) {
+        Logger.verbose("Screen: $name")
         screenTracker.setScreen(name)
     }
 
@@ -265,6 +271,7 @@ internal object DigiaInstance : DigiaCEPDelegate {
 
     fun markNudgeDismissed() {
         val payload = controller.nudgeOverlay.value?.payload ?: return
+        Logger.verbose("Nudge dismissed: id=${payload.id}")
         displayCoordinator.onOverlayEvent(DigiaExperienceEvent.Dismissed, payload)
         controller.dismissNudge()
     }
@@ -313,21 +320,23 @@ internal object DigiaInstance : DigiaCEPDelegate {
 
     override fun onCampaignTriggered(payload: InAppPayload) {
         scope.launch(Dispatchers.Main.immediate) {
-            // android.util.Log.d("Digia", "[onCampaignTriggered] id=${payload.id} state=${_sdkState.value}")
+            Logger.verbose("Campaign received from CEP: id=${payload.id} sdkState=${_sdkState.value}")
             when (_sdkState.value) {
                 SDKState.NOT_INITIALIZED -> {
-                    logWarning("campaign dropped — SDK not initialized: ${payload.id}")
+                    Logger.error("Campaign dropped — SDK not initialized (call Digia.initialize() first): id=${payload.id}")
                     return@launch
                 }
                 SDKState.INITIALIZING -> {
                     if (pendingPayload != null) {
-                        logWarning("pending payload replaced by newer payload: ${payload.id}")
+                        Logger.warning("Pending campaign replaced by newer trigger: id=${payload.id}")
+                    } else {
+                        Logger.verbose("SDK still initializing — campaign queued: id=${payload.id}")
                     }
                     pendingPayload = payload
                     return@launch
                 }
                 SDKState.FAILED -> {
-                    logWarning("campaign dropped — SDK initialization failed: ${payload.id}")
+                    Logger.error("Campaign dropped — SDK init failed: id=${payload.id}")
                     return@launch
                 }
                 SDKState.READY -> Unit
@@ -337,6 +346,7 @@ internal object DigiaInstance : DigiaCEPDelegate {
     }
 
     override fun onCampaignInvalidated(campaignId: String) {
+        Logger.verbose("Campaign invalidated by CEP: id=$campaignId")
         scope.launch(Dispatchers.Main.immediate) {
             displayCoordinator.dismissNudge(campaignId)
             displayCoordinator.dismissInline(campaignId)
@@ -354,21 +364,22 @@ internal object DigiaInstance : DigiaCEPDelegate {
             ?: (payload.content["digiaKey"] as? String)
             ?: payload.id.takeIf { it.isNotBlank() })?.trim()
         if (campaignKey.isNullOrBlank()) {
-            logWarning("payload dropped: missing campaign_key: ${payload.id}")
+            Logger.error("Campaign dropped — missing campaign_key in payload: id=${payload.id}. Ensure the CEP plugin sets campaign_key in content.")
             return
         }
         val campaign = campaignStore.find(campaignKey)
         if (campaign == null) {
-            logWarning("payload dropped: no campaign found for key '$campaignKey'")
+            Logger.error("Campaign dropped — no campaign found for key '$campaignKey'. Check the key matches a published campaign on the Digia dashboard.")
             return
         }
+        Logger.verbose("Campaign resolved: key=$campaignKey type=${campaign.campaignType}")
         routeCampaign(campaign, payload)
     }
 
     private fun routeCampaign(campaign: CampaignModel, payload: InAppPayload = campaignPayload(campaign)) {
         val campaignKey = campaign.campaignKey
         val routedPayload = payloadForCampaign(campaign, payload)
-        // android.util.Log.d("Digia", "[routeCampaign] routing '$campaignKey' type=${campaign.campaignType}")
+        Logger.verbose("Routing campaign: key=$campaignKey type=${campaign.campaignType}")
         when (campaign.campaignType) {
             "guide" -> guideOrchestrator.start(campaign, extractVariables(payload.content))
             "nudge" -> {
@@ -385,7 +396,7 @@ internal object DigiaInstance : DigiaCEPDelegate {
             }
             "survey" -> {
                 if (!surveyOrchestrator.start(campaign)) {
-                    logWarning("survey campaign dropped: another survey is on screen: $campaignKey")
+                    Logger.warning("Survey campaign skipped — another survey is already on screen: key=$campaignKey")
                 }
             }
             else -> error("Unknown campaign_type: ${campaign.campaignType}")
@@ -457,7 +468,7 @@ internal object DigiaInstance : DigiaCEPDelegate {
     }
 
     private fun logWarning(message: String) {
-        Log.w("DigiaInstance", message)
+        Logger.warning(message)
     }
 
     @Suppress("unused")
