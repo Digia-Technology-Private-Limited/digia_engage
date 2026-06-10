@@ -48,6 +48,7 @@ internal object DigiaInstance : DigiaCEPDelegate {
     private val surveyOrchestrator = SurveyOrchestrator()
     private var submissionReporter: SubmissionReporter? = null
     private var completedSurveyToken: Long? = null
+    private var frequencyStore: FrequencyStore? = null
 
     val guideState = guideOrchestrator.state
     val surveyState = surveyOrchestrator.state
@@ -76,12 +77,14 @@ internal object DigiaInstance : DigiaCEPDelegate {
 
         val deviceId = resolveDeviceId(context)
         submissionReporter = SubmissionReporter(config, deviceId, scope)
+        frequencyStore = FrequencyStore(context.applicationContext.getSharedPreferences("digia_frequency", Context.MODE_PRIVATE))
 
         scope.launch(Dispatchers.IO) {
             try {
                 val deviceId = loadOrCreateDeviceId(context.applicationContext)
                 val fetcher = CampaignFetcher(config, deviceId)
                 val campaigns = fetcher.fetch()
+                android.util.Log.d("DigiaDebug", "[initialize] fetched ${campaigns.size} campaigns: ${campaigns.map { it.campaignKey }}")
                 campaignStore.populate(campaigns)
                 scope.launch(Dispatchers.Main.immediate) {
                     initialized.set(true)
@@ -90,6 +93,7 @@ internal object DigiaInstance : DigiaCEPDelegate {
                     registerLifecycleObserver()
                     pluginRegistry.runHealthCheck()
                     if (campaignStore.isEmpty()) logWarning("No campaigns fetched — CampaignStore is empty")
+                    android.util.Log.d("DigiaDebug", "[initialize] pendingPayload=${pendingPayload?.id} — flushing now")
                     flushPendingPayloadIfAny()
                 }.join()
             } catch (t: Throwable) {
@@ -256,6 +260,16 @@ internal object DigiaInstance : DigiaCEPDelegate {
     fun reportNudgeImpression() {
         val payload = controller.nudgeOverlay.value?.payload ?: return
         displayCoordinator.onOverlayEvent(DigiaExperienceEvent.Impressed, payload)
+        // Record frequency impression
+        val campaignKey = (payload.content["campaign_key"] as? String) ?: return
+        val store = frequencyStore ?: return
+        val now = System.currentTimeMillis()
+        val prev = store.get(campaignKey)
+        store.set(campaignKey, FrequencyState(
+            shownCount = (prev?.shownCount ?: 0) + 1,
+            firstShownAt = prev?.firstShownAt ?: now,
+            stoppedAt = null,
+        ))
     }
 
     fun emitNudgeClick(elementId: String?) {
@@ -313,7 +327,7 @@ internal object DigiaInstance : DigiaCEPDelegate {
 
     override fun onCampaignTriggered(payload: InAppPayload) {
         scope.launch(Dispatchers.Main.immediate) {
-            // android.util.Log.d("Digia", "[onCampaignTriggered] id=${payload.id} state=${_sdkState.value}")
+            android.util.Log.d("DigiaDebug", "[onCampaignTriggered] id=${payload.id} state=${_sdkState.value} storeEmpty=${campaignStore.isEmpty()}")
             when (_sdkState.value) {
                 SDKState.NOT_INITIALIZED -> {
                     logWarning("campaign dropped — SDK not initialized: ${payload.id}")
@@ -332,7 +346,11 @@ internal object DigiaInstance : DigiaCEPDelegate {
                 }
                 SDKState.READY -> Unit
             }
-            routeCampaign(payload)
+            try {
+                routeCampaign(payload)
+            } catch (t: Throwable) {
+                android.util.Log.e("DigiaDebug", "[onCampaignTriggered] routeCampaign threw: ${t.message}", t)
+            }
         }
     }
 
@@ -353,11 +371,13 @@ internal object DigiaInstance : DigiaCEPDelegate {
             ?: (payload.content["campaign_key"] as? String)
             ?: (payload.content["digiaKey"] as? String)
             ?: payload.id.takeIf { it.isNotBlank() })?.trim()
+        android.util.Log.d("DigiaDebug", "[doRouteCampaign] id=${payload.id} resolvedKey=$campaignKey content=${payload.content.keys}")
         if (campaignKey.isNullOrBlank()) {
             logWarning("payload dropped: missing campaign_key: ${payload.id}")
             return
         }
         val campaign = campaignStore.find(campaignKey)
+        android.util.Log.d("DigiaDebug", "[doRouteCampaign] campaignStore.find('$campaignKey') => ${if (campaign != null) "FOUND type=${campaign.campaignType}" else "NOT FOUND"}")
         if (campaign == null) {
             logWarning("payload dropped: no campaign found for key '$campaignKey'")
             return
@@ -368,13 +388,28 @@ internal object DigiaInstance : DigiaCEPDelegate {
     private fun routeCampaign(campaign: CampaignModel, payload: InAppPayload = campaignPayload(campaign)) {
         val campaignKey = campaign.campaignKey
         val routedPayload = payloadForCampaign(campaign, payload)
-        // android.util.Log.d("Digia", "[routeCampaign] routing '$campaignKey' type=${campaign.campaignType}")
+        android.util.Log.d("DigiaDebug", "[routeCampaign] routing '$campaignKey' type=${campaign.campaignType} nudgeConfig=${campaign.nudgeConfig != null}")
         when (campaign.campaignType) {
             "guide" -> guideOrchestrator.start(campaign, extractVariables(payload.content))
             "nudge" -> {
                 val nudgeConfig = campaign.nudgeConfig
-                    ?: error("unexpected config for nudge campaign '$campaignKey'")
-                displayCoordinator.routeNudge(nudgeConfig, nudgePayload(campaign, routedPayload, nudgeConfig))
+                if (nudgeConfig == null) {
+                    android.util.Log.e("DigiaDebug", "[routeCampaign] nudgeConfig is null for campaign '$campaignKey' — campaign not properly configured as nudge")
+                    return
+                }
+                // Native frequency gate — JS bridge skips frequency for nudges
+                val freq = campaign.frequency
+                if (FrequencyEvaluator.hasPolicy(freq)) {
+                    val state = frequencyStore?.get(campaignKey)
+                    val result = FrequencyEvaluator.evaluate(freq, state, System.currentTimeMillis())
+                    if (!result.allow) {
+                        logWarning("[Digia] nudge frequency_capped campaign_key=$campaignKey reason=${result.reason}")
+                        return
+                    }
+                }
+                val triggerVars = extractVariables(payload.content)
+                val mergedVars = if (triggerVars != null) campaign.defaultVariables + triggerVars else campaign.defaultVariables
+                displayCoordinator.routeNudge(nudgeConfig, nudgePayload(campaign, routedPayload, nudgeConfig), mergedVars)
             }
             "inline" -> when (val cfg = campaign.config) {
                 is com.digia.engage.internal.model.CampaignConfigModel.Inline ->
@@ -418,14 +453,22 @@ internal object DigiaInstance : DigiaCEPDelegate {
         payload.copy(
             content = payload.content + mapOf(
                 "campaign_type" to "nudge",
-                "display_style" to config.templateType.displayStyle,
+                "display_style" to config.surface.displayType.displayStyle,
             ),
         )
 
     private fun flushPendingPayloadIfAny() {
-        val payload = pendingPayload ?: return
+        val payload = pendingPayload ?: run {
+            android.util.Log.d("DigiaDebug", "[flushPendingPayloadIfAny] no pending payload")
+            return
+        }
+        android.util.Log.d("DigiaDebug", "[flushPendingPayloadIfAny] flushing id=${payload.id}")
         pendingPayload = null
-        routeCampaign(payload)
+        try {
+            routeCampaign(payload)
+        } catch (t: Throwable) {
+            android.util.Log.e("DigiaDebug", "[flushPendingPayloadIfAny] routeCampaign threw: ${t.message}", t)
+        }
     }
 
     private fun registerLifecycleObserver() {

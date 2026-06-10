@@ -19,6 +19,7 @@ internal data class StoryOverlayState(
 internal data class NudgeOverlayState(
     val config: NudgeConfig,
     val payload: InAppPayload,
+    val defaultVariables: Map<String, String> = emptyMap(),
 )
 
 internal class DigiaOverlayController {
@@ -97,8 +98,10 @@ internal class DigiaOverlayController {
         _storyOverlay.value = null
     }
 
-    fun showNudge(config: NudgeConfig, payload: InAppPayload) {
-        _nudgeOverlay.value = NudgeOverlayState(config, payload)
+    fun showNudge(config: NudgeConfig, payload: InAppPayload, defaultVariables: Map<String, String> = emptyMap()) {
+        android.util.Log.d("DigiaDebug", "[showNudge] setting nudgeOverlay state for payload=${payload.id}")
+        _nudgeOverlay.value = NudgeOverlayState(config, payload, defaultVariables)
+        android.util.Log.d("DigiaDebug", "[showNudge] nudgeOverlay.value set, current=${_nudgeOverlay.value?.payload?.id}")
     }
 
     fun dismissNudge() {

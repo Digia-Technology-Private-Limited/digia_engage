@@ -194,7 +194,7 @@ class DigiaClass implements DigiaDelegate {
         if (campaignKey) {
             const campaign = this._campaignsByKey.get(campaignKey);
 
-            if (campaign && hasPolicy(campaign.frequency)) {
+            if (campaign && campaign.campaign_type !== 'nudge' && hasPolicy(campaign.frequency)) {
                 const policy = campaign.frequency!;
                 const isSession = isSessionPolicy(policy);
                 const state = await this._getFrequencyState(campaignKey, isSession);
@@ -250,7 +250,9 @@ class DigiaClass implements DigiaDelegate {
                 return;
             }
 
-            if (!campaign) {
+            if (campaign?.campaign_type === 'nudge') {
+                this._log(`nudge campaign triggered campaign_key=${campaignKey}, forwarding to native (native enforces frequency)`);
+            } else if (!campaign) {
                 this._log(`campaign_key_mismatch: no campaign found for key="${campaignKey}"`);
                 digiaHealthReporter.report(HealthEventType.campaign_key_mismatch, {
                     campaign_key: campaignKey,
@@ -262,6 +264,7 @@ class DigiaClass implements DigiaDelegate {
         }
 
         this._activePayloads.set(payload.id, payload);
+        this._log(`triggerCampaign id=${payload.id} content=${JSON.stringify(payload.content)}`);
         nativeDigiaModule.triggerCampaign(payload.id, payload.content, payload.cepContext);
     }
 
@@ -306,6 +309,7 @@ class DigiaClass implements DigiaDelegate {
     private _forwardExperienceEvent(
         data: { campaignId: string; type: string; elementId?: string },
     ): void {
+        this._log(`engage-event type=${data.type} campaignId=${data.campaignId} tracked=${this._activePayloads.has(data.campaignId)}`);
         const payload = this._activePayloads.get(data.campaignId);
         if (!payload) return;
 

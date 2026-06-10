@@ -1,110 +1,165 @@
 package com.digia.engage.internal.model
 
-import com.digia.engage.framework.models.VWNodeData
 import org.json.JSONObject
-import org.junit.Assert.assertEquals
-import org.junit.Assert.assertNotNull
-import org.junit.Assert.assertNull
-import org.junit.Assert.assertTrue
+import org.junit.Assert.*
 import org.junit.Test
 
 /**
- * Locks the nudge wire contract: the dashboard serializes `templateConfig.layout` as the
- * exact native DUI `VWData` tree, and this confirms the SDK parses those key names
- * (`containerProps`, `childGroups.children`, `digia/...` / `fw/...` type strings) into the
- * recursive renderer's data model without translation.
+ * Locks the nudge wire contract against the new dashboard format (Flutter parity).
+ * Parses via NudgeParser which mirrors Flutter's nudge_parser.dart.
  */
 class NudgeConfigTest {
 
-    /** A bottom-sheet layout: root column + one of each of the 5 supported leaf widgets. */
-    private fun sampleTemplateConfig(): JSONObject = JSONObject(
+    private fun minimalConfig(displayType: String = "bottom_sheet") = JSONObject(
         """
         {
-          "templateType": "bottomSheet",
           "container": {
-            "bgColor": "#FFFFFF",
-            "cornerRadius": 20,
-            "padding": 12,
-            "dismissOnOutsideTap": false,
-            "scrimColor": "#80000000",
-            "maxHeightRatio": 0.6,
-            "dragHandle": false
+            "displayType": "$displayType",
+            "cornerRadius": 18,
+            "padding": 20,
+            "widthPct": 86,
+            "showHandle": true,
+            "draggable": true,
+            "backdropDismissible": true
           },
           "layout": {
             "type": "digia/column",
-            "containerProps": { "style": {} },
-            "childGroups": {
-              "children": [
-                { "type": "digia/text", "props": { "text": "Hi" } },
-                { "type": "digia/image", "props": { "src": { "imageSrc": "http://x/y.png" } } },
-                { "type": "digia/button", "props": { "text": { "text": "Go" } } },
-                { "type": "fw/sized_box", "props": { "height": 8 } },
-                { "type": "digia/styledHorizontalDivider", "props": { "thickness": 1 } }
-              ]
-            }
+            "props": { "spacing": 8 },
+            "children": [
+              {
+                "type": "digia/text",
+                "props": { "text": "Hello" },
+                "containerProps": { "style": {} }
+              }
+            ]
           }
         }
         """.trimIndent(),
     )
 
     @Test
-    fun `parses templateType container and layout tree`() {
-        val config = NudgeConfig.fromJson(sampleTemplateConfig())
+    fun `parses bottom sheet surface with flutter defaults`() {
+        val config = NudgeParser().parse(minimalConfig())
         assertNotNull(config)
         config!!
+        val surface = config.surface
+        assertEquals(NudgeDisplayType.BOTTOM_SHEET, surface.displayType)
+        assertEquals("bottom_sheet", surface.displayType.displayStyle)
+        assertEquals(18f, surface.cornerRadius)
+        assertEquals(20f, surface.padding)
+        assertEquals(true, surface.showHandle)
+        assertEquals(true, surface.draggable)
+        assertEquals(true, surface.backdropDismissible)
+        assertEquals(false, surface.showCloseButton)
+        assertEquals(0.86f, surface.widthFraction, 0.01f)
+    }
 
-        assertEquals(NudgeTemplateType.BOTTOM_SHEET, config.templateType)
-        assertEquals("bottom_sheet", config.templateType.displayStyle)
+    @Test
+    fun `parses dialog display type`() {
+        val config = NudgeParser().parse(minimalConfig("dialog"))!!
+        assertEquals(NudgeDisplayType.DIALOG, config.surface.displayType)
+        assertEquals("dialog", config.surface.displayType.displayStyle)
+    }
 
-        // Container fields round-trip from the wire.
-        assertEquals("#FFFFFF", config.container.bgColor)
-        assertEquals(20f, config.container.cornerRadius)
-        assertEquals(false, config.container.dismissOnOutsideTap)
-        assertEquals("#80000000", config.container.scrimColor)
-        assertEquals(0.6f, config.container.maxHeightRatio)
-        assertEquals(false, config.container.dragHandle)
+    @Test
+    fun `surface defaults when container omitted`() {
+        val json = JSONObject("""{"layout":{"type":"digia/column","children":[]}}""")
+        val config = NudgeParser().parse(json)!!
+        val s = config.surface
+        assertEquals(NudgeDisplayType.BOTTOM_SHEET, s.displayType)
+        assertEquals(18f, s.cornerRadius)
+        assertEquals(20f, s.padding)
+        assertEquals(0.86f, s.widthFraction, 0.01f)
+        assertTrue(s.showHandle)
+        assertTrue(s.backdropDismissible)
+        assertFalse(s.showCloseButton)
+    }
 
-        // Root is a digia/column whose `children` group holds the 5 leaf widgets in order.
-        val root = config.layout as VWNodeData
-        assertEquals("digia/column", root.type)
-        val children = root.childGroups?.get("children")
-        assertNotNull(children)
-        assertEquals(
-            listOf(
-                "digia/text",
-                "digia/image",
-                "digia/button",
-                "fw/sized_box",
-                "digia/styledHorizontalDivider",
-            ),
-            children!!.map { (it as VWNodeData).type },
+    @Test
+    fun `returns null when layout missing`() {
+        assertNull(NudgeParser().parse(JSONObject("""{"container":{}}""")))
+    }
+
+    @Test
+    fun `parses text node`() {
+        val config = NudgeParser().parse(minimalConfig())!!
+        val text = config.content.children.first() as NudgeText
+        assertEquals("Hello", text.text)
+        assertEquals(NudgeTextAlign.LEFT, text.align)
+    }
+
+    @Test
+    fun `parses widthPct as widthFraction`() {
+        val json = JSONObject("""
+            {
+              "container": { "widthPct": 70 },
+              "layout": { "type": "digia/column", "children": [] }
+            }
+        """.trimIndent())
+        val config = NudgeParser().parse(json)!!
+        assertEquals(0.70f, config.surface.widthFraction, 0.01f)
+    }
+
+    @Test
+    fun `widthFraction clamped to 0_3 minimum`() {
+        val json = JSONObject("""
+            {
+              "container": { "widthPct": 10 },
+              "layout": { "type": "digia/column", "children": [] }
+            }
+        """.trimIndent())
+        val config = NudgeParser().parse(json)!!
+        assertEquals(0.3f, config.surface.widthFraction, 0.01f)
+    }
+
+    @Test
+    fun `parses full node set`() {
+        val json = JSONObject(
+            """
+            {
+              "layout": {
+                "type": "digia/column",
+                "props": {},
+                "children": [
+                  { "type": "digia/text", "props": { "text": "Hi" }, "containerProps": {} },
+                  { "type": "digia/image", "props": { "src": { "imageSrc": "https://x/y.png" } }, "containerProps": {} },
+                  { "type": "digia/button", "props": { "text": { "text": "Go" }, "isPrimary": true }, "containerProps": {} },
+                  { "type": "fw/sized_box", "props": { "height": 8 }, "containerProps": {} },
+                  { "type": "digia/styledHorizontalDivider", "props": { "thickness": 1 }, "containerProps": {} },
+                  { "type": "digia/lottie", "props": { "src": { "lottiePath": "https://x/a.json" }, "height": 160 }, "containerProps": {} },
+                  { "type": "digia/carousel", "props": { "images": ["https://x/1.png"] }, "containerProps": {} },
+                  { "type": "digia/videoPlayer", "props": { "url": "https://x/v.mp4" }, "containerProps": {} }
+                ]
+              }
+            }
+            """.trimIndent(),
         )
+        val config = NudgeParser().parse(json)!!
+        val types = config.content.children.map { it::class.simpleName }
+        assertEquals(
+            listOf("NudgeText", "NudgeImage", "NudgeButton", "NudgeGap",
+                "NudgeDivider", "NudgeLottie", "NudgeCarousel", "NudgeVideo"),
+            types,
+        )
+        val button = config.content.children[2] as NudgeButton
+        assertTrue(button.isPrimary)
+        val image = config.content.children[1] as NudgeImage
+        assertEquals("https://x/y.png", image.url)
     }
 
     @Test
-    fun `dialog templateType maps to dialog display style`() {
-        val json = sampleTemplateConfig().put("templateType", "dialog")
-        val config = NudgeConfig.fromJson(json)!!
-        assertEquals(NudgeTemplateType.DIALOG, config.templateType)
-        assertEquals("dialog", config.templateType.displayStyle)
-    }
-
-    @Test
-    fun `container defaults applied when omitted`() {
-        val json = sampleTemplateConfig()
-        json.remove("container")
-        val config = NudgeConfig.fromJson(json)!!
-        val defaults = NudgeContainerConfig()
-        assertEquals(defaults.bgColor, config.container.bgColor)
-        assertEquals(defaults.cornerRadius, config.container.cornerRadius)
-        assertTrue(config.container.dismissOnOutsideTap)
-        assertEquals(defaults.maxHeightRatio, config.container.maxHeightRatio)
-    }
-
-    @Test
-    fun `returns null when layout is missing`() {
-        val json = sampleTemplateConfig()
-        json.remove("layout")
-        assertNull(NudgeConfig.fromJson(json))
+    fun `unknown node type is dropped`() {
+        val json = JSONObject("""
+            {
+              "layout": {
+                "type": "digia/column",
+                "children": [
+                  { "type": "unknown/widget", "props": {}, "containerProps": {} }
+                ]
+              }
+            }
+        """.trimIndent())
+        val config = NudgeParser().parse(json)!!
+        assertTrue(config.content.children.isEmpty())
     }
 }

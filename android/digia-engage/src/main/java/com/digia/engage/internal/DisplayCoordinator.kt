@@ -11,8 +11,9 @@ internal class DisplayCoordinator(
     private val pluginRegistry: PluginRegistry,
     private val analyticsClient: AnalyticsClient,
 ) {
-    fun routeNudge(config: NudgeConfig, payload: InAppPayload) {
-        overlayController.showNudge(config, payload)
+    fun routeNudge(config: NudgeConfig, payload: InAppPayload, defaultVariables: Map<String, String> = emptyMap()) {
+        android.util.Log.d("DigiaDebug", "[routeNudge] payload.id=${payload.id} displayType=${config.surface.displayType}")
+        overlayController.showNudge(config, payload, defaultVariables)
     }
 
     fun routeInline(placementKey: String, payload: InAppPayload) {

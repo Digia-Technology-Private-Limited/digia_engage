@@ -1,5 +1,6 @@
 package com.digia.engage.internal.model
 
+import com.digia.engage.internal.FrequencyPolicy
 import org.json.JSONObject
 
 internal sealed interface CampaignConfigModel {
@@ -15,6 +16,8 @@ internal data class CampaignModel(
         val campaignKey: String,
         val campaignType: String,
         val config: CampaignConfigModel,
+        val defaultVariables: Map<String, String> = emptyMap(),
+        val frequency: FrequencyPolicy? = null,
 ) {
         val guideConfig: GuideConfigModel?
                 get() = (config as? CampaignConfigModel.Guide)?.guideConfig
@@ -52,7 +55,7 @@ internal data class CampaignModel(
                     val templateConfig = json.optJSONObject("templateConfig")
                         ?: error("nudge campaign '$campaignKey' has no templateConfig")
                     CampaignConfigModel.Nudge(
-                        NudgeConfig.fromJson(templateConfig)
+                        NudgeParser().parse(templateConfig)
                             ?: error("nudge campaign '$campaignKey' has no valid nudge templateConfig")
                     )
                 }
@@ -103,7 +106,33 @@ internal data class CampaignModel(
                                 campaignKey = campaignKey,
                                 campaignType = campaignType,
                                 config = config,
+                                defaultVariables = parseDefaultVariables(json.optJSONObject("templateConfig")),
+                                frequency = parseFrequency(json.optJSONObject("frequency")),
                         )
+                }
+
+                private fun parseDefaultVariables(templateConfig: JSONObject?): Map<String, String> {
+                        val vars = templateConfig?.optJSONObject("variables") ?: return emptyMap()
+                        val result = mutableMapOf<String, String>()
+                        vars.keys().forEach { k ->
+                                when (val v = vars.opt(k)) {
+                                        is String -> result[k] = v
+                                        is Number -> result[k] = v.toString()
+                                        is Boolean -> result[k] = v.toString()
+                                }
+                        }
+                        return result
+                }
+
+                private fun parseFrequency(json: JSONObject?): FrequencyPolicy? {
+                        json ?: return null
+                        val maxTotal = if (json.has("max_total") && !json.isNull("max_total")) json.optInt("max_total") else null
+                        val mpw = json.optJSONObject("max_per_window")?.let {
+                                FrequencyPolicy.MaxPerWindow(it.optInt("count"), it.optString("window"))
+                        }
+                        val stopOn = json.optString("stop_on").takeIf { it.isNotBlank() }
+                        return if (maxTotal == null && mpw == null && stopOn == null) null
+                        else FrequencyPolicy(maxTotal, mpw, stopOn)
                 }
 
                 private fun parseGuideConfig(

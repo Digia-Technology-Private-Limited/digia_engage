@@ -78,13 +78,18 @@ final class DigiaModule: RCTEventEmitter {
         default: logLevelValue = .error
         }
 
+        let cleanBaseUrl = baseUrl.flatMap { url -> String? in
+            var s = url.trimmingCharacters(in: .whitespacesAndNewlines)
+                .trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+            if s.hasSuffix("/api/v1") { s = String(s.dropLast(7)) }
+            return s.isEmpty ? nil : s
+        }
+
         let config = DigiaConfig(
             apiKey: projectId,
             logLevel: logLevelValue,
             environment: envValue,
-            developerConfig: baseUrl.flatMap {
-                $0.isEmpty ? nil : DigiaDeveloperConfig(baseURL: $0)
-            },
+            developerConfig: cleanBaseUrl.map { DigiaDeveloperConfig(baseURL: $0) },
             fontFamily: fontFamily.flatMap { $0.isEmpty ? nil : $0 }
         )
 
@@ -110,6 +115,7 @@ final class DigiaModule: RCTEventEmitter {
     func registerBridge() {
         Task { @MainActor in
             Digia.register(self.rnPlugin)
+            print("[DigiaRN] registerBridge: rnPlugin registered, delegate=\(self.rnPlugin.delegate != nil ? "set" : "nil")")
         }
     }
 
@@ -140,10 +146,17 @@ final class DigiaModule: RCTEventEmitter {
         let content = buildInAppPayloadContent(from: contentMap)
         let cepContext = (cepContextMap as? [String: String]) ?? [:]
         let payload = InAppPayload(id: id, content: content, cepContext: cepContext)
+        print("[DigiaRN] triggerCampaign id=\(id) campaignKey=\(content.campaignKey ?? "nil")")
 
         Task { @MainActor in
-            guard let delegate = self.rnPlugin.delegate else { return }
+            guard let delegate = self.rnPlugin.delegate else {
+                print("[DigiaRN] triggerCampaign: delegate is nil — registerBridge() may not have run yet")
+                return
+            }
             delegate.onCampaignTriggered(payload)
+            Task { @MainActor in
+                print("[DigiaRN] triggerCampaign post-call: hasActiveOverlay=\(Digia.hasActiveOverlay)")
+            }
         }
     }
 
@@ -254,6 +267,7 @@ final class DigiaModule: RCTEventEmitter {
         let screenId = map["screenId"] as? String
         let campaignKey =
             (map["campaignKey"] as? String) ?? (map["campaign_key"] as? String)
+            ?? (map["digia_campaign_key"] as? String)
             ?? (map["digiaKey"] as? String)
         var type = (map["type"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         if type.isEmpty {
