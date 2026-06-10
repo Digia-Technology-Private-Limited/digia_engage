@@ -2,8 +2,8 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:lottie/lottie.dart';
 
-import '../../../src/framework/internal_widgets/internal_carousel.dart';
-import '../../../src/framework/internal_widgets/internal_video_player.dart';
+import '../../../src/components/carousel/internal_carousel.dart';
+import '../../../src/components/video/internal_video_player.dart';
 import '../action/engage_action_context.dart';
 import '../action/engage_action_handler.dart';
 import '../engage_fonts.dart';
@@ -216,10 +216,8 @@ final class NudgeCarouselRenderer extends NudgeNodeRenderer<NudgeCarousel> {
   @override
   Widget render(NudgeCarousel node, BuildContext context) {
     final scope = VariableScopeProvider.of(context);
-    final images = node.images
-        .map(scope.resolve)
-        .where((url) => url.isNotEmpty)
-        .toList();
+    final images =
+        node.images.map(scope.resolve).where((url) => url.isNotEmpty).toList();
     if (images.isEmpty) {
       return NudgePlaceholder(label: 'No images', height: node.height);
     }
