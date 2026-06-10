@@ -24,7 +24,7 @@
 
 ```yaml
 dependencies:
-  digia_engage: ^1.3.1
+  digia_engage: ^1.3.2
 ```
 
 ---
