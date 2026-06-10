@@ -19,13 +19,13 @@ import { DeviceEventEmitter } from 'react-native';
 import { nativeDigiaModule } from './NativeDigiaEngage';
 import { digiaHealthReporter, HealthEventType } from './DigiaHealthReporter';
 import { digiaGuideController } from './DigiaGuideController';
-import { parseVariableMap } from './interpolate';
 import { digiaActionHandler } from './actionHandler';
 import uuid from 'react-native-uuid';
 import { frequencyStore } from './frequencyStore';
 import { evaluate, hasPolicy, isSessionPolicy } from './frequencyEvaluator';
 import type {
     ActionContext,
+    CEPTriggerPayload,
     CampaignType,
     DigiaConfig,
     DigiaDelegate,
@@ -34,7 +34,6 @@ import type {
     FrequencyPolicy,
     FrequencyState,
     GuideLifecycleEvent,
-    InAppPayload,
 } from './types';
 import type { TemplateConfig } from './templateTypes';
 
@@ -56,9 +55,9 @@ class DigiaClass implements DigiaDelegate {
     // Tracks whether the native bridge plugin (RNEventBridgePlugin) has been
     // wired to the native SDK. Done once on the first Digia.register() call.
     private _nativeBridgeWired = false;
-    // Cache of triggered payloads keyed by campaign ID, used to reconstruct
-    // the full InAppPayload when overlay lifecycle events arrive from native.
-    private readonly _activePayloads = new Map<string, InAppPayload>();
+    // Cache of triggered payloads keyed by cepCampaignId, used to reconstruct
+    // the full CEPTriggerPayload when overlay lifecycle events arrive from native.
+    private readonly _activePayloads = new Map<string, CEPTriggerPayload>();
     private _engageSubscription: { remove(): void } | null = null;
     private _projectId = '';
     private _deviceId = '';
@@ -183,86 +182,88 @@ class DigiaClass implements DigiaDelegate {
     // Mirrors DigiaCEPDelegate on Android.
     // Forwards to the native DigiaCEPDelegate via the bridge.
 
-    async onCampaignTriggered(payload: InAppPayload): Promise<void> {
+    async onCampaignTriggered(payload: CEPTriggerPayload): Promise<void> {
         if (!this._nativeBridgeWired) {
-            digiaHealthReporter.report(HealthEventType.plugin_not_registered, { campaign_key: payload.id });
+            digiaHealthReporter.report(HealthEventType.plugin_not_registered, { campaign_key: payload.campaignKey });
         }
 
-        const campaignKey = this._extractCampaignKey(payload);
-        this._log(`onCampaignTriggered payloadId=${payload.id} extractedKey=${campaignKey} knownKeys=[${[...this._campaignsByKey.keys()].join(', ')}]`);
+        const { cepCampaignId, campaignKey, variables, cepMetadata } = payload;
+        this._log(`onCampaignTriggered cepCampaignId=${cepCampaignId} campaignKey=${campaignKey} knownKeys=[${[...this._campaignsByKey.keys()].join(', ')}]`);
 
-        if (campaignKey) {
-            const campaign = this._campaignsByKey.get(campaignKey);
+        const campaign = this._campaignsByKey.get(campaignKey);
 
-            if (campaign && hasPolicy(campaign.frequency)) {
-                const policy = campaign.frequency!;
-                const isSession = isSessionPolicy(policy);
-                const state = await this._getFrequencyState(campaignKey, isSession);
-                const result = evaluate(policy, state, Date.now());
-                if (!result.allow) {
-                    this._log(`frequency_capped campaign_key=${campaignKey} reason=${result.reason}`);
-                    return;
-                }
-            }
-
-            if (campaign?.campaign_type === 'inline' || campaign?.campaign_type === 'survey') {
-                this._log(`${campaign.campaign_type} campaign triggered campaign_key=${campaignKey}, forwarding to native`);
-                this._activePayloads.set(payload.id, payload);
-                if (campaign.campaign_type === 'inline') {
-                    this._emitSlotWidth(campaign);
-                }
-                nativeDigiaModule.triggerCampaign(payload.id, payload.content, payload.cepContext);
+        if (campaign && hasPolicy(campaign.frequency)) {
+            const policy = campaign.frequency!;
+            const isSession = isSessionPolicy(policy);
+            const state = await this._getFrequencyState(campaignKey, isSession);
+            const result = evaluate(policy, state, Date.now());
+            if (!result.allow) {
+                this._log(`frequency_capped campaign_key=${campaignKey} reason=${result.reason}`);
                 return;
             }
+        }
 
-            if (campaign?.campaign_type === 'guide') {
-                const config = this._parseTemplateConfig(campaign);
-                if (
-                    !config ||
-                    (config.templateType !== 'tooltip' && config.templateType !== 'spotlight') ||
-                    config.steps.length === 0
-                ) {
-                    digiaHealthReporter.report(HealthEventType.anchor_not_on_screen, {
-                        campaign_key: campaignKey,
-                        reason: 'guide_campaign_has_no_steps',
-                    });
-                    return;
-                }
+        // Synthesise the content map expected by the native bridge.
+        const bridgeContent: Record<string, unknown> = { digia_campaign_key: campaignKey };
+        if (variables) bridgeContent.variables = variables;
 
-                this._activePayloads.set(payload.id, payload);
-                const digiaId = campaign._id ?? campaign.id ?? campaignKey;
-                const mounted = digiaGuideController.start({
-                    payloadId: payload.id,
-                    campaignKey,
-                    campaignId: digiaId,
-                    variables: this._extractVariables(payload),
-                    config,
-                    onExperienceEvent: (event) => this._onGuideLifecycleEvent(event, payload.id, campaignKey, digiaId),
-                });
-
-                this._log(`guide trigger campaign_key=${campaignKey} mounted=${mounted}`);
-                if (!mounted) {
-                    digiaHealthReporter.report(HealthEventType.host_not_mounted, {
-                        campaign_key: campaignKey,
-                        payload_id: payload.id,
-                    });
-                }
-                return;
+        if (campaign?.campaign_type === 'inline' || campaign?.campaign_type === 'survey') {
+            this._log(`${campaign.campaign_type} campaign triggered campaign_key=${campaignKey}, forwarding to native`);
+            this._activePayloads.set(cepCampaignId, payload);
+            if (campaign.campaign_type === 'inline') {
+                this._emitSlotWidth(campaign);
             }
+            nativeDigiaModule.triggerCampaign(cepCampaignId, bridgeContent, cepMetadata);
+            return;
+        }
 
-            if (!campaign) {
-                this._log(`campaign_key_mismatch: no campaign found for key="${campaignKey}"`);
-                digiaHealthReporter.report(HealthEventType.campaign_key_mismatch, {
+        if (campaign?.campaign_type === 'guide') {
+            const config = this._parseTemplateConfig(campaign);
+            if (
+                !config ||
+                (config.templateType !== 'tooltip' && config.templateType !== 'spotlight') ||
+                config.steps.length === 0
+            ) {
+                digiaHealthReporter.report(HealthEventType.anchor_not_on_screen, {
                     campaign_key: campaignKey,
-                    payload_id: payload.id,
-                    available_campaign_keys: [...this._campaignsByKey.keys()],
+                    reason: 'guide_campaign_has_no_steps',
                 });
                 return;
             }
+
+            this._activePayloads.set(cepCampaignId, payload);
+            const digiaId = campaign._id ?? campaign.id ?? campaignKey;
+            const mounted = digiaGuideController.start({
+                payloadId: cepCampaignId,
+                campaignKey,
+                campaignId: digiaId,
+                variables,
+                config,
+                onExperienceEvent: (event) => this._onGuideLifecycleEvent(event, cepCampaignId, campaignKey, digiaId),
+            });
+
+            this._log(`guide trigger campaign_key=${campaignKey} mounted=${mounted}`);
+            if (!mounted) {
+                digiaHealthReporter.report(HealthEventType.host_not_mounted, {
+                    campaign_key: campaignKey,
+                    payload_id: cepCampaignId,
+                });
+            }
+            return;
         }
 
-        this._activePayloads.set(payload.id, payload);
-        nativeDigiaModule.triggerCampaign(payload.id, payload.content, payload.cepContext);
+        if (!campaign) {
+            this._log(`campaign_key_mismatch: no campaign found for key="${campaignKey}"`);
+            digiaHealthReporter.report(HealthEventType.campaign_key_mismatch, {
+                campaign_key: campaignKey,
+                payload_id: cepCampaignId,
+                available_campaign_keys: [...this._campaignsByKey.keys()],
+            });
+            return;
+        }
+
+        this._activePayloads.set(cepCampaignId, payload);
+        nativeDigiaModule.triggerCampaign(cepCampaignId, bridgeContent, cepMetadata);
     }
 
     onCampaignInvalidated(campaignId: string): void {
@@ -309,21 +310,21 @@ class DigiaClass implements DigiaDelegate {
         const payload = this._activePayloads.get(data.campaignId);
         if (!payload) return;
 
-        const campaignKey = this._extractCampaignKey(payload);
+        const { campaignKey } = payload;
 
         let event: DigiaExperienceEvent;
         switch (data.type) {
             case 'impressed':
                 event = { type: 'impressed' };
-                if (campaignKey) void this._bumpFrequencyImpression(campaignKey);
+                void this._bumpFrequencyImpression(campaignKey);
                 break;
             case 'clicked':
                 event = { type: 'clicked', elementId: data.elementId };
-                if (campaignKey) void this._applyStopOn(campaignKey, 'click');
+                void this._applyStopOn(campaignKey, 'click');
                 break;
             case 'dismissed':
                 event = { type: 'dismissed' };
-                if (campaignKey) void this._applyStopOn(campaignKey, 'dismiss');
+                void this._applyStopOn(campaignKey, 'dismiss');
                 this._activePayloads.delete(data.campaignId);
                 break;
             default:
@@ -504,39 +505,6 @@ class DigiaClass implements DigiaDelegate {
         } else {
             this._log(`_emitSlotWidth: no slotKey in templateConfig ${JSON.stringify(config)}`);
         }
-    }
-
-    private _extractCampaignKey(payload: InAppPayload): string | null {
-        const fromContent = this._extractString(payload.content, 'digia_campaign_key', 'digiaKey', 'campaign_key', 'campaignKey');
-        if (fromContent) return fromContent;
-
-        const args = payload.content.args;
-        if (args && typeof args === 'object' && !Array.isArray(args)) {
-            const fromArgs = this._extractString(args as Record<string, unknown>, 'digia_campaign_key', 'digiaKey', 'campaign_key', 'campaignKey');
-            if (fromArgs) return fromArgs;
-        }
-
-        if (this._campaignsByKey.has(payload.id)) return payload.id;
-        return null;
-    }
-
-    private _extractVariables(payload: InAppPayload): Record<string, string> | undefined {
-        const fromContent = parseVariableMap(payload.content.variables);
-        if (fromContent) return fromContent;
-
-        const args = payload.content.args;
-        if (args && typeof args === 'object' && !Array.isArray(args)) {
-            return parseVariableMap((args as Record<string, unknown>).variables);
-        }
-        return undefined;
-    }
-
-    private _extractString(data: Record<string, unknown>, ...keys: string[]): string | null {
-        for (const key of keys) {
-            const value = data[key];
-            if (typeof value === 'string' && value.trim()) return value.trim();
-        }
-        return null;
     }
 
     private _parseTemplateConfig(campaign: SdkCampaign): TemplateConfig | null {
