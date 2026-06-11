@@ -113,7 +113,7 @@ private fun BottomSheetChrome(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(scrimColorOf(container))
+                .background(scrimColorOf(surface))
                 .clickable(
                     indication = null,
                     interactionSource = remember { MutableInteractionSource() },
@@ -121,7 +121,7 @@ private fun BottomSheetChrome(
             contentAlignment = Alignment.BottomCenter,
         ) {
             Surface(
-                color = backgroundColorOf(container),
+                color = backgroundColorOf(surface),
                 shape = RoundedCornerShape(
                     topStart = surface.cornerRadius.dp,
                     topEnd = surface.cornerRadius.dp,
@@ -199,7 +199,7 @@ private fun DialogChrome(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(scrimColorOf(container))
+                .background(scrimColorOf(surface))
                 .clickable(
                     indication = null,
                     interactionSource = remember { MutableInteractionSource() },
@@ -207,7 +207,7 @@ private fun DialogChrome(
             contentAlignment = Alignment.Center,
         ) {
             Surface(
-                color = backgroundColorOf(container),
+                color = backgroundColorOf(surface),
                 shape = RoundedCornerShape(surface.cornerRadius.dp),
                 modifier = Modifier
                     .width((screenWidth * surface.widthFraction).dp)

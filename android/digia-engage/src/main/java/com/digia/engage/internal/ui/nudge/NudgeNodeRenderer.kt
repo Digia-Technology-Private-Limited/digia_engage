@@ -200,6 +200,7 @@ private fun NudgeButtonWidget(node: NudgeButton, onDismiss: () -> Unit) {
     val foreground = if (filled) Color(node.textColor) else Color(node.background)
     val elevation = if (node.variant == NudgeButtonVariant.ELEVATED) 3.dp else 0.dp
 
+    val variables = LocalNudgeVariables.current
     val widthMod = if (node.box.fillWidth) Modifier.fillMaxWidth() else Modifier
     val borderMod = if (node.variant == NudgeButtonVariant.OUTLINE)
         Modifier.border(1.5.dp, Color(node.background), RoundedCornerShape(node.radius.dp))
@@ -231,14 +232,14 @@ private fun NudgeButtonWidget(node: NudgeButton, onDismiss: () -> Unit) {
                             is OpenUrlAction -> runCatching {
                                 context.startActivity(
                                     Intent(Intent.ACTION_VIEW, Uri.parse(
-                                        interpolate(action.url, LocalNudgeVariables.current)
+                                        interpolate(action.url, variables)
                                     )).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                                 )
                             }
                             is OpenDeeplinkAction -> runCatching {
                                 context.startActivity(
                                     Intent(Intent.ACTION_VIEW, Uri.parse(
-                                        interpolate(action.url, LocalNudgeVariables.current)
+                                        interpolate(action.url, variables)
                                     )).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                                 )
                             }
