@@ -1,6 +1,5 @@
 package com.digia.engage.internal.model
 
-import com.digia.engage.internal.FrequencyPolicy
 import org.json.JSONObject
 
 internal sealed interface CampaignConfigModel {
@@ -17,7 +16,6 @@ internal data class CampaignModel(
         val campaignType: String,
         val config: CampaignConfigModel,
         val defaultVariables: Map<String, String> = emptyMap(),
-        val frequency: FrequencyPolicy? = null,
 ) {
         val guideConfig: GuideConfigModel?
                 get() = (config as? CampaignConfigModel.Guide)?.guideConfig
@@ -107,7 +105,6 @@ internal data class CampaignModel(
                                 campaignType = campaignType,
                                 config = config,
                                 defaultVariables = parseDefaultVariables(json.optJSONObject("templateConfig")),
-                                frequency = parseFrequency(json.optJSONObject("frequency")),
                         )
                 }
 
@@ -135,17 +132,6 @@ internal data class CampaignModel(
                                 }
                         }
                         return result
-                }
-
-                private fun parseFrequency(json: JSONObject?): FrequencyPolicy? {
-                        json ?: return null
-                        val maxTotal = if (json.has("max_total") && !json.isNull("max_total")) json.optInt("max_total") else null
-                        val mpw = json.optJSONObject("max_per_window")?.let {
-                                FrequencyPolicy.MaxPerWindow(it.optInt("count"), it.optString("window"))
-                        }
-                        val stopOn = json.optString("stop_on").takeIf { it.isNotBlank() }
-                        return if (maxTotal == null && mpw == null && stopOn == null) null
-                        else FrequencyPolicy(maxTotal, mpw, stopOn)
                 }
 
                 private fun parseGuideConfig(
@@ -222,10 +208,6 @@ internal data class CampaignModel(
                                         }
                                                 ?: continue
                                 val widgetJson = widgetJsonForStep(stepJson) ?: continue
-                                android.util.Log.d(
-                                        "Digia",
-                                        "[CampaignModel] step anchorKey='$anchorKey' widgetConfig=$widgetJson",
-                                )
                                 steps.add(
                                         GuideStepModel(
                                                 id = stepId,

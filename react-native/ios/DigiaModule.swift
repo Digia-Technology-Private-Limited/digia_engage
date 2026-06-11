@@ -114,10 +114,26 @@ final class DigiaModule: RCTEventEmitter {
     @objc
     func registerBridge() {
         Task { @MainActor in
+            // Dismiss any stale overlay left over from the previous JS session.
+            Digia.dismissActiveNudge()
+
+            // After a JS reload, re-bring the overlay host to the front.
+            // Expo/RN may have added views during the reload cycle that sit on
+            // top of the host, causing the SwiftUI layer to be unreachable by
+            // touch even when hasActiveOverlay = true.
+            if let rootVC = UIApplication.shared.connectedScenes
+                .compactMap({ ($0 as? UIWindowScene)?.keyWindow?.rootViewController })
+                .first,
+               let hostView = rootVC.view.viewWithTag(Self.overlayMountTag) {
+                rootVC.view.bringSubviewToFront(hostView)
+            }
+
             Digia.register(self.rnPlugin)
             print("[DigiaRN] registerBridge: rnPlugin registered, delegate=\(self.rnPlugin.delegate != nil ? "set" : "nil")")
         }
     }
+
+    private static let overlayMountTag = 0xD19140
 
     // ────────────────────────────────────────────────────────────────────────
     // MARK: - setCurrentScreen
@@ -226,12 +242,11 @@ final class DigiaModule: RCTEventEmitter {
         else { return }
 
         // Guard against double-mounting (e.g. fast-refresh).
-        let mountTag = 0xD19140
-        if rootVC.view.viewWithTag(mountTag) != nil { return }
+        if rootVC.view.viewWithTag(Self.overlayMountTag) != nil { return }
 
         let hc = UIHostingController(rootView: DigiaHostWrapperView())
         let hostView = DigiaRootOverlayView(hostingController: hc)
-        hostView.tag = mountTag
+        hostView.tag = Self.overlayMountTag
         hostView.translatesAutoresizingMaskIntoConstraints = false
         hostView.backgroundColor = .clear
 

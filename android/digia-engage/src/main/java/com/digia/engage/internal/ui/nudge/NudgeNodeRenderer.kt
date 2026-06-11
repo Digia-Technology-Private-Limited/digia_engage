@@ -1,5 +1,6 @@
 package com.digia.engage.internal.ui.nudge
 
+import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.view.ViewGroup
@@ -15,6 +16,7 @@ import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -57,8 +59,10 @@ import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.AspectRatioFrameLayout
 import androidx.media3.ui.PlayerView
+import coil.compose.AsyncImagePainter
 import coil.compose.SubcomposeAsyncImage
 import coil.compose.SubcomposeAsyncImageContent
+import coil.request.ImageRequest
 import com.airbnb.lottie.compose.LottieAnimation
 import com.airbnb.lottie.compose.LottieCompositionSpec
 import com.airbnb.lottie.compose.LottieConstants
@@ -68,6 +72,7 @@ import com.digia.engage.DigiaExperienceEvent
 import com.digia.engage.internal.DigiaFontConfig
 import com.digia.engage.internal.DigiaInstance
 import com.digia.engage.internal.interpolate
+import com.digia.engage.internal.logging.Logger
 import com.digia.engage.internal.model.DismissAction
 import com.digia.engage.internal.model.NudgeBox
 import com.digia.engage.internal.model.NudgeButton
@@ -158,37 +163,47 @@ private fun NudgeImageWidget(node: NudgeImage) {
         NudgePlaceholder("Image", node.box.fixedHeight ?: 120f)
         return
     }
-    val baseModifier = if (node.box.fillWidth) Modifier.fillMaxWidth() else Modifier
-    val sizedModifier = when {
-        node.box.fixedHeight != null -> baseModifier.height(node.box.fixedHeight.dp)
-        else -> baseModifier
-    }
-    val scale = node.fit.toContentScale()
-    if (node.aspectRatio > 0f) {
-        Box(
-            modifier = (if (node.box.fillWidth) Modifier.fillMaxWidth() else Modifier)
-                .aspectRatio(node.aspectRatio),
-        ) {
-            SubcomposeAsyncImage(
-                model = url,
-                contentDescription = null,
-                contentScale = scale,
-                modifier = Modifier.fillMaxSize(),
-            ) {
-                SubcomposeAsyncImageContent()
-            }
-        }
+    val errorHeight = node.box.fixedHeight ?: 120f
+
+    val context = LocalContext.current
+
+    // Aspect ratio (when set) drives the height; otherwise use the box's fixed
+    // size, then natural size. Mirrors the Flutter renderer.
+    val modifier = if (node.aspectRatio > 0f) {
+        (if (node.box.fillWidth) Modifier.fillMaxWidth() else Modifier)
+            .aspectRatio(node.aspectRatio)
     } else {
-        SubcomposeAsyncImage(
-            model = url,
-            contentDescription = null,
-            contentScale = scale,
-            modifier = sizedModifier,
-        ) {
+        val widthMod = when {
+            node.box.fixedWidth != null -> Modifier.width(node.box.fixedWidth.dp)
+            else -> Modifier.fillMaxWidth()
+        }
+        if (node.box.fixedHeight != null) widthMod.height(node.box.fixedHeight.dp) else widthMod
+    }
+
+    SubcomposeAsyncImage(
+        model = nudgeImageRequest(context, url),
+        contentDescription = null,
+        contentScale = node.fit.toContentScale(),
+        modifier = modifier,
+    ) {
+        val state = painter.state
+        if (state is AsyncImagePainter.State.Error) {
+            Logger.error("Nudge image load failed url=$url", error = state.result.throwable)
+            NudgePlaceholder("Image failed", errorHeight)
+        } else {
             SubcomposeAsyncImageContent()
         }
     }
 }
+
+private const val NUDGE_IMAGE_USER_AGENT = "DigiaEngage/1.0 (Android)"
+
+private fun nudgeImageRequest(context: Context, url: String): ImageRequest =
+    ImageRequest.Builder(context)
+        .data(url)
+        .setHeader("User-Agent", NUDGE_IMAGE_USER_AGENT)
+        .crossfade(true)
+        .build()
 
 // ─── button ───────────────────────────────────────────────────────────────────
 
@@ -201,7 +216,13 @@ private fun NudgeButtonWidget(node: NudgeButton, onDismiss: () -> Unit) {
     val elevation = if (node.variant == NudgeButtonVariant.ELEVATED) 3.dp else 0.dp
 
     val variables = LocalNudgeVariables.current
-    val widthMod = if (node.box.fillWidth) Modifier.fillMaxWidth() else Modifier
+    // The outer nudgeBox constrains the wrapping Box to fixedWidth/fixedHeight.
+    // The Surface must fill that space; otherwise it defaults to wrap-content.
+    val widthMod = when {
+        node.box.fillWidth || node.box.fixedWidth != null -> Modifier.fillMaxWidth()
+        else -> Modifier
+    }
+    val heightMod = if (node.box.fixedHeight != null) Modifier.fillMaxHeight() else Modifier
     val borderMod = if (node.variant == NudgeButtonVariant.OUTLINE)
         Modifier.border(1.5.dp, Color(node.background), RoundedCornerShape(node.radius.dp))
     else Modifier
@@ -210,7 +231,7 @@ private fun NudgeButtonWidget(node: NudgeButton, onDismiss: () -> Unit) {
         color = background,
         shadowElevation = elevation,
         shape = RoundedCornerShape(node.radius.dp),
-        modifier = widthMod.then(borderMod),
+        modifier = widthMod.then(heightMod).then(borderMod),
     ) {
         Box(
             modifier = Modifier
@@ -306,6 +327,7 @@ private fun NudgeLottieWidget(node: NudgeLottie) {
 
 @Composable
 private fun NudgeCarouselWidget(node: NudgeCarousel) {
+    val context = LocalContext.current
     val vars = LocalNudgeVariables.current
     val images = node.images.map { interpolate(it, vars) }.filter { it.isNotEmpty() }
     if (images.isEmpty()) {
@@ -338,7 +360,7 @@ private fun NudgeCarouselWidget(node: NudgeCarousel) {
         ) { page ->
             val realIndex = page % pageCount
             SubcomposeAsyncImage(
-                model = images[realIndex],
+                model = nudgeImageRequest(context, images[realIndex]),
                 contentDescription = null,
                 contentScale = ContentScale.Crop,
                 modifier = Modifier
@@ -456,6 +478,11 @@ private fun Modifier.nudgeBox(box: NudgeBox): Modifier {
         val color = Color(box.background)
         val shape = if (box.borderRadius > 0f) RoundedCornerShape(box.borderRadius.dp) else null
         mod = if (shape != null) mod.background(color, shape) else mod.background(color)
+    }
+    // Clip content to border radius so child views (e.g. images) respect rounded
+    // corners — matches iOS clipShape and Flutter's Container clip behaviour.
+    if (box.borderRadius > 0f) {
+        mod = mod.clip(RoundedCornerShape(box.borderRadius.dp))
     }
     if (box.borderColor != null && box.borderWidth > 0f) {
         val shape = RoundedCornerShape(box.borderRadius.dp)

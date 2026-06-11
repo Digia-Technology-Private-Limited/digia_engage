@@ -28,8 +28,8 @@ The SDK renders four campaign types, all server-configured:
 | Type | Trigger | Renderer |
 |------|---------|----------|
 | `guide` | Overlay anchored to a UI element | `GuideRenderer` (Android), `DigiaProvider.tsx` (RN) |
-| `nudge` | Full overlay dialog/sheet | `DigiaOverlayController` → Compose |
-| `inline` | `DigiaSlot` in a scroll view | `VWCarousel` via `DigiaSlot` composable |
+| `nudge` | Full overlay dialog/sheet | `NudgeRenderer` + `NudgeNodeRenderer` (typed Compose tree) |
+| `inline` | `DigiaSlot` in a scroll view | Carousel (`InlineCarouselConfig`) or story (`DigiaInlineStory`/`DigiaStoryOverlay`) via `DigiaSlot` |
 | `survey` | Full overlay, branching questionnaire | `SurveyRenderer` + `SurveyViewModel` (Android) |
 
 Routing entry point on Android: `DigiaInstance.routeCampaign()`.
@@ -39,39 +39,45 @@ Routing entry point on Android: `DigiaInstance.routeCampaign()`.
 ```
 com.digia.engage/
   Digia.kt                    Public static facade (init, register, setCurrentScreen)
-  DigiaViewApi.kt             Composable entry points (DigiaHost, DigiaScreen, DigiaSlot)
-  DigiaComposableApi.kt       Composable widget exports (carousel, etc.)
+  DigiaViewApi.kt             View entry points (DigiaHostView, DigiaScreen, DigiaSlotView, DigiaAnchorView)
+  DigiaComposableApi.kt       Composable entry points (DigiaHost, DigiaScreen, DigiaSlot)
   DigiaCEPPlugin.kt           Plugin interface (implemented by CEP integrations)
   DigiaCEPDelegate.kt         SDK → plugin callback interface
 
   internal/
-    DigiaInstance.kt          Internal singleton; owns all SDK state
+    DigiaInstance.kt          Internal singleton; owns all SDK state + campaign routing
     DigiaOverlayController.kt Manages overlay/slot state flows
     DisplayCoordinator.kt     Routes events to CEP plugins + analytics
     CampaignFetcher.kt        Fetches campaign config from Digia backend
     CampaignStore.kt          In-memory campaign cache
-    AnchorRegistry.kt         Tracks View positions for tooltip/spotlight anchoring
+    AnchorRegistry.kt         Tracks View rects/refs for tooltip/spotlight anchoring (internal only)
     GuideOrchestrator.kt      Manages active guide state (step index)
     SurveyOrchestrator.kt     Manages active survey state (one at a time)
     SurveyLogicHandler.kt     Branching logic (linear / by-condition / by-parent)
     AnalyticsClient.kt        Forwards events to registered CEP plugins
     PluginRegistry.kt         Manages DigiaCEPPlugin lifecycle
+    logging/Logger.kt         Level-gated logging (use this, not android.util.Log)
 
-    model/                    Pure data classes (no Android imports)
-      CampaignModel.kt
+    model/                    Typed config data classes + JSON parsers (fromJson factories)
+      CampaignModel.kt        Sealed campaign config + routing-type discriminator
       SurveyConfigModel.kt    Full survey graph (blocks, nodes, branching)
-      InlineCarouselConfig.kt
-      GuideConfigModel.kt / GuideStepModel.kt
+      InlineCarouselConfig.kt / InlineStoryConfig.kt
+      NudgeConfig.kt / NudgeContent.kt / NudgeParser.kt   Typed nudge tree
+      GuideConfigModel.kt / GuideStepModel.kt / WidgetConfig.kt
+
+    story/                    Story playback engine (controller, presenter, indicators)
 
     ui/
       GuideRenderer.kt        Compose Popup rendering for tooltip + spotlight
+      NudgeRenderer.kt        Nudge overlay host (dialog / bottom sheet)
+      nudge/NudgeNodeRenderer.kt  Renders the typed nudge node tree to Compose
+      DigiaInlineStory.kt / DigiaStoryOverlay.kt  Inline story + fullscreen story overlay
       SurveyRenderer.kt       Survey overlay (modal or bottom sheet)
       SurveyViewModel.kt      Survey answer state
       SurveyQuestionWidgets.kt Per-question-type Compose widgets
 ```
 
-The `digia-ui/` module (separate Gradle module) provides the `VWCarousel` and other
-virtual-widget rendering primitives used by `DigiaComposableApi.kt`.
+Nudge, inline (carousel + story), survey and guide are all rendered by typed Compose renderers directly in `digia-engage`
 
 ## iOS SDK (submodule)
 
@@ -125,7 +131,7 @@ Guide/tooltip/spotlight campaigns are rendered entirely in JS by `DigiaProvider.
 ## Key invariants
 
 - `internal/` packages are never part of the public API. Never expose internal types in public function signatures.
-- `internal/model/` classes have zero Android/Compose imports — they are pure data.
+- `internal/model/` classes are typed config holders with `fromJson` parsers (they import `org.json`, and a few use `android.graphics.Color`) — keep them free of Compose/UI imports.
 - `DigiaInstance` is an `internal object` (singleton) — public callers only go through `Digia.kt`.
-- The `digia-ui` Gradle module provides the widget rendering engine. It is a dependency of `digia-engage`, not the other way around.
+- `digia-engage` is the only Android source module; `settings.gradle.kts` includes just `:digia_engage`.
 - Survey campaigns block: only one survey can be active at a time (`SurveyOrchestrator.start()` returns false if one is already shown).

@@ -141,8 +141,6 @@ internal object DigiaInstance : DigiaCEPDelegate {
 
     fun findAnchor(key: String): ScreenRect? = anchorRegistry.find(key)
 
-    fun anchorRegistrySnapshot(): AnchorRegistry = anchorRegistry
-
     fun reportHealthEvent(eventType: String, params: Map<String, String>) {
         diagnosticsReporter.reportWarning("[HealthEvent] type=$eventType params=$params")
     }

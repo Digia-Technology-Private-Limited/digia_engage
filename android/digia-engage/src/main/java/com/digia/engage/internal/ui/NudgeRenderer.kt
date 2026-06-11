@@ -117,7 +117,11 @@ private fun BottomSheetChrome(
                 .clickable(
                     indication = null,
                     interactionSource = remember { MutableInteractionSource() },
-                ) { if (surface.backdropDismissible) onDismiss() },
+                ) { if (surface.backdropDismissible) onDismiss() }
+                // navigationBarsPadding here (not inside the Surface) so the
+                // scrim fills the full window but the sheet surface stops above
+                // the navigation bar — matching Flutter's SafeArea behaviour.
+                .navigationBarsPadding(),
             contentAlignment = Alignment.BottomCenter,
         ) {
             Surface(
@@ -147,7 +151,6 @@ private fun BottomSheetChrome(
                 Box {
                     Column(
                         modifier = Modifier
-                            .navigationBarsPadding()
                             .verticalScroll(rememberScrollState()),
                     ) {
                         if (surface.showHandle) {
