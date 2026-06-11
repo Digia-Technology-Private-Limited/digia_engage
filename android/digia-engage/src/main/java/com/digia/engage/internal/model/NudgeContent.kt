@@ -1,5 +1,7 @@
 package com.digia.engage.internal.model
 
+import org.json.JSONObject
+
 // Mirror of Flutter nudge_content.dart — pure data, zero Android/Compose imports.
 
 internal enum class NudgeSelfAlign {
@@ -54,6 +56,36 @@ internal data class NudgeImage(
     val aspectRatio: Float,
 ) : NudgeNode(box)
 
+// ── Button actions ────────────────────────────────────────────────────────────
+
+internal sealed class NudgeAction
+internal object DismissAction : NudgeAction()
+internal data class OpenUrlAction(val url: String) : NudgeAction()
+internal data class OpenDeeplinkAction(val url: String) : NudgeAction()
+
+internal class NudgeActionParser {
+    fun parse(onClick: JSONObject?): List<NudgeAction> {
+        val steps = onClick?.optJSONArray("steps") ?: return emptyList()
+        return (0 until steps.length())
+            .mapNotNull { steps.optJSONObject(it)?.let { step -> parseStep(step) } }
+    }
+
+    private fun parseStep(step: JSONObject): NudgeAction? {
+        val data = step.optJSONObject("data") ?: JSONObject()
+        return when (step.optString("type")) {
+            "Action.openUrl" -> {
+                val url = data.optString("url").takeIf { it.isNotBlank() } ?: return null
+                if (data.optString("launchMode") == "externalApplication")
+                    OpenUrlAction(url) else OpenDeeplinkAction(url)
+            }
+            "Action.hideBottomSheet", "Action.dismissDialog" -> DismissAction
+            else -> null
+        }
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
 internal data class NudgeButton(
     override val box: NudgeBox,
     val label: String,
@@ -64,7 +96,7 @@ internal data class NudgeButton(
     val textColor: Int,
     val radius: Float,
     val isPrimary: Boolean,
-    val actions: List<Map<String, Any?>> = emptyList(),
+    val actions: List<NudgeAction> = emptyList(),
 ) : NudgeNode(box)
 
 internal data class NudgeGap(override val box: NudgeBox, val height: Float) : NudgeNode(box)

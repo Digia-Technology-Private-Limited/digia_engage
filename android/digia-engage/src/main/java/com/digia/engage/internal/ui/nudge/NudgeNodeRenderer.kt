@@ -18,19 +18,23 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.MaterialTheme
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -41,6 +45,9 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
@@ -60,7 +67,31 @@ import com.airbnb.lottie.compose.rememberLottieComposition
 import com.digia.engage.DigiaExperienceEvent
 import com.digia.engage.internal.DigiaFontConfig
 import com.digia.engage.internal.DigiaInstance
+import com.digia.engage.internal.interpolate
+import com.digia.engage.internal.model.DismissAction
+import com.digia.engage.internal.model.NudgeBox
+import com.digia.engage.internal.model.NudgeButton
+import com.digia.engage.internal.model.NudgeButtonVariant
+import com.digia.engage.internal.model.NudgeCarousel
+import com.digia.engage.internal.model.NudgeColumn
+import com.digia.engage.internal.model.NudgeDivider
+import com.digia.engage.internal.model.NudgeGap
+import com.digia.engage.internal.model.NudgeImage
+import com.digia.engage.internal.model.NudgeLottie
+import com.digia.engage.internal.model.NudgeNode
+import com.digia.engage.internal.model.NudgeSelfAlign
+import com.digia.engage.internal.model.NudgeText
+import com.digia.engage.internal.model.NudgeTextAlign
+import com.digia.engage.internal.model.NudgeVideo
+import com.digia.engage.internal.model.OpenDeeplinkAction
+import com.digia.engage.internal.model.OpenUrlAction
 import kotlinx.coroutines.delay
+
+/// Carries the active nudge's variables down the render tree so each leaf can
+/// interpolate `{{ placeholder }}` copy at draw time, without threading the map
+/// through every widget. Mirrors Flutter's `VariableScopeProvider`. Null/empty
+/// means every placeholder collapses to empty (see [interpolate]).
+internal val LocalNudgeVariables = compositionLocalOf<Map<String, String>?> { null }
 
 @Composable
 internal fun NudgeColumnContent(
@@ -68,8 +99,8 @@ internal fun NudgeColumnContent(
     onDismiss: () -> Unit,
 ) {
     Column(
-        verticalArrangement = column.mainAxisAlignment.toArrangement(column.spacing),
-        horizontalAlignment = column.crossAxisAlignment.toAlignment(),
+        verticalArrangement = column.mainAxisAlignment.toMainAxisArrangement(column.spacing),
+        horizontalAlignment = column.crossAxisAlignment.toCrossAxisAlignment(),
     ) {
         column.children.forEach { node ->
             NudgeNodeItem(node, onDismiss, column.crossAxisAlignment)
@@ -81,7 +112,7 @@ internal fun NudgeColumnContent(
 private fun ColumnScope.NudgeNodeItem(
     node: NudgeNode,
     onDismiss: () -> Unit,
-    parentCrossAxis: NudgeCrossAxisAlignment,
+    parentCrossAxis: String,
 ) {
     val selfAlign = node.box.selfAlign
     val alignMod = if (selfAlign != null) Modifier.align(selfAlign.toHorizontalAlignment())
@@ -106,12 +137,12 @@ private fun ColumnScope.NudgeNodeItem(
 @Composable
 private fun NudgeTextWidget(node: NudgeText) {
     Text(
-        text = node.text,
-        textAlign = node.textAlign,
+        text = interpolate(node.text, LocalNudgeVariables.current),
+        textAlign = node.align.toTextAlign(),
         style = TextStyle(
             fontSize = node.fontSize.sp,
-            fontWeight = node.fontWeight,
-            color = node.color,
+            fontWeight = FontWeight(node.fontWeight),
+            color = Color(node.color),
             fontFamily = DigiaFontConfig.composeFontFamily(),
         ),
         modifier = if (node.box.fillWidth) Modifier.fillMaxWidth() else Modifier,
@@ -122,7 +153,8 @@ private fun NudgeTextWidget(node: NudgeText) {
 
 @Composable
 private fun NudgeImageWidget(node: NudgeImage) {
-    if (node.url.isEmpty()) {
+    val url = interpolate(node.url, LocalNudgeVariables.current)
+    if (url.isEmpty()) {
         NudgePlaceholder("Image", node.box.fixedHeight ?: 120f)
         return
     }
@@ -131,15 +163,16 @@ private fun NudgeImageWidget(node: NudgeImage) {
         node.box.fixedHeight != null -> baseModifier.height(node.box.fixedHeight.dp)
         else -> baseModifier
     }
+    val scale = node.fit.toContentScale()
     if (node.aspectRatio > 0f) {
         Box(
             modifier = (if (node.box.fillWidth) Modifier.fillMaxWidth() else Modifier)
                 .aspectRatio(node.aspectRatio),
         ) {
             SubcomposeAsyncImage(
-                model = node.url,
+                model = url,
                 contentDescription = null,
-                contentScale = node.fit,
+                contentScale = scale,
                 modifier = Modifier.fillMaxSize(),
             ) {
                 SubcomposeAsyncImageContent()
@@ -147,9 +180,9 @@ private fun NudgeImageWidget(node: NudgeImage) {
         }
     } else {
         SubcomposeAsyncImage(
-            model = node.url,
+            model = url,
             contentDescription = null,
-            contentScale = node.fit,
+            contentScale = scale,
             modifier = sizedModifier,
         ) {
             SubcomposeAsyncImageContent()
@@ -163,13 +196,13 @@ private fun NudgeImageWidget(node: NudgeImage) {
 private fun NudgeButtonWidget(node: NudgeButton, onDismiss: () -> Unit) {
     val context = LocalContext.current
     val filled = node.variant == NudgeButtonVariant.FILL || node.variant == NudgeButtonVariant.ELEVATED
-    val background = if (filled) node.background else Color.Transparent
-    val foreground = if (filled) node.textColor else node.background
+    val background = if (filled) Color(node.background) else Color.Transparent
+    val foreground = if (filled) Color(node.textColor) else Color(node.background)
     val elevation = if (node.variant == NudgeButtonVariant.ELEVATED) 3.dp else 0.dp
 
     val widthMod = if (node.box.fillWidth) Modifier.fillMaxWidth() else Modifier
     val borderMod = if (node.variant == NudgeButtonVariant.OUTLINE)
-        Modifier.border(1.5.dp, node.background, RoundedCornerShape(node.radius.dp))
+        Modifier.border(1.5.dp, Color(node.background), RoundedCornerShape(node.radius.dp))
     else Modifier
 
     Surface(
@@ -197,14 +230,16 @@ private fun NudgeButtonWidget(node: NudgeButton, onDismiss: () -> Unit) {
                             is DismissAction -> onDismiss()
                             is OpenUrlAction -> runCatching {
                                 context.startActivity(
-                                    Intent(Intent.ACTION_VIEW, Uri.parse(action.url))
-                                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                    Intent(Intent.ACTION_VIEW, Uri.parse(
+                                        interpolate(action.url, LocalNudgeVariables.current)
+                                    )).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                                 )
                             }
                             is OpenDeeplinkAction -> runCatching {
                                 context.startActivity(
-                                    Intent(Intent.ACTION_VIEW, Uri.parse(action.url))
-                                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                    Intent(Intent.ACTION_VIEW, Uri.parse(
+                                        interpolate(action.url, LocalNudgeVariables.current)
+                                    )).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                                 )
                             }
                         }
@@ -214,11 +249,11 @@ private fun NudgeButtonWidget(node: NudgeButton, onDismiss: () -> Unit) {
             contentAlignment = Alignment.Center,
         ) {
             Text(
-                text = node.label,
+                text = interpolate(node.label, LocalNudgeVariables.current),
                 style = TextStyle(
                     color = foreground,
                     fontSize = node.fontSize.sp,
-                    fontWeight = node.fontWeight,
+                    fontWeight = FontWeight(node.fontWeight),
                     fontFamily = DigiaFontConfig.composeFontFamily(),
                 ),
             )
@@ -236,7 +271,7 @@ private fun NudgeDividerWidget(node: NudgeDivider) {
             modifier = Modifier
                 .weight(1f)
                 .height(node.thickness.dp)
-                .background(node.color),
+                .background(Color(node.color)),
         )
         if (node.endIndent > 0f) Spacer(Modifier.width(node.endIndent.dp))
     }
@@ -246,11 +281,12 @@ private fun NudgeDividerWidget(node: NudgeDivider) {
 
 @Composable
 private fun NudgeLottieWidget(node: NudgeLottie) {
-    if (node.url.isEmpty()) {
+    val url = interpolate(node.url, LocalNudgeVariables.current)
+    if (url.isEmpty()) {
         NudgePlaceholder("Lottie", node.height)
         return
     }
-    val composition by rememberLottieComposition(LottieCompositionSpec.Url(node.url))
+    val composition by rememberLottieComposition(LottieCompositionSpec.Url(url))
     val progress by animateLottieCompositionAsState(
         composition = composition,
         iterations = if (node.loop) LottieConstants.IterateForever else 1,
@@ -269,20 +305,22 @@ private fun NudgeLottieWidget(node: NudgeLottie) {
 
 @Composable
 private fun NudgeCarouselWidget(node: NudgeCarousel) {
-    if (node.images.isEmpty()) {
+    val vars = LocalNudgeVariables.current
+    val images = node.images.map { interpolate(it, vars) }.filter { it.isNotEmpty() }
+    if (images.isEmpty()) {
         NudgePlaceholder("No images", node.height)
         return
     }
     val pagerState = rememberPagerState(pageCount = {
-        if (node.loop) Int.MAX_VALUE else node.images.size
+        if (node.loop) Int.MAX_VALUE else images.size
     })
-    val pageCount = node.images.size
+    val pageCount = images.size
     val cornerRadius = node.box.borderRadius
 
     if (node.autoPlay && node.images.size > 1) {
         LaunchedEffect(pagerState) {
             while (true) {
-                delay(node.autoPlayIntervalMs.toLong())
+                delay(node.autoPlayInterval.toLong())
                 val next = pagerState.currentPage + 1
                 pagerState.animateScrollToPage(if (node.loop) next else next.coerceAtMost(pageCount - 1))
             }
@@ -299,7 +337,7 @@ private fun NudgeCarouselWidget(node: NudgeCarousel) {
         ) { page ->
             val realIndex = page % pageCount
             SubcomposeAsyncImage(
-                model = node.images[realIndex],
+                model = images[realIndex],
                 contentDescription = null,
                 contentScale = ContentScale.Crop,
                 modifier = Modifier
@@ -341,14 +379,15 @@ private fun NudgeCarouselWidget(node: NudgeCarousel) {
 @OptIn(UnstableApi::class)
 @Composable
 private fun NudgeVideoWidget(node: NudgeVideo) {
-    if (node.url.isEmpty()) {
+    val url = interpolate(node.url, LocalNudgeVariables.current)
+    if (url.isEmpty()) {
         NudgePlaceholder("No video URL", node.height)
         return
     }
     val context = LocalContext.current
     val exoPlayer = remember {
         ExoPlayer.Builder(context).build().apply {
-            setMediaItem(MediaItem.fromUri(node.url))
+            setMediaItem(MediaItem.fromUri(url))
             prepare()
             playWhenReady = node.autoplay
             repeatMode = if (node.loop) Player.REPEAT_MODE_ONE else Player.REPEAT_MODE_OFF
@@ -413,13 +452,13 @@ private fun Modifier.nudgeBox(box: NudgeBox): Modifier {
         )
     }
     if (box.background != null) {
+        val color = Color(box.background)
         val shape = if (box.borderRadius > 0f) RoundedCornerShape(box.borderRadius.dp) else null
-        mod = if (shape != null) mod.background(box.background, shape)
-              else mod.background(box.background)
+        mod = if (shape != null) mod.background(color, shape) else mod.background(color)
     }
     if (box.borderColor != null && box.borderWidth > 0f) {
         val shape = RoundedCornerShape(box.borderRadius.dp)
-        mod = mod.border(box.borderWidth.dp, box.borderColor, shape)
+        mod = mod.border(box.borderWidth.dp, Color(box.borderColor), shape)
     }
     if (box.paddingLeft > 0f || box.paddingTop > 0f || box.paddingRight > 0f || box.paddingBottom > 0f) {
         mod = mod.padding(
@@ -435,25 +474,40 @@ private fun Modifier.nudgeBox(box: NudgeBox): Modifier {
     return mod
 }
 
-// ─── alignment converters ─────────────────────────────────────────────────────
+// ─── type converters ──────────────────────────────────────────────────────────
 
-private fun NudgeCrossAxisAlignment.toAlignment(): Alignment.Horizontal = when (this) {
-    NudgeCrossAxisAlignment.CENTER -> Alignment.CenterHorizontally
-    NudgeCrossAxisAlignment.END -> Alignment.End
-    NudgeCrossAxisAlignment.START -> Alignment.Start
+private fun String.toCrossAxisAlignment(): Alignment.Horizontal = when (this) {
+    "center" -> Alignment.CenterHorizontally
+    "end" -> Alignment.End
+    else -> Alignment.Start
 }
 
-private fun NudgeMainAxisAlignment.toArrangement(spacing: Float): Arrangement.Vertical = when (this) {
-    NudgeMainAxisAlignment.CENTER -> Arrangement.Center
-    NudgeMainAxisAlignment.END -> Arrangement.Bottom
-    NudgeMainAxisAlignment.SPACE_BETWEEN -> Arrangement.SpaceBetween
-    NudgeMainAxisAlignment.SPACE_AROUND -> Arrangement.SpaceAround
-    NudgeMainAxisAlignment.SPACE_EVENLY -> Arrangement.SpaceEvenly
-    NudgeMainAxisAlignment.START -> if (spacing > 0f) Arrangement.spacedBy(spacing.dp) else Arrangement.Top
+private fun String.toMainAxisArrangement(spacing: Float): Arrangement.Vertical = when (this) {
+    "center" -> Arrangement.Center
+    "end" -> Arrangement.Bottom
+    "spaceBetween" -> Arrangement.SpaceBetween
+    "spaceAround" -> Arrangement.SpaceAround
+    "spaceEvenly" -> Arrangement.SpaceEvenly
+    else -> if (spacing > 0f) Arrangement.spacedBy(spacing.dp) else Arrangement.Top
 }
 
 private fun NudgeSelfAlign.toHorizontalAlignment(): Alignment.Horizontal = when (this) {
     NudgeSelfAlign.CENTER -> Alignment.CenterHorizontally
     NudgeSelfAlign.END -> Alignment.End
     NudgeSelfAlign.START -> Alignment.Start
+}
+
+private fun NudgeTextAlign.toTextAlign(): TextAlign = when (this) {
+    NudgeTextAlign.CENTER -> TextAlign.Center
+    NudgeTextAlign.RIGHT -> TextAlign.End
+    NudgeTextAlign.LEFT -> TextAlign.Start
+}
+
+private fun String.toContentScale(): ContentScale = when (this) {
+    "fill" -> ContentScale.FillBounds
+    "contain" -> ContentScale.Fit
+    "fitWidth" -> ContentScale.FillWidth
+    "fitHeight" -> ContentScale.FillHeight
+    "none" -> ContentScale.None
+    else -> ContentScale.Crop
 }

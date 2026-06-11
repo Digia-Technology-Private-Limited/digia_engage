@@ -99,9 +99,7 @@ internal class DigiaOverlayController {
     }
 
     fun showNudge(config: NudgeConfig, payload: InAppPayload, defaultVariables: Map<String, String> = emptyMap()) {
-        android.util.Log.d("DigiaDebug", "[showNudge] setting nudgeOverlay state for payload=${payload.id}")
         _nudgeOverlay.value = NudgeOverlayState(config, payload, defaultVariables)
-        android.util.Log.d("DigiaDebug", "[showNudge] nudgeOverlay.value set, current=${_nudgeOverlay.value?.payload?.id}")
     }
 
     fun dismissNudge() {

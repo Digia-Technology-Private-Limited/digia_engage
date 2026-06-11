@@ -12,9 +12,9 @@ internal class DisplayCoordinator(
     private val pluginRegistry: PluginRegistry,
     private val analyticsClient: AnalyticsClient,
 ) {
-    fun routeNudge(config: NudgeConfig, payload: InAppPayload) {
-        Logger.verbose("Showing nudge: id=${payload.id} displayStyle=${config.templateType}")
-        overlayController.showNudge(config, payload)
+    fun routeNudge(config: NudgeConfig, payload: InAppPayload, variables: Map<String, String> = emptyMap()) {
+        Logger.verbose("Showing nudge: id=${payload.id} displayStyle=${config.surface.displayType}")
+        overlayController.showNudge(config, payload, variables)
     }
 
     fun routeInline(placementKey: String, payload: InAppPayload) {

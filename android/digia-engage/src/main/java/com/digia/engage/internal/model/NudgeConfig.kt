@@ -1,18 +1,14 @@
 package com.digia.engage.internal.model
 
-import com.digia.engage.internal.ui.nudge.NudgeColumn
-import com.digia.engage.internal.ui.nudge.NudgeParser
 import org.json.JSONObject
 
-internal enum class NudgeTemplateType {
+internal enum class NudgeDisplayType {
     BOTTOM_SHEET,
     DIALOG;
 
     companion object {
-        fun fromString(value: String?): NudgeTemplateType = when (value) {
-            "dialog" -> DIALOG
-            else -> BOTTOM_SHEET
-        }
+        fun fromString(value: String?): NudgeDisplayType =
+            if (value == "dialog") DIALOG else BOTTOM_SHEET
     }
 
     val displayStyle: String
@@ -22,51 +18,43 @@ internal enum class NudgeTemplateType {
         }
 }
 
-internal data class NudgeContainerConfig(
-    val bgColor: String = "#FFFFFF",
-    val cornerRadius: Float = 16f,
-    val padding: Float = 16f,
-    val dismissOnOutsideTap: Boolean = true,
-    val scrimColor: String = "#66000000",
-    val maxHeightRatio: Float = 0.7f,
-    val dragHandle: Boolean = true,
-    val width: Float? = null,
+internal data class NudgeSurface(
+    val displayType: NudgeDisplayType = NudgeDisplayType.BOTTOM_SHEET,
+    val backgroundColor: String? = null,
+    val barrierColor: String? = null,
+    val cornerRadius: Float = 18f,
+    val padding: Float = 20f,
+    val backdropDismissible: Boolean = true,
+    val showCloseButton: Boolean = false,
+    val showHandle: Boolean = true,
+    val draggable: Boolean = true,
+    val widthFraction: Float = 0.86f,
 ) {
     companion object {
-        fun fromJson(json: JSONObject?): NudgeContainerConfig {
-            if (json == null) return NudgeContainerConfig()
-            val defaults = NudgeContainerConfig()
-            return NudgeContainerConfig(
-                bgColor = json.optString("bgColor", defaults.bgColor),
-                cornerRadius = json.optDouble("cornerRadius", defaults.cornerRadius.toDouble()).toFloat(),
-                padding = json.optDouble("padding", defaults.padding.toDouble()).toFloat(),
-                dismissOnOutsideTap = json.optBoolean("dismissOnOutsideTap", defaults.dismissOnOutsideTap),
-                scrimColor = json.optString("scrimColor", defaults.scrimColor),
-                maxHeightRatio = json.optDouble("maxHeightRatio", defaults.maxHeightRatio.toDouble()).toFloat(),
-                dragHandle = json.optBoolean("dragHandle", defaults.dragHandle),
-                width = if (json.has("width") && !json.isNull("width")) {
-                    json.optDouble("width").toFloat()
-                } else {
-                    defaults.width
-                },
+        fun fromJson(json: JSONObject?): NudgeSurface {
+            val j = json ?: JSONObject()
+            val widthPct = j.optDouble("widthPct", 86.0)
+            return NudgeSurface(
+                displayType = NudgeDisplayType.fromString(j.optString("displayType")),
+                backgroundColor = j.optString("backgroundColor").ifBlank { null },
+                barrierColor = j.optString("barrierColor").ifBlank { null },
+                cornerRadius = j.optDouble("cornerRadius", 18.0).toFloat(),
+                padding = j.optDouble("padding", 20.0).toFloat(),
+                backdropDismissible = j.optBoolean("backdropDismissible", true),
+                showCloseButton = j.optBoolean("showCloseButton", false),
+                showHandle = j.optBoolean("showHandle", true),
+                draggable = j.optBoolean("draggable", true),
+                widthFraction = (widthPct / 100.0).toFloat().coerceIn(0.3f, 1.0f),
             )
         }
     }
 }
 
 internal data class NudgeConfig(
-    val templateType: NudgeTemplateType,
-    val container: NudgeContainerConfig,
-    val layout: NudgeColumn,
+    val surface: NudgeSurface,
+    val content: NudgeColumn,
 ) {
     companion object {
-        fun fromJson(json: JSONObject): NudgeConfig? {
-            val layout = NudgeParser().parse(json) ?: return null
-            return NudgeConfig(
-                templateType = NudgeTemplateType.fromString(json.optString("templateType")),
-                container = NudgeContainerConfig.fromJson(json.optJSONObject("container")),
-                layout = layout,
-            )
-        }
+        fun fromJson(json: JSONObject): NudgeConfig? = NudgeParser().parse(json)
     }
 }

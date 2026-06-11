@@ -385,7 +385,14 @@ internal object DigiaInstance : DigiaCEPDelegate {
             "nudge" -> {
                 val nudgeConfig = campaign.nudgeConfig
                     ?: error("unexpected config for nudge campaign '$campaignKey'")
-                displayCoordinator.routeNudge(nudgeConfig, nudgePayload(campaign, routedPayload, nudgeConfig))
+                // Merge dashboard defaults with the CEP trigger's variables (CEP
+                // wins), matching Flutter's `{...defaultVariables, ...payload.variables}`.
+                val variables = campaign.defaultVariables + (extractVariables(payload.content) ?: emptyMap())
+                displayCoordinator.routeNudge(
+                    nudgeConfig,
+                    nudgePayload(campaign, routedPayload, nudgeConfig),
+                    variables,
+                )
             }
             "inline" -> when (val cfg = campaign.config) {
                 is com.digia.engage.internal.model.CampaignConfigModel.Inline ->
@@ -429,7 +436,7 @@ internal object DigiaInstance : DigiaCEPDelegate {
         payload.copy(
             content = payload.content + mapOf(
                 "campaign_type" to "nudge",
-                "display_style" to config.templateType.displayStyle,
+                "display_style" to config.surface.displayType.displayStyle,
             ),
         )
 

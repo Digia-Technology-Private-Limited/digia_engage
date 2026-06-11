@@ -55,7 +55,7 @@ internal data class CampaignModel(
                     val templateConfig = json.optJSONObject("templateConfig")
                         ?: error("nudge campaign '$campaignKey' has no templateConfig")
                     CampaignConfigModel.Nudge(
-                        NudgeParser().parse(templateConfig)
+                        NudgeConfig.fromJson(templateConfig)
                             ?: error("nudge campaign '$campaignKey' has no valid nudge templateConfig")
                     )
                 }
@@ -112,13 +112,26 @@ internal data class CampaignModel(
                 }
 
                 private fun parseDefaultVariables(templateConfig: JSONObject?): Map<String, String> {
-                        val vars = templateConfig?.optJSONObject("variables") ?: return emptyMap()
+                        val raw = templateConfig?.opt("variables") ?: return emptyMap()
                         val result = mutableMapOf<String, String>()
-                        vars.keys().forEach { k ->
-                                when (val v = vars.opt(k)) {
-                                        is String -> result[k] = v
-                                        is Number -> result[k] = v.toString()
-                                        is Boolean -> result[k] = v.toString()
+                        when (raw) {
+                                // List format: [{name, fallbackValue, sampleValue}] — matches Flutter wire
+                                is org.json.JSONArray -> {
+                                        for (i in 0 until raw.length()) {
+                                                val entry = raw.optJSONObject(i) ?: continue
+                                                val name = entry.optString("name").ifBlank { null } ?: continue
+                                                result[name] = entry.optString("fallbackValue")
+                                        }
+                                }
+                                // Dict format: {key: value} — legacy or alternate representation
+                                is JSONObject -> {
+                                        raw.keys().forEach { k ->
+                                                when (val v = raw.opt(k)) {
+                                                        is String -> result[k] = v
+                                                        is Number -> result[k] = v.toString()
+                                                        is Boolean -> result[k] = v.toString()
+                                                }
+                                        }
                                 }
                         }
                         return result

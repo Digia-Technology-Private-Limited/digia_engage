@@ -5,10 +5,8 @@ import org.json.JSONObject
 
 /**
  * Decodes a nudge `templateConfig` ({ container, layout }) into [NudgeConfig].
- *
- * Direct port of Flutter nudge_parser.dart. The single place that knows the wire
- * format — model and renderer stay decoupled from JSON. Node decoding is dispatched
- * through [nodeParsers], keyed by dashboard widget type string.
+ * Direct port of Flutter nudge_parser.dart — single place that knows the wire format.
+ * No Android/Compose imports; pure data construction only.
  */
 internal class NudgeParser {
 
@@ -24,17 +22,18 @@ internal class NudgeParser {
 
     private fun parseSurface(json: JSONObject?): NudgeSurface {
         val j = json ?: JSONObject()
+        val widthPct = j.optDouble("widthPct", 86.0)
         return NudgeSurface(
             displayType = NudgeDisplayType.fromString(j.optString("displayType")),
-            backgroundColor = parseColor(j.optString("backgroundColor")),
-            barrierColor = parseColor(j.optString("barrierColor")),
+            backgroundColor = j.optString("backgroundColor").ifBlank { null },
+            barrierColor = j.optString("barrierColor").ifBlank { null },
             cornerRadius = j.optDouble("cornerRadius", 18.0).toFloat(),
             padding = j.optDouble("padding", 20.0).toFloat(),
             backdropDismissible = j.optBoolean("backdropDismissible", true),
             showCloseButton = j.optBoolean("showCloseButton", false),
             showHandle = j.optBoolean("showHandle", true),
             draggable = j.optBoolean("draggable", true),
-            widthFraction = (j.optDouble("widthPct", 86.0) / 100.0).toFloat().coerceIn(0.3f, 1.0f),
+            widthFraction = (widthPct / 100.0).toFloat().coerceIn(0.3f, 1.0f),
         )
     }
 
@@ -96,9 +95,8 @@ internal class NudgeParser {
 
     private fun parseImage(box: NudgeBox, props: JSONObject): NudgeNode {
         val ar = props.optDouble("aspectRatio", 0.0).toFloat()
-        val b = if (ar > 0f) box.withoutFixedHeight() else box
         return NudgeImage(
-            b,
+            if (ar > 0f) box.withoutFixedHeight() else box,
             url = props.optJSONObject("src")?.optString("imageSrc") ?: "",
             fit = props.optString("fit", "cover"),
             aspectRatio = ar,
@@ -125,29 +123,28 @@ internal class NudgeParser {
             textColor = parseColor(textStyle.optString("textColor")) ?: 0xFFFFFFFF.toInt(),
             radius = props.optJSONObject("shape")?.optDouble("borderRadius", 8.0)?.toFloat() ?: 8f,
             isPrimary = props.optBoolean("isPrimary", false),
+            actions = NudgeActionParser().parse(props.optJSONObject("onClick")),
         )
     }
 
     private fun parseGap(box: NudgeBox, props: JSONObject): NudgeNode =
         NudgeGap(box, height = props.optDouble("height", 8.0).toFloat())
 
-    private fun parseDivider(box: NudgeBox, props: JSONObject): NudgeNode =
-        NudgeDivider(
-            box,
-            thickness = props.optDouble("thickness", 1.0).toFloat(),
-            indent = props.optDouble("indent", 0.0).toFloat(),
-            endIndent = props.optDouble("endIndent", 0.0).toFloat(),
-            color = parseColor(props.optJSONObject("colorType")?.optString("color")) ?: 0xFFE0E0E0.toInt(),
-        )
+    private fun parseDivider(box: NudgeBox, props: JSONObject): NudgeNode = NudgeDivider(
+        box,
+        thickness = props.optDouble("thickness", 1.0).toFloat(),
+        indent = props.optDouble("indent", 0.0).toFloat(),
+        endIndent = props.optDouble("endIndent", 0.0).toFloat(),
+        color = parseColor(props.optJSONObject("colorType")?.optString("color")) ?: 0xFFE0E0E0.toInt(),
+    )
 
-    private fun parseLottie(box: NudgeBox, props: JSONObject): NudgeNode =
-        NudgeLottie(
-            box,
-            url = props.optJSONObject("src")?.optString("lottiePath") ?: "",
-            height = props.optDouble("height", 160.0).toFloat(),
-            loop = props.optString("animationType", "loop") != "once",
-            autoplay = props.optBoolean("animate", true),
-        )
+    private fun parseLottie(box: NudgeBox, props: JSONObject): NudgeNode = NudgeLottie(
+        box,
+        url = props.optJSONObject("src")?.optString("lottiePath") ?: "",
+        height = props.optDouble("height", 160.0).toFloat(),
+        loop = props.optString("animationType", "loop") != "once",
+        autoplay = props.optBoolean("animate", true),
+    )
 
     private fun parseCarousel(box: NudgeBox, props: JSONObject): NudgeNode {
         val imgs = mutableListOf<String>()
@@ -168,16 +165,15 @@ internal class NudgeParser {
         )
     }
 
-    private fun parseVideo(box: NudgeBox, props: JSONObject): NudgeNode =
-        NudgeVideo(
-            box,
-            url = props.optString("url"),
-            height = props.optDouble("height", 200.0).toFloat(),
-            autoplay = props.optBoolean("autoPlay", false),
-            loop = props.optBoolean("looping", false),
-            showControls = props.optBoolean("showControls", true),
-            muted = props.optBoolean("muted", false),
-        )
+    private fun parseVideo(box: NudgeBox, props: JSONObject): NudgeNode = NudgeVideo(
+        box,
+        url = props.optString("url"),
+        height = props.optDouble("height", 200.0).toFloat(),
+        autoplay = props.optBoolean("autoPlay", false),
+        loop = props.optBoolean("looping", false),
+        showControls = props.optBoolean("showControls", true),
+        muted = props.optBoolean("muted", false),
+    )
 
     // ── box ───────────────────────────────────────────────────────────────────
 

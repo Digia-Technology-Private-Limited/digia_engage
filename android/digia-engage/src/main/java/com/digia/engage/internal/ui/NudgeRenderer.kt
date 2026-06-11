@@ -18,10 +18,15 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -40,8 +45,9 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.digia.engage.internal.DigiaInstance
 import com.digia.engage.internal.NudgeOverlayState
-import com.digia.engage.internal.model.NudgeContainerConfig
-import com.digia.engage.internal.model.NudgeTemplateType
+import com.digia.engage.internal.model.NudgeDisplayType
+import com.digia.engage.internal.model.NudgeSurface
+import com.digia.engage.internal.ui.nudge.LocalNudgeVariables
 import com.digia.engage.internal.ui.nudge.NudgeColumnContent
 import kotlin.math.roundToInt
 
@@ -56,7 +62,7 @@ internal fun NudgeRenderer() {
 
 @Composable
 private fun NudgeSession(state: NudgeOverlayState) {
-    val container = state.config.container
+    val surface = state.config.surface
 
     LaunchedEffect(state.payload.id) {
         DigiaInstance.reportNudgeImpression()
@@ -64,19 +70,24 @@ private fun NudgeSession(state: NudgeOverlayState) {
 
     fun dismiss() = DigiaInstance.markNudgeDismissed()
 
+    // Carry the merged trigger variables down the render tree so each
+    // `{{ placeholder }}` node interpolates at draw time (mirrors Flutter's
+    // `VariableScopeProvider`).
     val content: @Composable () -> Unit = {
-        NudgeColumnContent(state.config.layout, ::dismiss)
+        CompositionLocalProvider(LocalNudgeVariables provides state.defaultVariables) {
+            NudgeColumnContent(state.config.content, ::dismiss)
+        }
     }
 
-    when (state.config.templateType) {
-        NudgeTemplateType.BOTTOM_SHEET -> BottomSheetChrome(container, ::dismiss, content)
-        NudgeTemplateType.DIALOG -> DialogChrome(container, ::dismiss, content)
+    when (state.config.surface.displayType) {
+        NudgeDisplayType.BOTTOM_SHEET -> BottomSheetChrome(surface, ::dismiss, content)
+        NudgeDisplayType.DIALOG -> DialogChrome(surface, ::dismiss, content)
     }
 }
 
 @Composable
 private fun BottomSheetChrome(
-    container: NudgeContainerConfig,
+    surface: NudgeSurface,
     onDismiss: () -> Unit,
     content: @Composable () -> Unit,
 ) {
@@ -90,36 +101,37 @@ private fun BottomSheetChrome(
     }
 
     Dialog(
-        onDismissRequest = { if (container.dismissOnOutsideTap) onDismiss() },
+        onDismissRequest = { if (surface.backdropDismissible) onDismiss() },
         properties = DialogProperties(
             dismissOnBackPress = false,
             dismissOnClickOutside = false,
             usePlatformDefaultWidth = false,
+            decorFitsSystemWindows = false,
         ),
     ) {
-        BackHandler(enabled = true) { if (container.dismissOnOutsideTap) onDismiss() }
+        BackHandler(enabled = true) { if (surface.backdropDismissible) onDismiss() }
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(parseColor(container.scrimColor))
+                .background(scrimColorOf(container))
                 .clickable(
                     indication = null,
                     interactionSource = remember { MutableInteractionSource() },
-                ) { if (container.dismissOnOutsideTap) onDismiss() },
+                ) { if (surface.backdropDismissible) onDismiss() },
             contentAlignment = Alignment.BottomCenter,
         ) {
             Surface(
-                color = parseColor(container.bgColor),
+                color = backgroundColorOf(container),
                 shape = RoundedCornerShape(
-                    topStart = container.cornerRadius.dp,
-                    topEnd = container.cornerRadius.dp,
+                    topStart = surface.cornerRadius.dp,
+                    topEnd = surface.cornerRadius.dp,
                 ),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .heightIn(max = (screenHeight * container.maxHeightRatio).dp)
+                    .heightIn(max = (screenHeight * NUDGE_SHEET_MAX_HEIGHT_RATIO).dp)
                     .offset { IntOffset(0, dragOffset.roundToInt()) }
                     .then(
-                        if (container.dragHandle) Modifier.draggable(
+                        if (surface.draggable) Modifier.draggable(
                             state = draggableState,
                             orientation = Orientation.Vertical,
                             onDragStopped = {
@@ -132,27 +144,35 @@ private fun BottomSheetChrome(
                         interactionSource = remember { MutableInteractionSource() },
                     ) {},
             ) {
-                Column(
-                    modifier = Modifier
-                        .navigationBarsPadding()
-                        .verticalScroll(rememberScrollState()),
-                ) {
-                    if (container.dragHandle) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 8.dp),
-                            contentAlignment = Alignment.Center,
-                        ) {
+                Box {
+                    Column(
+                        modifier = Modifier
+                            .navigationBarsPadding()
+                            .verticalScroll(rememberScrollState()),
+                    ) {
+                        if (surface.showHandle) {
                             Box(
                                 modifier = Modifier
-                                    .size(width = 40.dp, height = 4.dp)
-                                    .clip(RoundedCornerShape(2.dp))
-                                    .background(Color(0x33000000)),
-                            )
+                                    .fillMaxWidth()
+                                    .padding(vertical = 8.dp),
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(width = 36.dp, height = 4.dp)
+                                        .clip(RoundedCornerShape(100.dp))
+                                        .background(Color(0xFFE0E0E6)),
+                                )
+                            }
                         }
+                        Box(modifier = Modifier.padding(surface.padding.dp)) { content() }
                     }
-                    Box(modifier = Modifier.padding(container.padding.dp)) { content() }
+                    if (surface.showCloseButton) {
+                        NudgeCloseButton(
+                            onDismiss = onDismiss,
+                            modifier = Modifier.align(Alignment.TopEnd),
+                        )
+                    }
                 }
             }
         }
@@ -161,51 +181,100 @@ private fun BottomSheetChrome(
 
 @Composable
 private fun DialogChrome(
-    container: NudgeContainerConfig,
+    surface: NudgeSurface,
     onDismiss: () -> Unit,
     content: @Composable () -> Unit,
 ) {
     val screenWidth = LocalConfiguration.current.screenWidthDp
     Dialog(
-        onDismissRequest = { if (container.dismissOnOutsideTap) onDismiss() },
+        onDismissRequest = { if (surface.backdropDismissible) onDismiss() },
         properties = DialogProperties(
             dismissOnBackPress = false,
             dismissOnClickOutside = false,
             usePlatformDefaultWidth = false,
+            decorFitsSystemWindows = false,
         ),
     ) {
-        BackHandler(enabled = true) { if (container.dismissOnOutsideTap) onDismiss() }
+        BackHandler(enabled = true) { if (surface.backdropDismissible) onDismiss() }
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(parseColor(container.scrimColor))
+                .background(scrimColorOf(container))
                 .clickable(
                     indication = null,
                     interactionSource = remember { MutableInteractionSource() },
-                ) { if (container.dismissOnOutsideTap) onDismiss() },
+                ) { if (surface.backdropDismissible) onDismiss() },
             contentAlignment = Alignment.Center,
         ) {
             Surface(
-                color = parseColor(container.bgColor),
-                shape = RoundedCornerShape(container.cornerRadius.dp),
+                color = backgroundColorOf(container),
+                shape = RoundedCornerShape(surface.cornerRadius.dp),
                 modifier = Modifier
-                    .width((container.width ?: (screenWidth * 0.85f)).dp)
-                    .padding(0.dp)
+                    .width((screenWidth * surface.widthFraction).dp)
                     .clickable(
                         indication = null,
                         interactionSource = remember { MutableInteractionSource() },
                     ) {},
             ) {
-                Column(
-                    modifier = Modifier
-                        .heightIn(max = (LocalConfiguration.current.screenHeightDp * 0.85f).dp)
-                        .verticalScroll(rememberScrollState())
-                        .padding(container.padding.dp),
-                ) { content() }
+                Box {
+                    Column(
+                        modifier = Modifier
+                            .heightIn(max = (LocalConfiguration.current.screenHeightDp * 0.85f).dp)
+                            .verticalScroll(rememberScrollState())
+                            .padding(surface.padding.dp),
+                    ) { content() }
+                    if (surface.showCloseButton) {
+                        NudgeCloseButton(
+                            onDismiss = onDismiss,
+                            modifier = Modifier.align(Alignment.TopEnd),
+                        )
+                    }
+                }
             }
         }
     }
 }
 
-private fun parseColor(hex: String): Color =
-    runCatching { Color(android.graphics.Color.parseColor(hex)) }.getOrElse { Color.Transparent }
+/// Surface background — null config inherits white (mirrors Flutter/iOS).
+private fun backgroundColorOf(surface: NudgeSurface): Color =
+    surface.backgroundColor?.let(::parseColor) ?: Color.White
+
+/// Scrim/barrier — null config inherits ~40% black (mirrors Flutter/iOS default).
+private fun scrimColorOf(surface: NudgeSurface): Color =
+    surface.barrierColor?.let(::parseColor) ?: Color(0x66000000)
+
+/// The "×" close affordance shown when `showCloseButton` is set. Mirrors
+/// Flutter's `_CloseButton` and iOS's `closeButton`: a 26dp circle at the
+/// surface's top-trailing corner.
+@Composable
+private fun NudgeCloseButton(onDismiss: () -> Unit, modifier: Modifier = Modifier) {
+    Box(
+        modifier = modifier
+            .padding(top = 12.dp, end = 12.dp)
+            .size(26.dp)
+            .clip(CircleShape)
+            .background(Color(0x14000000))
+            .clickable(onClick = onDismiss),
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(
+            imageVector = Icons.Filled.Close,
+            contentDescription = "Close",
+            tint = Color(0xFF66667A),
+            modifier = Modifier.size(16.dp),
+        )
+    }
+}
+
+/// Parses a `#RRGGBB` / `#AARRGGBB` hex string (with or without the leading
+/// `#`), mirroring iOS's `Color(hex:)` and Flutter's `Color(0xAARRGGBB)`
+/// semantics. Returns transparent for anything unparseable.
+private fun parseColor(hex: String): Color {
+    val sanitized = hex.filter { it.isLetterOrDigit() }
+    if (sanitized.length != 6 && sanitized.length != 8) return Color.Transparent
+    return runCatching { Color(android.graphics.Color.parseColor("#$sanitized")) }
+        .getOrElse { Color.Transparent }
+}
+
+/// Bottom-sheet height cap (matches iOS); short content hugs, tall scrolls.
+private const val NUDGE_SHEET_MAX_HEIGHT_RATIO = 0.85f

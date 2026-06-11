@@ -280,6 +280,13 @@ final class DigiaModule: RCTEventEmitter {
             return raw.compactMapValues { JSONValue(rawValue: $0) }
         }()
 
+        // CEP trigger variables for `{{ }}` interpolation. CleverTap's nudge
+        // mapper puts them at `content.variables` (top-level); the command/inline
+        // mappers may nest them under `args.variables`. Mirror the JS bridge's
+        // `_extractVariables` (content.variables first, then args.variables).
+        let variables = Self.variableMap(map["variables"])
+            ?? Self.variableMap((map["args"] as? [String: Any])?["variables"])
+
         return InAppPayloadContent(
             type: type,
             placementKey: pk,
@@ -289,8 +296,34 @@ final class DigiaModule: RCTEventEmitter {
             command: command,
             args: args,
             screenId: screenId,
-            campaignKey: campaignKey
+            campaignKey: campaignKey,
+            variables: variables
         )
+    }
+
+    /// Coerces a raw `variables` value into a `[String: String]` map, stringifying
+    /// scalar values (string / number / bool) and dropping anything else. Returns
+    /// nil for a missing or empty map. Mirrors the JS `parseVariableMap`.
+    private static func variableMap(_ raw: Any?) -> [String: String]? {
+        guard let dict = raw as? [String: Any] else { return nil }
+        var result: [String: String] = [:]
+        for (key, value) in dict {
+            switch value {
+            case let string as String:
+                result[key] = string
+            case let number as NSNumber:
+                // Distinguish a boxed bool from a numeric NSNumber so `true`
+                // stays "true" rather than "1".
+                if CFGetTypeID(number) == CFBooleanGetTypeID() {
+                    result[key] = number.boolValue ? "true" : "false"
+                } else {
+                    result[key] = number.stringValue
+                }
+            default:
+                continue
+            }
+        }
+        return result.isEmpty ? nil : result
     }
 }
 
