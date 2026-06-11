@@ -19,6 +19,7 @@ import { DeviceEventEmitter } from 'react-native';
 import { nativeDigiaModule } from './NativeDigiaEngage';
 import { digiaHealthReporter, HealthEventType } from './DigiaHealthReporter';
 import { digiaGuideController } from './DigiaGuideController';
+import { digiaAnchorRegistry } from './digiaAnchorRegistry';
 import { parseVariableMap } from './interpolate';
 import { digiaActionHandler } from './actionHandler';
 import uuid from 'react-native-uuid';
@@ -225,6 +226,18 @@ class DigiaClass implements DigiaDelegate {
                     digiaHealthReporter.report(HealthEventType.anchor_not_on_screen, {
                         campaign_key: campaignKey,
                         reason: 'guide_campaign_has_no_steps',
+                    });
+                    return;
+                }
+
+                const firstAnchorKey = config.steps[0].anchorKey;
+                if (!digiaAnchorRegistry.isRegistered(firstAnchorKey)) {
+                    // eslint-disable-next-line no-console
+                    console.warn(`[Digia] campaign dropped — anchor_key "${firstAnchorKey}" is not registered on this screen (campaign_key=${campaignKey})`);
+                    digiaHealthReporter.report(HealthEventType.anchor_not_on_screen, {
+                        campaign_key: campaignKey,
+                        reason: 'anchor_key_not_registered',
+                        anchor_key: firstAnchorKey,
                     });
                     return;
                 }

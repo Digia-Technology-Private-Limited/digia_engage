@@ -38,5 +38,7 @@ const remeasure = (key: string) => {
     _measureCallbacks.get(key)?.()
 }
 
+const isRegistered = (key: string): boolean => _measureCallbacks.has(key)
+
 export type { AnchorLayout }
-export const digiaAnchorRegistry = { setLayout, getLayout, subscribe, remove, registerMeasure, unregisterMeasure, remeasure }
+export const digiaAnchorRegistry = { setLayout, getLayout, subscribe, remove, registerMeasure, unregisterMeasure, remeasure, isRegistered }
