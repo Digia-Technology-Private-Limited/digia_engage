@@ -120,4 +120,34 @@ export type SurveyTemplateConfig = {
     rootNodeId: string
 }
 
-export type TemplateConfig = TooltipConfig | SpotlightConfig | CarouselConfig | SurveyTemplateConfig
+export type NudgeContainerConfig = {
+    bgColor?: string
+    cornerRadius?: number
+    padding?: number
+    dismissOnOutsideTap?: boolean
+    scrimColor?: string
+    /** Bottom-sheet only: max height as a fraction of screen height. */
+    maxHeightRatio?: number
+    /** Bottom-sheet only: show the drag handle + enable drag-to-dismiss. */
+    dragHandle?: boolean
+    /** Dialog only: width in dp. */
+    width?: number
+}
+
+/**
+ * BottomSheet / dialog nudge. `layout` is the native DUI VWData tree (root
+ * `digia/column`), parsed and rendered entirely by the native SDK — JS does not
+ * render nudges; they are forwarded to the native bridge via triggerCampaign.
+ */
+export type NudgeConfig = {
+    templateType: 'bottomSheet' | 'dialog'
+    container: NudgeContainerConfig
+    layout: Record<string, unknown>
+}
+
+export type TemplateConfig =
+    | TooltipConfig
+    | SpotlightConfig
+    | CarouselConfig
+    | SurveyTemplateConfig
+    | NudgeConfig

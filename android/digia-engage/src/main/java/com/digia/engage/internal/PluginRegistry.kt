@@ -5,6 +5,7 @@ import com.digia.engage.DigiaCEPDelegate
 import com.digia.engage.DigiaCEPPlugin
 import com.digia.engage.DigiaExperienceEvent
 import com.digia.engage.InAppPayload
+import com.digia.engage.internal.logging.Logger
 
 internal class PluginRegistry(
     private val delegate: DigiaCEPDelegate,
@@ -13,9 +14,17 @@ internal class PluginRegistry(
     private var activePlugin: DigiaCEPPlugin? = null
 
     fun register(plugin: DigiaCEPPlugin) {
-        activePlugin?.teardown()
+        activePlugin?.let {
+            Logger.verbose("Replacing existing plugin: ${it.identifier}")
+            it.teardown()
+        }
         activePlugin = plugin
-        plugin.setup(delegate)
+        try {
+            plugin.setup(delegate)
+            Logger.verbose("Plugin setup complete: ${plugin.identifier}")
+        } catch (t: Throwable) {
+            Logger.error("Plugin setup threw an exception: ${plugin.identifier} — ${t.message}")
+        }
         diagnosticsReporter.report(plugin.healthCheck(), plugin.identifier)
     }
 
@@ -24,6 +33,9 @@ internal class PluginRegistry(
     }
 
     fun notifyEvent(event: DigiaExperienceEvent, payload: InAppPayload) {
+        if (activePlugin == null) {
+            Logger.warning("Experience event fired but no plugin is registered — call Digia.register() with a CEP plugin: event=${event::class.simpleName} id=${payload.id}")
+        }
         activePlugin?.notifyEvent(event, CEPTriggerPayload(
             cepCampaignId = payload.id,
             campaignKey = payload.content["campaign_key"] as? String ?: payload.id,
@@ -32,13 +44,19 @@ internal class PluginRegistry(
     }
 
     fun runHealthCheck() {
+        if (activePlugin == null) {
+            Logger.warning("No CEP plugin registered — campaigns will trigger but events won't be forwarded to any plugin")
+        }
         activePlugin?.let { diagnosticsReporter.report(it.healthCheck(), it.identifier) }
     }
 
     fun hasActivePlugin(): Boolean = activePlugin != null
 
     fun teardown() {
-        activePlugin?.teardown()
+        activePlugin?.let {
+            Logger.verbose("Plugin teardown: ${it.identifier}")
+            it.teardown()
+        }
         activePlugin = null
     }
 }

@@ -230,11 +230,3 @@ data class GuideStepWidgetConfig(
         }
     }
 }
-
-// Keep deprecated alias so any remaining callers in tests compile
-@Deprecated("Use GuideStepWidgetConfig", ReplaceWith("GuideStepWidgetConfig"))
-typealias TooltipWidgetConfig = GuideStepWidgetConfig
-
-// Keep WidgetAction for backward compat — actions are now GuideAction
-@Deprecated("Use GuideAction", ReplaceWith("GuideAction"))
-data class WidgetAction(val type: ActionType, val label: String)

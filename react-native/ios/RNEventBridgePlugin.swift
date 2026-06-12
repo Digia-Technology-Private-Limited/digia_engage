@@ -54,6 +54,8 @@ internal final class RNEventBridgePlugin: NSObject, DigiaCEPPlugin {
         case .dismissed:
             body["type"] = "dismissed"
         }
+        let hasEmitter = eventEmitter != nil
+        print("[DigiaRN] RNEventBridgePlugin.notifyEvent type=\(body["type"] ?? "?") campaignId=\(payload.id) hasEmitter=\(hasEmitter)")
         eventEmitter?.sendEvent(withName: "digiaEngageEvent", body: body)
     }
 

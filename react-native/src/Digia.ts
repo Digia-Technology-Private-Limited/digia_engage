@@ -7,7 +7,7 @@
  * import { Digia } from '@digia/engage-react-native';
  *
  * // In your App entry point (e.g. App.tsx):
- * await Digia.initialize({ projectId: 'YOUR_PROJECT_ID' });
+ * await Digia.initialize({ apiKey: 'YOUR_API_KEY' });
  *
  * // Whenever your navigation screen changes:
  * Digia.setCurrentScreen('Home');
@@ -61,7 +61,7 @@ class DigiaClass implements DigiaDelegate {
     // the full CEPTriggerPayload when overlay lifecycle events arrive from native.
     private readonly _activePayloads = new Map<string, CEPTriggerPayload>();
     private _engageSubscription: { remove(): void } | null = null;
-    private _projectId = '';
+    private _apiKey = '';
     private _deviceId = '';
     private _apiBaseUrl = '';
     private _logLevel: DigiaConfig['logLevel'] = 'error';
@@ -79,11 +79,12 @@ class DigiaClass implements DigiaDelegate {
     async initialize(config: DigiaConfig): Promise<void> {
         const environment = config.environment ?? 'production';
         const logLevel = config.logLevel ?? 'error';
-        this._projectId = config.projectId;
+        this._apiKey = config.apiKey;
         this._apiBaseUrl = this._resolveApiBaseUrl(config);
         this._logLevel = logLevel;
         this._fontFamily = config.fontFamily?.trim() || undefined;
-        digiaHealthReporter.init(config.projectId, this._apiBaseUrl);
+        this._log(`Digia SDK initializing | apiKey=${config.apiKey.slice(0, 8)}… env=${environment}`);
+        digiaHealthReporter.init(config.apiKey, this._apiBaseUrl);
 
         digiaActionHandler.configure({
             onAction: config.onAction,
@@ -94,16 +95,16 @@ class DigiaClass implements DigiaDelegate {
         });
 
         try {
-            await nativeDigiaModule.initialize(config.projectId, environment, logLevel, config.baseUrl, config.fontFamily);
+            await nativeDigiaModule.initialize(config.apiKey, environment, logLevel, config.baseUrl, config.fontFamily);
         } catch (e) {
-            // Health-event reporting is currently disabled.
-            // digiaHealthReporter.report(HealthEventType.fetch_failed, { error_code: 0, platform: 'react_native' });
+            this._error(`Digia SDK native init failed: ${e instanceof Error ? e.message : String(e)}`);
             throw e;
         }
 
         this._deviceId = await this._loadOrCreateDeviceId();
-        await frequencyStore.checkProjectId(config.projectId);
+        await frequencyStore.checkApiKey(config.apiKey);
         await this._refreshCampaignStore();
+        this._log(`Digia SDK ready | campaigns=${this._campaignsByKey.size}`);
     }
 
     /**
@@ -117,13 +118,16 @@ class DigiaClass implements DigiaDelegate {
      * ```ts
      * import { DigiaMoEngagePlugin } from '@digia/moengage-plugin';
      *
-     * await Digia.initialize({ projectId: 'YOUR_PROJECT_ID' });
+     * await Digia.initialize({ apiKey: 'YOUR_API_KEY' });
      * Digia.register(new DigiaMoEngagePlugin({ moEngage: MoEngage }));
      * ```
      */
     register(plugin: DigiaPlugin): void {
         if (this._plugins.has(plugin.identifier)) {
+            this._log(`Plugin replaced: ${plugin.identifier}`);
             this._plugins.get(plugin.identifier)!.teardown();
+        } else {
+            this._log(`Plugin registered: ${plugin.identifier}`);
         }
         // Wire the native bridge plugin once, before the first plugin's setup()
         // so the delegate is ready when JS campaigns start flowing.
@@ -155,6 +159,7 @@ class DigiaClass implements DigiaDelegate {
      * All registered plugins will have forwardScreen() called automatically.
      */
     setCurrentScreen(name: string): void {
+        this._log(`Screen: ${name}`);
         this._currentScreen = name;
         nativeDigiaModule.setCurrentScreen(name);
         this._plugins.forEach((plugin) => plugin.forwardScreen(name));
@@ -486,7 +491,7 @@ class DigiaClass implements DigiaDelegate {
             this._log(`loaded ${campaigns.length} campaign(s): [${[...this._campaignsByKey.keys()].join(', ')}]`);
         } catch (e) {
             const reason = e instanceof Error ? e.message : String(e);
-            this._log(`getCampaigns FAILED: ${reason}`);
+            this._error(`Campaign fetch failed: ${reason} — check your apiKey and network connectivity`);
             digiaHealthReporter.report(HealthEventType.fetch_failed, {
                 error_code: 0,
                 platform: 'react_native',
@@ -500,7 +505,7 @@ class DigiaClass implements DigiaDelegate {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'x-digia-project-id': this._projectId,
+                'x-digia-project-id': this._apiKey,
                 'x-digia-device-id': this._deviceId,
             },
             body: JSON.stringify(body),
@@ -631,6 +636,18 @@ class DigiaClass implements DigiaDelegate {
         if (this._logLevel !== 'verbose') return;
         // eslint-disable-next-line no-console
         console.log(`[Digia] ${message}`);
+    }
+
+    private _warn(message: string): void {
+        if (this._logLevel === 'none') return;
+        // eslint-disable-next-line no-console
+        console.warn(`[Digia] ${message}`);
+    }
+
+    private _error(message: string): void {
+        if (this._logLevel === 'none') return;
+        // eslint-disable-next-line no-console
+        console.error(`[Digia] ${message}`);
     }
 
 }

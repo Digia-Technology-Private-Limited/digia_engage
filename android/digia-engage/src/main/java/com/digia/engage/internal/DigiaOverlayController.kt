@@ -4,6 +4,7 @@ import com.digia.engage.DigiaExperienceEvent
 import com.digia.engage.InAppPayload
 import com.digia.engage.internal.model.InlineCarouselConfig
 import com.digia.engage.internal.model.InlineStoryConfig
+import com.digia.engage.internal.model.NudgeConfig
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -13,6 +14,12 @@ internal data class StoryOverlayState(
     val config: InlineStoryConfig,
     val initialIndex: Int,
     val payload: InAppPayload,
+)
+
+internal data class NudgeOverlayState(
+    val config: NudgeConfig,
+    val payload: InAppPayload,
+    val defaultVariables: Map<String, String> = emptyMap(),
 )
 
 internal class DigiaOverlayController {
@@ -31,6 +38,9 @@ internal class DigiaOverlayController {
 
     private val _storyOverlay = MutableStateFlow<StoryOverlayState?>(null)
     val storyOverlay: StateFlow<StoryOverlayState?> = _storyOverlay.asStateFlow()
+
+    private val _nudgeOverlay = MutableStateFlow<NudgeOverlayState?>(null)
+    val nudgeOverlay: StateFlow<NudgeOverlayState?> = _nudgeOverlay.asStateFlow()
 
     fun show(payload: InAppPayload) {
         _activePayload.value = payload
@@ -86,6 +96,14 @@ internal class DigiaOverlayController {
 
     fun dismissStoryOverlay() {
         _storyOverlay.value = null
+    }
+
+    fun showNudge(config: NudgeConfig, payload: InAppPayload, defaultVariables: Map<String, String> = emptyMap()) {
+        _nudgeOverlay.value = NudgeOverlayState(config, payload, defaultVariables)
+    }
+
+    fun dismissNudge() {
+        _nudgeOverlay.value = null
     }
 
     var onEvent: ((DigiaExperienceEvent, InAppPayload) -> Unit)? = null

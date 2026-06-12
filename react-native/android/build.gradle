@@ -71,7 +71,7 @@ android {
 
 dependencies {
     // Digia Engage Android library
-    implementation 'tech.digia:engage:2.1.1-vivek'
+    implementation 'tech.digia:engage:2.1.1-SNAPSHOT'
 
     // ── React Native ─────────────────────────────────────────────────────────
     // React Native is provided by the host app; mark as compileOnly so it is
