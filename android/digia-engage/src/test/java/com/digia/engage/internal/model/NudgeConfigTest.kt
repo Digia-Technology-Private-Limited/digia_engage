@@ -162,4 +162,71 @@ class NudgeConfigTest {
         val config = NudgeParser().parse(json)!!
         assertTrue(config.content.children.isEmpty())
     }
+
+    // ── Button onClick actions ──────────────────────────────────────────────────
+
+    private fun onClick(vararg steps: String) =
+        JSONObject("""{ "steps": [ ${steps.joinToString(",")} ] }""")
+
+    @Test
+    fun `parses open url and deeplink by launch mode`() {
+        val actions = NudgeActionParser().parse(
+            onClick(
+                """{ "type": "Action.openUrl", "data": { "url": "https://x/y", "launchMode": "externalApplication" } }""",
+                """{ "type": "Action.openUrl", "data": { "url": "app://path", "launchMode": "platformDefault" } }""",
+            ),
+        )
+        assertEquals(OpenUrlAction("https://x/y"), actions[0])
+        assertEquals(OpenDeeplinkAction("app://path"), actions[1])
+    }
+
+    @Test
+    fun `parses dismiss for both bottom sheet and dialog`() {
+        val actions = NudgeActionParser().parse(
+            onClick(
+                """{ "type": "Action.hideBottomSheet" }""",
+                """{ "type": "Action.dismissDialog" }""",
+            ),
+        )
+        assertEquals(listOf(DismissAction, DismissAction), actions)
+    }
+
+    @Test
+    fun `parses copy to clipboard from message`() {
+        val actions = NudgeActionParser().parse(
+            onClick("""{ "type": "Action.copyToClipBoard", "data": { "message": "PROMO50" } }"""),
+        )
+        assertEquals(CopyToClipboardAction("PROMO50"), actions.single())
+    }
+
+    @Test
+    fun `parses share from message`() {
+        val actions = NudgeActionParser().parse(
+            onClick("""{ "type": "Action.share", "data": { "message": "check this out" } }"""),
+        )
+        assertEquals(ShareAction("check this out"), actions.single())
+    }
+
+    @Test
+    fun `copy falls back to text then value keys`() {
+        val fromText = NudgeActionParser().parse(
+            onClick("""{ "type": "Action.copyToClipBoard", "data": { "text": "A" } }"""),
+        ).single()
+        val fromValue = NudgeActionParser().parse(
+            onClick("""{ "type": "Action.copyToClipBoard", "data": { "value": "B" } }"""),
+        ).single()
+        assertEquals(CopyToClipboardAction("A"), fromText)
+        assertEquals(CopyToClipboardAction("B"), fromValue)
+    }
+
+    @Test
+    fun `copy and share with blank text are dropped`() {
+        val actions = NudgeActionParser().parse(
+            onClick(
+                """{ "type": "Action.copyToClipBoard", "data": {} }""",
+                """{ "type": "Action.share", "data": { "message": "" } }""",
+            ),
+        )
+        assertTrue(actions.isEmpty())
+    }
 }

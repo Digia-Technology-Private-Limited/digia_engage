@@ -62,6 +62,8 @@ internal sealed class NudgeAction
 internal object DismissAction : NudgeAction()
 internal data class OpenUrlAction(val url: String) : NudgeAction()
 internal data class OpenDeeplinkAction(val url: String) : NudgeAction()
+internal data class CopyToClipboardAction(val text: String) : NudgeAction()
+internal data class ShareAction(val text: String) : NudgeAction()
 
 internal class NudgeActionParser {
     fun parse(onClick: JSONObject?): List<NudgeAction> {
@@ -78,10 +80,19 @@ internal class NudgeActionParser {
                 if (data.optString("launchMode") == "externalApplication")
                     OpenUrlAction(url) else OpenDeeplinkAction(url)
             }
+            "Action.copyToClipBoard" ->
+                data.text()?.let { CopyToClipboardAction(it) }
+            "Action.share" ->
+                data.text()?.let { ShareAction(it) }
             "Action.hideBottomSheet", "Action.dismissDialog" -> DismissAction
             else -> null
         }
     }
+
+    /** The action's text payload — canonical `message`, with `text`/`value` fallbacks. */
+    private fun JSONObject.text(): String? =
+        listOf("message", "text", "value")
+            .firstNotNullOfOrNull { optString(it).takeIf { s -> s.isNotBlank() } }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

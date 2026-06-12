@@ -1,5 +1,7 @@
 package com.digia.engage.internal.ui.nudge
 
+import android.content.ClipData
+import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
@@ -73,6 +75,7 @@ import com.digia.engage.internal.DigiaFontConfig
 import com.digia.engage.internal.DigiaInstance
 import com.digia.engage.internal.interpolate
 import com.digia.engage.internal.logging.Logger
+import com.digia.engage.internal.model.CopyToClipboardAction
 import com.digia.engage.internal.model.DismissAction
 import com.digia.engage.internal.model.NudgeBox
 import com.digia.engage.internal.model.NudgeButton
@@ -90,6 +93,7 @@ import com.digia.engage.internal.model.NudgeTextAlign
 import com.digia.engage.internal.model.NudgeVideo
 import com.digia.engage.internal.model.OpenDeeplinkAction
 import com.digia.engage.internal.model.OpenUrlAction
+import com.digia.engage.internal.model.ShareAction
 import kotlinx.coroutines.delay
 
 /// Carries the active nudge's variables down the render tree so each leaf can
@@ -262,6 +266,25 @@ private fun NudgeButtonWidget(node: NudgeButton, onDismiss: () -> Unit) {
                                     Intent(Intent.ACTION_VIEW, Uri.parse(
                                         interpolate(action.url, variables)
                                     )).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                )
+                            }
+                            is CopyToClipboardAction -> runCatching {
+                                val clipboard = context
+                                    .getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                                clipboard.setPrimaryClip(
+                                    ClipData.newPlainText(
+                                        "Digia Engage", interpolate(action.text, variables)
+                                    )
+                                )
+                            }
+                            is ShareAction -> runCatching {
+                                val send = Intent(Intent.ACTION_SEND).apply {
+                                    type = "text/plain"
+                                    putExtra(Intent.EXTRA_TEXT, interpolate(action.text, variables))
+                                }
+                                context.startActivity(
+                                    Intent.createChooser(send, null)
+                                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                                 )
                             }
                         }
