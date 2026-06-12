@@ -35,8 +35,14 @@ internal class AnalyticsClient(
 
     fun trackInternal(event: InternalEngageEvent, payload: InAppPayload) {
         when (event) {
-            is InternalEngageEvent.SurveyAnswered -> record(
-                eventType = "survey_answered",
+            is InternalEngageEvent.ExperienceClicked -> record(
+                eventType = "experience_clicked",
+                payload = payload,
+                elementId = null,
+                detail = emptyMap(),
+            )
+            is InternalEngageEvent.QuestionAnswered -> record(
+                eventType = "question_answered",
                 payload = payload,
                 elementId = event.stepId,
                 detail = mapOf(
@@ -44,8 +50,8 @@ internal class AnalyticsClient(
                     "answer" to event.answer,
                 ),
             )
-            is InternalEngageEvent.SurveyCompleted -> record(
-                eventType = "survey_completed",
+            is InternalEngageEvent.ExperienceCompleted -> record(
+                eventType = "experience_completed",
                 payload = payload,
                 elementId = null,
                 detail = mapOf("response" to event.response),

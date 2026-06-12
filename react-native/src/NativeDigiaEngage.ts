@@ -55,6 +55,22 @@ export interface Spec extends TurboModule {
 
     /** Return all registered components (anchors/slots) for health reporting. */
     getRegisteredComponents(): Promise<Array<{ component_key: string; component_type: 'anchor' | 'slot'; screen_name: string | null }>>;
+
+    /** Set the authenticated user ID for analytics identity stitching. */
+    setUserId(userId: string): void;
+    /** Clear the user ID (e.g. on logout); rotates the analytics session. */
+    clearUserId(): void;
+    /**
+     * Record an analytics event from a JS-rendered campaign (guide/tooltip/spotlight).
+     * Native campaigns (nudge, inline, survey) are tracked automatically by the SDK.
+     */
+    trackEvent(
+        eventType: string,
+        campaignId: string,
+        campaignKey: string,
+        campaignType: string,
+        elementId?: string | null,
+    ): void;
 }
 
 let _resolved: Spec | null = null;
@@ -89,5 +105,9 @@ export const nativeDigiaModule: Spec = {
     registerAnchor: (key, x, y, width, height) => getModule()?.registerAnchor(key, x, y, width, height),
     unregisterAnchor: (key) => getModule()?.unregisterAnchor(key),
     getRegisteredComponents: () => getModule()?.getRegisteredComponents() ?? Promise.resolve([]),
+    setUserId: (userId) => getModule()?.setUserId(userId),
+    clearUserId: () => getModule()?.clearUserId(),
+    trackEvent: (eventType, campaignId, campaignKey, campaignType, elementId) =>
+        getModule()?.trackEvent(eventType, campaignId, campaignKey, campaignType, elementId),
     getConstants: () => getModule()?.getConstants?.() ?? {},
 };

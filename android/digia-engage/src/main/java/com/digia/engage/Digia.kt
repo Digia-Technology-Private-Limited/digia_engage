@@ -28,4 +28,16 @@ object Digia {
         DigiaInstance.unregisterAnchor(key)
     }
 
+    fun setUserId(userId: String) {
+        DigiaInstance.setUserId(userId)
+    }
+
+    fun clearUserId() {
+        DigiaInstance.clearUserId()
+    }
+
+    fun captureAnalyticsEvent(event: DigiaExperienceEvent, payload: InAppPayload) {
+        android.util.Log.d("DigiaAnalytics", "[Digia] captureAnalyticsEvent: event=${event::class.simpleName} payload.id=${payload.id} content=${payload.content}")
+        DigiaInstance.captureAnalyticsEvent(event, payload)
+    }
 }
