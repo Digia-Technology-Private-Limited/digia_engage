@@ -356,23 +356,23 @@ internal object DigiaInstance : DigiaCEPDelegate {
             cepContext = payload.cepMetadata,
         )
         scope.launch(Dispatchers.Main.immediate) {
-            Logger.verbose("Campaign received from CEP: id=${payload.id} sdkState=${_sdkState.value}")
+            Logger.verbose("Campaign received from CEP: id=${payload.cepCampaignId} sdkState=${_sdkState.value}")
             when (_sdkState.value) {
                 SDKState.NOT_INITIALIZED -> {
-                    Logger.error("Campaign dropped — SDK not initialized (call Digia.initialize() first): id=${payload.id}")
+                    Logger.error("Campaign dropped — SDK not initialized (call Digia.initialize() first): id=${payload.cepCampaignId}")
                     return@launch
                 }
                 SDKState.INITIALIZING -> {
                     if (pendingPayload != null) {
-                        Logger.warning("Pending campaign replaced by newer trigger: id=${payload.id}")
+                        Logger.warning("Pending campaign replaced by newer trigger: id=${payload.cepCampaignId}")
                     } else {
-                        Logger.verbose("SDK still initializing — campaign queued: id=${payload.id}")
+                        Logger.verbose("SDK still initializing — campaign queued: id=${payload.cepCampaignId}")
                     }
                     pendingPayload = internalPayload
                     return@launch
                 }
                 SDKState.FAILED -> {
-                    Logger.error("Campaign dropped — SDK init failed: id=${payload.id}")
+                    Logger.error("Campaign dropped — SDK init failed: id=${payload.cepCampaignId}")
                     return@launch
                 }
                 SDKState.READY -> Unit
