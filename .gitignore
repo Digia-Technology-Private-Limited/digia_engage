@@ -4,6 +4,7 @@
 .cursor/
 .swiftpm/
 react-native/.build/
+docs/
 react-native/lib/
 *.xcuserstate
 xcuserdata/.worktrees/

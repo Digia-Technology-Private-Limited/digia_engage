@@ -23,6 +23,7 @@ import Svg, { Path } from 'react-native-svg';
 import { Digia } from './Digia';
 import { digiaGuideController, type DigiaGuideRequest } from './DigiaGuideController';
 import { digiaAnchorRegistry, type AnchorLayout } from './digiaAnchorRegistry';
+import { digiaHealthReporter, HealthEventType } from './DigiaHealthReporter';
 import { digiaActionHandler, type ActionCallbacks } from './actionHandler';
 import type { DismissReason } from './types';
 import type { Action, SpotlightConfig, SpotlightStep, TooltipConfig, TooltipStep } from './templateTypes';
@@ -256,9 +257,25 @@ function TooltipOverlay({
         setLayout(null);
         setFloatPos(null);
         if (!ready) return;
+        if (!digiaAnchorRegistry.isRegistered(step.anchorKey)) {
+            // eslint-disable-next-line no-console
+            console.warn(`[Digia] campaign dropped — anchor_key "${step.anchorKey}" is not registered on this screen (campaign_key=${request.campaignKey}, step=${stepIndex})`);
+            digiaHealthReporter.report(HealthEventType.anchor_not_on_screen, {
+                campaign_key: request.campaignKey,
+                reason: 'anchor_key_not_registered',
+                anchor_key: step.anchorKey,
+                step_index: stepIndex,
+            });
+            digiaGuideController.cancel(request.payloadId);
+            return;
+        }
         let skipCached = false;
         const unsub = digiaAnchorRegistry.subscribe(step.anchorKey, (l) => {
             if (!skipCached) return;
+            if (l.width === 0 || l.height === 0) {
+                digiaGuideController.cancel(request.payloadId);
+                return;
+            }
             const { width: screenW, height: screenH } = Dimensions.get('window');
             if (l.pageY + l.height <= 0 || l.pageY >= screenH || l.pageX + l.width <= 0 || l.pageX >= screenW) {
                 digiaGuideController.cancel(request.payloadId);
@@ -641,9 +658,25 @@ function SpotlightOverlay({
     useEffect(() => {
         setLayout(null);
         if (!ready) return; // hold off measuring/showing until the delay has elapsed
+        if (!digiaAnchorRegistry.isRegistered(step.anchorKey)) {
+            // eslint-disable-next-line no-console
+            console.warn(`[Digia] campaign dropped — anchor_key "${step.anchorKey}" is not registered on this screen (campaign_key=${request.campaignKey}, step=${stepIndex})`);
+            digiaHealthReporter.report(HealthEventType.anchor_not_on_screen, {
+                campaign_key: request.campaignKey,
+                reason: 'anchor_key_not_registered',
+                anchor_key: step.anchorKey,
+                step_index: stepIndex,
+            });
+            digiaGuideController.cancel(request.payloadId);
+            return;
+        }
         let skipCached = false;
         const unsub = digiaAnchorRegistry.subscribe(step.anchorKey, (l) => {
             if (!skipCached) return;
+            if (l.width === 0 || l.height === 0) {
+                digiaGuideController.cancel(request.payloadId);
+                return;
+            }
             const { width: screenW, height: screenH } = Dimensions.get('window');
             if (l.pageY + l.height <= 0 || l.pageY >= screenH || l.pageX + l.width <= 0 || l.pageX >= screenW) {
                 digiaGuideController.cancel(request.payloadId);

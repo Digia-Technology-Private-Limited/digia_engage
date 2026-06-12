@@ -29,6 +29,7 @@ import androidx.lifecycle.setViewTreeLifecycleOwner
 import androidx.lifecycle.setViewTreeViewModelStoreOwner
 import androidx.savedstate.SavedStateRegistryOwner
 import androidx.savedstate.setViewTreeSavedStateRegistryOwner
+import com.digia.engage.CEPTriggerPayload
 import com.digia.engage.DiagnosticReport
 import com.digia.engage.Digia
 import com.digia.engage.DigiaCEPDelegate
@@ -126,6 +127,54 @@ internal class DigiaModule(
         Digia.setCurrentScreen(name)
     }
 
+    // ─── Analytics identity ───────────────────────────────────────────────────
+
+    @ReactMethod
+    fun setUserId(userId: String) {
+        Digia.setUserId(userId)
+    }
+
+    @ReactMethod
+    fun clearUserId() {
+        Digia.clearUserId()
+    }
+
+    // ─── Analytics event forwarding (guide / JS-rendered campaigns) ───────────
+
+    /**
+     * Records an analytics event originating from JS-rendered campaigns (guides).
+     * Native campaigns (nudge, inline, survey) are tracked internally by the SDK.
+     */
+    @ReactMethod
+    fun trackEvent(
+        eventType: String,
+        campaignId: String,
+        campaignKey: String,
+        campaignType: String,
+        elementId: String?,
+    ) {
+        android.util.Log.d("DigiaAnalytics", "[trackEvent] RN bridge received: type=$eventType campaignId=$campaignId campaignKey=$campaignKey campaignType=$campaignType elementId=$elementId")
+        val event = when (eventType) {
+            "impressed" -> DigiaExperienceEvent.Impressed
+            "clicked" -> DigiaExperienceEvent.Clicked(elementId)
+            "dismissed" -> DigiaExperienceEvent.Dismissed
+            else -> {
+                android.util.Log.w("DigiaAnalytics", "[trackEvent] unknown eventType='$eventType' — dropped")
+                return
+            }
+        }
+        val payload = InAppPayload(
+            id = campaignKey,
+            content = mapOf(
+                "campaign_id" to campaignId,
+                "campaign_key" to campaignKey,
+                "campaign_type" to campaignType,
+            ),
+        )
+        android.util.Log.d("DigiaAnalytics", "[trackEvent] forwarding to Digia.captureAnalyticsEvent: event=${event::class.simpleName}")
+        Digia.captureAnalyticsEvent(event, payload)
+    }
+
     // ─── triggerCampaign ──────────────────────────────────────────────────────
 
     /**
@@ -138,11 +187,20 @@ internal class DigiaModule(
     @ReactMethod
     fun triggerCampaign(id: String, content: ReadableMap, cepContext: ReadableMap) {
         val delegate = rnPlugin.delegate ?: return
+        val contentMap = content.toHashMap().toMap()
+        val campaignKey = (contentMap["digia_campaign_key"] as? String)
+            ?: (contentMap["campaign_key"] as? String)
+            ?: id
+        @Suppress("UNCHECKED_CAST")
+        val variables = (contentMap["variables"] as? Map<*, *>)
+            ?.entries
+            ?.associate { it.key.toString() to it.value?.toString().orEmpty() }
         delegate.onCampaignTriggered(
-                InAppPayload(
-                        id = id,
-                        content = content.toHashMap().toMap(),
-                        cepContext = cepContext.toHashMap().toMap(),
+                CEPTriggerPayload(
+                        cepCampaignId = id,
+                        campaignKey = campaignKey,
+                        cepMetadata = cepContext.toHashMap().toMap(),
+                        variables = variables,
                 )
         )
     }
@@ -277,10 +335,10 @@ internal class RNEventBridgePlugin(
         /* forwarded by Digia.setCurrentScreen() on the native side */
     }
 
-    override fun notifyEvent(event: DigiaExperienceEvent, payload: InAppPayload) {
+    override fun notifyEvent(event: DigiaExperienceEvent, payload: CEPTriggerPayload) {
         val params =
                 Arguments.createMap().apply {
-                    putString("campaignId", payload.id)
+                    putString("campaignId", payload.cepCampaignId)
                     when (event) {
                         is DigiaExperienceEvent.Impressed -> putString("type", "impressed")
                         is DigiaExperienceEvent.Clicked -> {
