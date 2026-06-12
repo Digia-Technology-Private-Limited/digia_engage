@@ -6,6 +6,7 @@ import '../internal/digia_instance.dart';
 import '../internal/digia_overlay_controller.dart';
 import '../internal/nudge/nudge_config.dart';
 import '../internal/nudge/nudge_presenter.dart';
+import '../internal/survey/ui/survey_renderer.dart';
 import '../internal/variable_scope.dart';
 import '../models/digia_experience_event.dart';
 
@@ -60,6 +61,23 @@ class _DigiaHostState extends State<DigiaHost> {
     _controller = DigiaInstance.instance.controller;
     _controller.addListener(_onControllerChanged);
     DigiaInstance.instance.onHostMounted();
+    _attachNavigatorFromKey();
+  }
+
+  /// Surveys present via Navigator routes and need a context below the app's
+  /// [Navigator]. [DigiaHost] sits above it (in [MaterialApp.builder]), so it
+  /// can't read that context directly — it relies on [navigatorKey]. The key's
+  /// [NavigatorState] only exists once the child [Navigator] has built, so we
+  /// attach after the first frame. ([DigiaNavigatorObserver] also attaches, but
+  /// only on route changes; this makes the key the deterministic path.)
+  void _attachNavigatorFromKey() {
+    final key = widget.navigatorKey;
+    if (key == null) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final nav = key.currentState;
+      if (nav != null) DigiaInstance.instance.attachNavigator(nav);
+    });
   }
 
   @override
@@ -81,6 +99,10 @@ class _DigiaHostState extends State<DigiaHost> {
         case InlineCarouselCampaignConfig():
         case InlineStoryCampaignConfig():
           // Inline campaigns are handled by DigiaSlot — nothing to do here.
+          _controller.dismiss();
+        case SurveyCampaignConfig():
+          // Surveys are driven by the SurveyOrchestrator + SurveyRenderer, not
+          // the overlay-controller path — nothing to present here.
           _controller.dismiss();
         case UnsupportedCampaignConfig():
           _controller.dismiss();
@@ -119,6 +141,15 @@ class _DigiaHostState extends State<DigiaHost> {
 
   @override
   Widget build(BuildContext context) {
-    return widget.child;
+    // The survey overlay draws its own scrim + panel above the app (nudges use
+    // pushed routes instead, so they need no slot here). Stacking it at the
+    // [DigiaHost] level — above the navigator — keeps it over all app content.
+    return Stack(
+      textDirection: TextDirection.ltr,
+      children: [
+        widget.child,
+        const SurveyRenderer(),
+      ],
+    );
   }
 }

@@ -11,6 +11,9 @@ import 'campaign/campaign_store.dart';
 import 'digia_overlay_controller.dart';
 import 'engage_fonts.dart';
 import 'sdk_state.dart';
+import 'survey/submission_reporter.dart';
+import 'survey/survey_logic_handler.dart';
+import 'survey/survey_orchestrator.dart';
 
 /// Internal singleton that backs the public [Digia] static facade.
 ///
@@ -51,6 +54,18 @@ class DigiaInstance with WidgetsBindingObserver implements DigiaCEPDelegate {
 
   /// Shared with [DigiaHost]. Created once, lives for the app lifetime.
   final DigiaOverlayController _controller = DigiaOverlayController();
+
+  /// Holds the single active survey. Mirrors Android's `SurveyOrchestrator`;
+  /// [DigiaHost] mounts the survey renderer against it.
+  final SurveyOrchestrator _surveyOrchestrator = SurveyOrchestrator();
+  SurveyOrchestrator get surveyOrchestrator => _surveyOrchestrator;
+
+  /// Posts completed-survey answers to the backend. Created during [initialize]
+  /// once the device id is known. Mirrors Android's `submissionReporter`.
+  SubmissionReporter? _submissionReporter;
+
+  /// Guards double-firing the survey `Completed` event for one showing.
+  int? _completedSurveyToken;
 
   /// Controller for inline campaigns, notifies when they change.
   // final InlineCampaignController inlineController = InlineCampaignController();
@@ -109,6 +124,7 @@ class DigiaInstance with WidgetsBindingObserver implements DigiaCEPDelegate {
       await DigiaAnalyticsService.instance
           .initialize(config.analyticsConfig, config.apiKey);
       final deviceId = EngageSettings.instance.getUuid();
+      _submissionReporter = SubmissionReporter(config, deviceId);
       final campaigns = await CampaignFetcher(config, deviceId).fetch();
       _campaignStore.populate(campaigns);
 
@@ -268,6 +284,20 @@ class DigiaInstance with WidgetsBindingObserver implements DigiaCEPDelegate {
       case NudgeCampaignConfig():
         _controller.show(payload);
         _logIfVerbose('nudge scheduled (campaignKey=${campaign.campaignKey}).');
+      case SurveyCampaignConfig():
+        final started = _surveyOrchestrator.start(
+          campaign,
+          payload,
+          nowMs: DateTime.now().millisecondsSinceEpoch,
+        );
+        if (!started) {
+          debugPrint(
+            "[Digia] survey campaign '${campaign.campaignKey}' dropped: "
+            'another survey is on screen.',
+          );
+        } else {
+          _logIfVerbose('survey scheduled (campaignKey=${campaign.campaignKey}).');
+        }
       case UnsupportedCampaignConfig(:final reason):
         debugPrint(
           "[Digia] campaign '${campaign.campaignKey}' dropped: $reason",
@@ -303,8 +333,77 @@ class DigiaInstance with WidgetsBindingObserver implements DigiaCEPDelegate {
     if (_controller.activePayload?.cepCampaignId == campaignId) {
       _controller.dismiss();
     }
+    // Active survey, if this campaign triggered it.
+    if (_surveyOrchestrator.state?.payload.cepCampaignId == campaignId) {
+      _surveyOrchestrator.dismiss();
+    }
     // Inline slot (carousel or story), if this campaign populated one.
     _controller.removeInlineSlotByCampaignId(campaignId);
+  }
+
+  // ─── Survey lifecycle ──────────────────────────────────────────────────────
+  // Called by `SurveyRenderer` as the showing progresses. Each fires the
+  // matching experience event to the active CEP plugin + analytics, via the
+  // same `onEvent` channel nudges use.
+
+  /// Fired once when the survey first becomes visible (its impression).
+  void reportSurveyStarted() {
+    final state = _surveyOrchestrator.state;
+    if (state == null) return;
+    _controller.onEvent?.call(const ExperienceImpressed(), state.payload);
+  }
+
+  /// Fired after each step is answered. [stepId] identifies the node.
+  void reportSurveyAnswered(String stepId, Map<String, dynamic> answer) {
+    final state = _surveyOrchestrator.state;
+    if (state == null) return;
+    _controller.onEvent?.call(ExperienceClicked(elementId: stepId), state.payload);
+  }
+
+  /// Fired once when the survey finishes (idempotent per showing). Beyond the
+  /// `Completed` analytics event, [answers] (when supplied) are POSTed to the
+  /// backend's `recordSubmission` endpoint via [SubmissionReporter].
+  void reportSurveyCompleted(
+    Map<String, dynamic> response, [
+    Map<String, SurveyAnswer> answers = const {},
+  ]) {
+    final state = _surveyOrchestrator.state;
+    if (state == null || _completedSurveyToken == state.token) return;
+    _completedSurveyToken = state.token;
+    _controller.onEvent?.call(const ExperienceCompleted(), state.payload);
+    if (answers.isNotEmpty) {
+      _logIfVerbose(
+        'survey submission started: campaignKey=${state.campaign.campaignKey}, '
+        'campaignId=${state.campaign.id}, answers=${answers.length}',
+      );
+      _submissionReporter?.reportSurveyCompleted(
+        state.campaign,
+        answers,
+        state.startedAtMs,
+      );
+    }
+  }
+
+  /// Reports completion and clears the active survey.
+  void markSurveyCompleted(
+    Map<String, dynamic> response, [
+    Map<String, SurveyAnswer> answers = const {},
+  ]) {
+    reportSurveyCompleted(response, answers);
+    _surveyOrchestrator.dismiss();
+  }
+
+  /// Clears the active survey after the user closes the result page.
+  void dismissCompletedSurvey() {
+    _surveyOrchestrator.dismiss();
+  }
+
+  /// Fired when the user closes the survey without completing it.
+  void markSurveyDismissed() {
+    final state = _surveyOrchestrator.state;
+    if (state == null) return;
+    _controller.onEvent?.call(const ExperienceDismissed(), state.payload);
+    _surveyOrchestrator.dismiss();
   }
 
   // ─── WidgetsBindingObserver ────────────────────────────────────────────────
