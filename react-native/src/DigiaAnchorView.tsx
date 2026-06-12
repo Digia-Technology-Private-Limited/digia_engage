@@ -47,7 +47,12 @@ export const DigiaAnchorView = forwardRef<DigiaAnchorViewRef, Props>(
         const measure = useCallback(() => {
             if (!canMeasure.current) return;
             viewRef.current?.measure((_x, _y, width, height, pageX, pageY) => {
-                if (width === 0 && height === 0) return;
+                if (width === 0 && height === 0) {
+                    // Publish 0×0 so overlay subscribers can detect a collapsed/hidden
+                    // anchor and cancel the campaign rather than hanging indefinitely.
+                    digiaAnchorRegistry.setLayout(anchorKey, { pageX, pageY, width: 0, height: 0 });
+                    return;
+                }
                 nativeDigiaModule.registerAnchor(anchorKey, Math.round(pageX), Math.round(pageY), Math.round(width), Math.round(height));
                 digiaAnchorRegistry.setLayout(anchorKey, { pageX, pageY, width, height });
             });
