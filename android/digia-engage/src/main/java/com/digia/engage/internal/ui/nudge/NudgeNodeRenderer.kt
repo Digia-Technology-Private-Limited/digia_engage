@@ -35,6 +35,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -240,7 +241,7 @@ private fun NudgeButtonWidget(node: NudgeButton, onDismiss: () -> Unit) {
         Box(
             modifier = Modifier
                 .clickable(
-                    indication = null,
+                    indication = ripple(),
                     interactionSource = remember { MutableInteractionSource() },
                 ) {
                     if (node.isPrimary) {
