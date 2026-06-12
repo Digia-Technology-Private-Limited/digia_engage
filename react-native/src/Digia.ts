@@ -7,7 +7,7 @@
  * import { Digia } from '@digia/engage-react-native';
  *
  * // In your App entry point (e.g. App.tsx):
- * await Digia.initialize({ projectId: 'YOUR_PROJECT_ID' });
+ * await Digia.initialize({ apiKey: 'YOUR_API_KEY' });
  *
  * // Whenever your navigation screen changes:
  * Digia.setCurrentScreen('Home');
@@ -60,7 +60,7 @@ class DigiaClass implements DigiaDelegate {
     // the full InAppPayload when overlay lifecycle events arrive from native.
     private readonly _activePayloads = new Map<string, InAppPayload>();
     private _engageSubscription: { remove(): void } | null = null;
-    private _projectId = '';
+    private _apiKey = '';
     private _deviceId = '';
     private _apiBaseUrl = '';
     private _logLevel: DigiaConfig['logLevel'] = 'error';
@@ -78,12 +78,12 @@ class DigiaClass implements DigiaDelegate {
     async initialize(config: DigiaConfig): Promise<void> {
         const environment = config.environment ?? 'production';
         const logLevel = config.logLevel ?? 'error';
-        this._projectId = config.projectId;
+        this._apiKey = config.apiKey;
         this._apiBaseUrl = this._resolveApiBaseUrl(config);
         this._logLevel = logLevel;
         this._fontFamily = config.fontFamily?.trim() || undefined;
-        this._log(`Digia SDK initializing | projectId=${config.projectId.slice(0, 8)}… env=${environment}`);
-        digiaHealthReporter.init(config.projectId, this._apiBaseUrl);
+        this._log(`Digia SDK initializing | apiKey=${config.apiKey.slice(0, 8)}… env=${environment}`);
+        digiaHealthReporter.init(config.apiKey, this._apiBaseUrl);
 
         digiaActionHandler.configure({
             onAction: config.onAction,
@@ -94,14 +94,14 @@ class DigiaClass implements DigiaDelegate {
         });
 
         try {
-            await nativeDigiaModule.initialize(config.projectId, environment, logLevel, config.baseUrl, config.fontFamily);
+            await nativeDigiaModule.initialize(config.apiKey, environment, logLevel, config.baseUrl, config.fontFamily);
         } catch (e) {
             this._error(`Digia SDK native init failed: ${e instanceof Error ? e.message : String(e)}`);
             throw e;
         }
 
         this._deviceId = await this._loadOrCreateDeviceId();
-        await frequencyStore.checkProjectId(config.projectId);
+        await frequencyStore.checkApiKey(config.apiKey);
         await this._refreshCampaignStore();
         this._log(`Digia SDK ready | campaigns=${this._campaignsByKey.size}`);
     }
@@ -117,7 +117,7 @@ class DigiaClass implements DigiaDelegate {
      * ```ts
      * import { DigiaMoEngagePlugin } from '@digia/moengage-plugin';
      *
-     * await Digia.initialize({ projectId: 'YOUR_PROJECT_ID' });
+     * await Digia.initialize({ apiKey: 'YOUR_API_KEY' });
      * Digia.register(new DigiaMoEngagePlugin({ moEngage: MoEngage }));
      * ```
      */
@@ -447,7 +447,7 @@ class DigiaClass implements DigiaDelegate {
             this._log(`loaded ${campaigns.length} campaign(s): [${[...this._campaignsByKey.keys()].join(', ')}]`);
         } catch (e) {
             const reason = e instanceof Error ? e.message : String(e);
-            this._error(`Campaign fetch failed: ${reason} — check your projectId and network connectivity`);
+            this._error(`Campaign fetch failed: ${reason} — check your apiKey and network connectivity`);
             digiaHealthReporter.report(HealthEventType.fetch_failed, {
                 error_code: 0,
                 platform: 'react_native',
@@ -461,7 +461,7 @@ class DigiaClass implements DigiaDelegate {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'x-digia-project-id': this._projectId,
+                'x-digia-project-id': this._apiKey,
                 'x-digia-device-id': this._deviceId,
             },
             body: JSON.stringify(body),
