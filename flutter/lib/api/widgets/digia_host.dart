@@ -96,7 +96,7 @@ class _DigiaHostState extends State<DigiaHost> {
         DigiaInstance.instance.navigator?.context ??
         context;
 
-    _controller.onEvent?.call(const ExperienceImpressed(), payload);
+    DigiaInstance.instance.events.toAll(const ExperienceImpressed(), payload);
 
     presentNudge(
       context: navContext,
@@ -112,7 +112,7 @@ class _DigiaHostState extends State<DigiaHost> {
         ...?payload.variables,
       }),
     ).whenComplete(() {
-      _controller.onEvent?.call(const ExperienceDismissed(), payload);
+      DigiaInstance.instance.events.toAll(const ExperienceDismissed(), payload);
       _controller.dismiss();
     });
   }
