@@ -8,16 +8,9 @@ import {
     StyleSheet,
     Text,
     View,
-    requireNativeComponent,
     useWindowDimensions,
 } from 'react-native';
 
-// Native view that hosts Digia's Compose overlay (dialogs / bottom sheets).
-// pointerEvents="none" ensures it never intercepts touches.
-const NativeDigiaHostView =
-    Platform.OS === 'android' || Platform.OS === 'ios'
-        ? requireNativeComponent<{ style?: object; pointerEvents?: string }>('DigiaHostView')
-        : null;
 import { computePosition, flip, offset, shift } from '@floating-ui/core';
 import Svg, { Path } from 'react-native-svg';
 import { Digia } from './Digia';
@@ -857,37 +850,25 @@ function DigiaGuideRuntime() {
 // Place once at the app root. Accepts optional children (wrap mode) or can be
 // used standalone (<DigiaHost />) as a sibling alongside other root elements.
 //
-// Renders two overlays, both non-interactive (pointerEvents="none"):
-//   1. JS guide / tooltip / spotlight renderer (DigiaGuideRuntime)
-//   2. Native Compose overlay for dialogs / bottom sheets (DigiaHostView)
+// Renders ONLY the JS guide / tooltip / spotlight runtime (DigiaGuideRuntime).
+// Native overlays (nudges, dialogs, bottom sheets, surveys) render through the
+// single native overlay host that DigiaModule mounts imperatively after
+// Digia.initialize() — that host owns its own touch handling and claims touches
+// only while an overlay is active. Mounting a native host here as well would
+// render every overlay twice (one stacked behind the other), and a
+// React-tree host is not reliably touch-correct under the New Architecture.
 
 export function DigiaHost({ children }: { children?: React.ReactNode }) {
-    const overlay = (
-        <>
-            <DigiaGuideRuntime />
-            {NativeDigiaHostView && (
-                // The outer View with pointerEvents="none" is critical: RN's touch
-                // dispatch respects pointerEvents on plain Views even in bridgeless
-                // mode. Applying it directly on requireNativeComponent views is
-                // unreliable in New Architecture. The Compose dialogs/sheets inside
-                // render in their own Android PhoneWindow so they stay interactive.
-                <View style={StyleSheet.absoluteFillObject} pointerEvents="none">
-                    <NativeDigiaHostView style={StyleSheet.absoluteFillObject} />
-                </View>
-            )}
-        </>
-    );
-
     if (children != null) {
         return (
             <>
                 {children}
-                {overlay}
+                <DigiaGuideRuntime />
             </>
         );
     }
 
-    return overlay;
+    return <DigiaGuideRuntime />;
 }
 
 // ─── Styles ───────────────────────────────────────────────────────────────────

@@ -134,29 +134,27 @@ private fun BottomSheetChrome(
                     .fillMaxWidth()
                     .heightIn(max = (screenHeight * NUDGE_SHEET_MAX_HEIGHT_RATIO).dp)
                     .offset { IntOffset(0, dragOffset.roundToInt()) }
-                    .then(
-                        if (surface.draggable) Modifier.draggable(
-                            state = draggableState,
-                            orientation = Orientation.Vertical,
-                            onDragStopped = {
-                                if (dragOffset > dismissThresholdPx) onDismiss() else dragOffset = 0f
-                            },
-                        ) else Modifier,
-                    )
                     .clickable(
                         indication = null,
                         interactionSource = remember { MutableInteractionSource() },
                     ) {},
             ) {
                 Box {
-                    Column(
-                        modifier = Modifier
-                            .verticalScroll(rememberScrollState()),
-                    ) {
+                    Column {
                         if (surface.showHandle) {
                             Box(
                                 modifier = Modifier
                                     .fillMaxWidth()
+                                    .then(
+                                        if (surface.draggable) Modifier.draggable(
+                                            state = draggableState,
+                                            orientation = Orientation.Vertical,
+                                            onDragStopped = {
+                                                if (dragOffset > dismissThresholdPx) onDismiss()
+                                                else dragOffset = 0f
+                                            },
+                                        ) else Modifier,
+                                    )
                                     .padding(vertical = 8.dp),
                                 contentAlignment = Alignment.Center,
                             ) {
@@ -168,7 +166,13 @@ private fun BottomSheetChrome(
                                 )
                             }
                         }
-                        Box(modifier = Modifier.padding(surface.padding.dp)) { content() }
+                        Column(
+                            modifier = Modifier
+                                .weight(1f, fill = false)
+                                .verticalScroll(rememberScrollState()),
+                        ) {
+                            Box(modifier = Modifier.padding(surface.padding.dp)) { content() }
+                        }
                     }
                     if (surface.showCloseButton) {
                         NudgeCloseButton(
