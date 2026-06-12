@@ -50,6 +50,7 @@ internal object DigiaInstance : DigiaCEPDelegate {
     private val surveyOrchestrator = SurveyOrchestrator()
     private var submissionReporter: SubmissionReporter? = null
     private var completedSurveyToken: Long? = null
+    private var firstAnswerSurveyToken: Long? = null
 
     val guideState = guideOrchestrator.state
     val surveyState = surveyOrchestrator.state
@@ -181,11 +182,13 @@ internal object DigiaInstance : DigiaCEPDelegate {
     // ── Survey lifecycle ────────────────────────────────────────────────────
     //
     // Event routing:
-    //   • CEP plugin sees: Clicked (on start), Dismissed.
-    //   • Internal analytics sees: SurveyAnswered, SurveyCompleted.
+    //   • CEP plugin sees: Impressed (on start), Dismissed.
+    //   • Internal analytics only (never the CEP) sees, on the first answered
+    //     question: "Digia Experience Clicked" + "Digia Question Answered";
+    //     on completion: "Digia Experience Completed".
     //
-    // The CEP intentionally does not see per-question Answered / Completed —
-    // those are SDK-internal signals (handling TBD).
+    // The CEP intentionally does not see the click / answer / completion signals —
+    // those are SDK-internal and go only to the Digia analytics sink.
 
     /** Fired once when the survey first becomes visible (treated as a click). */
     fun reportSurveyStarted() {
@@ -196,11 +199,21 @@ internal object DigiaInstance : DigiaCEPDelegate {
         )
     }
 
+    /**
+     * Fired when the user answers a survey question. Only the *first* answer of a
+     * survey is recorded: it emits "Digia Experience Clicked" (engagement) and
+     * "Digia Question Answered", both to the internal analytics sink only — never
+     * to the CEP plugin. Subsequent answers are no-ops.
+     */
     fun reportSurveyAnswered(stepId: String, answer: Map<String, Any?>) {
         val state = surveyOrchestrator.state.value ?: return
+        if (firstAnswerSurveyToken == state.token) return
+        firstAnswerSurveyToken = state.token
+        val payload = surveyPayload(state)
+        displayCoordinator.trackInternal(InternalEngageEvent.ExperienceClicked, payload)
         displayCoordinator.trackInternal(
-            InternalEngageEvent.SurveyAnswered(stepId, answer),
-            surveyPayload(state),
+            InternalEngageEvent.QuestionAnswered(stepId, answer),
+            payload,
         )
     }
 
@@ -220,7 +233,7 @@ internal object DigiaInstance : DigiaCEPDelegate {
         if (completedSurveyToken == state.token) return
         completedSurveyToken = state.token
         displayCoordinator.trackInternal(
-            InternalEngageEvent.SurveyCompleted(response),
+            InternalEngageEvent.ExperienceCompleted(response),
             surveyPayload(state),
         )
         if (answers.isNotEmpty()) {

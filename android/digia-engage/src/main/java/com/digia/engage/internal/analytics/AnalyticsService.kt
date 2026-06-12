@@ -63,10 +63,12 @@ internal class AnalyticsService @VisibleForTesting constructor(
     fun captureInternal(event: InternalEngageEvent, payload: InAppPayload) {
         if (!config.enabled) return
         val (eventName, extras) = when (event) {
-            is InternalEngageEvent.SurveyAnswered ->
-                "Digia Survey Answered" to mapOf("step_id" to event.stepId, "answer" to event.answer)
-            is InternalEngageEvent.SurveyCompleted ->
-                "Digia Survey Completed" to mapOf("response" to event.response)
+            is InternalEngageEvent.ExperienceClicked ->
+                "Digia Experience Clicked" to emptyMap<String, Any?>()
+            is InternalEngageEvent.QuestionAnswered ->
+                "Digia Question Answered" to mapOf("step_id" to event.stepId, "answer" to event.answer)
+            is InternalEngageEvent.ExperienceCompleted ->
+                "Digia Experience Completed" to mapOf("response" to event.response)
         }
         enqueue(
             eventName = eventName,
