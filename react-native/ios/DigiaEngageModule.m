@@ -34,6 +34,14 @@ RCT_EXTERN_METHOD(registerBridge)
 
 RCT_EXTERN_METHOD(setCurrentScreen : (NSString *)name)
 
+RCT_EXTERN_METHOD(setUserId : (NSString *)userId)
+
+RCT_EXTERN_METHOD(clearUserId)
+
+RCT_EXTERN_METHOD(trackEvent : (NSString *)eventType campaignId : (NSString *)
+                      campaignId campaignKey : (NSString *)campaignKey campaignType
+                  : (NSString *)campaignType elementId : (NSString *)elementId)
+
 RCT_EXTERN_METHOD(triggerCampaign : (NSString *)id content : (NSDictionary *)
                       content cepContext : (NSDictionary *)cepContext)
 
