@@ -153,11 +153,15 @@ internal class DigiaModule(
         campaignType: String,
         elementId: String?,
     ) {
+        android.util.Log.d("DigiaAnalytics", "[trackEvent] RN bridge received: type=$eventType campaignId=$campaignId campaignKey=$campaignKey campaignType=$campaignType elementId=$elementId")
         val event = when (eventType) {
             "impressed" -> DigiaExperienceEvent.Impressed
             "clicked" -> DigiaExperienceEvent.Clicked(elementId)
             "dismissed" -> DigiaExperienceEvent.Dismissed
-            else -> return
+            else -> {
+                android.util.Log.w("DigiaAnalytics", "[trackEvent] unknown eventType='$eventType' — dropped")
+                return
+            }
         }
         val payload = InAppPayload(
             id = campaignKey,
@@ -167,6 +171,7 @@ internal class DigiaModule(
                 "campaign_type" to campaignType,
             ),
         )
+        android.util.Log.d("DigiaAnalytics", "[trackEvent] forwarding to Digia.captureAnalyticsEvent: event=${event::class.simpleName}")
         Digia.captureAnalyticsEvent(event, payload)
     }
 

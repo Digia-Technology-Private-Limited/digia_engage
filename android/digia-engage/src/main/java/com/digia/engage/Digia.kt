@@ -37,6 +37,7 @@ object Digia {
     }
 
     fun captureAnalyticsEvent(event: DigiaExperienceEvent, payload: InAppPayload) {
+        android.util.Log.d("DigiaAnalytics", "[Digia] captureAnalyticsEvent: event=${event::class.simpleName} payload.id=${payload.id} content=${payload.content}")
         DigiaInstance.captureAnalyticsEvent(event, payload)
     }
 }

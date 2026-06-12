@@ -143,6 +143,11 @@ internal object DigiaInstance : DigiaCEPDelegate {
     fun clearUserId() { analyticsService?.clearUserId() }
 
     fun captureAnalyticsEvent(event: DigiaExperienceEvent, payload: InAppPayload) {
+        if (analyticsService == null) {
+            Log.w("DigiaAnalytics", "[DigiaInstance] captureAnalyticsEvent: analyticsService is NULL — analytics disabled or SDK not initialized")
+            return
+        }
+        Log.d("DigiaAnalytics", "[DigiaInstance] captureAnalyticsEvent → analyticsService.capture: event=${event::class.simpleName} campaignKey=${payload.content["campaign_key"]} campaignId=${payload.content["campaign_id"]}")
         analyticsService?.capture(event, payload)
     }
 
@@ -186,7 +191,7 @@ internal object DigiaInstance : DigiaCEPDelegate {
     fun reportSurveyStarted() {
         val state = surveyOrchestrator.state.value ?: return
         displayCoordinator.notifyCEP(
-            DigiaExperienceEvent.Clicked(elementId = state.campaign.campaignKey),
+            DigiaExperienceEvent.Impressed,
             surveyPayload(state),
         )
     }

@@ -260,6 +260,7 @@ class DigiaClass implements DigiaDelegate {
 
             this._log(`guide trigger campaign_key=${campaignKey} mounted=${mounted}`);
             if (!mounted) {
+                this._log(`event controller failed to mount guide campaign_key=${campaignKey}`);
                 digiaHealthReporter.report(HealthEventType.host_not_mounted, {
                     campaign_key: campaignKey,
                     payload_id: cepCampaignId,
@@ -323,6 +324,7 @@ class DigiaClass implements DigiaDelegate {
     private _forwardExperienceEvent(
         data: { campaignId: string; type: string; elementId?: string },
     ): void {
+        console.log(`[Digia] received overlay event from native: campaignId=${data.campaignId} type=${data.type} elementId=${data.elementId}`);
         const payload = this._activePayloads.get(data.campaignId);
         if (!payload) return;
 
@@ -356,6 +358,7 @@ class DigiaClass implements DigiaDelegate {
         campaignKey: string,
         campaignId: string,
     ): void {
+        console.log(`[Digia] guide lifecycle event: type=${event.type} step=${event.stepIndex + 1}/${event.stepTotal} anchorKey=${event.anchorKey} displayStyle=${event.displayStyle} campaignKey=${campaignKey}`);
         const eventName = this._guideEventName(event.type);
         const properties = this._buildGuideProperties(event, campaignId, campaignKey);
         this._plugins.forEach((p) => p.track?.(eventName, properties));

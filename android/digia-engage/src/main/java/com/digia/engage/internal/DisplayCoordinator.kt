@@ -40,18 +40,37 @@ internal class DisplayCoordinator(
     }
 
     fun onOverlayEvent(event: DigiaExperienceEvent, payload: InAppPayload) {
+        android.util.Log.d("DigiaAnalytics", "[DisplayCoordinator] onOverlayEvent: event=${event::class.simpleName} campaignKey=${payload.content["campaign_key"]} campaignId=${payload.content["campaign_id"]}")
         pluginRegistry.notifyEvent(event, payload)
-        getAnalyticsService()?.capture(event, payload)
+        val svc = getAnalyticsService()
+        if (svc == null) {
+            android.util.Log.w("DigiaAnalytics", "[DisplayCoordinator] onOverlayEvent: analyticsService is NULL — event not captured")
+        } else {
+            svc.capture(event, payload)
+        }
     }
 
     fun onSlotEvent(event: DigiaExperienceEvent, payload: InAppPayload) {
+        android.util.Log.d("DigiaAnalytics", "[DisplayCoordinator] onSlotEvent: event=${event::class.simpleName} campaignKey=${payload.content["campaign_key"]} campaignId=${payload.content["campaign_id"]}")
         pluginRegistry.notifyEvent(event, payload)
-        getAnalyticsService()?.capture(event, payload)
+        val svc = getAnalyticsService()
+        if (svc == null) {
+            android.util.Log.w("DigiaAnalytics", "[DisplayCoordinator] onSlotEvent: analyticsService is NULL — event not captured")
+        } else {
+            svc.capture(event, payload)
+        }
     }
 
     /** Forward only to the active CEP plugin — used for survey Clicked/Dismissed. */
     fun notifyCEP(event: DigiaExperienceEvent, payload: InAppPayload) {
         pluginRegistry.notifyEvent(event, payload)
+        val svc = getAnalyticsService()
+        if (svc == null) {
+            android.util.Log.w("DigiaAnalytics", "[DisplayCoordinator] onSlotEvent: analyticsService is NULL — event not captured")
+        } else {
+            android.util.Log.w("DigiaAnalytics", "[DisplayCoordinator] notifyCEP: forwarding event to analytics service: event=${event::class.simpleName} campaignKey=${payload.content["campaign_key"]} campaignId=${payload.content["campaign_id"]}")
+            svc.capture(event, payload)
+        }
     }
 
     /** Record only into internal analytics — used for survey Answered/Completed. */
