@@ -205,7 +205,7 @@ class DigiaClass implements DigiaDelegate {
     // Mirrors DigiaCEPDelegate on Android.
     // Forwards to the native DigiaCEPDelegate via the bridge.
 
-    async onCampaignTriggered(payload: CEPTriggerPayload): Promise<void> {
+    async onCampaignTriggered(payload: CEPTriggerPayload): Promise<boolean> {
         if (!this._nativeBridgeWired) {
             digiaHealthReporter.report(HealthEventType.plugin_not_registered, { campaign_key: payload.campaignKey });
         }
@@ -222,7 +222,7 @@ class DigiaClass implements DigiaDelegate {
             const result = evaluate(policy, state, Date.now());
             if (!result.allow) {
                 this._log(`frequency_capped campaign_key=${campaignKey} reason=${result.reason}`);
-                return;
+                return false;
             }
         }
 
@@ -237,7 +237,7 @@ class DigiaClass implements DigiaDelegate {
                 this._emitSlotWidth(campaign);
             }
             nativeDigiaModule.triggerCampaign(cepCampaignId, bridgeContent, cepMetadata);
-            return;
+            return true;
         }
 
         if (campaign?.campaign_type === 'guide') {
@@ -251,7 +251,7 @@ class DigiaClass implements DigiaDelegate {
                     campaign_key: campaignKey,
                     reason: 'guide_campaign_has_no_steps',
                 });
-                return;
+                return false;
             }
 
             const firstAnchorKey = config.steps[0].anchorKey;
@@ -263,7 +263,7 @@ class DigiaClass implements DigiaDelegate {
                     reason: 'anchor_key_not_registered',
                     anchor_key: firstAnchorKey,
                 });
-                return;
+                return false;
             }
 
             this._activePayloads.set(cepCampaignId, payload);
@@ -275,6 +275,10 @@ class DigiaClass implements DigiaDelegate {
                 variables,
                 config,
                 onExperienceEvent: (event) => this._onGuideLifecycleEvent(event, cepCampaignId, campaignKey, digiaId),
+                // Safety net: release the CEP slot on every guide exit, including
+                // CTA-close / advance-past-end / anchor-drop paths that emit no
+                // terminal lifecycle event. Idempotent with the explicit path below.
+                onEnd: () => this._releaseGuideSlot(cepCampaignId),
             });
 
             this._log(`guide trigger campaign_key=${campaignKey} mounted=${mounted}`);
@@ -284,8 +288,10 @@ class DigiaClass implements DigiaDelegate {
                     campaign_key: campaignKey,
                     payload_id: cepCampaignId,
                 });
+                this._activePayloads.delete(cepCampaignId);
+                return false;
             }
-            return;
+            return true;
         }
 
         if (!campaign) {
@@ -295,11 +301,12 @@ class DigiaClass implements DigiaDelegate {
                 payload_id: cepCampaignId,
                 available_campaign_keys: [...this._campaignsByKey.keys()],
             });
-            return;
+            return false;
         }
 
         this._activePayloads.set(cepCampaignId, payload);
         nativeDigiaModule.triggerCampaign(cepCampaignId, bridgeContent, cepMetadata);
+        return true;
     }
 
     onCampaignInvalidated(campaignId: string): void {
@@ -404,12 +411,16 @@ class DigiaClass implements DigiaDelegate {
 
         // Notify plugins of CEP lifecycle termination (template cleanup) on exit events.
         if (event.type === 'dismissed' || event.type === 'completed') {
-            const storedPayload = this._activePayloads.get(payloadId);
-            if (storedPayload) {
-                this._plugins.forEach((p) => p.notifyEvent({ type: 'dismissed' }, storedPayload));
-                this._activePayloads.delete(payloadId);
-            }
+            this._releaseGuideSlot(payloadId);
         }
+    }
+
+    /** Releases the CEP in-app slot for a guide payload. Idempotent. */
+    private _releaseGuideSlot(payloadId: string): void {
+        const storedPayload = this._activePayloads.get(payloadId);
+        if (!storedPayload) return;
+        this._plugins.forEach((p) => p.notifyEvent({ type: 'dismissed' }, storedPayload));
+        this._activePayloads.delete(payloadId);
     }
 
     private _guideEventName(type: GuideLifecycleEvent['type']): string {

@@ -228,7 +228,7 @@ internal object DigiaInstance : DigiaCEPDelegate {
         answers: Map<String, SurveyAnswer> = emptyMap(),
     ) {
         reportSurveyCompleted(response, answers)
-        surveyOrchestrator.dismiss()
+        markSurveyDismissed()
     }
 
     fun reportSurveyCompleted(
@@ -252,7 +252,7 @@ internal object DigiaInstance : DigiaCEPDelegate {
     }
 
     fun dismissCompletedSurvey() {
-        surveyOrchestrator.dismiss()
+        markSurveyDismissed()
     }
 
     fun markSurveyDismissed() {
