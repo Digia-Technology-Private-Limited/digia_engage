@@ -73,8 +73,13 @@ export type GuideLifecycleEvent =
  * Call these instead of touching Digia directly from inside a plugin.
  */
 export interface DigiaDelegate {
-    /** Deliver a campaign payload into the Digia rendering engine. */
-    onCampaignTriggered(payload: CEPTriggerPayload): void | Promise<void>;
+    /**
+     * Deliver a campaign payload into the Digia rendering engine.
+     * @returns `true` if accepted for display, `false` if dropped (frequency cap,
+     *   missing anchor, unknown key, …). Plugins holding a display lock must
+     *   release it on `false`.
+     */
+    onCampaignTriggered(payload: CEPTriggerPayload): boolean | Promise<boolean>;
     /** Invalidate / dismiss a campaign by its ID. */
     onCampaignInvalidated(campaignId: string): void;
 }
