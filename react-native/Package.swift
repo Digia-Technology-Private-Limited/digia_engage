@@ -17,24 +17,24 @@ let package = Package(
         .library(
             name: "DigiaEngageReactNative",
             targets: ["DigiaEngageReactNative"]
-        ),
+        )
     ],
     dependencies: [
         // Digia Engage iOS SDK — Swift Package Index
         // https://swiftpackageindex.com/Digia-Technology-Private-Limited/digia_engage_iOS
         .package(
             url: "https://github.com/Digia-Technology-Private-Limited/digia_engage_iOS.git",
-            exact: "1.0.0"
-        ),
+            exact: "2.4.1"
+        )
     ],
     targets: [
         .target(
             name: "DigiaEngageReactNative",
             dependencies: [
-                .product(name: "DigiaEngage", package: "digia_engage_iOS"),
+                .product(name: "DigiaEngage", package: "digia_engage_iOS")
             ],
             path: "ios",
             publicHeadersPath: "."
-        ),
+        )
     ]
 )
