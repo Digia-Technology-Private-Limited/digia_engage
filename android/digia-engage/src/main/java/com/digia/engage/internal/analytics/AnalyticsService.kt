@@ -274,12 +274,23 @@ internal class AnalyticsService @VisibleForTesting constructor(
             return AnalyticsService(
                 config = analyticsConfig,
                 apiKey = config.apiKey,
-                identity = AnalyticsIdentityManager(store),
+                identity = AnalyticsIdentityManager(store, deviceIdSeed = resolveDeviceId(context)),
                 queue = AnalyticsQueue(store),
                 sender = OkHttpAnalyticsSender(),
                 staticContext = buildStaticContext(context),
                 scope = scope,
             )
+        }
+
+        private fun resolveDeviceId(context: Context): String {
+            val androidId = runCatching {
+                android.provider.Settings.Secure.getString(
+                    context.contentResolver,
+                    android.provider.Settings.Secure.ANDROID_ID,
+                )
+            }.getOrNull()
+            return androidId?.takeIf { it.isNotBlank() && it != "9774d56d682e549c" }
+                ?: UUID.randomUUID().toString()
         }
 
         private fun buildStaticContext(context: Context): Map<String, Any?> {
