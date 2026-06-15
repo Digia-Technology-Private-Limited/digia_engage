@@ -1,9 +1,6 @@
-import 'dart:async';
-
 import 'package:flutter/foundation.dart';
 
 import '../models/cep_trigger_payload.dart';
-import '../models/digia_experience_event.dart';
 import 'campaign/campaign_model.dart';
 
 /// Internal controller that coordinates between [DigiaInstance] (imperative)
@@ -87,9 +84,4 @@ class DigiaOverlayController extends ChangeNotifier {
     _slotPayloads.clear();
     notifyListeners();
   }
-
-  /// Set by [DigiaInstance] at init time.
-  /// [DigiaHost] calls this when a user interaction event occurs.
-  /// [DigiaInstance] handles the event and forwards it to the active plugin.
-  void Function(DigiaExperienceEvent, CEPTriggerPayload)? onEvent;
 }

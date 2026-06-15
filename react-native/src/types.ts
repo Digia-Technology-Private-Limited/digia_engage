@@ -1,15 +1,19 @@
 /**
- * Payload delivered to the Digia rendering engine for a CEP campaign.
+ * The translation contract between a CEP plugin and Digia's rendering engine.
  *
- * Mirrors InAppPayload on Android / Flutter.
+ * Plugin authors map their CEP's native callback into this struct.
+ * Mirrors CEPTriggerPayload on Android / Flutter — Digia core never imports
+ * CleverTap, MoEngage, or WebEngage types directly.
  */
-export interface InAppPayload {
-    /** Unique campaign ID from the CEP platform. */
-    id: string;
-    /** Marketer-authored content map (JSON-serialisable). */
-    content: Record<string, unknown>;
-    /** CEP-platform metadata, e.g. { campaignId, campaignName }. */
-    cepContext: Record<string, unknown>;
+export interface CEPTriggerPayload {
+    /** The CEP's own identifier for this campaign instance. Opaque to Digia — passed through for analytics correlation. */
+    cepCampaignId: string;
+    /** Additional metadata the CEP passes through (UTM params, user segment, CEP-specific tracking fields). Forwarded as-is in ExperienceEvents. */
+    cepMetadata: Record<string, unknown>;
+    /** The coupling key linking this CEP campaign to a Digia campaign. Used to look up the matching campaign in the store. */
+    campaignKey: string;
+    /** Optional runtime variables to interpolate into the campaign config. Keys must match variable placeholders in the Digia dashboard. */
+    variables?: Record<string, string>;
 }
 
 export type CampaignType = 'nudge' | 'guide' | 'inline' | 'survey';
@@ -69,8 +73,13 @@ export type GuideLifecycleEvent =
  * Call these instead of touching Digia directly from inside a plugin.
  */
 export interface DigiaDelegate {
-    /** Deliver a campaign payload into the Digia rendering engine. */
-    onCampaignTriggered(payload: InAppPayload): void | Promise<void>;
+    /**
+     * Deliver a campaign payload into the Digia rendering engine.
+     * @returns `true` if accepted for display, `false` if dropped (frequency cap,
+     *   missing anchor, unknown key, …). Plugins holding a display lock must
+     *   release it on `false`.
+     */
+    onCampaignTriggered(payload: CEPTriggerPayload): boolean | Promise<boolean>;
     /** Invalidate / dismiss a campaign by its ID. */
     onCampaignInvalidated(campaignId: string): void;
 }
@@ -90,7 +99,7 @@ export interface DigiaPlugin {
      * (impressed / clicked / dismissed). Plugins use this to report
      * analytics back to their CEP platform.
      */
-    notifyEvent(event: DigiaExperienceEvent, payload: InAppPayload): void;
+    notifyEvent(event: DigiaExperienceEvent, payload: CEPTriggerPayload): void;
     /**
      * Called by the Digia SDK to record a named analytics event with properties.
      * Implement this to forward Digia lifecycle events (e.g. "Digia Experience Viewed")
@@ -170,8 +179,8 @@ export interface FrequencyEvalResult {
  * Configuration for initialising the Digia Engage SDK.
  */
 export interface DigiaConfig {
-    /** The Engage project ID — sent as x-digia-project-id on all SDK requests. */
-    projectId: string;
+    /** The Engage API key — sent as x-digia-project-id on all SDK requests. */
+    apiKey: string;
     /**
      * Base URL for the Digia API.
      * Defaults to the production API root, or the Engage sandbox root when

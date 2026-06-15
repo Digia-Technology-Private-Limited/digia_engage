@@ -4,7 +4,7 @@ import org.json.JSONObject
 
 internal sealed interface CampaignConfigModel {
         data class Guide(val guideConfig: GuideConfigModel) : CampaignConfigModel
-        object Nudge : CampaignConfigModel
+        data class Nudge(val nudgeConfig: NudgeConfig) : CampaignConfigModel
         data class Inline(val inlineConfig: InlineCarouselConfig) : CampaignConfigModel
         data class Story(val storyConfig: InlineStoryConfig) : CampaignConfigModel
         data class Survey(val surveyConfig: SurveyConfigModel) : CampaignConfigModel
@@ -15,9 +15,13 @@ internal data class CampaignModel(
         val campaignKey: String,
         val campaignType: String,
         val config: CampaignConfigModel,
+        val defaultVariables: Map<String, String> = emptyMap(),
 ) {
         val guideConfig: GuideConfigModel?
                 get() = (config as? CampaignConfigModel.Guide)?.guideConfig
+
+    val nudgeConfig: NudgeConfig?
+        get() = (config as? CampaignConfigModel.Nudge)?.nudgeConfig
 
         val surveyConfig: SurveyConfigModel?
                 get() = (config as? CampaignConfigModel.Survey)?.surveyConfig
@@ -45,7 +49,14 @@ internal data class CampaignModel(
                                                                         "guide campaign '$campaignKey' has no valid guide_config"
                                                                 )
                                                 )
-                                        "nudge" -> CampaignConfigModel.Nudge
+                                        "nudge" -> {
+                    val templateConfig = json.optJSONObject("templateConfig")
+                        ?: error("nudge campaign '$campaignKey' has no templateConfig")
+                    CampaignConfigModel.Nudge(
+                        NudgeConfig.fromJson(templateConfig)
+                            ?: error("nudge campaign '$campaignKey' has no valid nudge templateConfig")
+                    )
+                }
                                         "inline" -> {
                                                 val templateConfig =
                                                         json.optJSONObject("templateConfig")
@@ -93,7 +104,34 @@ internal data class CampaignModel(
                                 campaignKey = campaignKey,
                                 campaignType = campaignType,
                                 config = config,
+                                defaultVariables = parseDefaultVariables(json.optJSONObject("templateConfig")),
                         )
+                }
+
+                private fun parseDefaultVariables(templateConfig: JSONObject?): Map<String, String> {
+                        val raw = templateConfig?.opt("variables") ?: return emptyMap()
+                        val result = mutableMapOf<String, String>()
+                        when (raw) {
+                                // List format: [{name, fallbackValue, sampleValue}] — matches Flutter wire
+                                is org.json.JSONArray -> {
+                                        for (i in 0 until raw.length()) {
+                                                val entry = raw.optJSONObject(i) ?: continue
+                                                val name = entry.optString("name").ifBlank { null } ?: continue
+                                                result[name] = entry.optString("fallbackValue")
+                                        }
+                                }
+                                // Dict format: {key: value} — legacy or alternate representation
+                                is JSONObject -> {
+                                        raw.keys().forEach { k ->
+                                                when (val v = raw.opt(k)) {
+                                                        is String -> result[k] = v
+                                                        is Number -> result[k] = v.toString()
+                                                        is Boolean -> result[k] = v.toString()
+                                                }
+                                        }
+                                }
+                        }
+                        return result
                 }
 
                 private fun parseGuideConfig(
@@ -170,10 +208,6 @@ internal data class CampaignModel(
                                         }
                                                 ?: continue
                                 val widgetJson = widgetJsonForStep(stepJson) ?: continue
-                                android.util.Log.d(
-                                        "Digia",
-                                        "[CampaignModel] step anchorKey='$anchorKey' widgetConfig=$widgetJson",
-                                )
                                 steps.add(
                                         GuideStepModel(
                                                 id = stepId,

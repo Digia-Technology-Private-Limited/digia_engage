@@ -148,8 +148,10 @@ constructor(
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
- * A plain FrameLayout that registers itself in [AnchorRegistry] by [anchorKey].
+ * A plain FrameLayout that reports its on-screen position to the SDK under [anchorKey].
  * Used as a reference point for SHOW_TOOLTIP and SHOW_SPOTLIGHT overlays.
+ *
+ * Wrap the element you want to anchor to as the single child of this view.
  */
 class DigiaAnchorView
 @JvmOverloads
@@ -162,22 +164,37 @@ constructor(
     var anchorKey: String = ""
         set(value) {
             if (field == value) return
-            if (field.isNotEmpty()) AnchorRegistry.unregister(field)
+            if (field.isNotEmpty()) Digia.unregisterAnchor(field)
             field = value
-            if (value.isNotEmpty() && isAttachedToWindow) AnchorRegistry.register(value, this)
+            if (isAttachedToWindow) reportPosition()
         }
 
-    /** Corner radius (px) to use when drawing the spotlight cutout. */
-    var spotlightCornerRadius: Float = 0f
+    private val globalLayoutListener =
+        android.view.ViewTreeObserver.OnGlobalLayoutListener { reportPosition() }
 
     override fun onAttachedToWindow() {
         super.onAttachedToWindow()
-        if (anchorKey.isNotEmpty()) AnchorRegistry.register(anchorKey, this)
+        viewTreeObserver.addOnGlobalLayoutListener(globalLayoutListener)
+        reportPosition()
     }
 
     override fun onDetachedFromWindow() {
-        if (anchorKey.isNotEmpty()) AnchorRegistry.unregister(anchorKey)
+        viewTreeObserver.removeOnGlobalLayoutListener(globalLayoutListener)
+        if (anchorKey.isNotEmpty()) Digia.unregisterAnchor(anchorKey)
         super.onDetachedFromWindow()
+    }
+
+    private fun reportPosition() {
+        val key = anchorKey.takeIf { it.isNotEmpty() } ?: return
+        // Derive dimensions from the anchored child; the wrapper itself may not be laid out.
+        val target = if (childCount > 0) getChildAt(0) else this
+        val w = target.width
+        val h = target.height
+        if (w == 0 || h == 0) return // not measured yet — wait for the next layout pass
+        val loc = IntArray(2)
+        target.getLocationOnScreen(loc)
+        Digia.registerAnchor(key, loc[0], loc[1], w, h)
+        Digia.registerAnchorView(key, target)
     }
 }
 

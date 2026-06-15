@@ -36,18 +36,18 @@ const _sessionStore = new Map<string, FrequencyState>();
 const storeKey = (campaignKey: string) => `digia:freq:${campaignKey}`;
 
 export const frequencyStore = {
-    async checkProjectId(projectId: string): Promise<void> {
+    async checkApiKey(apiKey: string): Promise<void> {
         const storage = getStorage();
         if (!storage) return;
         try {
             const stored = await storage.getItem(STORE_META_KEY);
-            const meta = stored ? (JSON.parse(stored) as { projectId: string }) : null;
-            if (meta && meta.projectId !== projectId) {
+            const meta = stored ? (JSON.parse(stored) as { apiKey: string }) : null;
+            if (meta && meta.apiKey !== apiKey) {
                 const keys = await storage.getAllKeys();
                 const digiaKeys = keys.filter((k) => k.startsWith('digia:freq:'));
                 if (digiaKeys.length > 0) await storage.multiRemove([...digiaKeys]);
             }
-            await storage.setItem(STORE_META_KEY, JSON.stringify({ projectId }));
+            await storage.setItem(STORE_META_KEY, JSON.stringify({ apiKey }));
         } catch {
             // non-fatal
         }

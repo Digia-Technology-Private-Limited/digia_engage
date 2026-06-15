@@ -5,11 +5,11 @@ import type { VariableMap } from './interpolate';
 export interface DigiaGuideRequest {
     payloadId: string;
     campaignKey: string;
-    /** Digia backend UUID for this campaign (from the campaign store _id field). */
     campaignId: string;
     variables?: VariableMap;
     config: TemplateConfig;
     onExperienceEvent: (event: GuideLifecycleEvent) => void;
+    onEnd?: () => void;
 }
 
 type DigiaGuideControllerEvent =
@@ -46,8 +46,10 @@ class DigiaGuideController {
     cancel(payloadId: string): void {
         this._queue = this._queue.filter(r => r.payloadId !== payloadId);
         if (this._activeRequest?.payloadId === payloadId) {
+            const ended = this._activeRequest;
             this._listener?.({ type: 'cancel', payloadId });
             this._activeRequest = null;
+            ended.onEnd?.();
             this._dispatchNext();
         }
     }

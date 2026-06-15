@@ -10,6 +10,10 @@ import 'campaign/campaign_model.dart';
 import 'campaign/campaign_store.dart';
 import 'digia_overlay_controller.dart';
 import 'engage_fonts.dart';
+import 'event/cep_plugin_sink.dart';
+import 'event/digia_analytics_sink.dart';
+import 'event/engage_event_emitter.dart';
+import 'event/engage_event_router.dart';
 import 'sdk_state.dart';
 import 'survey/submission_reporter.dart';
 import 'survey/survey_logic_handler.dart';
@@ -73,6 +77,21 @@ class DigiaInstance with WidgetsBindingObserver implements DigiaCEPDelegate {
   /// Exposed so [DigiaHost] can subscribe at mount time.
   DigiaOverlayController get controller => _controller;
 
+  /// The SDK's experience-event emitter. Composition root: assembles the
+  /// concrete sinks behind the [EngageEventSink] abstraction. Built lazily on
+  /// first use — it only reads [_campaignStore] (ready) and [_activePlugin]
+  /// (resolved at dispatch time), so no init ordering is required.
+  late final EngageEventEmitter _events = EngageEventEmitter(
+    EngageEventRouter([
+      DigiaAnalyticsSink(DigiaAnalyticsService.instance, _campaignStore),
+      CepPluginSink(() => _activePlugin),
+    ]),
+  );
+
+  /// Experience-event emitter used by render surfaces ([DigiaSlot],
+  /// [DigiaHost], nudge widgets) to route lifecycle events to CEP and/or Digia.
+  EngageEventEmitter get events => _events;
+
   /// Gets the active inline campaign for a given placement key, if any.
   CEPTriggerPayload? getInlineCampaign(String placementKey) =>
       _controller.getSlot(placementKey);
@@ -98,24 +117,6 @@ class DigiaInstance with WidgetsBindingObserver implements DigiaCEPDelegate {
     // any failure leaves the SDK in [SDKState.failed] and resets the
     // started flag so a later call can retry.
     try {
-      // Wire the event callback — when DigiaHost reports a user interaction,
-      // route it to the active plugin.
-      _controller.onEvent = (event, payload) async {
-        final campaign = _campaignStore.find(payload.campaignKey);
-        await DigiaAnalyticsService.instance.captureExperienceEvent(
-          event,
-          payload,
-          campaignType: campaign?.campaignType,
-          campaignId: campaign?.id,
-        );
-
-        if (event.flushOnCapture) {
-          await DigiaAnalyticsService.instance.flush();
-        }
-
-        _activePlugin?.notifyEvent(event, payload);
-      };
-
       // Register the host's action override (if any) on the shared runner.
       EngageActionRunner.shared.interceptor = config.onAction;
 
@@ -265,8 +266,11 @@ class DigiaInstance with WidgetsBindingObserver implements DigiaCEPDelegate {
     switch (config) {
       case InlineCarouselCampaignConfig(:final inlineConfig):
         _controller.addInlineSlot(inlineConfig.slotKey, config, payload);
-        _controller.onEvent?.call(const ExperienceImpressed(), payload);
-        _controller.onEvent?.call(const ExperienceDismissed(), payload);
+        // CEP is notified instantly at route time (syncTemplate semantics).
+        // Digia's impression fires only when the slot first renders — see
+        // DigiaSlot._scheduleDigiaImpressionIfNeeded.
+        _events.toCep(const ExperienceImpressed(), payload);
+        _events.toCep(const ExperienceDismissed(), payload);
 
         _logIfVerbose(
           "inline carousel routed to slot '${inlineConfig.slotKey}' "
@@ -274,8 +278,9 @@ class DigiaInstance with WidgetsBindingObserver implements DigiaCEPDelegate {
         );
       case InlineStoryCampaignConfig(:final storyConfig):
         _controller.addInlineSlot(storyConfig.slotKey, config, payload);
-        _controller.onEvent?.call(const ExperienceImpressed(), payload);
-        _controller.onEvent?.call(const ExperienceDismissed(), payload);
+        // CEP instantly; Digia impression on first render (see DigiaSlot).
+        _events.toCep(const ExperienceImpressed(), payload);
+        _events.toCep(const ExperienceDismissed(), payload);
 
         _logIfVerbose(
           "inline story routed to slot '${storyConfig.slotKey}' "
@@ -339,6 +344,8 @@ class DigiaInstance with WidgetsBindingObserver implements DigiaCEPDelegate {
     }
     // Inline slot (carousel or story), if this campaign populated one.
     _controller.removeInlineSlotByCampaignId(campaignId);
+    // Forget the impression mark so a re-trigger impresses to Digia afresh.
+    _events.resetImpression(campaignId);
   }
 
   // ─── Survey lifecycle ──────────────────────────────────────────────────────

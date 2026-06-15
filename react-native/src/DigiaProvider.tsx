@@ -3,17 +3,20 @@ import {
     Animated,
     Dimensions,
     Modal,
+    Platform,
     Pressable,
     StyleSheet,
     Text,
     View,
     useWindowDimensions,
 } from 'react-native';
+
 import { computePosition, flip, offset, shift } from '@floating-ui/core';
 import Svg, { Path } from 'react-native-svg';
 import { Digia } from './Digia';
 import { digiaGuideController, type DigiaGuideRequest } from './DigiaGuideController';
 import { digiaAnchorRegistry, type AnchorLayout } from './digiaAnchorRegistry';
+import { digiaHealthReporter, HealthEventType } from './DigiaHealthReporter';
 import { digiaActionHandler, type ActionCallbacks } from './actionHandler';
 import type { DismissReason } from './types';
 import type { Action, SpotlightConfig, SpotlightStep, TooltipConfig, TooltipStep } from './templateTypes';
@@ -247,9 +250,25 @@ function TooltipOverlay({
         setLayout(null);
         setFloatPos(null);
         if (!ready) return;
+        if (!digiaAnchorRegistry.isRegistered(step.anchorKey)) {
+            // eslint-disable-next-line no-console
+            console.warn(`[Digia] campaign dropped — anchor_key "${step.anchorKey}" is not registered on this screen (campaign_key=${request.campaignKey}, step=${stepIndex})`);
+            digiaHealthReporter.report(HealthEventType.anchor_not_on_screen, {
+                campaign_key: request.campaignKey,
+                reason: 'anchor_key_not_registered',
+                anchor_key: step.anchorKey,
+                step_index: stepIndex,
+            });
+            digiaGuideController.cancel(request.payloadId);
+            return;
+        }
         let skipCached = false;
         const unsub = digiaAnchorRegistry.subscribe(step.anchorKey, (l) => {
             if (!skipCached) return;
+            if (l.width === 0 || l.height === 0) {
+                digiaGuideController.cancel(request.payloadId);
+                return;
+            }
             const { width: screenW, height: screenH } = Dimensions.get('window');
             if (l.pageY + l.height <= 0 || l.pageY >= screenH || l.pageX + l.width <= 0 || l.pageX >= screenW) {
                 digiaGuideController.cancel(request.payloadId);
@@ -632,9 +651,25 @@ function SpotlightOverlay({
     useEffect(() => {
         setLayout(null);
         if (!ready) return; // hold off measuring/showing until the delay has elapsed
+        if (!digiaAnchorRegistry.isRegistered(step.anchorKey)) {
+            // eslint-disable-next-line no-console
+            console.warn(`[Digia] campaign dropped — anchor_key "${step.anchorKey}" is not registered on this screen (campaign_key=${request.campaignKey}, step=${stepIndex})`);
+            digiaHealthReporter.report(HealthEventType.anchor_not_on_screen, {
+                campaign_key: request.campaignKey,
+                reason: 'anchor_key_not_registered',
+                anchor_key: step.anchorKey,
+                step_index: stepIndex,
+            });
+            digiaGuideController.cancel(request.payloadId);
+            return;
+        }
         let skipCached = false;
         const unsub = digiaAnchorRegistry.subscribe(step.anchorKey, (l) => {
             if (!skipCached) return;
+            if (l.width === 0 || l.height === 0) {
+                digiaGuideController.cancel(request.payloadId);
+                return;
+            }
             const { width: screenW, height: screenH } = Dimensions.get('window');
             if (l.pageY + l.height <= 0 || l.pageY >= screenH || l.pageX + l.width <= 0 || l.pageX >= screenW) {
                 digiaGuideController.cancel(request.payloadId);
@@ -811,8 +846,28 @@ function DigiaGuideRuntime() {
 }
 
 // ─── DigiaHost ────────────────────────────────────────────────────────────────
+//
+// Place once at the app root. Accepts optional children (wrap mode) or can be
+// used standalone (<DigiaHost />) as a sibling alongside other root elements.
+//
+// Renders ONLY the JS guide / tooltip / spotlight runtime (DigiaGuideRuntime).
+// Native overlays (nudges, dialogs, bottom sheets, surveys) render through the
+// single native overlay host that DigiaModule mounts imperatively after
+// Digia.initialize() — that host owns its own touch handling and claims touches
+// only while an overlay is active. Mounting a native host here as well would
+// render every overlay twice (one stacked behind the other), and a
+// React-tree host is not reliably touch-correct under the New Architecture.
 
-export function DigiaHost() {
+export function DigiaHost({ children }: { children?: React.ReactNode }) {
+    if (children != null) {
+        return (
+            <>
+                {children}
+                <DigiaGuideRuntime />
+            </>
+        );
+    }
+
     return <DigiaGuideRuntime />;
 }
 
