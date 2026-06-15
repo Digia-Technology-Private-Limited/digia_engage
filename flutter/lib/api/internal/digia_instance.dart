@@ -71,6 +71,11 @@ class DigiaInstance with WidgetsBindingObserver implements DigiaCEPDelegate {
   /// Guards double-firing the survey `Completed` event for one showing.
   int? _completedSurveyToken;
 
+  /// Guards double-firing the survey `Clicked` engagement event for one
+  /// showing. Fired on the welcome CTA, or on the first question's CTA when
+  /// the welcome screen is hidden.
+  int? _clickedSurveyToken;
+
   /// Controller for inline campaigns, notifies when they change.
   // final InlineCampaignController inlineController = InlineCampaignController();
 
@@ -301,7 +306,8 @@ class DigiaInstance with WidgetsBindingObserver implements DigiaCEPDelegate {
             'another survey is on screen.',
           );
         } else {
-          _logIfVerbose('survey scheduled (campaignKey=${campaign.campaignKey}).');
+          _logIfVerbose(
+              'survey scheduled (campaignKey=${campaign.campaignKey}).');
         }
       case UnsupportedCampaignConfig(:final reason):
         debugPrint(
@@ -351,20 +357,34 @@ class DigiaInstance with WidgetsBindingObserver implements DigiaCEPDelegate {
   // ─── Survey lifecycle ──────────────────────────────────────────────────────
   // Called by `SurveyRenderer` as the showing progresses. Each fires the
   // matching experience event to the active CEP plugin + analytics, via the
-  // same `onEvent` channel nudges use.
+  // same `_events` emitter nudges use.
 
   /// Fired once when the survey first becomes visible (its impression).
   void reportSurveyStarted() {
     final state = _surveyOrchestrator.state;
     if (state == null) return;
-    _controller.onEvent?.call(const ExperienceImpressed(), state.payload);
+    _events.toAll(const ExperienceImpressed(), state.payload);
   }
 
-  /// Fired after each step is answered. [stepId] identifies the node.
+  /// Fired after a question (any block other than welcome) is answered.
+  /// [stepId] identifies the node. First-party Digia analytics only.
   void reportSurveyAnswered(String stepId, Map<String, dynamic> answer) {
     final state = _surveyOrchestrator.state;
     if (state == null) return;
-    _controller.onEvent?.call(ExperienceClicked(elementId: stepId), state.payload);
+    _events.toDigia(
+      DigiaQuestionAnswered(stepId: stepId, answer: answer),
+      state.payload,
+    );
+  }
+
+  /// Fired for the survey's single `Clicked` engagement signal — on the welcome
+  /// screen's start CTA, or on the first question's CTA when the welcome screen
+  /// is hidden. Idempotent per showing. First-party Digia analytics only.
+  void reportWelcomeCtaClicked() {
+    final state = _surveyOrchestrator.state;
+    if (state == null || _clickedSurveyToken == state.token) return;
+    _clickedSurveyToken = state.token;
+    _events.toDigia(const ExperienceClicked(), state.payload);
   }
 
   /// Fired once when the survey finishes (idempotent per showing). Beyond the
@@ -377,7 +397,8 @@ class DigiaInstance with WidgetsBindingObserver implements DigiaCEPDelegate {
     final state = _surveyOrchestrator.state;
     if (state == null || _completedSurveyToken == state.token) return;
     _completedSurveyToken = state.token;
-    _controller.onEvent?.call(const ExperienceCompleted(), state.payload);
+    _events.toDigia(const ExperienceCompleted(), state.payload);
+
     if (answers.isNotEmpty) {
       _logIfVerbose(
         'survey submission started: campaignKey=${state.campaign.campaignKey}, '
@@ -397,19 +418,15 @@ class DigiaInstance with WidgetsBindingObserver implements DigiaCEPDelegate {
     Map<String, SurveyAnswer> answers = const {},
   ]) {
     reportSurveyCompleted(response, answers);
-    _surveyOrchestrator.dismiss();
   }
 
   /// Clears the active survey after the user closes the result page.
-  void dismissCompletedSurvey() {
-    _surveyOrchestrator.dismiss();
-  }
 
   /// Fired when the user closes the survey without completing it.
   void markSurveyDismissed() {
     final state = _surveyOrchestrator.state;
     if (state == null) return;
-    _controller.onEvent?.call(const ExperienceDismissed(), state.payload);
+    _events.toAll(const ExperienceDismissed(), state.payload);
     _surveyOrchestrator.dismiss();
   }
 

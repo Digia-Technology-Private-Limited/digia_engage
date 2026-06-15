@@ -474,10 +474,11 @@ class _SurveyRendererState extends State<SurveyRenderer> {
       backgroundColor: background,
       barrierColor: Colors.black.withValues(alpha: 0.4),
       shape: RoundedRectangleBorder(
-        borderRadius:
-            BorderRadius.vertical(top: Radius.circular(sheet.cornerRadius.toDouble())),
+        borderRadius: BorderRadius.vertical(
+            top: Radius.circular(sheet.cornerRadius.toDouble())),
       ),
-      constraints: maxHeight == null ? null : BoxConstraints(maxHeight: maxHeight),
+      constraints:
+          maxHeight == null ? null : BoxConstraints(maxHeight: maxHeight),
       builder: (_) => content,
     );
   }
@@ -493,7 +494,8 @@ class _SurveyRendererState extends State<SurveyRenderer> {
       DialogWidthPreset.small => media.size.width * 0.6,
       DialogWidthPreset.medium => media.size.width * 0.8,
       DialogWidthPreset.large => media.size.width * 0.95,
-      DialogWidthPreset.custom => dialog.customWidth.clamp(200, 1 << 20).toDouble(),
+      DialogWidthPreset.custom =>
+        dialog.customWidth.clamp(200, 1 << 20).toDouble(),
     };
     return showDialog<bool>(
       context: ctx,
@@ -571,7 +573,15 @@ class _SurveyModalContentState extends State<_SurveyModalContent> {
     }
     if (_c.isComplete && !_finishing) {
       _finishing = true;
-      DigiaInstance.instance.markSurveyCompleted(_c.responsePayload(), _c.answers);
+      final instance = DigiaInstance.instance;
+      instance.markSurveyCompleted(_c.responsePayload(), _c.answers);
+      // Completing is NOT the same as dismissing: a result page is its own node,
+      // so when one is still to be shown we leave the survey up and let the user
+      // close it (Done → markSurveyDismissed). Only when no node is left in the
+      // path do we dismiss here, so the route isn't left open showing nothing.
+      if (_c.currentBlock?.type != SurveyBlockType.resultPage) {
+        instance.markSurveyDismissed();
+      }
     }
     if (mounted) setState(() {});
   }
@@ -605,7 +615,7 @@ class _SurveyModalContentState extends State<_SurveyModalContent> {
         survey: widget.survey,
         accent: widget.accent,
         onClose: () => DigiaInstance.instance.markSurveyDismissed(),
-        onCompletedClose: () => DigiaInstance.instance.dismissCompletedSurvey(),
+        onCompletedClose: () => DigiaInstance.instance.markSurveyDismissed(),
         showCloseButton: widget.showCloseButton,
       ),
     );
@@ -646,8 +656,12 @@ class _SurveyPanelState extends State<_SurveyPanel> {
         block: welcome,
         cta: widget.survey.settings.cta,
         accent: widget.accent,
-        showClose: widget.showCloseButton && widget.survey.settings.display.dismissible,
-        onStart: () => setState(() => _welcomeDone = true),
+        showClose: widget.showCloseButton &&
+            widget.survey.settings.display.dismissible,
+        onStart: () {
+          DigiaInstance.instance.reportWelcomeCtaClicked();
+          setState(() => _welcomeDone = true);
+        },
         onClose: widget.onClose,
       );
     }
@@ -709,7 +723,8 @@ class _WelcomeScreen extends StatelessWidget {
             const SizedBox(height: 12),
           ],
           _BlockTitle(block: block),
-          if (block.showMedia && block.media.position == MediaPosition.inline) ...[
+          if (block.showMedia &&
+              block.media.position == MediaPosition.inline) ...[
             const SizedBox(height: 12),
             _BlockMediaImage(block.media),
           ],
@@ -786,7 +801,8 @@ class _SurveyBodyState extends State<_SurveyBody> {
     final timer = _survey.settings.timer;
     if (!timer.enabled || timer.timeLimitSeconds <= 0) return;
     final block = _c.currentBlock;
-    final paused = timer.pauseOnNonTimerBlock && (block?.type.isContent ?? false);
+    final paused =
+        timer.pauseOnNonTimerBlock && (block?.type.isContent ?? false);
     if (paused) {
       _ticker?.cancel();
       _ticker = null;
@@ -805,7 +821,8 @@ class _SurveyBodyState extends State<_SurveyBody> {
 
   void _reportCompletionIfResultIsNext() {
     if (!_completionReported && _c.nextBlockIsResultPage()) {
-      DigiaInstance.instance.reportSurveyCompleted(_c.responsePayload(), _c.answers);
+      DigiaInstance.instance
+          .reportSurveyCompleted(_c.responsePayload(), _c.answers);
       _completionReported = true;
     }
   }
@@ -820,7 +837,8 @@ class _SurveyBodyState extends State<_SurveyBody> {
         answer?.isAnswered == true;
     if (!candidate) return;
     // Arm once per (node, answer) so re-emits of the same answer don't stack.
-    final armKey = '${node.id}:${answer!.values.join(',')}:${answer.comment ?? ''}';
+    final armKey =
+        '${node.id}:${answer!.values.join(',')}:${answer.comment ?? ''}';
     if (_autoAdvanceArmedFor == armKey) return;
     _autoAdvanceArmedFor = armKey;
     _autoAdvanceTimer?.cancel();
@@ -840,6 +858,12 @@ class _SurveyBodyState extends State<_SurveyBody> {
     final key = '${node.id}:${answer.values.join(',')}:${answer.comment ?? ''}';
     if (_lastAnsweredKey == key) return;
     _lastAnsweredKey = key;
+    // No welcome screen ⇒ no welcome CTA, so the survey's single `Clicked`
+    // engagement signal is emitted on the first question's CTA instead.
+    // Guarded to once per showing by DigiaInstance.
+    if (_survey.welcomeBlock() == null) {
+      DigiaInstance.instance.reportWelcomeCtaClicked();
+    }
     DigiaInstance.instance.reportSurveyAnswered(node.id, answer.toMap());
   }
 
@@ -868,14 +892,24 @@ class _SurveyBodyState extends State<_SurveyBody> {
     final timerCfg = _survey.settings.timer;
     final cta = _survey.settings.cta;
 
-    final position = _visibleIndexOf(_survey, node) + 1;
-    final total = _survey.nodes.isEmpty ? 1 : _survey.nodes.length;
+    // A branching survey stores one node per branch target, so the same screen
+    // (block) can appear under several nodes — counting raw nodes overcounts the
+    // steps. Count distinct blocks instead, in node order, so the bar shows one
+    // segment per real screen regardless of how many branches reuse it.
+    final orderedBlockIds = <String>[];
+    for (final n in _survey.nodes) {
+      if (!orderedBlockIds.contains(n.blockId)) orderedBlockIds.add(n.blockId);
+    }
+    final total = orderedBlockIds.isEmpty ? 1 : orderedBlockIds.length;
+    final blockIndex = orderedBlockIds.indexOf(node.blockId);
+    final position = blockIndex >= 0 ? blockIndex + 1 : 1;
 
-    final hasInlineCta =
-        block.type == SurveyBlockType.welcome || block.type == SurveyBlockType.resultPage;
+    final hasInlineCta = block.type == SurveyBlockType.welcome ||
+        block.type == SurveyBlockType.resultPage;
     final canAutoAdvanceThisBlock =
         _survey.settings.autoAdvance && block.type.isAutoAdvanceCandidate;
-    final showNext = !hasInlineCta && (_survey.settings.chooseButton || !canAutoAdvanceThisBlock);
+    final showNext = !hasInlineCta &&
+        (_survey.settings.chooseButton || !canAutoAdvanceThisBlock);
 
     final blockBg = surveyColorOrNull(block.backgroundColorHex);
     final showBarHere = pagination.progressbar &&
@@ -926,7 +960,8 @@ class _SurveyBodyState extends State<_SurveyBody> {
                   accent: widget.accent,
                 ),
               ],
-              if (widget.showCloseButton && _survey.settings.display.dismissible) ...[
+              if (widget.showCloseButton &&
+                  _survey.settings.display.dismissible) ...[
                 const SizedBox(width: 10),
                 _CloseButton(onTap: widget.onClose),
               ],
@@ -943,13 +978,15 @@ class _SurveyBodyState extends State<_SurveyBody> {
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    if (block.showMedia && block.media.position == MediaPosition.top) ...[
+                    if (block.showMedia &&
+                        block.media.position == MediaPosition.top) ...[
                       _BlockMediaImage(block.media),
                       const SizedBox(height: 12),
                     ],
                     _CategoryPill(block: block, accent: widget.accent),
                     _BlockTitle(block: block),
-                    if (block.showMedia && block.media.position == MediaPosition.inline) ...[
+                    if (block.showMedia &&
+                        block.media.position == MediaPosition.inline) ...[
                       const SizedBox(height: 12),
                       _BlockMediaImage(block.media),
                     ],
@@ -986,7 +1023,7 @@ class _SurveyBodyState extends State<_SurveyBody> {
           foreground: Colors.white,
           cornerRadius: 8,
           onTap: () {
-            DigiaInstance.instance.reportSurveyAnswered(node.id, const {});
+            DigiaInstance.instance.reportWelcomeCtaClicked();
             _c.advance();
           },
           fullWidth: false,
@@ -998,7 +1035,9 @@ class _SurveyBodyState extends State<_SurveyBody> {
           onDone: widget.onCompletedClose,
         );
       case SurveyBlockType.textMedia:
-        return block.media.hasUrl ? const SizedBox.shrink() : const _MediaPlaceholder();
+        return block.media.hasUrl
+            ? const SizedBox.shrink()
+            : const _MediaPlaceholder();
       default:
         return SurveyQuestionContent(
           block: block,
@@ -1033,7 +1072,8 @@ class _ProgressBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final activeColor = surveyColorOrNull(indicator.activeColorHex) ?? accent;
-    final trackColor = surveyColorOrNull(indicator.trackColorHex) ?? SurveyTokens.surfaceSunken;
+    final trackColor = surveyColorOrNull(indicator.trackColorHex) ??
+        SurveyTokens.surfaceSunken;
     final barHeight = indicator.height;
     final radius = BorderRadius.circular(indicator.cornerRadius);
 
@@ -1097,7 +1137,8 @@ class _TimerChip extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       child: Text(
         '$minutes:${seconds.toString().padLeft(2, '0')}',
-        style: TextStyle(color: tint, fontSize: 11, fontWeight: FontWeight.w600),
+        style:
+            TextStyle(color: tint, fontSize: 11, fontWeight: FontWeight.w600),
       ),
     );
   }
@@ -1125,7 +1166,8 @@ class _CategoryPill extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
         child: Text(
           label.toUpperCase(),
-          style: TextStyle(color: accent, fontSize: 10.5, fontWeight: FontWeight.bold),
+          style: TextStyle(
+              color: accent, fontSize: 10.5, fontWeight: FontWeight.bold),
         ),
       ),
     );
@@ -1182,7 +1224,8 @@ class _BlockMediaImage extends StatelessWidget {
         border: Border.all(color: SurveyTokens.border),
       ),
       clipBehavior: Clip.antiAlias,
-      child: Image.network(media.url, fit: fit, errorBuilder: (_, __, ___) => const SizedBox.shrink()),
+      child: Image.network(media.url,
+          fit: fit, errorBuilder: (_, __, ___) => const SizedBox.shrink()),
     );
   }
 }
@@ -1209,7 +1252,8 @@ class _ResultPagePanel extends StatelessWidget {
   final Color accent;
   final VoidCallback onDone;
 
-  const _ResultPagePanel({required this.cta, required this.accent, required this.onDone});
+  const _ResultPagePanel(
+      {required this.cta, required this.accent, required this.onDone});
 
   @override
   Widget build(BuildContext context) => _CtaButton(
@@ -1266,10 +1310,13 @@ class _FooterRow extends StatelessWidget {
             OutlinedButton(
               onPressed: onBack,
               style: OutlinedButton.styleFrom(
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(radius)),
-                padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(radius)),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
               ),
-              child: Text(cta.backLabel, style: const TextStyle(color: SurveyTokens.textPrimary)),
+              child: Text(cta.backLabel,
+                  style: const TextStyle(color: SurveyTokens.textPrimary)),
             ),
           ],
         ],
@@ -1282,7 +1329,8 @@ class _FooterRow extends StatelessWidget {
         if (canGoBack) ...[
           TextButton(
             onPressed: onBack,
-            child: Text(cta.backLabel, style: const TextStyle(color: SurveyTokens.textSecondary)),
+            child: Text(cta.backLabel,
+                style: const TextStyle(color: SurveyTokens.textSecondary)),
           ),
           const SizedBox(width: 12),
         ],
@@ -1322,7 +1370,8 @@ class _CtaButton extends StatelessWidget {
           child: Center(
             widthFactor: fullWidth ? null : 1,
             child: Text(label,
-                style: TextStyle(color: foreground, fontWeight: FontWeight.w600)),
+                style:
+                    TextStyle(color: foreground, fontWeight: FontWeight.w600)),
           ),
         ),
       ),
@@ -1349,22 +1398,19 @@ class _CloseButton extends StatelessWidget {
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 
-Color _ctaBg(CtaSettings cta, Color accent) => surveyColorOrNull(cta.bgColorHex) ?? accent;
-Color _ctaText(CtaSettings cta) => surveyColorOrNull(cta.textColorHex) ?? Colors.white;
+Color _ctaBg(CtaSettings cta, Color accent) =>
+    surveyColorOrNull(cta.bgColorHex) ?? accent;
+Color _ctaText(CtaSettings cta) =>
+    surveyColorOrNull(cta.textColorHex) ?? Colors.white;
 
-MainAxisAlignment _rowArrangement(CtaArrangement arrangement) => switch (arrangement) {
+MainAxisAlignment _rowArrangement(CtaArrangement arrangement) =>
+    switch (arrangement) {
       CtaArrangement.spaceBetween => MainAxisAlignment.spaceBetween,
       CtaArrangement.spaceEvenly => MainAxisAlignment.spaceEvenly,
       CtaArrangement.center => MainAxisAlignment.center,
       CtaArrangement.start => MainAxisAlignment.start,
       CtaArrangement.end => MainAxisAlignment.end,
     };
-
-/// Position of [node] within the survey's node list (0-based).
-int _visibleIndexOf(SurveyConfigModel survey, SurveyNode node) {
-  final idx = survey.nodes.indexWhere((n) => n.id == node.id);
-  return idx < 0 ? 0 : idx;
-}
 
 /// Footer Next-button label. "Done" on the terminal node; "Next" otherwise.
 String _footerNextLabel(
@@ -1380,7 +1426,8 @@ String _footerNextLabel(
       switch (target.kind) {
         BranchTargetKind.end => true,
         BranchTargetKind.next =>
-          survey.nodes.indexWhere((n) => n.id == node.id) == survey.nodes.length - 1,
+          survey.nodes.indexWhere((n) => n.id == node.id) ==
+              survey.nodes.length - 1,
         _ => false,
       };
   return terminates ? cta.doneLabel : cta.nextLabel;
@@ -1390,7 +1437,9 @@ String? _categoryLabel(SurveyBlockType type) => switch (type) {
       SurveyBlockType.singleSelect => 'Select one answer',
       SurveyBlockType.multiSelect => 'Select all that apply',
       SurveyBlockType.rating => 'Rate it',
-      SurveyBlockType.nps || SurveyBlockType.npsEmoji || SurveyBlockType.npsSmiley =>
+      SurveyBlockType.nps ||
+      SurveyBlockType.npsEmoji ||
+      SurveyBlockType.npsSmiley =>
         'Promoter score',
       SurveyBlockType.reaction => 'Reaction poll',
       SurveyBlockType.thisOrThat => 'This or that',
@@ -1401,5 +1450,8 @@ String? _categoryLabel(SurveyBlockType type) => switch (type) {
       SurveyBlockType.number => 'Number',
       SurveyBlockType.email => 'Email',
       SurveyBlockType.date => 'Date picker',
-      SurveyBlockType.welcome || SurveyBlockType.textMedia || SurveyBlockType.resultPage => null,
+      SurveyBlockType.welcome ||
+      SurveyBlockType.textMedia ||
+      SurveyBlockType.resultPage =>
+        null,
     };
