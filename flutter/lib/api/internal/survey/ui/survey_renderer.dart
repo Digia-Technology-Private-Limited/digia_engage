@@ -1,8 +1,10 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:url_launcher/url_launcher.dart';
 
+import '../../action/engage_action.dart';
+import '../../action/engage_action_context.dart';
+import '../../action/engage_action_handler.dart';
 import '../../digia_instance.dart';
 import '../survey_config.dart';
 import '../survey_controller.dart';
@@ -587,11 +589,22 @@ class _SurveyModalContentState extends State<_SurveyModalContent> {
   }
 
   Future<void> _openRedirect(String url) async {
-    final uri = Uri.tryParse(url);
-    if (uri == null) return;
-    try {
-      await launchUrl(uri, mode: LaunchMode.externalApplication);
-    } catch (_) {/* best effort */}
+    if (url.isEmpty || !mounted) return;
+    // Route through the engage action runner (like inline/nudge CTAs) so the
+    // host's `onAction` override is consulted before the default open. Built
+    // synchronously here, before the completing survey tears down the route.
+    final state = DigiaInstance.instance.surveyOrchestrator.state;
+    final scope = EngageActionScope.fromContext(context);
+    final actionContext = EngageActionContext(
+      campaignId: state?.campaign.id ?? '',
+      campaignKey: state?.campaign.campaignKey ?? '',
+      surface: EngageSurface.survey,
+    );
+    await EngageActionRunner.shared.run(
+      [OpenDeeplinkAction(url)],
+      scope,
+      actionContext,
+    );
   }
 
   @override

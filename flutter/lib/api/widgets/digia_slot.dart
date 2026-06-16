@@ -109,6 +109,22 @@ class _DigiaSlotState extends State<DigiaSlot> {
 
   /// Opens a carousel slide's `deepLink` through the engage action runner, so
   /// the host's `onAction` override is consulted before the SDK's default open.
+  /// Campaign context for this slot's actions, resolved from the active trigger
+  /// payload (the same id analytics reports). Shared by the carousel deeplink
+  /// and the story CTA so both attribute to the right campaign.
+  EngageActionContext _actionContext() {
+    final payload =
+        DigiaInstance.instance.controller.getSlot(widget.placementKey);
+    final campaign = payload == null
+        ? null
+        : DigiaInstance.instance.campaignForKey(payload.campaignKey);
+    return EngageActionContext(
+      campaignId: campaign?.id ?? '',
+      campaignKey: payload?.campaignKey ?? '',
+      surface: EngageSurface.inline,
+    );
+  }
+
   void _onCarouselItemTap(CarouselItem item) {
     // The deeplink arrives already resolved against the slot's [VariableScope]
     // (see DigiaInlineCarousel), so it only needs to be opened here.
@@ -117,11 +133,7 @@ class _DigiaSlotState extends State<DigiaSlot> {
     EngageActionRunner.shared.run(
       [OpenDeeplinkAction(deepLink)],
       EngageActionScope.fromContext(context),
-      const EngageActionContext(
-        campaignId: '',
-        campaignKey: '',
-        surface: EngageSurface.inline,
-      ),
+      _actionContext(),
     );
   }
 
@@ -154,7 +166,10 @@ class _DigiaSlotState extends State<DigiaSlot> {
         );
       case InlineStoryCampaignConfig(:final storyConfig):
         _scheduleDigiaImpressionIfNeeded();
-        return _scoped(DigiaInlineStory(config: storyConfig));
+        return _scoped(DigiaInlineStory(
+          config: storyConfig,
+          actionContext: _actionContext(),
+        ));
       case _:
         return widget.placeholder ?? const SizedBox.shrink();
     }

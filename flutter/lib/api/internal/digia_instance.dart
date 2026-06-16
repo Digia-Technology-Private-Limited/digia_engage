@@ -330,6 +330,11 @@ class DigiaInstance with WidgetsBindingObserver implements DigiaCEPDelegate {
     return campaign;
   }
 
+  /// Looks up a cached campaign by its [campaignKey]. Used by inline surfaces to
+  /// attach campaign context to their actions (the same id analytics reports).
+  CampaignModel? campaignForKey(String campaignKey) =>
+      _campaignStore.find(campaignKey);
+
   /// Routes a campaign that arrived during initialization, once ready.
   void _flushPendingPayloadIfAny() {
     final payload = _pendingPayload;

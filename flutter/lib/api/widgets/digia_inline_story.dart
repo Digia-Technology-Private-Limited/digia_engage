@@ -16,9 +16,15 @@ import 'story/digia_story_overlay.dart';
 class DigiaInlineStory extends StatelessWidget {
   final InlineStoryConfig config;
 
+  /// Campaign context (resolved by [DigiaSlot]) attached to the story CTA's
+  /// action so it attributes to the right campaign and reaches the host's
+  /// `onAction` override.
+  final EngageActionContext actionContext;
+
   const DigiaInlineStory({
     super.key,
     required this.config,
+    required this.actionContext,
   });
 
   @override
@@ -49,11 +55,7 @@ class DigiaInlineStory extends StatelessWidget {
               config: config,
               initialIndex: index,
               scope: scope,
-              actionContext: const EngageActionContext(
-                campaignId: '',
-                campaignKey: '',
-                surface: EngageSurface.inline,
-              ),
+              actionContext: actionContext,
             ),
             child: ClipRRect(
               borderRadius: radius,
