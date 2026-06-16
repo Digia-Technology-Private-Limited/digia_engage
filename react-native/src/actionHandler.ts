@@ -123,11 +123,16 @@ async function runDefault(
                 });
                 return;
             }
-            const canOpen = await Linking.canOpenURL(action.url).catch(() => false);
-            if (canOpen) {
-                Linking.openURL(action.url).catch(() => {});
+            try {
+                const canOpenDiag = await Linking.canOpenURL(action.url).catch((e) => `err:${e}`);
+                console.log(`[Digia][diag] deep_link url=${action.url} canOpenURL=${canOpenDiag} — calling openURL`);
+                await Linking.openURL(action.url);
+                console.log(`[Digia][diag] openURL RESOLVED for ${action.url}`);
                 callbacks.onDismissSelf();
                 return;
+            } catch (e) {
+                console.log(`[Digia][diag] openURL REJECTED for ${action.url}: ${e}`);
+                // not routable — fall through to fallback_url / no-handler health event
             }
             if (action.fallback_url) {
                 if (!isValidUrl(action.fallback_url)) {
@@ -135,11 +140,12 @@ async function runDefault(
                         url: action.fallback_url, action_type: 'deep_link', campaign_id: context.campaign_id,
                     });
                 } else {
-                    const canOpenFallback = await Linking.canOpenURL(action.fallback_url).catch(() => false);
-                    if (canOpenFallback) {
-                        Linking.openURL(action.fallback_url).catch(() => {});
+                    try {
+                        await Linking.openURL(action.fallback_url);
                         callbacks.onDismissSelf();
                         return;
+                    } catch {
+                        // fall through to no-handler health event
                     }
                 }
             }
@@ -258,6 +264,10 @@ const execute = async (
     // 3. Run default if not handled
     if (!handled) {
         await runDefault(action, context, callbacks);
+        return;
+    }
+    if (action.type === 'deep_link' || action.type === 'open_url') {
+        callbacks.onDismissSelf();
     }
 };
 

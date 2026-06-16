@@ -212,12 +212,6 @@ private fun nudgeImageRequest(context: Context, url: String): ImageRequest =
 
 // ─── button ───────────────────────────────────────────────────────────────────
 
-/**
- * Forwards a URL-bearing nudge action (open_url / deep_link) to the host via
- * the controller's onAction hook so the RN/host app can route it (honouring any
- * Digia.init onAction override). Falls back to a native ACTION_VIEW intent when
- * no host handles it (e.g. a pure-native integration with no RN bridge).
- */
 private fun forwardOrOpenUrl(context: Context, actionType: String, url: String) {
     val payload = DigiaInstance.controller.nudgeOverlay.value?.payload
     val handled = payload?.let { DigiaInstance.controller.onAction?.invoke(actionType, url, it) } ?: false

@@ -57,11 +57,6 @@ internal class DisplayCoordinator(
         }
     }
 
-    /**
-     * Forwards a navigation action (deep link / open url) from an overlay button
-     * to the active CEP plugin. Returns `true` if a plugin handled it so the
-     * caller can fall back to native behaviour otherwise.
-     */
     fun onOverlayAction(actionType: String, url: String, payload: InAppPayload): Boolean {
         Logger.verbose("Overlay action: type=$actionType id=${payload.id}")
         return pluginRegistry.notifyAction(actionType, url, payload)
