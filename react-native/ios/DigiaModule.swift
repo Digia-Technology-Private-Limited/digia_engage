@@ -148,39 +148,19 @@ final class DigiaModule: RCTEventEmitter {
     // ────────────────────────────────────────────────────────────────────────
     // MARK: - Analytics identity
 
-    /// Sets the authenticated user ID for analytics identity stitching.
-    ///
-    /// Mirrors Android's DigiaModule.setUserId(). The public iOS SDK does not
-    /// expose Digia.setUserId yet, so this is a no-op placeholder (like
-    /// setCurrentScreen) that exists to satisfy the JS NativeDigiaEngage spec —
-    /// without it, `getModule()?.setUserId(...)` throws on iOS. Activate the body
-    /// once the iOS SDK adds the public API.
     @objc
     func setUserId(_ userId: String) {
-        // Digia.setUserId(userId)
+        Task { @MainActor in Digia.setUserId(userId) }
     }
 
-    /// Clears the user ID (e.g. on logout). No-op placeholder — see setUserId.
     @objc
     func clearUserId() {
-        // Digia.clearUserId()
+        Task { @MainActor in Digia.clearUserId() }
     }
 
     // ────────────────────────────────────────────────────────────────────────
     // MARK: - trackEvent (guide / JS-rendered campaigns)
 
-    /// Records an analytics event originating from JS-rendered campaigns
-    /// (guides / tooltips / spotlights). Native campaigns (nudge, inline,
-    /// survey) are tracked internally by the SDK.
-    ///
-    /// Mirrors Android's DigiaModule.trackEvent(), which forwards to
-    /// Digia.captureAnalyticsEvent(event, payload). The public iOS SDK does not
-    /// expose an equivalent capture API yet, so iOS analytics for JS-rendered
-    /// campaigns are not forwarded — this method logs the event and otherwise
-    /// no-ops. It MUST exist regardless: without it,
-    /// `getModule()?.trackEvent(...)` throws "trackEvent is not a function" and
-    /// crashes the JS render tree (DigiaProvider). Wire up the body once the iOS
-    /// SDK adds a public capture API.
     @objc
     func trackEvent(
         _ eventType: String,
@@ -189,7 +169,34 @@ final class DigiaModule: RCTEventEmitter {
         campaignType: String,
         elementId: String?
     ) {
-        print("[DigiaRN] trackEvent type=\(eventType) campaignId=\(campaignId) campaignKey=\(campaignKey) campaignType=\(campaignType) elementId=\(elementId ?? "nil") — iOS capture API not available, dropping")
+        print("[DigiaAnalytics] [DigiaRN] trackEvent type=\(eventType) campaignId=\(campaignId) campaignKey=\(campaignKey) campaignType=\(campaignType) elementId=\(elementId ?? "nil")")
+
+        let event: DigiaExperienceEvent
+        switch eventType.lowercased() {
+        case "impressed", "viewed": event = .impressed
+        case "clicked": event = .clicked(elementID: elementId)
+        case "dismissed": event = .dismissed
+        default:
+            print("[DigiaAnalytics] [DigiaRN] trackEvent: unknown eventType '\(eventType)' — dropping")
+            return
+        }
+
+        let payload = InAppPayload(
+            id: campaignId,
+            content: InAppPayloadContent(
+                type: campaignType,
+                args: [
+                    "campaign_id": .string(campaignId),
+                    "campaign_key": .string(campaignKey),
+                    "campaign_type": .string(campaignType),
+                ],
+                campaignKey: campaignKey
+            )
+        )
+
+        Task { @MainActor in
+            Digia.captureAnalyticsEvent(event, payload: payload)
+        }
     }
 
     // ────────────────────────────────────────────────────────────────────────

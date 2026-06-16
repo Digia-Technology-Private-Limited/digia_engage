@@ -2,7 +2,10 @@ package com.digia.engage.internal.analytics
 
 import java.util.UUID
 
-internal class AnalyticsIdentityManager(private val store: KeyValueStore) {
+internal class AnalyticsIdentityManager(
+    private val store: KeyValueStore,
+    private val deviceIdSeed: String? = null,
+) {
 
     private var _anonymousId: String = ""
     private var _userId: String? = null
@@ -50,7 +53,7 @@ internal class AnalyticsIdentityManager(private val store: KeyValueStore) {
     private fun loadOrCreate(key: String): String {
         val existing = store.getString(key, null)
         if (!existing.isNullOrBlank()) return existing
-        val id = UUID.randomUUID().toString()
+        val id = deviceIdSeed ?: UUID.randomUUID().toString()
         store.putString(key, id)
         return id
     }
