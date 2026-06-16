@@ -59,6 +59,17 @@ internal final class RNEventBridgePlugin: NSObject, DigiaCEPPlugin {
         eventEmitter?.sendEvent(withName: "digiaEngageEvent", body: body)
     }
 
+    func notifyAction(actionType: String, url: String, payload: InAppPayload) {
+        let body: [String: Any] = [
+            "campaignId": payload.id,
+            "type": "action",
+            "actionType": actionType,
+            "url": url,
+        ]
+        print("[DigiaRN] RNEventBridgePlugin.notifyAction actionType=\(actionType) url=\(url) campaignId=\(payload.id)")
+        eventEmitter?.sendEvent(withName: "digiaEngageEvent", body: body)
+    }
+
     func healthCheck() -> DiagnosticReport {
         return DiagnosticReport(
             isHealthy: delegate != nil,

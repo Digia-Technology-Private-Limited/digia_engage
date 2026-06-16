@@ -212,6 +212,25 @@ private fun nudgeImageRequest(context: Context, url: String): ImageRequest =
 
 // ─── button ───────────────────────────────────────────────────────────────────
 
+/**
+ * Forwards a URL-bearing nudge action (open_url / deep_link) to the host via
+ * the controller's onAction hook so the RN/host app can route it (honouring any
+ * Digia.init onAction override). Falls back to a native ACTION_VIEW intent when
+ * no host handles it (e.g. a pure-native integration with no RN bridge).
+ */
+private fun forwardOrOpenUrl(context: Context, actionType: String, url: String) {
+    val payload = DigiaInstance.controller.nudgeOverlay.value?.payload
+    val handled = payload?.let { DigiaInstance.controller.onAction?.invoke(actionType, url, it) } ?: false
+    if (!handled) {
+        runCatching {
+            context.startActivity(
+                Intent(Intent.ACTION_VIEW, Uri.parse(url))
+                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            )
+        }
+    }
+}
+
 @Composable
 private fun NudgeButtonWidget(node: NudgeButton, onDismiss: () -> Unit) {
     val context = LocalContext.current
@@ -255,20 +274,10 @@ private fun NudgeButtonWidget(node: NudgeButton, onDismiss: () -> Unit) {
                     node.actions.forEach { action ->
                         when (action) {
                             is DismissAction -> onDismiss()
-                            is OpenUrlAction -> runCatching {
-                                context.startActivity(
-                                    Intent(Intent.ACTION_VIEW, Uri.parse(
-                                        interpolate(action.url, variables)
-                                    )).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                                )
-                            }
-                            is OpenDeeplinkAction -> runCatching {
-                                context.startActivity(
-                                    Intent(Intent.ACTION_VIEW, Uri.parse(
-                                        interpolate(action.url, variables)
-                                    )).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                                )
-                            }
+                            is OpenUrlAction ->
+                                forwardOrOpenUrl(context, "open_url", interpolate(action.url, variables))
+                            is OpenDeeplinkAction ->
+                                forwardOrOpenUrl(context, "deep_link", interpolate(action.url, variables))
                             is CopyToClipboardAction -> runCatching {
                                 val clipboard = context
                                     .getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager

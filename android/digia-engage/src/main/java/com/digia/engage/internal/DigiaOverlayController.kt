@@ -107,4 +107,12 @@ internal class DigiaOverlayController {
     }
 
     var onEvent: ((DigiaExperienceEvent, InAppPayload) -> Unit)? = null
+
+    /**
+     * Forwards a navigation action (deep link / open url) from an overlay button
+     * to the host, so an RN/host app can route it (honouring its onAction
+     * override) instead of the SDK opening it natively. Returns `true` when the
+     * host handled it; callers should fall back to native behaviour otherwise.
+     */
+    var onAction: ((actionType: String, url: String, payload: InAppPayload) -> Boolean)? = null
 }
