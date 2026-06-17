@@ -151,7 +151,7 @@ private fun SurveySession(state: ActiveSurveyState) {
         if (completed) {
             DigiaInstance.markSurveyCompleted(vm.responsePayload(), vm.answers.toMap())
         } else {
-            val abandonedAt = vm.currentNode?.let { visibleIndexOf(survey, it) + 1 }
+            val abandonedAt = if (vm.currentNode != null) vm.progressStep else null
             val answeredCount = vm.answers.count { it.value.isAnswered }
             DigiaInstance.markSurveyDismissed(abandonedAtItem = abandonedAt, answeredCount = answeredCount)
         }
@@ -439,7 +439,9 @@ private fun SurveyBody(
         }
     }
 
-    val position = visibleIndexOf(survey, node) + 1
+    // Respondent-relative traversal position (not the static config index), so the
+    // progress bar and item_index reflect the actual path taken (incl. branching/back).
+    val position = vm.progressStep
     val total = survey.nodes.size.coerceAtLeast(1)
     var completionReported by remember { mutableStateOf(false) }
 
@@ -503,7 +505,7 @@ private fun SurveyBody(
                 !(pagination.onlyShowOnQuestionBlock && block.type.isContent)
             if (showBarHere) {
                 ProgressBar(
-                    progress = position.toFloat() / total,
+                    progress = vm.progress,
                     style = pagination.paginationStyle,
                     segments = total,
                     currentSegment = position,
@@ -890,10 +892,6 @@ private fun ctaArrangement(arrangement: CtaArrangement): Arrangement.Horizontal 
     }
 
 // ── helpers ────────────────────────────────────────────────────────────────
-
-/** Position of [node] within the survey's node list (0-based). */
-private fun visibleIndexOf(survey: SurveyConfigModel, node: SurveyNode): Int =
-    survey.nodes.indexOfFirst { it.id == node.id }.coerceAtLeast(0)
 
 /**
  * Footer Next-button label. "Finish" on the terminal node (the only node whose

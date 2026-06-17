@@ -63,6 +63,7 @@ internal object DigiaInstance : DigiaCEPDelegate {
     private val surveyOrchestrator = SurveyOrchestrator()
     private var submissionReporter: SubmissionReporter? = null
     private var completedSurveyToken: Long? = null
+    private var welcomeStartToken: Long? = null
 
     val guideState = guideOrchestrator.state
     val surveyState = surveyOrchestrator.state
@@ -91,6 +92,14 @@ internal object DigiaInstance : DigiaCEPDelegate {
     private val dwellTracker = DwellTracker()
 
     private val displayCoordinator = DisplayCoordinator(overlayController = controller)
+
+    init {
+        // Forward overlay CTA actions to the active CEP plugin (native open is the
+        // renderer's fallback when no plugin handles it).
+        controller.onAction = { actionType, url, payload ->
+            pluginRegistry.notifyAction(actionType, url, payload)
+        }
+    }
 
     fun initialize(context: Context, config: DigiaConfig) {
         if (!initializationStarted.compareAndSet(false, true)) return
@@ -297,10 +306,21 @@ internal object DigiaInstance : DigiaCEPDelegate {
         )
     }
 
-    /** The welcome-screen "Start" CTA was tapped (only present when has_welcome). */
+    /**
+     * The survey's start engagement — fired once per showing. When a welcome screen
+     * is present this is its "Start" CTA tap; when there's no welcome screen it is
+     * raised on the first continue (see [reportSurveyAnswered]/[reportSurveyQuestionSkipped]).
+     */
     fun reportSurveyWelcomeStart() {
         val state = surveyOrchestrator.state.value ?: return
+        if (welcomeStartToken == state.token) return
+        welcomeStartToken = state.token
         events.toDigia(SurveyEvent.Clicked(elementId = "welcome_start"), surveyPayload(state))
+    }
+
+    /** When no welcome screen exists, the first continue is the start engagement. */
+    private fun ensureWelcomeStartIfNoWelcome(state: ActiveSurveyState) {
+        if (!state.config.hasWelcome()) reportSurveyWelcomeStart()
     }
 
     /** A survey question became visible. [itemIndex] is its 1-based shown position. */
@@ -324,6 +344,7 @@ internal object DigiaInstance : DigiaCEPDelegate {
     /** An eligible optional question was skipped (advanced without an answer). */
     fun reportSurveyQuestionSkipped(nodeId: String, itemIndex: Int) {
         val state = surveyOrchestrator.state.value ?: return
+        ensureWelcomeStartIfNoWelcome(state)
         val block = state.config.blockForNode(nodeId) ?: return
         events.toDigia(
                 SurveyEvent.QuestionSkipped(
@@ -338,6 +359,7 @@ internal object DigiaInstance : DigiaCEPDelegate {
     /** Fired each time the user answers a question (one event per answered question). */
     fun reportSurveyAnswered(stepId: String, answer: Map<String, Any?>) {
         val state = surveyOrchestrator.state.value ?: return
+        ensureWelcomeStartIfNoWelcome(state)
         val block = state.config.blockForNode(stepId)
         @Suppress("UNCHECKED_CAST") val values = (answer["values"] as? List<String>).orEmpty()
         val comment = answer["comment"] as? String

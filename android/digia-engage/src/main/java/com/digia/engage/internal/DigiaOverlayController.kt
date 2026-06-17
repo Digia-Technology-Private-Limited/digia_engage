@@ -109,4 +109,11 @@ internal class DigiaOverlayController {
     fun dismissNudge() {
         _nudgeOverlay.value = null
     }
+
+    /**
+     * Lets a renderer forward a CTA action (actionType, url) to the active CEP
+     * plugin. Returns true if the plugin handled it (so the renderer skips its
+     * native fallback). Wired by [DigiaInstance] to [PluginRegistry.notifyAction].
+     */
+    var onAction: ((String, String, CEPTriggerPayload) -> Boolean)? = null
 }

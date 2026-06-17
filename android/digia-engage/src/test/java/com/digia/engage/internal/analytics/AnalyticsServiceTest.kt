@@ -146,9 +146,13 @@ class AnalyticsServiceTest {
         assertEquals("Digia Experience Clicked", entries[1].payload["event_name"])
         assertEquals("Digia Experience Dismissed", entries[2].payload["event_name"])
 
-        // element_id is a hoisted top-level column, present only for Clicked.
-        assertEquals("cta-btn", entries[1].payload["element_id"])
-        assertNull(entries[0].payload["element_id"])
+        // element_id lives in the properties blob, present only for Clicked.
+        @Suppress("UNCHECKED_CAST")
+        val clickedProps = entries[1].payload["properties"] as? Map<String, Any?>
+        assertEquals("cta-btn", clickedProps?.get("element_id"))
+        @Suppress("UNCHECKED_CAST")
+        val viewedProps = entries[0].payload["properties"] as? Map<String, Any?>
+        assertNull(viewedProps?.get("element_id"))
     }
 
     @Test

@@ -38,17 +38,13 @@ internal class PluginRegistry(
         activePlugin?.notifyEvent(event, payload)
     }
 
-    fun notifyAction(actionType: String, url: String, payload: InAppPayload): Boolean {
+    fun notifyAction(actionType: String, url: String, payload: CEPTriggerPayload): Boolean {
         val plugin = activePlugin
         if (plugin == null) {
-            Logger.warning("Overlay action fired but no plugin is registered — falling back to native handling: actionType=$actionType id=${payload.id}")
+            Logger.warning("Overlay action fired but no plugin is registered — falling back to native handling: actionType=$actionType id=${payload.cepCampaignId}")
             return false
         }
-        return plugin.notifyAction(actionType, url, CEPTriggerPayload(
-            cepCampaignId = payload.id,
-            campaignKey = payload.content["campaign_key"] as? String ?: payload.id,
-            cepMetadata = payload.cepContext,
-        ))
+        return plugin.notifyAction(actionType, url, payload)
     }
 
     fun runHealthCheck() {
