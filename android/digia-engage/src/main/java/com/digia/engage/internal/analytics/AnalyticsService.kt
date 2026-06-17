@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.annotation.VisibleForTesting
 import com.digia.engage.AnalyticsConfig
 import com.digia.engage.DigiaConfig
+import com.digia.engage.DigiaEndpoints
 import com.digia.engage.DigiaExperienceEvent
 import com.digia.engage.InAppPayload
 import com.digia.engage.internal.InternalEngageEvent
@@ -42,6 +43,7 @@ internal class AnalyticsService @VisibleForTesting constructor(
     init {
         identity.initialize(config.sessionTimeoutMs)
         if (queue.size() > 0) scheduleTimer()
+        scope.launch { reportSession() }
     }
 
     fun capture(event: DigiaExperienceEvent, payload: InAppPayload) {
@@ -110,6 +112,31 @@ internal class AnalyticsService @VisibleForTesting constructor(
 
     // ── Internal ────────────────────────────────────────────────────────────
 
+    private suspend fun reportSession() {
+        try {
+            val props = JSONObject()
+            staticContext.forEach { (k, v) -> if (v != null) props.put(k, v) }
+            val body = JSONObject().apply {
+                put("session_id", identity.sessionId)
+                put("anonymous_id", identity.anonymousId)
+                identity.userId?.let { put("user_id", it) }
+                put("occurred_at", isoNow())
+                put("properties", props)
+            }.toString()
+            val result = sender.post(
+                url = DigiaEndpoints.session,
+                jsonBody = body,
+                headers = mapOf(
+                    "Content-Type" to "application/json",
+                    "X-Digia-Project-Id" to apiKey,
+                ),
+            )
+            android.util.Log.d("DigiaAnalytics", "[AnalyticsService] session reported: HTTP ${result.statusCode} sessionId=${identity.sessionId} anonymousId=${identity.anonymousId}")
+        } catch (e: Exception) {
+            android.util.Log.w("DigiaAnalytics", "[AnalyticsService] session report failed: ${e.message}")
+        }
+    }
+
     private fun enqueue(
         eventName: String,
         campaignId: String?,
@@ -163,10 +190,10 @@ internal class AnalyticsService @VisibleForTesting constructor(
                 return
             }
 
-            android.util.Log.d("DigiaAnalytics", "[AnalyticsService] dispatchPending: sending batch of ${batch.size} event(s) to ${config.endpointUrl}")
+            android.util.Log.d("DigiaAnalytics", "[AnalyticsService] dispatchPending: sending batch of ${batch.size} event(s) to $trackEndpointUrl")
             queue.incrementAttempt(batch.map { it.eventId })
             val result = sender.post(
-                url = config.endpointUrl,
+                url = DigiaEndpoints.track,
                 jsonBody = buildBatchJson(batch),
                 headers = mapOf(
                     "Content-Type" to "application/json",
@@ -267,7 +294,7 @@ internal class AnalyticsService @VisibleForTesting constructor(
                 android.util.Log.w("DigiaAnalytics", "[AnalyticsService] create: analytics DISABLED in DigiaConfig — no events will be captured")
                 return null
             }
-            android.util.Log.d("DigiaAnalytics", "[AnalyticsService] create: analytics enabled, endpoint=${analyticsConfig.endpointUrl} batchSize=${analyticsConfig.flushBatchSize} interval=${analyticsConfig.flushIntervalMs}ms")
+            android.util.Log.d("DigiaAnalytics", "[AnalyticsService] create: analytics enabled, batchSize=${analyticsConfig.flushBatchSize} interval=${analyticsConfig.flushIntervalMs}ms")
             val store = SharedPrefsStore(
                 context.getSharedPreferences("digia_analytics", Context.MODE_PRIVATE),
             )
@@ -278,7 +305,7 @@ internal class AnalyticsService @VisibleForTesting constructor(
                 queue = AnalyticsQueue(store),
                 sender = OkHttpAnalyticsSender(),
                 staticContext = buildStaticContext(context),
-                scope = scope,
+                scope = scope
             )
         }
 

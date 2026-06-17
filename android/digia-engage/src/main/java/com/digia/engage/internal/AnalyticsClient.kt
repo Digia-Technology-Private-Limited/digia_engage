@@ -2,7 +2,6 @@ package com.digia.engage.internal
 
 import com.digia.engage.DigiaConfig
 import com.digia.engage.DigiaEndpoints
-import com.digia.engage.DigiaEnvironment
 import com.digia.engage.DigiaExperienceEvent
 import com.digia.engage.InAppPayload
 import java.net.HttpURLConnection
@@ -78,7 +77,7 @@ internal class AnalyticsClient(
 
         Thread {
             runCatching {
-                val connection = (URL("${baseUrl(activeConfig)}/api/v1/engage/sdk/recordEvent")
+                val connection = (URL(DigiaEndpoints.recordEvent)
                     .openConnection() as HttpURLConnection).apply {
                     requestMethod = "POST"
                     setRequestProperty("X-Digia-Project-Id", activeConfig.apiKey)
@@ -104,14 +103,6 @@ internal class AnalyticsClient(
             }
         }.start()
     }
-
-    private fun baseUrl(config: DigiaConfig): String =
-        (config.baseUrl
-            ?: if (config.environment == DigiaEnvironment.SANDBOX) {
-                DigiaEndpoints.SANDBOX
-            } else {
-                DigiaEndpoints.PRODUCTION
-            }).trimEnd('/')
 
     private fun userId(payload: InAppPayload): String =
         (payload.cepContext["user_id"] as? String)

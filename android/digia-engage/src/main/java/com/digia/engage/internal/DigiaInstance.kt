@@ -10,6 +10,7 @@ import com.digia.engage.CEPTriggerPayload
 import com.digia.engage.DigiaCEPDelegate
 import com.digia.engage.DigiaCEPPlugin
 import com.digia.engage.DigiaConfig
+import com.digia.engage.DigiaEndpoints
 import com.digia.engage.DigiaExperienceEvent
 import com.digia.engage.InAppPayload
 import com.digia.engage.internal.logging.Logger
@@ -74,6 +75,7 @@ internal object DigiaInstance : DigiaCEPDelegate {
 
     fun initialize(context: Context, config: DigiaConfig) {
         if (!initializationStarted.compareAndSet(false, true)) return
+        DigiaEndpoints.configure(config)
         Logger.configure(config.logLevel)
         Logger.verbose("Digia SDK initializing | projectId=${config.apiKey.take(8)}… env=${config.environment}")
         _sdkState.value = SDKState.INITIALIZING
