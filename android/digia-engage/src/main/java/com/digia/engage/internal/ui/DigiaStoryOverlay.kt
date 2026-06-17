@@ -43,7 +43,6 @@ import coil.compose.SubcomposeAsyncImage
 import coil.compose.SubcomposeAsyncImageContent
 import com.digia.engage.internal.DigiaInstance
 import com.digia.engage.internal.StoryOverlayState
-import com.digia.engage.internal.extractVariables
 import com.digia.engage.internal.interpolate
 import com.digia.engage.internal.model.StoryCtaAction
 import com.digia.engage.internal.model.StoryItemConfig
@@ -72,7 +71,7 @@ internal fun DigiaStoryOverlay() {
 @Composable
 private fun DigiaStoryOverlayContent(state: StoryOverlayState) {
     val context = LocalContext.current
-    val variables = remember(state.payload) { extractVariables(state.payload.content) }
+    val variables = remember(state.payload) { state.payload.variables }
     var currentStoryIndex by remember(state.initialIndex) { mutableIntStateOf(state.initialIndex) }
 
     val contents: List<@Composable () -> Unit> = remember(state.config) {

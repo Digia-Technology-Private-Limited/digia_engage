@@ -1,6 +1,9 @@
 package com.digia.engage
 
+import android.content.Intent
+import android.net.Uri
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -18,11 +21,16 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import coil.compose.SubcomposeAsyncImage
 import coil.compose.SubcomposeAsyncImageContent
@@ -59,35 +67,73 @@ fun DigiaSlot(placementKey: String, modifier: Modifier = Modifier) {
 
     val carouselConfig = slotConfigs[placementKey]
     val storyConfig = storySlotConfigs[placementKey]
+    val payload = slotPayloads[placementKey]
+
+    // Digia's impression fires once, the first time the slot actually renders
+    // (deduped per campaign). CEP was already impressed at route time.
+    if ((carouselConfig != null || storyConfig != null) && payload != null) {
+        LaunchedEffect(payload.cepCampaignId) {
+            DigiaInstance.reportSlotFirstRender(payload)
+        }
+    }
 
     when {
-        carouselConfig != null -> InlineCarouselView(carouselConfig, modifier)
+        carouselConfig != null -> InlineCarouselView(carouselConfig, payload, modifier)
         storyConfig != null -> {
-            val payload = slotPayloads[placementKey]
-                ?: InAppPayload(id = placementKey, content = emptyMap(), cepContext = emptyMap())
-            DigiaInlineStory(config = storyConfig, payload = payload, modifier = modifier)
+            DigiaInlineStory(
+                config = storyConfig,
+                payload = payload
+                    ?: CEPTriggerPayload(cepCampaignId = placementKey, campaignKey = placementKey),
+                modifier = modifier,
+            )
         }
     }
 }
 
 @Composable
-private fun InlineCarouselView(config: InlineCarouselConfig, modifier: Modifier = Modifier) {
-    val images = config.items.map { it.imageUrl }.filter { it.isNotBlank() }
-    if (images.isEmpty()) return
+private fun InlineCarouselView(
+    config: InlineCarouselConfig,
+    payload: CEPTriggerPayload?,
+    modifier: Modifier = Modifier,
+) {
+    val context = LocalContext.current
+    val items = config.items.filter { it.imageUrl.isNotBlank() }
+    if (items.isEmpty()) return
 
-    val pageCount = images.size
+    val pageCount = items.size
     val pagerState = rememberPagerState(pageCount = {
         if (config.infiniteScroll) Int.MAX_VALUE else pageCount
     })
+
+    // Tracks whether the next settled page change came from autoplay (vs a manual
+    // swipe) so the Step Viewed event can carry `auto`.
+    var autoAdvancePending by remember { mutableStateOf(false) }
 
     if (config.autoPlay && pageCount > 1) {
         LaunchedEffect(pagerState) {
             while (true) {
                 delay(config.autoPlayInterval)
+                autoAdvancePending = true
                 val next = pagerState.currentPage + 1
                 pagerState.animateScrollToPage(
                     if (config.infiniteScroll) next else next.coerceAtMost(pageCount - 1)
                 )
+            }
+        }
+    }
+
+    // Step Viewed fires for each item that settles into view (including the first).
+    if (payload != null) {
+        LaunchedEffect(pagerState, payload) {
+            snapshotFlow { pagerState.settledPage }.collect { page ->
+                val realIndex = page % pageCount
+                DigiaInstance.reportCarouselStepViewed(
+                    payload,
+                    itemIndex = realIndex + 1,
+                    itemTotal = pageCount,
+                    auto = autoAdvancePending,
+                )
+                autoAdvancePending = false
             }
         }
     }
@@ -102,11 +148,30 @@ private fun InlineCarouselView(config: InlineCarouselConfig, modifier: Modifier 
                 .height(config.height.dp),
         ) { page ->
             val realIndex = page % pageCount
+            val item = items[realIndex]
             SubcomposeAsyncImage(
-                model = images[realIndex],
+                model = item.imageUrl,
                 contentDescription = null,
                 contentScale = ContentScale.Crop,
-                modifier = Modifier.fillMaxSize(),
+                modifier = Modifier
+                    .fillMaxSize()
+                    .clickable {
+                        if (payload != null) {
+                            DigiaInstance.reportCarouselStepClicked(
+                                payload,
+                                itemIndex = realIndex + 1,
+                                actionUrl = item.deepLink,
+                            )
+                        }
+                        item.deepLink?.let { url ->
+                            runCatching {
+                                context.startActivity(
+                                    Intent(Intent.ACTION_VIEW, Uri.parse(url))
+                                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                )
+                            }
+                        }
+                    },
             ) { SubcomposeAsyncImageContent() }
         }
         if (ind.showIndicator && pageCount > 1) {

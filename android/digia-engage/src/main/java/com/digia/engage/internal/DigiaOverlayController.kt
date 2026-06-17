@@ -1,7 +1,6 @@
 package com.digia.engage.internal
 
-import com.digia.engage.DigiaExperienceEvent
-import com.digia.engage.InAppPayload
+import com.digia.engage.CEPTriggerPayload
 import com.digia.engage.internal.model.InlineCarouselConfig
 import com.digia.engage.internal.model.InlineStoryConfig
 import com.digia.engage.internal.model.NudgeConfig
@@ -13,22 +12,22 @@ import kotlinx.coroutines.flow.update
 internal data class StoryOverlayState(
     val config: InlineStoryConfig,
     val initialIndex: Int,
-    val payload: InAppPayload,
+    val payload: CEPTriggerPayload,
 )
 
 internal data class NudgeOverlayState(
     val config: NudgeConfig,
-    val payload: InAppPayload,
+    val payload: CEPTriggerPayload,
     val defaultVariables: Map<String, String> = emptyMap(),
 )
 
 internal class DigiaOverlayController {
 
-    private val _activePayload = MutableStateFlow<InAppPayload?>(null)
-    val activePayload: StateFlow<InAppPayload?> = _activePayload.asStateFlow()
+    private val _activePayload = MutableStateFlow<CEPTriggerPayload?>(null)
+    val activePayload: StateFlow<CEPTriggerPayload?> = _activePayload.asStateFlow()
 
-    private val _slotPayloads = MutableStateFlow<Map<String, InAppPayload>>(emptyMap())
-    val slotPayloads: StateFlow<Map<String, InAppPayload>> = _slotPayloads.asStateFlow()
+    private val _slotPayloads = MutableStateFlow<Map<String, CEPTriggerPayload>>(emptyMap())
+    val slotPayloads: StateFlow<Map<String, CEPTriggerPayload>> = _slotPayloads.asStateFlow()
 
     private val _slotConfigs = MutableStateFlow<Map<String, InlineCarouselConfig>>(emptyMap())
     val slotConfigs: StateFlow<Map<String, InlineCarouselConfig>> = _slotConfigs.asStateFlow()
@@ -42,7 +41,7 @@ internal class DigiaOverlayController {
     private val _nudgeOverlay = MutableStateFlow<NudgeOverlayState?>(null)
     val nudgeOverlay: StateFlow<NudgeOverlayState?> = _nudgeOverlay.asStateFlow()
 
-    fun show(payload: InAppPayload) {
+    fun show(payload: CEPTriggerPayload) {
         _activePayload.value = payload
     }
 
@@ -50,12 +49,12 @@ internal class DigiaOverlayController {
         _activePayload.value = null
     }
 
-    fun addSlot(placementKey: String, payload: InAppPayload) {
+    fun addSlot(placementKey: String, payload: CEPTriggerPayload) {
         _slotPayloads.update { current -> current + (placementKey to payload) }
     }
 
     fun removeSlotById(payloadId: String) {
-        _slotPayloads.update { current -> current.filterValues { it.id != payloadId } }
+        _slotPayloads.update { current -> current.filterValues { it.cepCampaignId != payloadId } }
     }
 
     fun removeSlotByKey(placementKey: String) {
@@ -90,7 +89,7 @@ internal class DigiaOverlayController {
         _storySlotConfigs.value = emptyMap()
     }
 
-    fun showStoryOverlay(config: InlineStoryConfig, initialIndex: Int, payload: InAppPayload) {
+    fun showStoryOverlay(config: InlineStoryConfig, initialIndex: Int, payload: CEPTriggerPayload) {
         _storyOverlay.value = StoryOverlayState(config, initialIndex, payload)
     }
 
@@ -98,13 +97,11 @@ internal class DigiaOverlayController {
         _storyOverlay.value = null
     }
 
-    fun showNudge(config: NudgeConfig, payload: InAppPayload, defaultVariables: Map<String, String> = emptyMap()) {
+    fun showNudge(config: NudgeConfig, payload: CEPTriggerPayload, defaultVariables: Map<String, String> = emptyMap()) {
         _nudgeOverlay.value = NudgeOverlayState(config, payload, defaultVariables)
     }
 
     fun dismissNudge() {
         _nudgeOverlay.value = null
     }
-
-    var onEvent: ((DigiaExperienceEvent, InAppPayload) -> Unit)? = null
 }

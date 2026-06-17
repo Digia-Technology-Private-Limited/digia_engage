@@ -34,7 +34,7 @@ import androidx.media3.ui.AspectRatioFrameLayout
 import androidx.media3.ui.PlayerView
 import coil.compose.SubcomposeAsyncImage
 import coil.compose.SubcomposeAsyncImageContent
-import com.digia.engage.InAppPayload
+import com.digia.engage.CEPTriggerPayload
 import com.digia.engage.internal.DigiaInstance
 import com.digia.engage.internal.model.InlineStoryConfig
 import com.digia.engage.internal.model.StoryItemConfig
@@ -42,7 +42,7 @@ import com.digia.engage.internal.model.StoryItemConfig
 @Composable
 internal fun DigiaInlineStory(
     config: InlineStoryConfig,
-    payload: InAppPayload,
+    payload: CEPTriggerPayload,
     modifier: Modifier = Modifier,
 ) {
     val cardHeight = config.card.height.dp

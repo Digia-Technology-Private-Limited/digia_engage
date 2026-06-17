@@ -3,10 +3,9 @@ package com.digia.engage.internal.analytics
 import android.content.Context
 import androidx.annotation.VisibleForTesting
 import com.digia.engage.AnalyticsConfig
+import com.digia.engage.CEPTriggerPayload
 import com.digia.engage.DigiaConfig
-import com.digia.engage.DigiaExperienceEvent
-import com.digia.engage.InAppPayload
-import com.digia.engage.internal.InternalEngageEvent
+import com.digia.engage.internal.event.EngageAnalyticsEvent
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -44,38 +43,24 @@ internal class AnalyticsService @VisibleForTesting constructor(
         if (queue.size() > 0) scheduleTimer()
     }
 
-    fun capture(event: DigiaExperienceEvent, payload: InAppPayload) {
+    fun capture(
+        event: EngageAnalyticsEvent,
+        payload: CEPTriggerPayload,
+        campaignId: String?,
+        campaignType: String?,
+    ) {
         if (!config.enabled) {
-            android.util.Log.w("DigiaAnalytics", "[AnalyticsService] capture: DISABLED (config.enabled=false) — event '${event.analyticsEventName}' dropped")
+            android.util.Log.w("DigiaAnalytics", "[AnalyticsService] capture: DISABLED (config.enabled=false) — event '${event.eventName}' dropped")
             return
         }
-        android.util.Log.d("DigiaAnalytics", "[AnalyticsService] capture: event='${event.analyticsEventName}' campaignKey=${payload.content["campaign_key"]} campaignId=${payload.content["campaign_id"]}")
+        android.util.Log.d("DigiaAnalytics", "[AnalyticsService] capture: event='${event.eventName}' campaignKey=${payload.campaignKey} campaignId=$campaignId")
         enqueue(
-            eventName = event.analyticsEventName,
-            campaignId = payload.content["campaign_id"] as? String,
-            campaignKey = payload.content["campaign_key"] as? String,
-            campaignType = payload.content["campaign_type"] as? String,
-            extraProperties = (event as? DigiaExperienceEvent.Clicked)
-                ?.elementId?.let { mapOf("element_id" to it) } ?: emptyMap(),
-        )
-    }
-
-    fun captureInternal(event: InternalEngageEvent, payload: InAppPayload) {
-        if (!config.enabled) return
-        val (eventName, extras) = when (event) {
-            is InternalEngageEvent.ExperienceClicked ->
-                "Digia Experience Clicked" to emptyMap<String, Any?>()
-            is InternalEngageEvent.QuestionAnswered ->
-                "Digia Question Answered" to mapOf("step_id" to event.stepId, "answer" to event.answer)
-            is InternalEngageEvent.ExperienceCompleted ->
-                "Digia Experience Completed" to mapOf("response" to event.response)
-        }
-        enqueue(
-            eventName = eventName,
-            campaignId = payload.content["campaign_id"] as? String,
-            campaignKey = payload.content["campaign_key"] as? String,
-            campaignType = payload.content["campaign_type"] as? String ?: "survey",
-            extraProperties = extras,
+            eventName = event.eventName,
+            campaignId = campaignId,
+            campaignKey = payload.campaignKey,
+            campaignType = campaignType,
+            columns = event.columns,
+            properties = event.properties,
         )
     }
 
@@ -115,12 +100,13 @@ internal class AnalyticsService @VisibleForTesting constructor(
         campaignId: String?,
         campaignKey: String?,
         campaignType: String?,
-        extraProperties: Map<String, Any?> = emptyMap(),
+        columns: Map<String, Any?> = emptyMap(),
+        properties: Map<String, Any?> = emptyMap(),
     ) {
         val eventId = UUID.randomUUID().toString()
         identity.captureEventTime()
 
-        val properties = (staticContext + extraProperties).filterValues { it != null }
+        val mergedProperties = (staticContext + properties).filterValues { it != null }
 
         val payloadMap = buildMap<String, Any?> {
             put("event_id", eventId)
@@ -132,7 +118,12 @@ internal class AnalyticsService @VisibleForTesting constructor(
             put("anonymous_id", identity.anonymousId)
             put("session_id", identity.sessionId)
             identity.userId?.let { put("user_id", it) }
-            put("properties", properties)
+            // Per-event hoisted columns sit at the top level alongside campaign_id
+            // (reserved keys above always win). Everything else goes in properties.
+            for ((key, value) in columns) {
+                if (value != null && !containsKey(key)) put(key, value)
+            }
+            put("properties", mergedProperties)
         }
 
         queue.append(QueueEntry(eventId, payloadMap, System.currentTimeMillis()), config.queueMaxEvents)
@@ -166,7 +157,7 @@ internal class AnalyticsService @VisibleForTesting constructor(
             android.util.Log.d("DigiaAnalytics", "[AnalyticsService] dispatchPending: sending batch of ${batch.size} event(s) to ${config.endpointUrl}")
             queue.incrementAttempt(batch.map { it.eventId })
             val result = sender.post(
-                url = config.endpointUrl,
+                url = "http://192.168.1.95:3000/api/v1/engage/sdk/track",
                 jsonBody = buildBatchJson(batch),
                 headers = mapOf(
                     "Content-Type" to "application/json",
@@ -301,10 +292,3 @@ internal class AnalyticsService @VisibleForTesting constructor(
         }
     }
 }
-
-private val DigiaExperienceEvent.analyticsEventName: String
-    get() = when (this) {
-        DigiaExperienceEvent.Impressed -> "Digia Experience Viewed"
-        is DigiaExperienceEvent.Clicked -> "Digia Experience Clicked"
-        DigiaExperienceEvent.Dismissed -> "Digia Experience Dismissed"
-    }

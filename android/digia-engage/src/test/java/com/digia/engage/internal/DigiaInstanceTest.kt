@@ -1,10 +1,10 @@
 package com.digia.engage.internal
 
 import com.digia.engage.DiagnosticReport
+import com.digia.engage.CEPTriggerPayload
 import com.digia.engage.DigiaCEPDelegate
 import com.digia.engage.DigiaCEPPlugin
 import com.digia.engage.DigiaExperienceEvent
-import com.digia.engage.InAppPayload
 import com.digia.engage.internal.model.CampaignModel
 import com.digia.engage.internal.model.NudgeDisplayType
 import kotlinx.coroutines.Dispatchers
@@ -84,11 +84,11 @@ class DigiaInstanceTest {
         DigiaInstance.setCampaignsForTest(listOf(nudgeCampaign(key = "exp-1", type = "dialog")))
 
         plugin.delegate!!.onCampaignTriggered(
-            InAppPayload(id = "exp-1", content = mapOf("campaign_key" to "exp-1")),
+            CEPTriggerPayload(cepCampaignId = "exp-1", campaignKey = "exp-1"),
         )
         testScheduler.advanceUntilIdle()
 
-        assertEquals("exp-1", DigiaInstance.controller.nudgeOverlay.value?.payload?.id)
+        assertEquals("exp-1", DigiaInstance.controller.nudgeOverlay.value?.payload?.cepCampaignId)
     }
 
     @Test
@@ -114,11 +114,11 @@ class DigiaInstanceTest {
         DigiaInstance.setCampaignsForTest(listOf(inlineCampaign(key = "slot-1", slotKey = "hero_banner")))
 
         plugin.delegate!!.onCampaignTriggered(
-            InAppPayload(id = "slot-1", content = mapOf("campaign_key" to "slot-1")),
+            CEPTriggerPayload(cepCampaignId = "slot-1", campaignKey = "slot-1"),
         )
         testScheduler.advanceUntilIdle()
 
-        assertEquals("slot-1", DigiaInstance.controller.slotPayloads.value["hero_banner"]?.id)
+        assertEquals("slot-1", DigiaInstance.controller.slotPayloads.value["hero_banner"]?.cepCampaignId)
         assertNull(DigiaInstance.controller.activePayload.value)
     }
 
@@ -131,7 +131,7 @@ class DigiaInstanceTest {
         DigiaInstance.setSdkStateForTest(SDKState.INITIALIZING)
 
         plugin.delegate!!.onCampaignTriggered(
-            InAppPayload(id = "pending-1", content = mapOf("campaign_key" to "pending-1")),
+            CEPTriggerPayload(cepCampaignId = "pending-1", campaignKey = "pending-1"),
         )
         testScheduler.advanceUntilIdle()
         assertNull(DigiaInstance.controller.nudgeOverlay.value)
@@ -140,7 +140,7 @@ class DigiaInstanceTest {
         DigiaInstance.flushPendingPayloadForTest()
         testScheduler.advanceUntilIdle()
 
-        assertEquals("pending-1", DigiaInstance.controller.nudgeOverlay.value?.payload?.id)
+        assertEquals("pending-1", DigiaInstance.controller.nudgeOverlay.value?.payload?.cepCampaignId)
     }
 
     @Test
@@ -151,7 +151,7 @@ class DigiaInstanceTest {
         DigiaInstance.setCampaignsForTest(listOf(nudgeCampaign(key = "dialog-1", type = "dialog")))
 
         plugin.delegate!!.onCampaignTriggered(
-            InAppPayload(id = "dialog-1", content = mapOf("campaign_key" to "dialog-1")),
+            CEPTriggerPayload(cepCampaignId = "dialog-1", campaignKey = "dialog-1"),
         )
         testScheduler.advanceUntilIdle()
 
@@ -163,21 +163,22 @@ class DigiaInstanceTest {
     }
 
     @Test
-    fun `emitExplicitCtaClick emits clicked event when active payload exists`() = runTest(testDispatcher) {
+    fun `nudge click is a Digia-only signal and is not forwarded to the CEP`() = runTest(testDispatcher) {
         val plugin = FakePlugin()
         DigiaInstance.initForTest()
         DigiaInstance.register(plugin)
         DigiaInstance.setCampaignsForTest(listOf(nudgeCampaign(key = "dialog-1", type = "dialog")))
 
         plugin.delegate!!.onCampaignTriggered(
-            InAppPayload(id = "dialog-1", content = mapOf("campaign_key" to "dialog-1")),
+            CEPTriggerPayload(cepCampaignId = "dialog-1", campaignKey = "dialog-1"),
         )
         testScheduler.advanceUntilIdle()
 
         DigiaInstance.emitNudgeClick("cta-1")
 
-        val clicked = plugin.events.first { it.first is DigiaExperienceEvent.Clicked }.first as DigiaExperienceEvent.Clicked
-        assertEquals("cta-1", clicked.elementId)
+        // Clicks are an engagement signal recorded only by Digia analytics
+        // (matches Flutter's toDigia), so the CEP plugin never sees them.
+        assertTrue(plugin.events.none { it.first is DigiaExperienceEvent.Clicked })
     }
 
     @Test
@@ -216,16 +217,17 @@ class DigiaInstanceTest {
         DigiaInstance.setCampaignsForTest(listOf(nudgeCampaign(key = "welcome_nudge", type = "bottomSheet")))
 
         plugin.delegate!!.onCampaignTriggered(
-            InAppPayload(id = "welcome_nudge", content = mapOf("campaign_key" to "welcome_nudge")),
+            CEPTriggerPayload(cepCampaignId = "welcome_nudge", campaignKey = "welcome_nudge"),
         )
         testScheduler.advanceUntilIdle()
 
         val overlay = DigiaInstance.controller.nudgeOverlay.value
         assertNotNull(overlay)
-        assertEquals("welcome_nudge", overlay!!.payload.id)
+        assertEquals("welcome_nudge", overlay!!.payload.cepCampaignId)
+        assertEquals("welcome_nudge", overlay.payload.campaignKey)
+        // campaign_type / display_style now live on the resolved CampaignModel/config,
+        // not the trigger payload — covered by the displayType assertion below.
         assertEquals(NudgeDisplayType.BOTTOM_SHEET, overlay.config.surface.displayType)
-        assertEquals("nudge", overlay.payload.content["campaign_type"])
-        assertEquals("bottom_sheet", overlay.payload.content["display_style"])
         // Impression fires through the shared overlay path.
         DigiaInstance.reportNudgeImpression()
         assertTrue(plugin.events.any { it.first is DigiaExperienceEvent.Impressed })
@@ -239,7 +241,7 @@ class DigiaInstanceTest {
         DigiaInstance.setCampaignsForTest(listOf(nudgeCampaign(key = "n1", type = "dialog")))
 
         plugin.delegate!!.onCampaignTriggered(
-            InAppPayload(id = "n1", content = mapOf("campaign_key" to "n1")),
+            CEPTriggerPayload(cepCampaignId = "n1", campaignKey = "n1"),
         )
         testScheduler.advanceUntilIdle()
         assertNotNull(DigiaInstance.controller.nudgeOverlay.value)
@@ -294,7 +296,7 @@ class DigiaInstanceTest {
         var healthChecked = false
         var delegate: DigiaCEPDelegate? = null
         val forwardedScreens = mutableListOf<String>()
-        val events = mutableListOf<Pair<DigiaExperienceEvent, InAppPayload>>()
+        val events = mutableListOf<Pair<DigiaExperienceEvent, CEPTriggerPayload>>()
 
         override fun setup(delegate: DigiaCEPDelegate) {
             setupCalled = true
@@ -305,7 +307,7 @@ class DigiaInstanceTest {
             forwardedScreens += name
         }
 
-        override fun notifyEvent(event: DigiaExperienceEvent, payload: InAppPayload) {
+        override fun notifyEvent(event: DigiaExperienceEvent, payload: CEPTriggerPayload) {
             events += event to payload
         }
 
@@ -323,9 +325,10 @@ class DigiaInstanceTest {
         id: String,
         screenId: String,
         command: String,
-    ): InAppPayload = InAppPayload(
-        id = id,
-        content = mapOf(
+    ): CEPTriggerPayload = CEPTriggerPayload(
+        cepCampaignId = id,
+        campaignKey = id,
+        cepMetadata = mapOf(
             "command" to command,
             "viewId" to "welcome_modal",
             "screenId" to screenId,
@@ -338,9 +341,10 @@ class DigiaInstanceTest {
         screenId: String,
         placementKey: String,
         componentId: String,
-    ): InAppPayload = InAppPayload(
-        id = id,
-        content = mapOf(
+    ): CEPTriggerPayload = CEPTriggerPayload(
+        cepCampaignId = id,
+        campaignKey = id,
+        cepMetadata = mapOf(
             "command" to "SHOW_INLINE",
             "screenId" to screenId,
             "placementKey" to placementKey,

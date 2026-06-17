@@ -71,7 +71,6 @@ import com.airbnb.lottie.compose.LottieCompositionSpec
 import com.airbnb.lottie.compose.LottieConstants
 import com.airbnb.lottie.compose.animateLottieCompositionAsState
 import com.airbnb.lottie.compose.rememberLottieComposition
-import com.digia.engage.DigiaExperienceEvent
 import com.digia.engage.internal.DigiaFontConfig
 import com.digia.engage.internal.DigiaInstance
 import com.digia.engage.internal.interpolate
@@ -244,14 +243,26 @@ private fun NudgeButtonWidget(node: NudgeButton, onDismiss: () -> Unit) {
                     indication = ripple(),
                     interactionSource = remember { MutableInteractionSource() },
                 ) {
-                    if (node.isPrimary) {
-                        val payload = DigiaInstance.controller.nudgeOverlay.value?.payload
-                        if (payload != null) {
-                            DigiaInstance.controller.onEvent?.invoke(
-                                DigiaExperienceEvent.Clicked(), payload
-                            )
-                        }
-                    }
+                    // Every CTA tap is a click (primary or secondary) — cta_role
+                    // distinguishes them, matching the Engage matrix.
+                    val clickedAction = node.actions.firstOrNull()
+                    DigiaInstance.emitNudgeClick(
+                        elementId = if (node.isPrimary) "cta_primary" else "cta_secondary",
+                        ctaLabel = node.label,
+                        actionType = when (clickedAction) {
+                            is OpenUrlAction -> "url"
+                            is OpenDeeplinkAction -> "deeplink"
+                            DismissAction -> "dismiss"
+                            is CopyToClipboardAction, is ShareAction -> "custom"
+                            null -> null
+                        },
+                        actionUrl = when (clickedAction) {
+                            is OpenUrlAction -> clickedAction.url
+                            is OpenDeeplinkAction -> clickedAction.url
+                            else -> null
+                        },
+                        ctaRole = if (node.isPrimary) "primary" else "secondary",
+                    )
                     node.actions.forEach { action ->
                         when (action) {
                             is DismissAction -> onDismiss()

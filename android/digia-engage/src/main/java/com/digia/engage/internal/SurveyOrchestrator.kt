@@ -1,5 +1,6 @@
 package com.digia.engage.internal
 
+import com.digia.engage.CEPTriggerPayload
 import com.digia.engage.internal.model.CampaignModel
 import com.digia.engage.internal.model.SurveyConfigModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -13,6 +14,9 @@ import kotlinx.coroutines.flow.asStateFlow
 internal data class ActiveSurveyState(
     val campaign: CampaignModel,
     val token: Long,
+    /** The original trigger payload, retained so lifecycle events reuse the CEP's
+     *  identity/metadata instead of a synthesized one (matches nudge/inline/guide). */
+    val payload: CEPTriggerPayload,
     val startedAtMs: Long = System.currentTimeMillis(),
 ) {
     val config: SurveyConfigModel
@@ -31,12 +35,12 @@ internal class SurveyOrchestrator {
     private var tokenCounter = 0L
 
     /** @return true if the survey was started, false if preconditions fail or one is already showing. */
-    fun start(campaign: CampaignModel): Boolean {
+    fun start(campaign: CampaignModel, payload: CEPTriggerPayload): Boolean {
         val surveyConfig = campaign.surveyConfig
         if (campaign.campaignType != "survey" || surveyConfig == null) return false
         if (surveyConfig.nodes.isEmpty() || surveyConfig.blocks.isEmpty()) return false
         if (_state.value != null) return false
-        _state.value = ActiveSurveyState(campaign, ++tokenCounter)
+        _state.value = ActiveSurveyState(campaign, ++tokenCounter, payload)
         return true
     }
 

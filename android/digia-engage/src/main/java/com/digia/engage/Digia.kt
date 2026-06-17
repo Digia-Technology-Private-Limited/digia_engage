@@ -36,8 +36,8 @@ object Digia {
         DigiaInstance.clearUserId()
     }
 
-    fun captureAnalyticsEvent(event: DigiaExperienceEvent, payload: InAppPayload) {
-        android.util.Log.d("DigiaAnalytics", "[Digia] captureAnalyticsEvent: event=${event::class.simpleName} payload.id=${payload.id} content=${payload.content}")
+    fun captureAnalyticsEvent(event: DigiaExperienceEvent, payload: CEPTriggerPayload) {
+        android.util.Log.d("DigiaAnalytics", "[Digia] captureAnalyticsEvent: event=${event::class.simpleName} cepCampaignId=${payload.cepCampaignId} campaignKey=${payload.campaignKey}")
         DigiaInstance.captureAnalyticsEvent(event, payload)
     }
 }

@@ -4,7 +4,6 @@ import com.digia.engage.CEPTriggerPayload
 import com.digia.engage.DigiaCEPDelegate
 import com.digia.engage.DigiaCEPPlugin
 import com.digia.engage.DigiaExperienceEvent
-import com.digia.engage.InAppPayload
 import com.digia.engage.internal.logging.Logger
 
 internal class PluginRegistry(
@@ -32,15 +31,11 @@ internal class PluginRegistry(
         activePlugin?.forwardScreen(name)
     }
 
-    fun notifyEvent(event: DigiaExperienceEvent, payload: InAppPayload) {
+    fun notifyEvent(event: DigiaExperienceEvent, payload: CEPTriggerPayload) {
         if (activePlugin == null) {
-            Logger.warning("Experience event fired but no plugin is registered — call Digia.register() with a CEP plugin: event=${event::class.simpleName} id=${payload.id}")
+            Logger.warning("Experience event fired but no plugin is registered — call Digia.register() with a CEP plugin: event=${event::class.simpleName} id=${payload.cepCampaignId}")
         }
-        activePlugin?.notifyEvent(event, CEPTriggerPayload(
-            cepCampaignId = payload.id,
-            campaignKey = payload.content["campaign_key"] as? String ?: payload.id,
-            cepMetadata = payload.cepContext,
-        ))
+        activePlugin?.notifyEvent(event, payload)
     }
 
     fun runHealthCheck() {
