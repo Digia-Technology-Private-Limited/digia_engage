@@ -39,7 +39,6 @@ import com.digia.engage.DigiaEnvironment
 import com.digia.engage.DigiaExperienceEvent
 import com.digia.engage.DigiaHostView
 import com.digia.engage.DigiaLogLevel
-import com.digia.engage.InAppPayload
 import com.facebook.react.bridge.Arguments
 import com.facebook.react.bridge.Promise
 import com.facebook.react.bridge.ReactApplicationContext
@@ -163,13 +162,11 @@ internal class DigiaModule(
                 return
             }
         }
-        val payload = InAppPayload(
-            id = campaignKey,
-            content = mapOf(
-                "campaign_id" to campaignId,
-                "campaign_key" to campaignKey,
-                "campaign_type" to campaignType,
-            ),
+        // campaign id/type are resolved natively from the campaign store by
+        // campaignKey at capture time — only the trigger identity is forwarded here.
+        val payload = CEPTriggerPayload(
+            cepCampaignId = campaignId.takeIf { it.isNotBlank() } ?: campaignKey,
+            campaignKey = campaignKey,
         )
         android.util.Log.d("DigiaAnalytics", "[trackEvent] forwarding to Digia.captureAnalyticsEvent: event=${event::class.simpleName}")
         Digia.captureAnalyticsEvent(event, payload)
