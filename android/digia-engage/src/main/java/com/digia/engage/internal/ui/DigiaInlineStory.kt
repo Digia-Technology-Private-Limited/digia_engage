@@ -62,6 +62,13 @@ internal fun DigiaInlineStory(
                     .height(cardHeight)
                     .clip(RoundedCornerShape(cornerRadius))
                     .clickable {
+                        // Opening a story is the matrix `Digia Experience Clicked`
+                        // (item_index = the frame the user opened at).
+                        DigiaInstance.emitStoryOpened(
+                            payload = payload,
+                            itemIndex = index,
+                            itemTotal = config.items.size,
+                        )
                         DigiaInstance.controller.showStoryOverlay(config, index, payload)
                     },
             ) {

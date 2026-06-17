@@ -4,6 +4,7 @@ import '../internal/action/engage_action_context.dart';
 import '../internal/campaign/campaign_model.dart';
 import '../internal/digia_instance.dart';
 import '../internal/digia_overlay_controller.dart';
+import '../internal/event/engage_matrix.dart';
 import '../internal/nudge/nudge_config.dart';
 import '../internal/nudge/nudge_presenter.dart';
 import '../internal/variable_scope.dart';
@@ -96,7 +97,21 @@ class _DigiaHostState extends State<DigiaHost> {
         DigiaInstance.instance.navigator?.context ??
         context;
 
-    DigiaInstance.instance.events.toAll(const ExperienceImpressed(), payload);
+    // Coarse lifecycle → CEP; rich matrix event → Digia first-party analytics.
+    // (Splitting the destinations avoids Digia double-counting a single moment.)
+    final instance = DigiaInstance.instance;
+    instance.events.toCep(const ExperienceImpressed(), payload);
+    instance.markNudgeViewed();
+    instance.events.analytics(
+      'Digia Experience Viewed',
+      payload,
+      properties: nudgeViewedProperties(
+        displayStyle: config.surface.isBottomSheet ? 'bottom_sheet' : 'dialog',
+        screenName: instance.currentScreen,
+        triggerType: payload.triggerType,
+        triggerEvent: payload.triggerEvent,
+      ),
+    );
 
     presentNudge(
       context: navContext,
@@ -112,7 +127,16 @@ class _DigiaHostState extends State<DigiaHost> {
         ...?payload.variables,
       }),
     ).whenComplete(() {
-      DigiaInstance.instance.events.toAll(const ExperienceDismissed(), payload);
+      instance.events.toCep(const ExperienceDismissed(), payload);
+      instance.events.analytics(
+        'Digia Experience Dismissed',
+        payload,
+        properties: nudgeDismissedProperties(
+          timeToDismissMs: instance.nudgeElapsedMs(),
+        ),
+        flush: true,
+      );
+      instance.clearNudgeViewed();
       _controller.dismiss();
     });
   }

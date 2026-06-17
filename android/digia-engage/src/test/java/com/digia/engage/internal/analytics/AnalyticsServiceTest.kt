@@ -153,6 +153,60 @@ class AnalyticsServiceTest {
     }
 
     @Test
+    fun `capture matrix event carries name, campaign fields and properties`() = testScope.runTest {
+        val service = createService()
+        service.capture(
+            eventName = "Digia Step Viewed",
+            payload = buildPayload("inline-1").copy(
+                content = mapOf(
+                    "campaign_id" to "example-campaign",
+                    "campaign_key" to "inline-1",
+                    "campaign_type" to "inline",
+                ),
+            ),
+            properties = mapOf(
+                "display_style" to "carousel",
+                "item_index" to 1,
+                "item_total" to 3,
+            ),
+        )
+
+        val event = service.queue.peek(1).first().payload
+        assertEquals("Digia Step Viewed", event["event_name"])
+        assertEquals("example-campaign", event["campaign_id"])
+        assertEquals("inline-1", event["campaign_key"])
+        assertEquals("inline", event["campaign_type"])
+
+        @Suppress("UNCHECKED_CAST")
+        val props = event["properties"] as? Map<String, Any?>
+        assertEquals("carousel", props?.get("display_style"))
+        assertEquals(1, props?.get("item_index"))
+        assertEquals(3, props?.get("item_total"))
+        // static context is still merged in
+        assertEquals("1.0.0", props?.get("sdk_version"))
+    }
+
+    @Test
+    fun `capture with flush dispatches immediately`() = testScope.runTest {
+        val fakeSender = FakeSender { successResponse() }
+        val service = createService(
+            config = AnalyticsConfig(flushBatchSize = 100, flushIntervalMs = 10_000L),
+            sender = fakeSender,
+        )
+
+        service.capture(
+            eventName = "Digia Experience Completed",
+            payload = buildPayload("p1"),
+            properties = mapOf("item_total" to 4),
+            flush = true,
+        )
+        advanceUntilIdle()
+
+        assertEquals(0, service.queue.size())
+        assertEquals(1, fakeSender.callCount)
+    }
+
+    @Test
     fun `batch threshold triggers immediate flush`() = testScope.runTest {
         val fakeSender = FakeSender { successResponse() }
         val service = createService(

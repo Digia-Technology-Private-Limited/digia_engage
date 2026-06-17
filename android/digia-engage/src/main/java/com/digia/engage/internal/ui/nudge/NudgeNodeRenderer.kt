@@ -244,13 +244,16 @@ private fun NudgeButtonWidget(node: NudgeButton, onDismiss: () -> Unit) {
                     indication = ripple(),
                     interactionSource = remember { MutableInteractionSource() },
                 ) {
-                    if (node.isPrimary) {
-                        val payload = DigiaInstance.controller.nudgeOverlay.value?.payload
-                        if (payload != null) {
-                            DigiaInstance.controller.onEvent?.invoke(
-                                DigiaExperienceEvent.Clicked(), payload
-                            )
-                        }
+                    // Any actionable button (a primary CTA, or any button carrying
+                    // actions) is a call-to-action: emit the coarse Clicked to CEP and
+                    // the rich `Digia Experience Clicked` matrix event to Digia, then
+                    // run its actions. Mirrors the Flutter NudgeButton renderer.
+                    if (node.isPrimary || node.actions.isNotEmpty()) {
+                        DigiaInstance.emitNudgeClick(
+                            label = node.label,
+                            isPrimary = node.isPrimary,
+                            actions = node.actions,
+                        )
                     }
                     node.actions.forEach { action ->
                         when (action) {

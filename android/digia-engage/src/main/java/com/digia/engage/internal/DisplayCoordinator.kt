@@ -68,6 +68,30 @@ internal class DisplayCoordinator(
         }
     }
 
+    /**
+     * The engage-event-matrix emission seam (mirrors Flutter's coarse→CEP /
+     * rich→Digia split). The coarse [coarse] event is forwarded to the CEP plugin
+     * for its own (Impressed/Clicked/Dismissed) tracking; the rich [eventName] +
+     * [properties] go to first-party Digia analytics only, so Digia does not
+     * double-count. Pass [coarse] = null for events with no CEP counterpart
+     * (Step Viewed/Clicked/Dismissed, Question Viewed/Answered/Skipped).
+     */
+    fun emitMatrix(
+        coarse: DigiaExperienceEvent?,
+        eventName: String,
+        payload: InAppPayload,
+        properties: Map<String, Any?> = emptyMap(),
+        flush: Boolean = false,
+    ) {
+        if (coarse != null) pluginRegistry.notifyEvent(coarse, payload)
+        val svc = getAnalyticsService()
+        if (svc == null) {
+            android.util.Log.w("DigiaAnalytics", "[DisplayCoordinator] emitMatrix: analyticsService is NULL — '$eventName' not captured")
+        } else {
+            svc.capture(eventName, payload, properties, flush)
+        }
+    }
+
     /** Forward only to the active CEP plugin — used for survey Clicked/Dismissed. */
     fun notifyCEP(event: DigiaExperienceEvent, payload: InAppPayload) {
         pluginRegistry.notifyEvent(event, payload)

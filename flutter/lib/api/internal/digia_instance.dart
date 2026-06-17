@@ -41,6 +41,28 @@ class DigiaInstance with WidgetsBindingObserver implements DigiaCEPDelegate {
   bool _hostMounted = false;
   bool _initialized = false;
 
+  /// Most recent screen set via [setCurrentScreen]. Stored independently of any
+  /// CEP plugin so first-party analytics can stamp `screen_name` even when no
+  /// plugin is registered.
+  String? _currentScreen;
+  String? get currentScreen => _currentScreen;
+
+  /// Wall-clock when the active nudge was presented (its `Digia Experience
+  /// Viewed`). Only one nudge shows at a time, so a single timestamp suffices.
+  /// Drives `time_to_action_ms` (CTA tap) and `time_to_dismiss_ms` (dismiss).
+  DateTime? _nudgeViewedAt;
+
+  /// Marks the active nudge as just-viewed, starting its view clock.
+  void markNudgeViewed() => _nudgeViewedAt = DateTime.now();
+
+  /// Milliseconds since the active nudge was viewed, or null if unknown.
+  int? nudgeElapsedMs() => _nudgeViewedAt == null
+      ? null
+      : DateTime.now().difference(_nudgeViewedAt!).inMilliseconds;
+
+  /// Clears the nudge view clock once the nudge is gone.
+  void clearNudgeViewed() => _nudgeViewedAt = null;
+
   /// Tracks engage campaign-fetch readiness. Used to buffer a campaign that
   /// arrives while the SDK is still fetching (see [_pendingPayload]).
   SDKState _sdkState = SDKState.notInitialized;
@@ -71,6 +93,17 @@ class DigiaInstance with WidgetsBindingObserver implements DigiaCEPDelegate {
       DigiaAnalyticsSink(DigiaAnalyticsService.instance, _campaignStore),
       CepPluginSink(() => _activePlugin),
     ]),
+    analytics: (eventName, payload, {properties = const {}, flush = false}) {
+      final campaign = _campaignStore.find(payload.campaignKey);
+      DigiaAnalyticsService.instance.capture(
+        eventName,
+        campaignKey: payload.campaignKey,
+        campaignType: campaign?.campaignType,
+        campaignId: campaign?.id,
+        properties: properties,
+        flush: flush,
+      );
+    },
   );
 
   /// Experience-event emitter used by render surfaces ([DigiaSlot],
@@ -147,6 +180,8 @@ class DigiaInstance with WidgetsBindingObserver implements DigiaCEPDelegate {
   }
 
   void setCurrentScreen(String name) {
+    // Record for first-party analytics regardless of plugin presence.
+    _currentScreen = name;
     if (_activePlugin == null) {
       _logDegradedWarning('setCurrentScreen("$name")');
       return;

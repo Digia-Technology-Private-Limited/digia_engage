@@ -6,6 +6,7 @@ import '../internal/action/engage_action_handler.dart';
 import '../internal/campaign/campaign_model.dart';
 import '../internal/campaign/inline_carousel_config.dart';
 import '../internal/digia_instance.dart';
+import '../internal/event/engage_matrix.dart';
 import '../internal/variable_scope.dart';
 import '../models/cep_trigger_payload.dart';
 import 'digia_inline_carousel.dart';
@@ -87,14 +88,76 @@ class _DigiaSlotState extends State<DigiaSlot> {
 
   /// Fires Digia's first-render impression once the slot has painted. CEP is
   /// impressed instantly at route time; Digia waits for an actual render.
+  ///
+  /// For inline campaigns the impression is the rich `Digia Experience Viewed`
+  /// matrix event (display_style + item_total + screen/trigger context); the
+  /// carousel additionally emits a `Digia Step Viewed` for the initially visible
+  /// slide (index 0), since `onPageChanged` only fires on subsequent changes.
   void _scheduleDigiaImpressionIfNeeded() {
     final payload =
         DigiaInstance.instance.controller.getSlot(widget.placementKey);
     if (payload == null || identical(payload, _impressionScheduledFor)) return;
     _impressionScheduledFor = payload;
+    final config = _currentConfig;
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      DigiaInstance.instance.events.digiaImpressionOnce(payload);
+      final instance = DigiaInstance.instance;
+      final events = instance.events;
+      switch (config) {
+        case InlineCarouselCampaignConfig(:final inlineConfig):
+          final total = inlineConfig.items.length;
+          events.digiaImpressionOnce(
+            payload,
+            eventName: 'Digia Experience Viewed',
+            properties: inlineViewedProperties(
+              displayStyle: 'carousel',
+              itemTotal: total,
+              screenName: instance.currentScreen,
+              triggerType: payload.triggerType,
+              triggerEvent: payload.triggerEvent,
+            ),
+          );
+          events.analytics(
+            'Digia Step Viewed',
+            payload,
+            properties: inlineStepProperties(
+              displayStyle: 'carousel',
+              itemIndex: 0,
+              itemTotal: total,
+            ),
+          );
+        case InlineStoryCampaignConfig(:final storyConfig):
+          events.digiaImpressionOnce(
+            payload,
+            eventName: 'Digia Experience Viewed',
+            properties: inlineViewedProperties(
+              displayStyle: 'story',
+              itemTotal: storyConfig.items.length,
+              screenName: instance.currentScreen,
+              triggerType: payload.triggerType,
+              triggerEvent: payload.triggerEvent,
+            ),
+          );
+        case _:
+          events.digiaImpressionOnce(payload);
+      }
     });
+  }
+
+  /// Emits `Digia Step Viewed` when the carousel's visible slide changes.
+  void _onCarouselPageChanged(int index) {
+    final payload =
+        DigiaInstance.instance.controller.getSlot(widget.placementKey);
+    final config = _currentConfig;
+    if (payload == null || config is! InlineCarouselCampaignConfig) return;
+    DigiaInstance.instance.events.analytics(
+      'Digia Step Viewed',
+      payload,
+      properties: inlineStepProperties(
+        displayStyle: 'carousel',
+        itemIndex: index,
+        itemTotal: config.inlineConfig.items.length,
+      ),
+    );
   }
 
   /// Pulls the latest inline config for this slot from the controller.
@@ -109,10 +172,30 @@ class _DigiaSlotState extends State<DigiaSlot> {
 
   /// Opens a carousel slide's `deepLink` through the engage action runner, so
   /// the host's `onAction` override is consulted before the SDK's default open.
-  void _onCarouselItemTap(CarouselItem item) {
+  /// Also emits the `Digia Step Clicked` matrix event for the tapped slide.
+  void _onCarouselItemTap(CarouselItem item, int index) {
     // The deeplink arrives already resolved against the slot's [VariableScope]
     // (see DigiaInlineCarousel), so it only needs to be opened here.
     final deepLink = item.deepLink;
+
+    final payload =
+        DigiaInstance.instance.controller.getSlot(widget.placementKey);
+    final config = _currentConfig;
+    if (payload != null && config is InlineCarouselCampaignConfig) {
+      final hasLink = deepLink != null && deepLink.isNotEmpty;
+      DigiaInstance.instance.events.analytics(
+        'Digia Step Clicked',
+        payload,
+        properties: inlineStepProperties(
+          displayStyle: 'carousel',
+          itemIndex: index,
+          itemTotal: config.inlineConfig.items.length,
+          actionType: hasLink ? 'deeplink' : null,
+          actionUrl: hasLink ? deepLink : null,
+        ),
+      );
+    }
+
     if (deepLink == null || deepLink.isEmpty) return;
     EngageActionRunner.shared.run(
       [OpenDeeplinkAction(deepLink)],
@@ -150,6 +233,7 @@ class _DigiaSlotState extends State<DigiaSlot> {
           DigiaInlineCarousel(
             config: inlineConfig,
             onItemTap: _onCarouselItemTap,
+            onPageChanged: _onCarouselPageChanged,
           ),
         );
       case InlineStoryCampaignConfig(:final storyConfig):

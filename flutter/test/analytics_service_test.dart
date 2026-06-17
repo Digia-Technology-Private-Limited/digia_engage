@@ -494,6 +494,43 @@ void main() {
     expect(await DigiaAnalyticsService.instance.getQueueLength(), equals(0));
     expect(callCount, equals(1));
   });
+
+  test('capture() enqueues a matrix event with name, properties, and context',
+      () async {
+    await DigiaAnalyticsService.instance.initialize(
+      const DigiaAnalyticsConfig(),
+      'digia_test',
+    );
+
+    await DigiaAnalyticsService.instance.capture(
+      'Digia Step Viewed',
+      campaignKey: 'inline-campaign',
+      campaignType: 'inline',
+      campaignId: 'camp-123',
+      properties: const {
+        'display_style': 'carousel',
+        'item_index': 2,
+        'item_total': 5,
+        'item_id': 'card_2',
+      },
+    );
+
+    final entries = await DigiaAnalyticsService.instance.debugQueueEntries();
+    expect(entries, isNotEmpty);
+    final event = entries.last['payload'] as Map<String, dynamic>;
+    expect(event['event_name'], equals('Digia Step Viewed'));
+    expect(event['campaign_id'], equals('camp-123'));
+    expect(event['campaign_key'], equals('inline-campaign'));
+    expect(event['campaign_type'], equals('inline'));
+    final props = event['properties'] as Map;
+    expect(props['display_style'], equals('carousel'));
+    expect(props['item_index'], equals(2));
+    expect(props['item_total'], equals(5));
+    expect(props['item_id'], equals('card_2'));
+    expect(props['sdk_version'], isNotNull);
+    expect(event['anonymous_id'], isNotEmpty);
+    expect(event['session_id'], isNotEmpty);
+  });
 }
 
 CEPTriggerPayload _buildPayload(String eventKey) {

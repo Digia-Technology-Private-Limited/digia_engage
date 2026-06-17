@@ -68,16 +68,30 @@ internal fun GuideRenderer() {
     val config     = step.widgetConfig
     val anchorRect = DigiaInstance.findAnchor(step.anchorKey) ?: return
 
+    // Analytics: the guide is on screen (anchor resolved). `Digia Experience
+    // Viewed` fires once per guide; `Digia Step Viewed` fires per step.
+    LaunchedEffect(guideState.campaign.campaignKey) { DigiaInstance.reportGuideViewed() }
+    LaunchedEffect(guideState.campaign.campaignKey, guideState.stepIndex) {
+        DigiaInstance.reportGuideStepViewed(guideState.stepIndex)
+    }
+
+    // Advancing past the final step is a completion; earlier steps just advance.
+    val advanceOrComplete: () -> Unit = {
+        if (guideState.hasNext) DigiaInstance.advanceGuide() else DigiaInstance.completeGuide()
+    }
+
     // Auto-advance coroutine
     if (step.advanceTrigger == "auto" && step.autoDelayMs != null) {
         LaunchedEffect(guideState.stepIndex) {
             delay(step.autoDelayMs.toLong())
-            if (guideState.hasNext) DigiaInstance.advanceGuide() else DigiaInstance.dismissGuide()
+            advanceOrComplete()
         }
     }
 
     val onAdvance: () -> Unit = {
-        if (guideState.hasNext) DigiaInstance.advanceGuide() else DigiaInstance.dismissGuide()
+        // A CTA-driven advance is also a `Digia Step Clicked`.
+        DigiaInstance.emitGuideStepClick(guideState.stepIndex)
+        advanceOrComplete()
     }
     val onDismiss: () -> Unit = { DigiaInstance.dismissGuide() }
 

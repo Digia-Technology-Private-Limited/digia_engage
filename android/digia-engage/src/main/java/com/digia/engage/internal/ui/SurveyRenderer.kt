@@ -427,6 +427,12 @@ private fun SurveyBody(
     val timerCfg = survey.settings.timer
     val cta = survey.settings.cta
 
+    // Each answerable question that becomes visible emits `Digia Question Viewed`
+    // (Digia-only). Content blocks (welcome / result page) are not questions.
+    LaunchedEffect(node.id) {
+        if (!block.type.isContent) DigiaInstance.reportSurveyQuestionViewed(node.id)
+    }
+
     BackHandler(enabled = true) {
         when {
             vm.canGoBack -> vm.back()

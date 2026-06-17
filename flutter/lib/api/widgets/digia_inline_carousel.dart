@@ -13,14 +13,20 @@ import '../internal/variable_scope.dart';
 class DigiaInlineCarousel extends StatelessWidget {
   final InlineCarouselConfig config;
 
-  /// Invoked when a slide is tapped, carrying the slide with its `{{ }}`
-  /// placeholders already resolved against the active [VariableScope].
-  final void Function(CarouselItem item)? onItemTap;
+  /// Invoked when a slide is tapped, carrying the slide (with its `{{ }}`
+  /// placeholders already resolved against the active [VariableScope]) and its
+  /// 0-based index — the index drives the analytics `item_index`.
+  final void Function(CarouselItem item, int index)? onItemTap;
+
+  /// Invoked when the visible slide changes, carrying the new 0-based index.
+  /// Drives the `Digia Step Viewed` analytics event per slide.
+  final void Function(int index)? onPageChanged;
 
   const DigiaInlineCarousel({
     super.key,
     required this.config,
     this.onItemTap,
+    this.onPageChanged,
   });
 
   @override
@@ -31,7 +37,8 @@ class DigiaInlineCarousel extends StatelessWidget {
     // against it (`{{ placeholder }}` syntax).
     final scope = VariableScopeProvider.of(context);
 
-    final slides = config.items.map((item) {
+    final slides = config.items.indexed.map((entry) {
+      final (index, item) = entry;
       final resolved = CarouselItem(
         imageUrl: scope.resolve(item.imageUrl),
         deepLink: item.deepLink == null ? null : scope.resolve(item.deepLink!),
@@ -46,12 +53,13 @@ class DigiaInlineCarousel extends StatelessWidget {
       if (onItemTap == null) return image;
       return GestureDetector(
         behavior: HitTestBehavior.opaque,
-        onTap: () => onItemTap!.call(resolved),
+        onTap: () => onItemTap!.call(resolved, index),
         child: image,
       );
     }).toList();
 
     return InternalCarousel(
+      onChanged: onPageChanged,
       height: config.height.toDouble(),
       width: config.width?.toDouble(),
       autoPlay: config.autoPlay,

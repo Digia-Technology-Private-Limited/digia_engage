@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Digia Engage — Analytics Matrix Implementation Notes</title>
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 960px; margin: 2rem auto; padding: 0 1rem; line-height: 1.5; color: #1a1a1a; }
+    h1 { font-size: 1.6rem; }
+    h2 { border-bottom: 2px solid #ddd; padding-bottom: .25rem; margin-top: 2.2rem; }
+    h3 { margin-top: 1.4rem; color: #333; }
+    code { background: #f4f4f4; padding: 2px 5px; border-radius: 3px; font-size: .9em; }
+    .tag { display: inline-block; font-size: .72rem; font-weight: 700; padding: 1px 7px; border-radius: 10px; vertical-align: middle; }
+    .decision { background: #e6f0ff; color: #0b4ea2; }
+    .deviation { background: #fff0e6; color: #a24b0b; }
+    .tradeoff { background: #efe6ff; color: #5b0ba2; }
+    .open { background: #ffe6ea; color: #a20b2a; }
+    .done { background: #e6ffe9; color: #0b7a26; }
+    li { margin: .35rem 0; }
+    .meta { color: #666; font-size: .85rem; }
+    table { border-collapse: collapse; width: 100%; font-size: .88rem; }
+    th, td { border: 1px solid #ddd; padding: 6px 8px; text-align: left; vertical-align: top; }
+    th { background: #f7f7f7; }
+  </style>
+</head>
+<body>
+  <h1>Digia Engage — Analytics Event Matrix Implementation Notes</h1>
+  <p class="meta">Branch: <code>aditya/analytics-changes</code> (digia_engage + digia_engage_ios). Backend: <code>feature/analytics</code>.
+  Goal: fulfil the full engage-event-matrix across Flutter, React&nbsp;Native, Android, iOS. Started 2026-06-17.</p>
+
+  <h2>Locked decisions (from grilling)</h2>
+  <ul>
+    <li><span class="tag decision">DECISION</span> <b>RN seam:</b> JS emits <em>raw lifecycle only</em>; native (Android/iOS) owns 100% of Digia first-party analytics. RN never builds or sends a matrix event.</li>
+    <li><span class="tag decision">DECISION</span> <b>CEP plugins</b> keep their JS <code>p.track()</code> forwarding (separate system, untouched).</li>
+    <li><span class="tag decision">DECISION</span> <b>Flutter scope:</b> analytics only for types Flutter renders — <code>inline</code> (carousel/stories) + <code>nudge</code> (bottom_sheet/dialog). <code>guide</code>/<code>survey</code> are <code>UnsupportedCampaignConfig</code> in Flutter and are skipped.</li>
+    <li><span class="tag decision">DECISION</span> <b>Fidelity:</b> full matrix incl. first-class <code>trigger_type</code>/<code>trigger_event</code> plumbing through the trigger path + plugin API on every platform.</li>
+    <li><span class="tag decision">DECISION</span> <b>Backend</b> is the fixed contract; only concrete gaps get fixed (see below). E2E via <code>npm run local</code> (:3000).</li>
+    <li><span class="tag decision">DECISION</span> <b>Event model:</b> ONE <code>AnalyticsService</code> per platform. Coarse <code>DigiaExperienceEvent</code> (CEP + existing tests) stays untouched. Add ONE <code>capture(eventName, ctx, properties)</code> entry; renderers assemble matrix properties at the call site. No new event-type hierarchy.</li>
+    <li><span class="tag decision">DECISION</span> <b>Build order:</b> Flutter → Android → iOS → RN. TDD throughout.</li>
+  </ul>
+
+  <h2>Concrete backend gap found</h2>
+  <ul>
+    <li><span class="tag open">FOR YOU</span> <code>enrich.ts</code> derives the <code>item_index</code>/<code>item_total</code> columns only from <code>step_index</code>/<code>question_index</code>; it ignores <code>item_index</code>/<code>item_total</code>, which inline events use directly. Agreed fix:
+      <code>num(props.step_index ?? props.question_index ?? props.item_index)</code> (and the same for <code>_total</code>). <code>item_id</code>/<code>story_id</code>/<code>frame_id</code> correctly stay in residual properties JSON. <b>You will commit backend changes.</b></li>
+  </ul>
+
+  <h2>Design decisions &amp; deviations (running log)</h2>
+
+  <h3>Flutter</h3>
+  <ul>
+    <li class="meta">Baseline: all 13 tests in <code>analytics_service_test.dart</code> pass before any change.</li>
+    <li><span class="tag done">DONE</span> Added <code>DigiaAnalyticsService.capture(eventName, {campaignKey, campaignType, campaignId, properties, flush})</code> — the single matrix entry point. Refactored the shared enqueue/payload-builder so <code>captureExperienceEvent</code> (CEP/coarse path) is behaviourally identical. 14/14 tests green (13 original + 1 new tracer-bullet test).</li>
+    <li><span class="tag decision">DECISION</span> Matrix properties are passed as a <code>Map&lt;String,dynamic&gt;</code> assembled by the caller using exact matrix snake_case keys (e.g. <code>display_style</code>, <code>item_index</code>, <code>time_to_action_ms</code>). The service merges static context (sdk_version, device_*) + identity (anonymous_id/session_id/user_id) + top-level campaign fields. No per-event Dart type — matches "one service, no new event hierarchy".</li>
+    <li><span class="tag decision">DECISION</span> <code>flush:true</code> on <code>capture()</code> is how terminal events (Experience Dismissed/Completed) force an immediate flush, mirroring the existing <code>flushOnCapture</code> behaviour that the CEP sink applies for coarse events.</li>
+    <li><span class="tag done">DONE</span> Added <code>EngageEventEmitter.analytics(eventName, payload, {properties, flush})</code> — render surfaces' entry point for Digia-only matrix events. The campaign-resolution + <code>capture()</code> call is injected as an <code>AnalyticsDispatch</code> at the composition root (<code>DigiaInstance</code>), keeping the emitter decoupled/testable. 2 new emitter tests; 16/16 green.</li>
+    <li><span class="tag decision">DECISION</span> Matrix (Step/granular) events route <b>Digia-only</b> via <code>emitter.analytics()</code>; coarse CEP lifecycle still goes via <code>toCep/toAll</code>. So a nudge "viewed" will fire <code>toCep(ExperienceImpressed)</code> (CEP) <em>and</em> <code>analytics('Digia Experience Viewed', …rich props)</code> (Digia) — CEP stays coarse, Digia gets full fidelity.</li>
+    <li><span class="tag done">DONE</span> <b>Pure matrix property builders</b> (<code>lib/api/internal/event/engage_matrix.dart</code>) assemble each event's <code>properties</code> map with exact snake_case keys, unit-tested in isolation (<code>engage_matrix_test.dart</code>) — the error-prone mapping logic is covered without heavy widget tests. Renderer wiring then calls these at the <code>emitter.analytics()</code> site. (Renderer glue itself is verified by the builder tests + medihub E2E rather than widget tests — a deliberate TDD tradeoff for the UI plumbing.)</li>
+    <li><span class="tag decision">DECISION</span> <b>Coarse→CEP / rich→Digia split.</b> Each user moment now fires the coarse <code>DigiaExperienceEvent</code> to <em>CEP only</em> (<code>toCep</code>) and the rich matrix event to <em>Digia only</em> (<code>analytics()</code>). Nudge present/dismiss/click were changed from <code>toAll</code>/<code>toDigia</code> → <code>toCep</code> + <code>analytics()</code> so Digia is not double-counted.</li>
+    <li><span class="tag done">DONE</span> <b>Nudge</b> fully instrumented: <code>Digia Experience Viewed</code> (display_style bottom_sheet/dialog, screen_name, trigger_type/trigger_event), <code>Clicked</code> (element_id, cta_label, cta_position, action_type/action_url, time_to_action_ms), <code>Dismissed</code> (time_to_dismiss_ms, flush). View clock lives on <code>DigiaInstance</code> (single active nudge).</li>
+    <li><span class="tag deviation">DEVIATION</span> <b>Nudge Clicked now fires for any actionable button</b> (primary <em>or</em> any button carrying actions), not just primary as before — required to populate <code>cta_position=secondary</code> per the matrix. Consequence: CEP also now sees a coarse <code>Clicked</code> for secondary CTAs.</li>
+    <li><span class="tag decision">DECISION</span> <b>element_id synthesised</b> as <code>cta_primary</code>/<code>cta_secondary</code> — the Flutter <code>NudgeButton</code> model has no server-assigned button id. Deterministic and mirrors <code>cta_position</code>.</li>
+    <li><span class="tag done">DONE</span> <b>Inline carousel</b>: <code>Experience Viewed</code> (display_style=carousel, item_total, screen/trigger context) fired once per campaign via an extended <code>digiaImpressionOnce(eventName, properties)</code> that keeps the per-campaign dedup but emits the rich event instead of coarse <code>ExperienceImpressed</code>. <code>Step Viewed</code> for slide 0 at first render + on every <code>onPageChanged</code>; <code>Step Clicked</code> on slide tap (action_type=deeplink/action_url when the slide has a link).</li>
+    <li><span class="tag done">DONE</span> <b>Inline stories</b>: card tap → <code>Experience Clicked</code> (item_index = opened frame); per-frame <code>Step Viewed</code> in <code>_startItem</code>; CTA tap → <code>Step Clicked</code>; early close (swipe-down/back) → <code>Step Dismissed</code>; playing through the last frame → <code>Experience Completed</code> (time_to_complete_ms, flush). A <code>_terminated</code> guard prevents double terminal events. Story widgets resolve their payload from the slot key (the viewer is a pushed route), same pattern as the nudge renderer reaching <code>DigiaInstance</code>.</li>
+    <li><span class="tag decision">DECISION</span> <b>Inline granular events are Digia-only</b> (<code>analytics()</code>), since CEP's coarse impression/dismiss for inline are already fired instantly at route time (syncTemplate semantics). Story open/step/complete therefore do not also hit CEP.</li>
+    <li><span class="tag decision">DECISION</span> <b>Trigger attribution is first-class.</b> Added optional <code>triggerType</code> (event|screen_view|manual|app_open) + <code>triggerEvent</code> to <code>CEPTriggerPayload</code> (backward-compatible — both nullable). Threaded into every "Viewed" event. <code>screen_name</code> now stored on <code>DigiaInstance.setCurrentScreen</code> regardless of whether a CEP plugin is registered.</li>
+    <li><span class="tag open">OPEN</span> <b>Nudge dismiss_reason</b> (backdrop|close_button|back_button|secondary_cta|auto_timeout) is <em>not</em> emitted on Flutter — <code>nudge_presenter.dart</code> completes its dismiss Future without surfacing the cause. Only <code>time_to_dismiss_ms</code> is sent. Threading a reason through the presentation strategies is deferred; confirm whether this fidelity is required for Flutter.</li>
+    <li><span class="tag open">OPEN</span> <b>item_id / frame_id absent on Flutter inline</b>: neither <code>CarouselItem</code> nor <code>StoryItemConfig</code> carries a server id, so <code>item_id</code> is omitted (only <code>item_index</code>/<code>item_total</code> are sent). If the backend/dashboard needs a stable per-item id on Flutter, the config models must parse one.</li>
+    <li class="meta">Flutter test suite: 25/25 green (13 original analytics + 1 capture tracer + 3 emitter + 8 matrix-builder).</li>
+    <!-- entries appended as work proceeds -->
+  </ul>
+
+  <h3>Android</h3>
+  <ul>
+    <li class="meta">Baseline: the test module did <b>not</b> compile on checkout — <code>DigiaInstanceTest.kt</code> referenced the old <code>InAppPayload</code>-at-the-boundary contract and a <code>FakePlugin.notifyEvent(event, InAppPayload)</code> signature that no longer existed after the <code>CEPTriggerPayload</code> rename. This blocked <em>all</em> Android tests. Confirmed via a clean compile that this breakage predates my changes.</li>
+    <li><span class="tag deviation">DEVIATION</span> Rewrote <code>DigiaInstanceTest.kt</code> faithfully to the current contracts: trigger delivery via <code>CEPTriggerPayload(cepCampaignId, campaignKey)</code> at the delegate boundary, <code>FakePlugin.notifyEvent(event, CEPTriggerPayload)</code>, events captured as <code>Pair&lt;DigiaExperienceEvent, CEPTriggerPayload&gt;</code>, and assertions against the real <code>nudgeOverlay</code>/<code>slotPayloads</code> channels. Restores the "existing tests pass 100%" invariant.</li>
+    <li><span class="tag decision">DECISION</span> <b>Coarse→CEP / rich→Digia split via one seam</b>: <code>DisplayCoordinator.emitMatrix(coarse, eventName, payload, properties, flush)</code> — fires the coarse <code>DigiaExperienceEvent</code> to <code>pluginRegistry.notifyEvent</code> (CEP) only when non-null, and always the named matrix event to <code>analyticsService.capture(eventName, …)</code> (Digia). Mirrors the Flutter emitter. Renderers/orchestrators call <code>DigiaInstance</code> methods that delegate to this single seam.</li>
+    <li><span class="tag done">DONE</span> <b>Pure matrix property builders</b> (<code>internal/analytics/EngageMatrix.kt</code>) mirror <code>engage_matrix.dart</code> exactly (nudgeViewed/nudgeClicked/nudgeDismissed/containerViewed/step/completed/question + actionTypeToken/actionUrlOf). Unit-tested in isolation (<code>EngageMatrixTest.kt</code>, 8 tests) — UI glue verified by builder tests + integration tests + device E2E, same TDD tradeoff as Flutter.</li>
+    <li><span class="tag done">DONE</span> <b>Nudge</b>: <code>reportNudgeImpression</code> (Impressed→CEP + rich Viewed with display_style/screen/trigger), <code>emitNudgeClick(label,isPrimary,actions)</code> (Clicked(<code>cta_$position</code>)→CEP + rich Clicked), <code>markNudgeDismissed(reason?)</code> (Dismissed→CEP + rich Dismissed, flush). View clock on <code>DigiaInstance</code>. <code>NudgeNodeRenderer</code> now fires the click for any button that is primary <em>or</em> carries actions (matches the Flutter deviation, populates <code>cta_secondary</code>).</li>
+    <li><span class="tag done">DONE</span> <b>Inline carousel</b> (<code>DigiaComposableApi.InlineCarouselView</code>): <code>LaunchedEffect(payload.id)</code> fires <code>reportInlineViewed</code> (Impressed→CEP + rich Viewed) + <code>reportInlineStep(0)</code>; a <code>snapshotFlow { currentPage % pageCount }.distinctUntilChanged().drop(1)</code> fires <code>Step Viewed</code> on slide change; slide <code>.clickable</code> fires <code>Step Clicked</code> (deeplink action_type/url) and opens the deeplink.</li>
+    <li><span class="tag done">DONE</span> <b>Inline story</b>: card tap (<code>DigiaInlineStory</code>) → <code>emitStoryOpened</code> = <code>Experience Clicked</code> (element_id=<code>story_card</code>, item_index=opened frame); the fullscreen overlay (<code>DigiaStoryOverlay</code>) fires per-frame <code>Step Viewed</code> via <code>LaunchedEffect(currentStoryIndex)</code>, <code>Experience Completed</code> (time_to_complete_ms, flush) in <code>onCompleted</code>, and <code>Step Dismissed</code> via a <code>DisposableEffect.onDispose</code> guarded by a <code>terminated</code> flag so completion / CTA exits don't also count as a dismiss.</li>
+    <li><span class="tag decision">DECISION</span> <b>Inline & story granular events are Digia-only</b> (<code>coarse=null</code>); only the container Viewed sends the coarse Impressed to CEP — matching the Flutter inline decision (CEP impression/dismiss for inline are coarse-only).</li>
+    <li><span class="tag done">DONE</span> <b>Survey</b> enriched onto the matrix: <code>reportSurveyStarted</code> now emits Impressed→CEP + rich <code>Experience Viewed</code> (display_style=<code>standard</code>, item_total=question-node count); <code>reportSurveyQuestionViewed</code> → Digia-only <code>Question Viewed</code>; <code>reportSurveyAnswered</code> keeps the one-shot internal <code>Experience Clicked</code> engagement signal and now also fires per-question Digia-only <code>Question Answered</code> (item_index/item_total/question_id/question_type + answer); <code>markSurveyDismissed</code> → Dismissed→CEP + rich <code>Experience Dismissed</code> (flush). <code>SurveyRenderer</code> fires <code>Question Viewed</code> from a <code>LaunchedEffect(node.id)</code> for non-content blocks.</li>
+    <li><span class="tag decision">DECISION</span> <b>question_type</b> = the block type enum lowercased (e.g. <code>single_select</code>, <code>nps</code>); <b>item_index/item_total</b> computed over <em>answerable</em> nodes only (content blocks — welcome / text-media / result-page — excluded). <b>question_id</b> = survey node id.</li>
+    <li><span class="tag open">OPEN</span> <b>Survey <code>Question Skipped</code> has no Android trigger</b>: the Android survey renderer has no skip CTA, so <code>reportSurveyQuestionSkipped</code> exists for parity/RN/iOS but is currently unwired on Android. Confirm whether Android surveys should expose a skip affordance.</li>
+    <li><span class="tag done">DONE</span> <b>Guides</b> (tooltip/spotlight) — previously fired <em>nothing</em>. Now: <code>reportGuideViewed</code> (Impressed→CEP + rich <code>Experience Viewed</code>, display_style from step 0, item_total=step count) once per guide when the anchor resolves; <code>reportGuideStepViewed</code> per step; <code>emitGuideStepClick</code> on CTA advance (Digia-only <code>Step Clicked</code>); <code>completeGuide</code> on advancing past the last step (Dismissed→CEP + rich <code>Experience Completed</code>, flush); <code>dismissGuide</code> on early close (Digia-only <code>Step Dismissed</code> for the abandoned step + Dismissed→CEP + rich <code>Experience Dismissed</code>, flush). Wired in <code>GuideRenderer</code> via <code>LaunchedEffect</code>s keyed on campaignKey/stepIndex.</li>
+    <li><span class="tag deviation">DEVIATION</span> Old <code>dismissGuide</code> built an <code>InAppPayload</code> with empty content (losing campaign_id). Replaced with a proper <code>guidePayload(campaign)</code> carrying campaign_id/key/type=guide/display_style, so guide analytics are correctly attributed.</li>
+    <li><span class="tag done">DONE</span> Added integration tests to <code>DigiaInstanceTest</code> for the survey (start→CEP Impressed, question/answer stay off CEP; dismiss→CEP Dismissed) and guide (view→CEP Impressed, completion→CEP Dismissed, clicks stay off CEP; early dismiss clears state + CEP Dismissed) routing invariants.</li>
+    <li class="meta">Android test suite: 75/75 green (was 63 broken → 71 after the nudge/inline/story slice → 75 after survey + guide tests). Property correctness covered by <code>EngageMatrixTest</code> (8); routing/lifecycle by <code>DigiaInstanceTest</code> (16).</li>
+  </ul>
+
+  <h2>Open questions</h2>
+  <ul>
+    <!-- entries appended as work proceeds -->
+  </ul>
+</body>
+</html>

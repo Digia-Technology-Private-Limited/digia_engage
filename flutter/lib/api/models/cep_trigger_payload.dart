@@ -25,10 +25,24 @@ class CEPTriggerPayload {
   /// Keys must match variable placeholders declared in the Digia dashboard.
   final Map<String, String>? variables;
 
+  // --- Trigger attribution (analytics matrix) ---
+
+  /// How this campaign was triggered: `event` | `screen_view` | `manual` |
+  /// `app_open`. Surfaced first-class so first-party analytics can record
+  /// `trigger_type` on the experience's first event. Null when the plugin/host
+  /// did not classify the trigger.
+  final String? triggerType;
+
+  /// For `event`/`screen_view` triggers, the originating event or screen name
+  /// (matrix `trigger_event`). Null otherwise.
+  final String? triggerEvent;
+
   const CEPTriggerPayload({
     required this.cepCampaignId,
     required this.cepMetadata,
     required this.campaignKey,
     this.variables,
+    this.triggerType,
+    this.triggerEvent,
   });
 }

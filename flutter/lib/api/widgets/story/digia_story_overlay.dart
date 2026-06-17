@@ -6,6 +6,8 @@ import '../../internal/action/engage_action.dart';
 import '../../internal/action/engage_action_context.dart';
 import '../../internal/action/engage_action_handler.dart';
 import '../../internal/campaign/inline_story_config.dart';
+import '../../internal/digia_instance.dart';
+import '../../internal/event/engage_matrix.dart';
 import '../../internal/variable_scope.dart';
 
 /// Pushes the full-screen story viewer for [config], starting at [initialIndex].
@@ -70,6 +72,13 @@ class _DigiaStoryOverlayState extends State<_DigiaStoryOverlay>
   late int _currentIndex;
   bool _paused = false;
 
+  /// When the viewer opened — drives `time_to_complete_ms` on completion.
+  final DateTime _openedAt = DateTime.now();
+
+  /// Guards against double-emitting a terminal (Completed/Dismissed) event when
+  /// both a navigation path and route teardown could fire.
+  bool _terminated = false;
+
   /// Progress of the current item, 0..1. Fed by either the image animation or
   /// the video's playback position.
   double _progress = 0;
@@ -77,6 +86,29 @@ class _DigiaStoryOverlayState extends State<_DigiaStoryOverlay>
   List<StoryItemConfig> get _items => widget.config.items;
 
   StoryItemConfig get _current => _items[_currentIndex];
+
+  /// Emits a story matrix event for this slot's active campaign, if any.
+  /// Story widgets resolve their payload from the slot key (the overlay is a
+  /// pushed route, decoupled from [DigiaSlot]), mirroring how the nudge renderer
+  /// reaches analytics through [DigiaInstance].
+  void _emit(
+    String eventName,
+    Map<String, dynamic> properties, {
+    bool flush = false,
+  }) {
+    final payload =
+        DigiaInstance.instance.controller.getSlot(widget.config.slotKey);
+    if (payload == null) return;
+    DigiaInstance.instance.events
+        .analytics(eventName, payload, properties: properties, flush: flush);
+  }
+
+  /// Maps a story CTA action type (`openUrl` / `deepLink`) to the matrix token.
+  String? _ctaActionType(StoryCtaAction? action) => switch (action?.type) {
+        'openUrl' => 'url',
+        'deepLink' => 'deeplink',
+        _ => null,
+      };
 
   @override
   void initState() {
@@ -104,6 +136,16 @@ class _DigiaStoryOverlayState extends State<_DigiaStoryOverlay>
       _currentIndex = index;
       _progress = 0;
     });
+
+    // Each frame becoming current is a `Digia Step Viewed`.
+    _emit(
+      'Digia Step Viewed',
+      inlineStepProperties(
+        displayStyle: 'story',
+        itemIndex: index,
+        itemTotal: _items.length,
+      ),
+    );
 
     final item = _items[index];
     if (item.isVideo) {
@@ -176,8 +218,25 @@ class _DigiaStoryOverlayState extends State<_DigiaStoryOverlay>
     } else if (widget.config.restartOnCompleted) {
       _startItem(0);
     } else {
-      _dismiss();
+      _complete();
     }
+  }
+
+  /// Playing through the final frame is the matrix `Digia Experience Completed`.
+  void _complete() {
+    if (!_terminated) {
+      _terminated = true;
+      _emit(
+        'Digia Experience Completed',
+        inlineCompletedProperties(
+          displayStyle: 'story',
+          itemTotal: _items.length,
+          timeToCompleteMs: DateTime.now().difference(_openedAt).inMilliseconds,
+        ),
+        flush: true,
+      );
+    }
+    if (mounted) Navigator.of(context).maybePop();
   }
 
   void _previous() {
@@ -205,7 +264,21 @@ class _DigiaStoryOverlayState extends State<_DigiaStoryOverlay>
     }
   }
 
+  /// Closing the viewer before the last frame ends (swipe-down/back) is a
+  /// `Digia Step Dismissed` for the frame the user was on.
   void _dismiss() {
+    if (!_terminated) {
+      _terminated = true;
+      _emit(
+        'Digia Step Dismissed',
+        inlineStepProperties(
+          displayStyle: 'story',
+          itemIndex: _currentIndex,
+          itemTotal: _items.length,
+        ),
+        flush: true,
+      );
+    }
     if (!mounted) return;
     Navigator.of(context).maybePop();
   }
@@ -234,6 +307,20 @@ class _DigiaStoryOverlayState extends State<_DigiaStoryOverlay>
           actions.add(OpenDeeplinkAction(url));
       }
     }
+
+    // The CTA tap is a `Digia Step Clicked` for the current frame.
+    final hasLink = url != null && url.isNotEmpty;
+    _emit(
+      'Digia Step Clicked',
+      inlineStepProperties(
+        displayStyle: 'story',
+        itemIndex: _currentIndex,
+        itemTotal: _items.length,
+        actionType: hasLink ? _ctaActionType(action) : null,
+        actionUrl: hasLink ? url : null,
+      ),
+    );
+
     // Always dismiss after the (optional) link, matching Android's CTA handler.
     actions.add(const HideAction());
     EngageActionRunner.shared.run(

@@ -60,6 +60,30 @@ internal class AnalyticsService @VisibleForTesting constructor(
         )
     }
 
+    /**
+     * The single entry point for the analytics event matrix. Renderers assemble
+     * the snake_case [properties] map at the call site (e.g. display_style,
+     * item_index, time_to_action_ms) and name the event explicitly. Mirrors the
+     * Flutter `DigiaAnalyticsService.capture`. Pass [flush] for terminal events
+     * (Experience Dismissed / Completed) that must dispatch immediately.
+     */
+    fun capture(
+        eventName: String,
+        payload: InAppPayload,
+        properties: Map<String, Any?> = emptyMap(),
+        flush: Boolean = false,
+    ) {
+        if (!config.enabled) return
+        enqueue(
+            eventName = eventName,
+            campaignId = payload.content["campaign_id"] as? String,
+            campaignKey = payload.content["campaign_key"] as? String,
+            campaignType = payload.content["campaign_type"] as? String,
+            extraProperties = properties,
+        )
+        if (flush) flush()
+    }
+
     fun captureInternal(event: InternalEngageEvent, payload: InAppPayload) {
         if (!config.enabled) return
         val (eventName, extras) = when (event) {

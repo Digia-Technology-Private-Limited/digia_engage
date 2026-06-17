@@ -9,6 +9,7 @@ import '../action/engage_action_context.dart';
 import '../action/engage_action_handler.dart';
 import '../digia_instance.dart';
 import '../engage_fonts.dart';
+import '../event/engage_matrix.dart';
 import '../variable_scope.dart';
 import 'nudge_content.dart';
 
@@ -165,19 +166,29 @@ final class NudgeButtonRenderer extends NudgeNodeRenderer<NudgeButton> {
     );
   }
 
-  /// Builds the tap handler. A primary button is the experience's call-to-action:
-  /// tapping it emits an `ExperienceClicked` analytics event before running its
-  /// actions. A button with neither actions nor the primary flag is inert.
+  /// Builds the tap handler. Any actionable button (a primary CTA, or any button
+  /// carrying actions) is a call-to-action: tapping it emits a coarse
+  /// `ExperienceClicked` to CEP and the rich `Digia Experience Clicked` matrix
+  /// event to first-party analytics, then runs its actions. A button with
+  /// neither actions nor the primary flag is inert.
   VoidCallback? _onTap(NudgeButton node, BuildContext context) {
     final hasActions = node.actions.isNotEmpty;
     if (!hasActions && !node.isPrimary) return null;
     return () {
-      if (node.isPrimary) {
-        final payload = DigiaInstance.instance.controller.activePayload;
-        if (payload != null) {
-          DigiaInstance.instance.events
-              .toDigia(const ExperienceClicked(), payload);
-        }
+      final instance = DigiaInstance.instance;
+      final payload = instance.controller.activePayload;
+      if (payload != null) {
+        instance.events.toCep(const ExperienceClicked(), payload);
+        instance.events.analytics(
+          'Digia Experience Clicked',
+          payload,
+          properties: nudgeClickedProperties(
+            label: node.label,
+            isPrimary: node.isPrimary,
+            actions: node.actions,
+            timeToActionMs: instance.nudgeElapsedMs(),
+          ),
+        );
       }
       if (hasActions) {
         EngageActionRunner.shared.run(

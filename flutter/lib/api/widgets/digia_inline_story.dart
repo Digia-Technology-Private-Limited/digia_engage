@@ -4,6 +4,8 @@ import 'package:video_player/video_player.dart';
 
 import '../internal/action/engage_action_context.dart';
 import '../internal/campaign/inline_story_config.dart';
+import '../internal/digia_instance.dart';
+import '../internal/event/engage_matrix.dart';
 import '../internal/variable_scope.dart';
 import 'story/digia_story_overlay.dart';
 
@@ -44,17 +46,34 @@ class DigiaInlineStory extends StatelessWidget {
           final item = config.items[index];
           return GestureDetector(
             behavior: HitTestBehavior.opaque,
-            onTap: () => openStoryOverlay(
-              context: context,
-              config: config,
-              initialIndex: index,
-              scope: scope,
-              actionContext: const EngageActionContext(
-                campaignId: '',
-                campaignKey: '',
-                surface: EngageSurface.inline,
-              ),
-            ),
+            onTap: () {
+              // Opening a story is the matrix `Digia Experience Clicked`
+              // (item_index = the frame the user opened at).
+              final payload =
+                  DigiaInstance.instance.controller.getSlot(config.slotKey);
+              if (payload != null) {
+                DigiaInstance.instance.events.analytics(
+                  'Digia Experience Clicked',
+                  payload,
+                  properties: inlineStepProperties(
+                    displayStyle: 'story',
+                    itemIndex: index,
+                    itemTotal: config.items.length,
+                  ),
+                );
+              }
+              openStoryOverlay(
+                context: context,
+                config: config,
+                initialIndex: index,
+                scope: scope,
+                actionContext: const EngageActionContext(
+                  campaignId: '',
+                  campaignKey: '',
+                  surface: EngageSurface.inline,
+                ),
+              );
+            },
             child: ClipRRect(
               borderRadius: radius,
               child: SizedBox(

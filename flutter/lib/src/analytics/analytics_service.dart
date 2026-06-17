@@ -159,7 +159,11 @@ class DigiaAnalyticsService {
     }
   }
 
-  /// Captures an experience event with campaign context
+  /// Captures an experience event with campaign context.
+  ///
+  /// Maps the coarse [DigiaExperienceEvent] onto its canonical analytics name
+  /// and a small set of derived properties, then enqueues it. This is the
+  /// CEP-aligned path and is kept intact for backward compatibility.
   Future<void> captureExperienceEvent(
     DigiaExperienceEvent event,
     CEPTriggerPayload payload, {
@@ -169,30 +173,97 @@ class DigiaAnalyticsService {
     if (!_enabled) return;
 
     try {
-      final occurredAt = DateTime.now().toUtc().toIso8601String();
-      final eventName = event.analyticsEventName;
-      final eventId = _uuid.v4();
-      await _identity.captureEventTime();
+      final properties = <String, dynamic>{};
+      if (event is ExperienceClicked) {
+        properties['element_id'] = event.elementId;
+      }
 
-      final eventPayload = _buildEventPayload(
-        eventId: eventId,
-        eventName: eventName,
-        occurredAt: occurredAt,
-        payload: payload,
-        event: event,
+      final metadata = payload.cepMetadata;
+      if (metadata['displayStyle'] is String) {
+        properties['display_style'] = metadata['displayStyle'];
+      }
+      if (metadata['anchorKey'] is String) {
+        properties['anchor_key'] = metadata['anchorKey'];
+      }
+      if (metadata['slotKey'] is String) {
+        properties['slot_key'] = metadata['slotKey'];
+      }
+      if (payload.variables != null && payload.variables!.isNotEmpty) {
+        properties['variables'] = payload.variables;
+      }
+
+      await _enqueue(
+        eventName: event.analyticsEventName,
+        campaignKey: payload.campaignKey,
         campaignType: campaignType,
         campaignId: campaignId,
+        properties: properties,
       );
-
-      await _queue.appendEvent(eventPayload, _config.queueMaxEvents);
-
-      if (await _queue.length() >= _config.flushBatchSize) {
-        await flush();
-      } else {
-        _scheduleTimer();
-      }
     } catch (error) {
       _log('[Digia Analytics] captureExperienceEvent failed: $error');
+    }
+  }
+
+  /// Captures an arbitrary matrix event by [eventName] with caller-assembled
+  /// [properties] (snake_case matrix keys). This is the single entry point used
+  /// by renderers to emit the full Digia Engage event matrix — no per-event
+  /// type hierarchy. Static context and identity fields are merged in here.
+  ///
+  /// Pass [flush] = true for terminal events (Dismissed / Completed) that must
+  /// not wait for the batch timer.
+  Future<void> capture(
+    String eventName, {
+    required String campaignKey,
+    String? campaignType,
+    String? campaignId,
+    Map<String, dynamic> properties = const {},
+    bool flush = false,
+  }) async {
+    if (!_enabled) return;
+
+    try {
+      await _enqueue(
+        eventName: eventName,
+        campaignKey: campaignKey,
+        campaignType: campaignType,
+        campaignId: campaignId,
+        properties: properties,
+      );
+      if (flush) await this.flush();
+    } catch (error) {
+      _log('[Digia Analytics] capture failed: $error');
+    }
+  }
+
+  /// Shared enqueue path: stamps identity/context, builds the wire payload,
+  /// appends to the queue, and triggers a batch flush or schedules the timer.
+  Future<void> _enqueue({
+    required String eventName,
+    required String campaignKey,
+    String? campaignType,
+    String? campaignId,
+    required Map<String, dynamic> properties,
+  }) async {
+    final occurredAt = DateTime.now().toUtc().toIso8601String();
+    final eventId = _uuid.v4();
+    await _identity.captureEventTime();
+
+    final eventPayload = _buildEventPayload(
+      eventId: eventId,
+      eventName: eventName,
+      occurredAt: occurredAt,
+      campaignKey: campaignKey,
+      campaignType: campaignType,
+      campaignId: campaignId,
+      properties: properties,
+    );
+
+    await _queue.appendEvent(eventPayload, _config.queueMaxEvents);
+
+    if (await _queue.length() >= _config.flushBatchSize) {
+      await flush();
+    } else {
+      _scheduleTimer();
     }
   }
 
@@ -366,35 +437,15 @@ class DigiaAnalyticsService {
     required String eventId,
     required String eventName,
     required String occurredAt,
-    required CEPTriggerPayload payload,
-    required DigiaExperienceEvent event,
+    required String campaignKey,
+    required Map<String, dynamic> properties,
     String? campaignType,
     String? campaignId,
   }) {
-    final eventSpecific = <String, dynamic>{};
-    if (event is ExperienceClicked) {
-      eventSpecific['element_id'] = event.elementId;
-    }
-
-    final metadata = payload.cepMetadata;
-    if (metadata['displayStyle'] is String) {
-      eventSpecific['display_style'] = metadata['displayStyle'];
-    }
-    if (metadata['anchorKey'] is String) {
-      eventSpecific['anchor_key'] = metadata['anchorKey'];
-    }
-    if (metadata['slotKey'] is String) {
-      eventSpecific['slot_key'] = metadata['slotKey'];
-    }
-
     final mergedProperties = <String, dynamic>{
-      ...eventSpecific,
+      ...properties,
       ..._staticContext,
     };
-
-    if (payload.variables != null && payload.variables!.isNotEmpty) {
-      mergedProperties['variables'] = payload.variables;
-    }
 
     mergedProperties.removeWhere((_, v) => v == null);
 
@@ -403,7 +454,7 @@ class DigiaAnalyticsService {
       'event_name': eventName,
       'occurred_at': occurredAt,
       'campaign_id': campaignId,
-      'campaign_key': payload.campaignKey,
+      'campaign_key': campaignKey,
       'campaign_type': campaignType,
       'properties': mergedProperties,
       'anonymous_id': _identity.anonymousId,

@@ -75,6 +75,26 @@ private fun DigiaStoryOverlayContent(state: StoryOverlayState) {
     val variables = remember(state.payload) { extractVariables(state.payload.content) }
     var currentStoryIndex by remember(state.initialIndex) { mutableIntStateOf(state.initialIndex) }
 
+    // Analytics lifecycle: each visible frame emits `Digia Step Viewed`; playing
+    // through every frame emits `Digia Experience Completed`; a CTA tap emits
+    // `Digia Step Clicked`; any other close (back / outside) emits `Digia Step
+    // Dismissed`. [terminated] suppresses the dispose-time dismiss once the story
+    // ended via completion or an explicit CTA exit. Mirrors the Flutter overlay.
+    val itemTotal = state.config.items.size
+    val openedAtMs = remember(state.payload, state.initialIndex) { System.currentTimeMillis() }
+    var terminated by remember(state.payload, state.initialIndex) { mutableStateOf(false) }
+
+    LaunchedEffect(currentStoryIndex) {
+        DigiaInstance.reportStoryFrameViewed(state.payload, currentStoryIndex, itemTotal)
+    }
+    DisposableEffect(Unit) {
+        onDispose {
+            if (!terminated) {
+                DigiaInstance.markStoryDismissed(state.payload, currentStoryIndex, itemTotal)
+            }
+        }
+    }
+
     val contents: List<@Composable () -> Unit> = remember(state.config) {
         state.config.items.map { item ->
             {
@@ -109,7 +129,17 @@ private fun DigiaStoryOverlayContent(state: StoryOverlayState) {
             restartOnCompleted = state.config.restartOnCompleted,
             defaultDuration = state.config.defaultDuration.milliseconds,
             indicatorConfig = indicatorConfig,
-            onCompleted = { DigiaInstance.controller.dismissStoryOverlay() },
+            onCompleted = {
+                if (!terminated) {
+                    terminated = true
+                    DigiaInstance.markStoryCompleted(
+                        payload = state.payload,
+                        itemTotal = itemTotal,
+                        timeToCompleteMs = System.currentTimeMillis() - openedAtMs,
+                    )
+                }
+                DigiaInstance.controller.dismissStoryOverlay()
+            },
             onStoryChanged = { index -> currentStoryIndex = index },
             footer = {
                 val item = state.config.items.getOrNull(currentStoryIndex)
