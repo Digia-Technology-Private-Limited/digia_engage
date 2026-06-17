@@ -374,6 +374,9 @@ class DigiaAnalyticsService {
     final eventSpecific = <String, dynamic>{};
     if (event is ExperienceClicked) {
       eventSpecific['element_id'] = event.elementId;
+    } else if (event is DigiaQuestionAnswered) {
+      eventSpecific['element_id'] = event.stepId;
+      if (event.answer.isNotEmpty) eventSpecific['answer'] = event.answer;
     }
 
     final metadata = payload.cepMetadata;
