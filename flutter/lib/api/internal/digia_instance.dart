@@ -14,6 +14,8 @@ import 'event/cep_plugin_sink.dart';
 import 'event/digia_analytics_sink.dart';
 import 'event/engage_event_emitter.dart';
 import 'event/engage_event_router.dart';
+import 'guide/anchor_registry.dart';
+import 'guide/guide_orchestrator.dart';
 import 'sdk_state.dart';
 import 'survey/submission_reporter.dart';
 import 'survey/survey_logic_handler.dart';
@@ -63,6 +65,16 @@ class DigiaInstance with WidgetsBindingObserver implements DigiaCEPDelegate {
   /// [DigiaHost] mounts the survey renderer against it.
   final SurveyOrchestrator _surveyOrchestrator = SurveyOrchestrator();
   SurveyOrchestrator get surveyOrchestrator => _surveyOrchestrator;
+
+  /// Holds the single active guide. Mirrors Android's `GuideOrchestrator`;
+  /// `GuideRenderer` (mounted by [DigiaHost]) drives it.
+  final GuideOrchestrator _guideOrchestrator = GuideOrchestrator();
+  GuideOrchestrator get guideOrchestrator => _guideOrchestrator;
+
+  /// Maps campaign `anchorKey`s to host-widget [FocusNode]s. Shared by
+  /// `DigiaAnchor` (registers anchors) and `GuideRenderer` (positions steps).
+  final AnchorRegistry _anchorRegistry = AnchorRegistry();
+  AnchorRegistry get anchorRegistry => _anchorRegistry;
 
   /// Posts completed-survey answers to the backend. Created during [initialize]
   /// once the device id is known. Mirrors Android's `submissionReporter`.
@@ -309,6 +321,17 @@ class DigiaInstance with WidgetsBindingObserver implements DigiaCEPDelegate {
           _logIfVerbose(
               'survey scheduled (campaignKey=${campaign.campaignKey}).');
         }
+      case GuideCampaignConfig():
+        final started = _guideOrchestrator.start(campaign, payload);
+        if (!started) {
+          debugPrint(
+            "[Digia] guide campaign '${campaign.campaignKey}' dropped: "
+            'another guide is on screen, or it has no steps.',
+          );
+        } else {
+          _logIfVerbose(
+              'guide scheduled (campaignKey=${campaign.campaignKey}).');
+        }
       case UnsupportedCampaignConfig(:final reason):
         debugPrint(
           "[Digia] campaign '${campaign.campaignKey}' dropped: $reason",
@@ -352,6 +375,10 @@ class DigiaInstance with WidgetsBindingObserver implements DigiaCEPDelegate {
     // Active survey, if this campaign triggered it.
     if (_surveyOrchestrator.state?.payload.cepCampaignId == campaignId) {
       _surveyOrchestrator.dismiss();
+    }
+    // Active guide, if this campaign triggered it.
+    if (_guideOrchestrator.state?.payload.cepCampaignId == campaignId) {
+      _guideOrchestrator.dismiss();
     }
     // Inline slot (carousel or story), if this campaign populated one.
     _controller.removeInlineSlotByCampaignId(campaignId);

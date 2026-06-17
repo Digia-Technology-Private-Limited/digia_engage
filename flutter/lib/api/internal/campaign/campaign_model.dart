@@ -1,3 +1,4 @@
+import '../guide/guide_config_model.dart';
 import '../nudge/nudge_config.dart';
 import '../nudge/nudge_parser.dart';
 import '../survey/survey_config.dart';
@@ -8,10 +9,10 @@ import 'json_util.dart';
 /// The parsed, typed config for a campaign.
 ///
 /// Dart port of the Android `CampaignConfigModel` sealed interface. This
-/// Flutter SDK renders inline carousels, inline stories, and nudges (bottom
-/// sheet / dialog); every other type (guide, survey) is represented by
-/// [UnsupportedCampaignConfig] — still kept in the store for routing/
-/// diagnostics, but never rendered.
+/// Flutter SDK renders inline carousels, inline stories, nudges (bottom
+/// sheet / dialog), surveys, and guides (tooltip / spotlight); any other type
+/// is represented by [UnsupportedCampaignConfig] — still kept in the store for
+/// routing/diagnostics, but never rendered.
 sealed class CampaignConfigModel {
   /// Dashboard-declared variable defaults (`templateConfig.variables`), shared
   /// by every campaign type. When a render scope is built, the CEP trigger
@@ -63,6 +64,17 @@ class SurveyCampaignConfig extends CampaignConfigModel {
 
   const SurveyCampaignConfig(
     this.surveyConfig, {
+    super.defaultVariables,
+  });
+}
+
+/// A guide campaign — anchored tooltips / spotlights presented over the app by
+/// the [GuideOrchestrator] and `GuideRenderer` (onboarding_overlay engine).
+class GuideCampaignConfig extends CampaignConfigModel {
+  final GuideConfigModel guideConfig;
+
+  const GuideCampaignConfig(
+    this.guideConfig, {
     super.defaultVariables,
   });
 }
@@ -146,6 +158,7 @@ class CampaignConfigFactory {
     'inline': _inline,
     'nudge': _nudge,
     'survey': _survey,
+    'guide': _guide,
   };
 
   /// The builder for [campaignType], or `null` when the type is unknown.
@@ -176,6 +189,24 @@ class CampaignConfigFactory {
         ? null
         : NudgeCampaignConfig(nudge,
             defaultVariables: _declaredVariables(templateConfig));
+  }
+
+  static CampaignConfigModel? _guide(Map<String, dynamic> json) {
+    // The guide schema arrives as a nested `guideConfig`, or a `templateConfig`
+    // whose `templateType` is `tooltip`/`spotlight` (mirrors Android's
+    // `parseGuideConfig`). The fallback id matches `CampaignModel.fromJson`.
+    var fallbackId = optString(json, 'id');
+    if (fallbackId.isEmpty) fallbackId = optString(json, '_id');
+    final guide = GuideConfigModel.fromCampaignJson(json, fallbackId);
+    if (guide == null) return null;
+    // Defaults can live on a `templateConfig` (flat schema) when present.
+    final templateConfig = optMap(json, 'templateConfig');
+    return GuideCampaignConfig(
+      guide,
+      defaultVariables: templateConfig == null
+          ? const <String, dynamic>{}
+          : _declaredVariables(templateConfig),
+    );
   }
 
   static CampaignConfigModel? _survey(Map<String, dynamic> json) {

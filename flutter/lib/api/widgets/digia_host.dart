@@ -4,6 +4,7 @@ import '../internal/action/engage_action_context.dart';
 import '../internal/campaign/campaign_model.dart';
 import '../internal/digia_instance.dart';
 import '../internal/digia_overlay_controller.dart';
+import '../internal/guide/guide_renderer.dart';
 import '../internal/nudge/nudge_config.dart';
 import '../internal/nudge/nudge_presenter.dart';
 import '../internal/survey/ui/survey_renderer.dart';
@@ -104,6 +105,10 @@ class _DigiaHostState extends State<DigiaHost> {
           // Surveys are driven by the SurveyOrchestrator + SurveyRenderer, not
           // the overlay-controller path — nothing to present here.
           _controller.dismiss();
+        case GuideCampaignConfig():
+          // Guides are driven by the GuideOrchestrator + GuideRenderer, not the
+          // overlay-controller path — nothing to present here.
+          _controller.dismiss();
         case UnsupportedCampaignConfig():
           _controller.dismiss();
       }
@@ -149,6 +154,7 @@ class _DigiaHostState extends State<DigiaHost> {
       children: [
         widget.child,
         const SurveyRenderer(),
+        const GuideRenderer(),
       ],
     );
   }
