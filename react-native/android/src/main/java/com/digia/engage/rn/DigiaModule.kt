@@ -348,6 +348,18 @@ internal class RNEventBridgePlugin(
         emit("digiaEngageEvent", params)
     }
 
+    override fun notifyAction(actionType: String, url: String, payload: CEPTriggerPayload): Boolean {
+        val params =
+                Arguments.createMap().apply {
+                    putString("campaignId", payload.cepCampaignId)
+                    putString("type", "action")
+                    putString("actionType", actionType)
+                    putString("url", url)
+                }
+        emit("digiaEngageEvent", params)
+        return true
+    }
+
     override fun teardown() {
         delegate = null
     }

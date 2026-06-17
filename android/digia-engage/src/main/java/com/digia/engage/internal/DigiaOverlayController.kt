@@ -10,15 +10,15 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 
 internal data class StoryOverlayState(
-    val config: InlineStoryConfig,
-    val initialIndex: Int,
-    val payload: CEPTriggerPayload,
+        val config: InlineStoryConfig,
+        val initialIndex: Int,
+        val payload: CEPTriggerPayload,
 )
 
 internal data class NudgeOverlayState(
-    val config: NudgeConfig,
-    val payload: CEPTriggerPayload,
-    val defaultVariables: Map<String, String> = emptyMap(),
+        val config: NudgeConfig,
+        val payload: CEPTriggerPayload,
+        val defaultVariables: Map<String, String> = emptyMap(),
 )
 
 internal class DigiaOverlayController {
@@ -33,7 +33,8 @@ internal class DigiaOverlayController {
     val slotConfigs: StateFlow<Map<String, InlineCarouselConfig>> = _slotConfigs.asStateFlow()
 
     private val _storySlotConfigs = MutableStateFlow<Map<String, InlineStoryConfig>>(emptyMap())
-    val storySlotConfigs: StateFlow<Map<String, InlineStoryConfig>> = _storySlotConfigs.asStateFlow()
+    val storySlotConfigs: StateFlow<Map<String, InlineStoryConfig>> =
+            _storySlotConfigs.asStateFlow()
 
     private val _storyOverlay = MutableStateFlow<StoryOverlayState?>(null)
     val storyOverlay: StateFlow<StoryOverlayState?> = _storyOverlay.asStateFlow()
@@ -97,7 +98,11 @@ internal class DigiaOverlayController {
         _storyOverlay.value = null
     }
 
-    fun showNudge(config: NudgeConfig, payload: CEPTriggerPayload, defaultVariables: Map<String, String> = emptyMap()) {
+    fun showNudge(
+            config: NudgeConfig,
+            payload: CEPTriggerPayload,
+            defaultVariables: Map<String, String> = emptyMap()
+    ) {
         _nudgeOverlay.value = NudgeOverlayState(config, payload, defaultVariables)
     }
 

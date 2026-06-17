@@ -11,7 +11,6 @@ import com.digia.engage.DigiaCEPDelegate
 import com.digia.engage.DigiaCEPPlugin
 import com.digia.engage.DigiaConfig
 import com.digia.engage.DigiaExperienceEvent
-import com.digia.engage.internal.logging.Logger
 import com.digia.engage.internal.analytics.AnalyticsService
 import com.digia.engage.internal.event.CarouselEvent
 import com.digia.engage.internal.event.CepPluginSink
@@ -23,6 +22,7 @@ import com.digia.engage.internal.event.GuideEvent
 import com.digia.engage.internal.event.NudgeEvent
 import com.digia.engage.internal.event.StoriesEvent
 import com.digia.engage.internal.event.SurveyEvent
+import com.digia.engage.internal.logging.Logger
 import com.digia.engage.internal.model.BranchingType
 import com.digia.engage.internal.model.CampaignModel
 import com.digia.engage.internal.model.SurveyBlockType
@@ -95,7 +95,9 @@ internal object DigiaInstance : DigiaCEPDelegate {
     fun initialize(context: Context, config: DigiaConfig) {
         if (!initializationStarted.compareAndSet(false, true)) return
         Logger.configure(config.logLevel)
-        Logger.verbose("Digia SDK initializing | projectId=${config.apiKey.take(8)}… env=${config.environment}")
+        Logger.verbose(
+                "Digia SDK initializing | projectId=${config.apiKey.take(8)}… env=${config.environment}"
+        )
         _sdkState.value = SDKState.INITIALIZING
         com.digia.engage.internal.DigiaFontConfig.fontFamily = config.fontFamily
         analyticsService = AnalyticsService.create(context.applicationContext, config, scope)
@@ -109,16 +111,21 @@ internal object DigiaInstance : DigiaCEPDelegate {
                 val fetcher = CampaignFetcher(config, deviceId)
                 val campaigns = fetcher.fetch()
                 campaignStore.populate(campaigns)
-                scope.launch(Dispatchers.Main.immediate) {
-                    initialized.set(true)
-                    _isUiReady.value = true
-                    _sdkState.value = SDKState.READY
-                    Logger.verbose("Digia SDK ready | campaigns=${campaigns.size}")
-                    registerLifecycleObserver()
-                    pluginRegistry.runHealthCheck()
-                    if (campaignStore.isEmpty()) Logger.warning("No campaigns fetched — check your projectId and network connection")
-                    flushPendingPayloadIfAny()
-                }.join()
+                scope
+                        .launch(Dispatchers.Main.immediate) {
+                            initialized.set(true)
+                            _isUiReady.value = true
+                            _sdkState.value = SDKState.READY
+                            Logger.verbose("Digia SDK ready | campaigns=${campaigns.size}")
+                            registerLifecycleObserver()
+                            pluginRegistry.runHealthCheck()
+                            if (campaignStore.isEmpty())
+                                    Logger.warning(
+                                            "No campaigns fetched — check your projectId and network connection"
+                                    )
+                            flushPendingPayloadIfAny()
+                        }
+                        .join()
             } catch (t: Throwable) {
                 initializationStarted.set(false)
                 scope.launch(Dispatchers.Main.immediate) {
@@ -141,7 +148,9 @@ internal object DigiaInstance : DigiaCEPDelegate {
         screenTracker.setScreen(name)
     }
 
-    fun onHostMounted() { /* overlay is compose-native now, kept for API compat */ }
+    fun onHostMounted() {
+        /* overlay is compose-native now, kept for API compat */
+    }
     fun onHostUnmounted() {}
 
     val _anchorVersion = MutableStateFlow(0)
@@ -166,56 +175,71 @@ internal object DigiaInstance : DigiaCEPDelegate {
 
     fun anchorRegistrySnapshot(): AnchorRegistry = anchorRegistry
 
-    fun setUserId(userId: String) { analyticsService?.setUserId(userId) }
-    fun clearUserId() { analyticsService?.clearUserId() }
+    fun setUserId(userId: String) {
+        analyticsService?.setUserId(userId)
+    }
+    fun clearUserId() {
+        analyticsService?.clearUserId()
+    }
 
     /**
      * Public analytics entry point (used by JS-rendered RN guides). The coarse
-     * [DigiaExperienceEvent] carries no campaign-specific fields, so we resolve
-     * the campaign from the store and build the matching campaign-typed event,
-     * filling required fields (display_style, item_total) from its config.
+     * [DigiaExperienceEvent] carries no campaign-specific fields, so we resolve the campaign from
+     * the store and build the matching campaign-typed event, filling required fields
+     * (display_style, item_total) from its config.
      */
     fun captureAnalyticsEvent(event: DigiaExperienceEvent, payload: CEPTriggerPayload) {
         val campaign = campaignStore.find(payload.campaignKey)
         val analyticsEvent = coarseToAnalyticsEvent(campaign, event)
         if (analyticsEvent == null) {
-            Logger.warning("captureAnalyticsEvent: no analytics mapping for event=$event campaignType=${campaign?.campaignType} — skipped")
+            Logger.warning(
+                    "captureAnalyticsEvent: no analytics mapping for event=$event campaignType=${campaign?.campaignType} — skipped"
+            )
             return
         }
         events.toDigia(analyticsEvent, payload)
     }
 
     private fun coarseToAnalyticsEvent(
-        campaign: CampaignModel?,
-        event: DigiaExperienceEvent,
+            campaign: CampaignModel?,
+            event: DigiaExperienceEvent,
     ): EngageAnalyticsEvent? {
         val elementId = (event as? DigiaExperienceEvent.Clicked)?.elementId
         return when (campaign?.campaignType) {
-            "nudge" -> when (event) {
-                DigiaExperienceEvent.Impressed ->
-                    NudgeEvent.Viewed(displayStyle = campaign.nudgeConfig?.surface?.displayType?.displayStyle.orEmpty())
-                is DigiaExperienceEvent.Clicked -> NudgeEvent.Clicked(elementId = elementId)
-                DigiaExperienceEvent.Dismissed -> NudgeEvent.Dismissed()
-            }
+            "nudge" ->
+                    when (event) {
+                        DigiaExperienceEvent.Impressed ->
+                                NudgeEvent.Viewed(
+                                        displayStyle =
+                                                campaign.nudgeConfig?.surface?.displayType
+                                                        ?.displayStyle.orEmpty()
+                                )
+                        is DigiaExperienceEvent.Clicked -> NudgeEvent.Clicked(elementId = elementId)
+                        DigiaExperienceEvent.Dismissed -> NudgeEvent.Dismissed()
+                    }
             "guide" -> {
                 val steps = campaign.guideConfig?.steps
                 when (event) {
-                    DigiaExperienceEvent.Impressed -> GuideEvent.Viewed(
-                        displayStyle = steps?.firstOrNull()?.displayStyle.orEmpty(),
-                        itemTotal = steps?.size ?: 0,
-                    )
-                    is DigiaExperienceEvent.Clicked -> GuideEvent.StepClicked(
-                        itemIndex = (guideOrchestrator.state.value?.stepIndex ?: 0) + 1,
-                        elementId = elementId,
-                    )
+                    DigiaExperienceEvent.Impressed ->
+                            GuideEvent.Viewed(
+                                    displayStyle = steps?.firstOrNull()?.displayStyle.orEmpty(),
+                                    itemTotal = steps?.size ?: 0,
+                            )
+                    is DigiaExperienceEvent.Clicked ->
+                            GuideEvent.StepClicked(
+                                    itemIndex = (guideOrchestrator.state.value?.stepIndex ?: 0) + 1,
+                                    elementId = elementId,
+                            )
                     DigiaExperienceEvent.Dismissed -> GuideEvent.Dismissed(itemTotal = steps?.size)
                 }
             }
-            "survey" -> when (event) {
-                DigiaExperienceEvent.Impressed -> SurveyEvent.Viewed()
-                is DigiaExperienceEvent.Clicked -> SurveyEvent.Clicked(elementId = elementId)
-                DigiaExperienceEvent.Dismissed -> SurveyEvent.Dismissed()
-            }
+            "survey" ->
+                    when (event) {
+                        DigiaExperienceEvent.Impressed -> SurveyEvent.Viewed()
+                        is DigiaExperienceEvent.Clicked ->
+                                SurveyEvent.Clicked(elementId = elementId)
+                        DigiaExperienceEvent.Dismissed -> SurveyEvent.Dismissed()
+                    }
             else -> null
         }
     }
@@ -224,20 +248,22 @@ internal object DigiaInstance : DigiaCEPDelegate {
         diagnosticsReporter.reportWarning("[HealthEvent] type=$eventType params=$params")
     }
 
-    fun advanceGuide() { guideOrchestrator.advance() }
+    fun advanceGuide() {
+        guideOrchestrator.advance()
+    }
 
     fun dismissGuide() {
         val state = guideOrchestrator.state.value ?: return
         val payload = state.payload
         guideOrchestrator.dismiss()
         events.toBoth(
-            DigiaExperienceEvent.Dismissed,
-            GuideEvent.Dismissed(
-                abandonedAtItem = state.stepIndex + 1,
-                itemTotal = state.campaign.guideConfig?.steps?.size,
-                dwellMs = dwellTracker.consumeDwellMs(payload.cepCampaignId),
-            ),
-            payload,
+                DigiaExperienceEvent.Dismissed,
+                GuideEvent.Dismissed(
+                        abandonedAtItem = state.stepIndex + 1,
+                        itemTotal = state.campaign.guideConfig?.steps?.size,
+                        dwellMs = dwellTracker.consumeDwellMs(payload.cepCampaignId),
+                ),
+                payload,
         )
     }
 
@@ -259,15 +285,15 @@ internal object DigiaInstance : DigiaCEPDelegate {
         val config = state.config
         dwellTracker.markViewed(payload.cepCampaignId)
         events.toBoth(
-            DigiaExperienceEvent.Impressed,
-            SurveyEvent.Viewed(
-                itemTotal = config.questionCount(),
-                hasWelcome = config.hasWelcome(),
-                hasThanks = config.hasThanks(),
-                hasBranching = config.hasBranching(),
-                screenName = screenTracker.currentScreen,
-            ),
-            payload,
+                DigiaExperienceEvent.Impressed,
+                SurveyEvent.Viewed(
+                        itemTotal = config.questionCount(),
+                        hasWelcome = config.hasWelcome(),
+                        hasThanks = config.hasThanks(),
+                        hasBranching = config.hasBranching(),
+                        screenName = screenTracker.currentScreen,
+                ),
+                payload,
         )
     }
 
@@ -283,15 +309,15 @@ internal object DigiaInstance : DigiaCEPDelegate {
         val block = state.config.blockForNode(nodeId) ?: return
         if (block.type.isContent) return
         events.toDigia(
-            SurveyEvent.QuestionViewed(
-                questionId = nodeId,
-                questionType = block.type.wireName(),
-                itemIndex = itemIndex,
-                itemTotal = state.config.questionCount(),
-                blockId = block.id,
-                isRequired = block.required,
-            ),
-            surveyPayload(state),
+                SurveyEvent.QuestionViewed(
+                        questionId = nodeId,
+                        questionType = block.type.wireName(),
+                        itemIndex = itemIndex,
+                        itemTotal = state.config.questionCount(),
+                        blockId = block.id,
+                        isRequired = block.required,
+                ),
+                surveyPayload(state),
         )
     }
 
@@ -300,12 +326,12 @@ internal object DigiaInstance : DigiaCEPDelegate {
         val state = surveyOrchestrator.state.value ?: return
         val block = state.config.blockForNode(nodeId) ?: return
         events.toDigia(
-            SurveyEvent.QuestionSkipped(
-                questionId = nodeId,
-                itemIndex = itemIndex,
-                blockId = block.id,
-            ),
-            surveyPayload(state),
+                SurveyEvent.QuestionSkipped(
+                        questionId = nodeId,
+                        itemIndex = itemIndex,
+                        blockId = block.id,
+                ),
+                surveyPayload(state),
         )
     }
 
@@ -313,52 +339,52 @@ internal object DigiaInstance : DigiaCEPDelegate {
     fun reportSurveyAnswered(stepId: String, answer: Map<String, Any?>) {
         val state = surveyOrchestrator.state.value ?: return
         val block = state.config.blockForNode(stepId)
-        @Suppress("UNCHECKED_CAST")
-        val values = (answer["values"] as? List<String>).orEmpty()
+        @Suppress("UNCHECKED_CAST") val values = (answer["values"] as? List<String>).orEmpty()
         val comment = answer["comment"] as? String
         events.toDigia(
-            SurveyEvent.QuestionAnswered(
-                questionId = stepId,
-                questionType = block?.type?.wireName(),
-                answerValue = values.firstOrNull(),
-                answerText = comment ?: values.joinToString(", ").takeIf { it.isNotBlank() },
-                answerOptions = values.takeIf { it.size > 1 },
-                blockId = block?.id,
-                answer = answer,
-            ),
-            surveyPayload(state),
+                SurveyEvent.QuestionAnswered(
+                        questionId = stepId,
+                        questionType = block?.type?.wireName(),
+                        answerValue = values.firstOrNull(),
+                        answerText = comment
+                                        ?: values.joinToString(", ").takeIf { it.isNotBlank() },
+                        answerOptions = values.takeIf { it.size > 1 },
+                        blockId = block?.id,
+                        answer = answer,
+                ),
+                surveyPayload(state),
         )
     }
 
     fun markSurveyCompleted(
-        response: Map<String, Any?>,
-        answers: Map<String, SurveyAnswer> = emptyMap(),
+            response: Map<String, Any?>,
+            answers: Map<String, SurveyAnswer> = emptyMap(),
     ) {
         reportSurveyCompleted(response, answers)
         markSurveyDismissed()
     }
 
     fun reportSurveyCompleted(
-        response: Map<String, Any?>,
-        answers: Map<String, SurveyAnswer> = emptyMap(),
+            response: Map<String, Any?>,
+            answers: Map<String, SurveyAnswer> = emptyMap(),
     ) {
         val state = surveyOrchestrator.state.value ?: return
         if (completedSurveyToken == state.token) return
         completedSurveyToken = state.token
         val answeredCount = if (answers.isNotEmpty()) answers.size else response.size
         events.toDigia(
-            SurveyEvent.Completed(
-                itemTotal = state.config.questionCount(),
-                answeredCount = answeredCount,
-                timeToCompleteMs = System.currentTimeMillis() - state.startedAtMs,
-                response = response,
-            ),
-            surveyPayload(state),
+                SurveyEvent.Completed(
+                        itemTotal = state.config.questionCount(),
+                        answeredCount = answeredCount,
+                        timeToCompleteMs = System.currentTimeMillis() - state.startedAtMs,
+                        response = response,
+                ),
+                surveyPayload(state),
         )
         if (answers.isNotEmpty()) {
             Log.d(
-                "DigiaInstance",
-                "survey submission started: campaignKey=${state.campaign.campaignKey}, campaignId=${state.campaign.id}, answers=${answers.size}",
+                    "DigiaInstance",
+                    "survey submission started: campaignKey=${state.campaign.campaignKey}, campaignId=${state.campaign.id}, answers=${answers.size}",
             )
             submissionReporter?.reportSurveyCompleted(state.campaign, answers, state.startedAtMs)
         }
@@ -372,53 +398,61 @@ internal object DigiaInstance : DigiaCEPDelegate {
         val state = surveyOrchestrator.state.value ?: return
         val payload = surveyPayload(state)
         events.toBoth(
-            DigiaExperienceEvent.Dismissed,
-            SurveyEvent.Dismissed(
-                abandonedAtItem = abandonedAtItem,
-                itemTotal = state.config.questionCount(),
-                answeredCount = answeredCount,
-                dwellMs = dwellTracker.consumeDwellMs(payload.cepCampaignId),
-            ),
-            payload,
+                DigiaExperienceEvent.Dismissed,
+                SurveyEvent.Dismissed(
+                        abandonedAtItem = abandonedAtItem,
+                        itemTotal = state.config.questionCount(),
+                        answeredCount = answeredCount,
+                        dwellMs = dwellTracker.consumeDwellMs(payload.cepCampaignId),
+                ),
+                payload,
         )
         surveyOrchestrator.dismiss()
     }
 
-    private fun surveyPayload(state: ActiveSurveyState): CEPTriggerPayload =
-        state.payload
+    private fun surveyPayload(state: ActiveSurveyState): CEPTriggerPayload = state.payload
 
     // ── Survey config metrics (Engage matrix props) ─────────────────────────
 
     /** Configured questions = graph nodes whose block is an actual prompt (not content chrome). */
     private fun SurveyConfigModel.questionCount(): Int =
-        nodes.count { node -> blockFor(node)?.type?.isContent == false }
+            nodes.count { node -> blockFor(node)?.type?.isContent == false }
 
     private fun SurveyConfigModel.hasWelcome(): Boolean = welcomeBlock() != null
 
     private fun SurveyConfigModel.hasThanks(): Boolean =
-        blocks.any { it.type == SurveyBlockType.RESULT_PAGE }
+            blocks.any { it.type == SurveyBlockType.RESULT_PAGE }
 
     private fun SurveyConfigModel.hasBranching(): Boolean =
-        nodes.any { it.branching.type != BranchingType.LINEAR }
+            nodes.any { it.branching.type != BranchingType.LINEAR }
 
-    private fun SurveyConfigModel.blockForNode(nodeId: String): com.digia.engage.internal.model.SurveyBlock? =
-        nodeById(nodeId)?.let { blockFor(it) }
+    private fun SurveyConfigModel.blockForNode(
+            nodeId: String
+    ): com.digia.engage.internal.model.SurveyBlock? = nodeById(nodeId)?.let { blockFor(it) }
 
     /** Block type as the matrix's input-primitive string, e.g. SINGLE_SELECT → "single_select". */
     private fun SurveyBlockType.wireName(): String = name.lowercase()
 
     private fun resolveDeviceId(context: Context): String {
-        val prefs = context.applicationContext
-            .getSharedPreferences("digia_engage", Context.MODE_PRIVATE)
-        prefs.getString("device_id", null)?.let { return it }
-        val androidId = runCatching {
-            android.provider.Settings.Secure.getString(
-                context.contentResolver,
-                android.provider.Settings.Secure.ANDROID_ID,
-            )
-        }.getOrNull()
-        val id = androidId?.takeIf { it.isNotBlank() && it != "9774d56d682e549c" }
-            ?: java.util.UUID.randomUUID().toString()
+        val prefs =
+                context.applicationContext.getSharedPreferences(
+                        "digia_engage",
+                        Context.MODE_PRIVATE
+                )
+        prefs.getString("device_id", null)?.let {
+            return it
+        }
+        val androidId =
+                runCatching {
+                            android.provider.Settings.Secure.getString(
+                                    context.contentResolver,
+                                    android.provider.Settings.Secure.ANDROID_ID,
+                            )
+                        }
+                        .getOrNull()
+        val id =
+                androidId?.takeIf { it.isNotBlank() && it != "9774d56d682e549c" }
+                        ?: java.util.UUID.randomUUID().toString()
         prefs.edit().putString("device_id", id).apply()
         return id
     }
@@ -433,34 +467,34 @@ internal object DigiaInstance : DigiaCEPDelegate {
         val state = controller.nudgeOverlay.value ?: return
         dwellTracker.markViewed(state.payload.cepCampaignId)
         events.toBoth(
-            DigiaExperienceEvent.Impressed,
-            NudgeEvent.Viewed(
-                displayStyle = state.config.surface.displayType.displayStyle,
-                screenName = screenTracker.currentScreen,
-            ),
-            state.payload,
+                DigiaExperienceEvent.Impressed,
+                NudgeEvent.Viewed(
+                        displayStyle = state.config.surface.displayType.displayStyle,
+                        screenName = screenTracker.currentScreen,
+                ),
+                state.payload,
         )
     }
 
     fun emitNudgeClick(
-        elementId: String? = null,
-        ctaLabel: String? = null,
-        actionType: String? = null,
-        actionUrl: String? = null,
-        ctaRole: String? = null,
+            elementId: String? = null,
+            ctaLabel: String? = null,
+            actionType: String? = null,
+            actionUrl: String? = null,
+            ctaRole: String? = null,
     ) {
         val payload = controller.nudgeOverlay.value?.payload ?: return
         events.toDigia(
-            NudgeEvent.Clicked(
-                elementId = elementId,
-                ctaLabel = ctaLabel,
-                actionType = actionType,
-                actionUrl = actionUrl,
-                ctaRole = ctaRole,
-                // ms since the nudge was viewed (peek — the nudge is still open).
-                timeToActionMs = dwellTracker.elapsedMs(payload.cepCampaignId),
-            ),
-            payload,
+                NudgeEvent.Clicked(
+                        elementId = elementId,
+                        ctaLabel = ctaLabel,
+                        actionType = actionType,
+                        actionUrl = actionUrl,
+                        ctaRole = ctaRole,
+                        // ms since the nudge was viewed (peek — the nudge is still open).
+                        timeToActionMs = dwellTracker.elapsedMs(payload.cepCampaignId),
+                ),
+                payload,
         )
     }
 
@@ -468,9 +502,11 @@ internal object DigiaInstance : DigiaCEPDelegate {
         val state = controller.nudgeOverlay.value ?: return
         Logger.verbose("Nudge dismissed: id=${state.payload.cepCampaignId}")
         events.toBoth(
-            DigiaExperienceEvent.Dismissed,
-            NudgeEvent.Dismissed(dwellMs = dwellTracker.consumeDwellMs(state.payload.cepCampaignId)),
-            state.payload,
+                DigiaExperienceEvent.Dismissed,
+                NudgeEvent.Dismissed(
+                        dwellMs = dwellTracker.consumeDwellMs(state.payload.cepCampaignId)
+                ),
+                state.payload,
         )
         controller.dismissNudge()
     }
@@ -483,28 +519,34 @@ internal object DigiaInstance : DigiaCEPDelegate {
 
     fun reportSlotFirstRender(payload: CEPTriggerPayload) {
         val campaign = campaignStore.find(payload.campaignKey) ?: return
-        val viewed: EngageAnalyticsEvent = when (val cfg = campaign.config) {
-            is com.digia.engage.internal.model.CampaignConfigModel.Inline ->
-                CarouselEvent.Viewed(
-                    itemTotal = cfg.inlineConfig.items.size,
-                    slotKey = cfg.inlineConfig.slotKey,
-                    screenName = screenTracker.currentScreen,
-                )
-            is com.digia.engage.internal.model.CampaignConfigModel.Story ->
-                StoriesEvent.Viewed(
-                    slotKey = cfg.storyConfig.slotKey,
-                    screenName = screenTracker.currentScreen,
-                )
-            else -> return
-        }
+        val viewed: EngageAnalyticsEvent =
+                when (val cfg = campaign.config) {
+                    is com.digia.engage.internal.model.CampaignConfigModel.Inline ->
+                            CarouselEvent.Viewed(
+                                    itemTotal = cfg.inlineConfig.items.size,
+                                    slotKey = cfg.inlineConfig.slotKey,
+                                    screenName = screenTracker.currentScreen,
+                            )
+                    is com.digia.engage.internal.model.CampaignConfigModel.Story ->
+                            StoriesEvent.Viewed(
+                                    slotKey = cfg.storyConfig.slotKey,
+                                    screenName = screenTracker.currentScreen,
+                            )
+                    else -> return
+                }
         events.digiaImpressionOnce(payload, viewed)
     }
 
     /** A carousel item scrolled into view. [auto] = autoplay advance vs manual swipe. */
-    fun reportCarouselStepViewed(payload: CEPTriggerPayload, itemIndex: Int, itemTotal: Int, auto: Boolean) {
+    fun reportCarouselStepViewed(
+            payload: CEPTriggerPayload,
+            itemIndex: Int,
+            itemTotal: Int,
+            auto: Boolean
+    ) {
         events.toDigia(
-            CarouselEvent.StepViewed(itemIndex = itemIndex, itemTotal = itemTotal, auto = auto),
-            payload,
+                CarouselEvent.StepViewed(itemIndex = itemIndex, itemTotal = itemTotal, auto = auto),
+                payload,
         )
     }
 
@@ -513,12 +555,16 @@ internal object DigiaInstance : DigiaCEPDelegate {
         val actionType = actionUrl?.let { "deeplink" }
         // The first item tap also counts as an experience-level engagement click (once).
         events.digiaExperienceClickedOnce(
-            payload,
-            CarouselEvent.Clicked(actionType = actionType, actionUrl = actionUrl),
+                payload,
+                CarouselEvent.Clicked(actionType = actionType, actionUrl = actionUrl),
         )
         events.toDigia(
-            CarouselEvent.StepClicked(itemIndex = itemIndex, actionType = actionType, actionUrl = actionUrl),
-            payload,
+                CarouselEvent.StepClicked(
+                        itemIndex = itemIndex,
+                        actionType = actionType,
+                        actionUrl = actionUrl
+                ),
+                payload,
         )
     }
 
@@ -553,17 +599,25 @@ internal object DigiaInstance : DigiaCEPDelegate {
 
     override fun onCampaignTriggered(payload: CEPTriggerPayload) {
         scope.launch(Dispatchers.Main.immediate) {
-            Logger.verbose("Campaign received from CEP: id=${payload.cepCampaignId} sdkState=${_sdkState.value}")
+            Logger.verbose(
+                    "Campaign received from CEP: id=${payload.cepCampaignId} sdkState=${_sdkState.value}"
+            )
             when (_sdkState.value) {
                 SDKState.NOT_INITIALIZED -> {
-                    Logger.error("Campaign dropped — SDK not initialized (call Digia.initialize() first): id=${payload.cepCampaignId}")
+                    Logger.error(
+                            "Campaign dropped — SDK not initialized (call Digia.initialize() first): id=${payload.cepCampaignId}"
+                    )
                     return@launch
                 }
                 SDKState.INITIALIZING -> {
                     if (pendingPayload != null) {
-                        Logger.warning("Pending campaign replaced by newer trigger: id=${payload.cepCampaignId}")
+                        Logger.warning(
+                                "Pending campaign replaced by newer trigger: id=${payload.cepCampaignId}"
+                        )
                     } else {
-                        Logger.verbose("SDK still initializing — campaign queued: id=${payload.cepCampaignId}")
+                        Logger.verbose(
+                                "SDK still initializing — campaign queued: id=${payload.cepCampaignId}"
+                        )
                     }
                     pendingPayload = payload
                     return@launch
@@ -593,15 +647,20 @@ internal object DigiaInstance : DigiaCEPDelegate {
     }
 
     private fun doRouteCampaign(payload: CEPTriggerPayload) {
-        val campaignKey = payload.campaignKey.takeIf { it.isNotBlank() }?.trim()
-            ?: payload.cepCampaignId.takeIf { it.isNotBlank() }?.trim()
+        val campaignKey =
+                payload.campaignKey.takeIf { it.isNotBlank() }?.trim()
+                        ?: payload.cepCampaignId.takeIf { it.isNotBlank() }?.trim()
         if (campaignKey.isNullOrBlank()) {
-            Logger.error("Campaign dropped — missing campaignKey in payload: id=${payload.cepCampaignId}. Ensure the CEP plugin sets campaignKey on the CEPTriggerPayload.")
+            Logger.error(
+                    "Campaign dropped — missing campaignKey in payload: id=${payload.cepCampaignId}. Ensure the CEP plugin sets campaignKey on the CEPTriggerPayload."
+            )
             return
         }
         val campaign = campaignStore.find(campaignKey)
         if (campaign == null) {
-            Logger.error("Campaign dropped — no campaign found for key '$campaignKey'. Check the key matches a published campaign on the Digia dashboard.")
+            Logger.error(
+                    "Campaign dropped — no campaign found for key '$campaignKey'. Check the key matches a published campaign on the Digia dashboard."
+            )
             return
         }
         Logger.verbose("Campaign resolved: key=$campaignKey type=${campaign.campaignType}")
@@ -617,8 +676,9 @@ internal object DigiaInstance : DigiaCEPDelegate {
                 guideOrchestrator.start(campaign, payload)
             }
             "nudge" -> {
-                val nudgeConfig = campaign.nudgeConfig
-                    ?: error("unexpected config for nudge campaign '$campaignKey'")
+                val nudgeConfig =
+                        campaign.nudgeConfig
+                                ?: error("unexpected config for nudge campaign '$campaignKey'")
                 // Merge dashboard defaults with the CEP trigger's variables (CEP
                 // wins), matching Flutter's `{...defaultVariables, ...payload.variables}`.
                 val variables = campaign.defaultVariables + (payload.variables ?: emptyMap())
@@ -627,9 +687,9 @@ internal object DigiaInstance : DigiaCEPDelegate {
             "inline" -> {
                 when (val cfg = campaign.config) {
                     is com.digia.engage.internal.model.CampaignConfigModel.Inline ->
-                        displayCoordinator.routeInlineCarousel(cfg.inlineConfig, payload)
+                            displayCoordinator.routeInlineCarousel(cfg.inlineConfig, payload)
                     is com.digia.engage.internal.model.CampaignConfigModel.Story ->
-                        displayCoordinator.routeInlineStory(cfg.storyConfig, payload)
+                            displayCoordinator.routeInlineStory(cfg.storyConfig, payload)
                     else -> error("unexpected config for inline campaign '$campaignKey'")
                 }
                 // syncTemplate semantics: CEP considers an inline slot shown and
@@ -640,7 +700,9 @@ internal object DigiaInstance : DigiaCEPDelegate {
             }
             "survey" -> {
                 if (!surveyOrchestrator.start(campaign, payload)) {
-                    Logger.warning("Survey campaign skipped — another survey is already on screen: key=$campaignKey")
+                    Logger.warning(
+                            "Survey campaign skipped — another survey is already on screen: key=$campaignKey"
+                    )
                 }
             }
             else -> error("Unknown campaign_type: ${campaign.campaignType}")
@@ -677,7 +739,8 @@ internal object DigiaInstance : DigiaCEPDelegate {
     }
 
     private fun loadOrCreateDeviceId(context: Context): String {
-        val prefs: SharedPreferences = context.getSharedPreferences("digia_prefs", Context.MODE_PRIVATE)
+        val prefs: SharedPreferences =
+                context.getSharedPreferences("digia_prefs", Context.MODE_PRIVATE)
         val existing = prefs.getString("digia_device_id", null)
         if (!existing.isNullOrBlank()) return existing
         val newId = UUID.randomUUID().toString()
@@ -703,10 +766,14 @@ internal object DigiaInstance : DigiaCEPDelegate {
     }
 
     @Suppress("unused")
-    internal fun setSdkStateForTest(state: SDKState) { _sdkState.value = state }
+    internal fun setSdkStateForTest(state: SDKState) {
+        _sdkState.value = state
+    }
 
     @Suppress("unused")
-    internal fun flushPendingPayloadForTest() { flushPendingPayloadIfAny() }
+    internal fun flushPendingPayloadForTest() {
+        flushPendingPayloadIfAny()
+    }
 
     @Suppress("unused")
     internal fun resetForTest() {

@@ -1,5 +1,6 @@
 import '../nudge/nudge_config.dart';
 import '../nudge/nudge_parser.dart';
+import '../survey/survey_config.dart';
 import 'inline_carousel_config.dart';
 import 'inline_story_config.dart';
 import 'json_util.dart';
@@ -51,6 +52,17 @@ class NudgeCampaignConfig extends CampaignConfigModel {
 
   const NudgeCampaignConfig(
     this.nudgeConfig, {
+    super.defaultVariables,
+  });
+}
+
+/// A survey campaign — a branching questionnaire presented as an overlay
+/// (bottom sheet / dialog) via the [SurveyOrchestrator] and `SurveyRenderer`.
+class SurveyCampaignConfig extends CampaignConfigModel {
+  final SurveyConfigModel surveyConfig;
+
+  const SurveyCampaignConfig(
+    this.surveyConfig, {
     super.defaultVariables,
   });
 }
@@ -133,6 +145,7 @@ class CampaignConfigFactory {
   static final Map<String, CampaignConfigBuilder> _builders = {
     'inline': _inline,
     'nudge': _nudge,
+    'survey': _survey,
   };
 
   /// The builder for [campaignType], or `null` when the type is unknown.
@@ -165,15 +178,20 @@ class CampaignConfigFactory {
             defaultVariables: _declaredVariables(templateConfig));
   }
 
-  /// The dashboard-declared variable defaults on a `templateConfig`, as a
-  /// name -> value map, or an empty map when absent.
-  ///
-  /// The backend sends `variables` as a list of `{name, ...}` entries
-  /// (e.g. `[{"name": "test", "fallbackValue": "hi"}]`); we fold that into a
-  /// map keyed by `name`. The value is read from `fallbackValue`, falling back
-  /// to `sampleValue`. A plain map is also accepted for forward compatibility.
-  /// Values keep their JSON type (stringified later, at interpolation), so a
-  /// declared `count: 3` survives as a number here.
+  static CampaignConfigModel? _survey(Map<String, dynamic> json) {
+    // The survey schema arrives as `surveyConfig`, or a `templateConfig` whose
+    // `templateType == "survey"` (mirrors Android's `parseSurveyConfig`).
+    final templateConfig = optMap(json, 'templateConfig');
+    if (templateConfig == null) return null;
+    final survey = SurveyConfigModel.fromJson(templateConfig);
+    if (survey == null) return null;
+    return SurveyCampaignConfig(survey,
+        defaultVariables: _declaredVariables(templateConfig));
+  }
+
+  /// The dashboard-declared variable defaults block on a `templateConfig`, or an
+  /// empty map when absent. Values keep their JSON type (stringified later, at
+  /// interpolation), so a declared `count: 3` survives as a number here.
   static Map<String, dynamic> _declaredVariables(
       Map<String, dynamic> templateConfig) {
     final list = optList(templateConfig, 'variables');
