@@ -148,8 +148,13 @@ private fun SurveySession(state: ActiveSurveyState) {
     val display = survey.settings.display
 
     fun finish(completed: Boolean) {
-        if (completed) DigiaInstance.markSurveyCompleted(vm.responsePayload(), vm.answers.toMap())
-        else DigiaInstance.markSurveyDismissed()
+        if (completed) {
+            DigiaInstance.markSurveyCompleted(vm.responsePayload(), vm.answers.toMap())
+        } else {
+            val abandonedAt = vm.currentNode?.let { visibleIndexOf(survey, it) + 1 }
+            val answeredCount = vm.answers.count { it.value.isAnswered }
+            DigiaInstance.markSurveyDismissed(abandonedAtItem = abandonedAt, answeredCount = answeredCount)
+        }
     }
 
     val context = LocalContext.current
@@ -438,6 +443,13 @@ private fun SurveyBody(
     val total = survey.nodes.size.coerceAtLeast(1)
     var completionReported by remember { mutableStateOf(false) }
 
+    // Question Viewed fires each time a (non-content) question becomes visible.
+    LaunchedEffect(node.id) {
+        if (!block.type.isContent) {
+            DigiaInstance.reportSurveyQuestionViewed(node.id, position)
+        }
+    }
+
     fun reportCompletionIfResultIsNext() {
         if (!completionReported && vm.nextBlockIsResultPage()) {
             DigiaInstance.reportSurveyCompleted(vm.responsePayload(), vm.answers.toMap())
@@ -553,7 +565,7 @@ private fun SurveyBody(
 
             when (block.type) {
                 SurveyBlockType.WELCOME -> WelcomeCta(accent = accent, onStart = {
-                    DigiaInstance.reportSurveyAnswered(node.id, emptyMap())
+                    DigiaInstance.reportSurveyWelcomeStart()
                     vm.advance()
                 })
                 SurveyBlockType.RESULT_PAGE -> ResultPagePanel(cta = cta, accent = accent, onDone = onCompletedClose)
@@ -590,8 +602,12 @@ private fun SurveyBody(
                 nextLabel = footerNextLabel(survey, node, block, cta),
                 onNext = {
                     if (!block.type.isContent) {
-                        vm.answers[node.id]?.takeIf { it.isAnswered }?.let { ans ->
+                        val ans = vm.answers[node.id]?.takeIf { it.isAnswered }
+                        if (ans != null) {
                             DigiaInstance.reportSurveyAnswered(node.id, ans.toMap())
+                        } else if (!block.required) {
+                            // Advancing past an eligible optional question = a skip.
+                            DigiaInstance.reportSurveyQuestionSkipped(node.id, position)
                         }
                     }
                     reportCompletionIfResultIsNext()

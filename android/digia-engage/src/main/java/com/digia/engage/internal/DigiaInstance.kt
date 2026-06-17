@@ -63,7 +63,6 @@ internal object DigiaInstance : DigiaCEPDelegate {
     private val surveyOrchestrator = SurveyOrchestrator()
     private var submissionReporter: SubmissionReporter? = null
     private var completedSurveyToken: Long? = null
-    private var firstAnswerSurveyToken: Long? = null
 
     val guideState = guideOrchestrator.state
     val surveyState = surveyOrchestrator.state
@@ -272,19 +271,63 @@ internal object DigiaInstance : DigiaCEPDelegate {
         )
     }
 
-    /**
-     * Fired when the user answers a survey question. Only the *first* answer of a
-     * survey is recorded: it emits "Digia Experience Clicked" (engagement) and
-     * "Digia Question Answered", both to the internal analytics sink only — never
-     * to the CEP plugin. Subsequent answers are no-ops.
-     */
+    /** The welcome-screen "Start" CTA was tapped (only present when has_welcome). */
+    fun reportSurveyWelcomeStart() {
+        val state = surveyOrchestrator.state.value ?: return
+        events.toDigia(SurveyEvent.Clicked(elementId = "welcome_start"), surveyPayload(state))
+    }
+
+    /** A survey question became visible. [itemIndex] is its 1-based shown position. */
+    fun reportSurveyQuestionViewed(nodeId: String, itemIndex: Int) {
+        val state = surveyOrchestrator.state.value ?: return
+        val block = state.config.blockForNode(nodeId) ?: return
+        if (block.type.isContent) return
+        events.toDigia(
+            SurveyEvent.QuestionViewed(
+                questionId = nodeId,
+                questionType = block.type.wireName(),
+                itemIndex = itemIndex,
+                itemTotal = state.config.questionCount(),
+                blockId = block.id,
+                isRequired = block.required,
+            ),
+            surveyPayload(state),
+        )
+    }
+
+    /** An eligible optional question was skipped (advanced without an answer). */
+    fun reportSurveyQuestionSkipped(nodeId: String, itemIndex: Int) {
+        val state = surveyOrchestrator.state.value ?: return
+        val block = state.config.blockForNode(nodeId) ?: return
+        events.toDigia(
+            SurveyEvent.QuestionSkipped(
+                questionId = nodeId,
+                itemIndex = itemIndex,
+                blockId = block.id,
+            ),
+            surveyPayload(state),
+        )
+    }
+
+    /** Fired each time the user answers a question (one event per answered question). */
     fun reportSurveyAnswered(stepId: String, answer: Map<String, Any?>) {
         val state = surveyOrchestrator.state.value ?: return
-        if (firstAnswerSurveyToken == state.token) return
-        firstAnswerSurveyToken = state.token
-        val payload = surveyPayload(state)
-        events.toDigia(SurveyEvent.Clicked(), payload)
-        events.toDigia(SurveyEvent.QuestionAnswered(questionId = stepId, answer = answer), payload)
+        val block = state.config.blockForNode(stepId)
+        @Suppress("UNCHECKED_CAST")
+        val values = (answer["values"] as? List<String>).orEmpty()
+        val comment = answer["comment"] as? String
+        events.toDigia(
+            SurveyEvent.QuestionAnswered(
+                questionId = stepId,
+                questionType = block?.type?.wireName(),
+                answerValue = values.firstOrNull(),
+                answerText = comment ?: values.joinToString(", ").takeIf { it.isNotBlank() },
+                answerOptions = values.takeIf { it.size > 1 },
+                blockId = block?.id,
+                answer = answer,
+            ),
+            surveyPayload(state),
+        )
     }
 
     fun markSurveyCompleted(
@@ -325,13 +368,15 @@ internal object DigiaInstance : DigiaCEPDelegate {
         markSurveyDismissed()
     }
 
-    fun markSurveyDismissed() {
+    fun markSurveyDismissed(abandonedAtItem: Int? = null, answeredCount: Int? = null) {
         val state = surveyOrchestrator.state.value ?: return
         val payload = surveyPayload(state)
         events.toBoth(
             DigiaExperienceEvent.Dismissed,
             SurveyEvent.Dismissed(
+                abandonedAtItem = abandonedAtItem,
                 itemTotal = state.config.questionCount(),
+                answeredCount = answeredCount,
                 dwellMs = dwellTracker.consumeDwellMs(payload.cepCampaignId),
             ),
             payload,
@@ -355,6 +400,12 @@ internal object DigiaInstance : DigiaCEPDelegate {
 
     private fun SurveyConfigModel.hasBranching(): Boolean =
         nodes.any { it.branching.type != BranchingType.LINEAR }
+
+    private fun SurveyConfigModel.blockForNode(nodeId: String): com.digia.engage.internal.model.SurveyBlock? =
+        nodeById(nodeId)?.let { blockFor(it) }
+
+    /** Block type as the matrix's input-primitive string, e.g. SINGLE_SELECT → "single_select". */
+    private fun SurveyBlockType.wireName(): String = name.lowercase()
 
     private fun resolveDeviceId(context: Context): String {
         val prefs = context.applicationContext
@@ -459,12 +510,14 @@ internal object DigiaInstance : DigiaCEPDelegate {
 
     /** A carousel item (or its CTA) was tapped. */
     fun reportCarouselStepClicked(payload: CEPTriggerPayload, itemIndex: Int, actionUrl: String?) {
+        val actionType = actionUrl?.let { "deeplink" }
+        // The first item tap also counts as an experience-level engagement click (once).
+        events.digiaExperienceClickedOnce(
+            payload,
+            CarouselEvent.Clicked(actionType = actionType, actionUrl = actionUrl),
+        )
         events.toDigia(
-            CarouselEvent.StepClicked(
-                itemIndex = itemIndex,
-                actionType = actionUrl?.let { "deeplink" },
-                actionUrl = actionUrl,
-            ),
+            CarouselEvent.StepClicked(itemIndex = itemIndex, actionType = actionType, actionUrl = actionUrl),
             payload,
         )
     }

@@ -106,7 +106,7 @@ internal class AnalyticsService @VisibleForTesting constructor(
         val eventId = UUID.randomUUID().toString()
         identity.captureEventTime()
 
-        val mergedProperties = (staticContext + properties).filterValues { it != null }
+        val mergedProperties = (staticContext + properties+columns).filterValues { it != null }
 
         val payloadMap = buildMap<String, Any?> {
             put("event_id", eventId)
@@ -118,11 +118,6 @@ internal class AnalyticsService @VisibleForTesting constructor(
             put("anonymous_id", identity.anonymousId)
             put("session_id", identity.sessionId)
             identity.userId?.let { put("user_id", it) }
-            // Per-event hoisted columns sit at the top level alongside campaign_id
-            // (reserved keys above always win). Everything else goes in properties.
-            for ((key, value) in columns) {
-                if (value != null && !containsKey(key)) put(key, value)
-            }
             put("properties", mergedProperties)
         }
 
@@ -157,7 +152,7 @@ internal class AnalyticsService @VisibleForTesting constructor(
             android.util.Log.d("DigiaAnalytics", "[AnalyticsService] dispatchPending: sending batch of ${batch.size} event(s) to ${config.endpointUrl}")
             queue.incrementAttempt(batch.map { it.eventId })
             val result = sender.post(
-                url = "http://192.168.1.95:3000/api/v1/engage/sdk/track",
+                url = "https://unesthetic-dialytic-tracie.ngrok-free.dev/api/v1/engage/sdk/track",
                 jsonBody = buildBatchJson(batch),
                 headers = mapOf(
                     "Content-Type" to "application/json",
