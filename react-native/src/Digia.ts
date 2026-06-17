@@ -37,7 +37,7 @@ import type {
     FrequencyState,
     GuideLifecycleEvent,
 } from './types';
-import type { TemplateConfig } from './templateTypes';
+import type { TemplateConfig, Action } from './templateTypes';
 
 const PRODUCTION_API_ROOT = 'https://app.digia.tech';
 const SANDBOX_API_ROOT = 'https://dev.digia.tech';
@@ -329,7 +329,7 @@ class DigiaClass implements DigiaDelegate {
         if (this._engageSubscription) return;
         this._engageSubscription = DeviceEventEmitter.addListener(
             'digiaEngageEvent',
-            (data: { campaignId: string; type: string; elementId?: string }) =>
+            (data: { campaignId: string; type: string; elementId?: string; actionType?: string; url?: string }) =>
                 this._forwardExperienceEvent(data),
         );
     }
@@ -348,9 +348,19 @@ class DigiaClass implements DigiaDelegate {
     }
 
     private _forwardExperienceEvent(
-        data: { campaignId: string; type: string; elementId?: string },
+        data: { campaignId: string; type: string; elementId?: string; actionType?: string; url?: string },
     ): void {
         console.log(`[Digia] received overlay event from native: campaignId=${data.campaignId} type=${data.type} elementId=${data.elementId}`);
+
+        // Navigation action fired by a natively-rendered overlay button (e.g. a
+        // nudge deep-link). Route it through the action handler so the host app's
+        // onAction (and Linking fallback) handle it — natively-rendered overlays
+        // cannot reach JS routing any other way.
+        if (data.type === 'action') {
+            this._handleNativeAction(data.campaignId, data.actionType ?? 'deep_link', data.url ?? '');
+            return;
+        }
+
         const payload = this._activePayloads.get(data.campaignId);
         if (!payload) return;
 
@@ -376,6 +386,37 @@ class DigiaClass implements DigiaDelegate {
         }
 
         this._plugins.forEach((plugin) => plugin.notifyEvent(event, payload));
+    }
+
+    /**
+     * Handles a navigation action forwarded from a natively-rendered overlay
+     * (e.g. a nudge deep-link button). Reconstructs the widget action and runs
+     * it through the shared action handler, which invokes the host's onAction
+     * override and falls back to system Linking when it isn't handled.
+     */
+    private _handleNativeAction(campaignId: string, actionType: string, url: string): void {
+        const payload = this._activePayloads.get(campaignId);
+        if (!payload) {
+            console.log(`[Digia] native action for unknown campaign ${campaignId} — ignored`);
+            return;
+        }
+        const widgetAction: Action =
+            actionType === 'open_url'
+                ? { type: 'open_url', label: '', style: 'primary', url, presentation: 'external' }
+                : { type: 'deep_link', label: '', style: 'primary', url };
+        const context: ActionContext = {
+            campaign_id: campaignId,
+            campaign_key: payload.campaignKey,
+            campaign_type: 'nudge',
+            source: { kind: 'button' },
+        };
+        const noop = () => {};
+        void digiaActionHandler.execute(widgetAction, context, {
+            onNext: noop,
+            onBack: noop,
+            onDismissSelf: noop,
+            onDismissAll: noop,
+        });
     }
 
     private _onGuideLifecycleEvent(

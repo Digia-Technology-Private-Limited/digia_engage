@@ -57,6 +57,11 @@ internal class DisplayCoordinator(
         }
     }
 
+    fun onOverlayAction(actionType: String, url: String, payload: InAppPayload): Boolean {
+        Logger.verbose("Overlay action: type=$actionType id=${payload.id}")
+        return pluginRegistry.notifyAction(actionType, url, payload)
+    }
+
     fun onSlotEvent(event: DigiaExperienceEvent, payload: InAppPayload) {
         Logger.verbose("Slot event: ${event::class.simpleName} id=${payload.id}")
         pluginRegistry.notifyEvent(event, payload)

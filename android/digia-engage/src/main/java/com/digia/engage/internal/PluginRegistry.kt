@@ -43,6 +43,19 @@ internal class PluginRegistry(
         ))
     }
 
+    fun notifyAction(actionType: String, url: String, payload: InAppPayload): Boolean {
+        val plugin = activePlugin
+        if (plugin == null) {
+            Logger.warning("Overlay action fired but no plugin is registered — falling back to native handling: actionType=$actionType id=${payload.id}")
+            return false
+        }
+        return plugin.notifyAction(actionType, url, CEPTriggerPayload(
+            cepCampaignId = payload.id,
+            campaignKey = payload.content["campaign_key"] as? String ?: payload.id,
+            cepMetadata = payload.cepContext,
+        ))
+    }
+
     fun runHealthCheck() {
         if (activePlugin == null) {
             Logger.warning("No CEP plugin registered — campaigns will trigger but events won't be forwarded to any plugin")

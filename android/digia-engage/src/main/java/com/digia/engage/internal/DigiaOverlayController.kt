@@ -107,4 +107,6 @@ internal class DigiaOverlayController {
     }
 
     var onEvent: ((DigiaExperienceEvent, InAppPayload) -> Unit)? = null
+
+    var onAction: ((actionType: String, url: String, payload: InAppPayload) -> Boolean)? = null
 }

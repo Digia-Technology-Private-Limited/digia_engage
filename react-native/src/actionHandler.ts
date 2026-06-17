@@ -258,6 +258,10 @@ const execute = async (
     // 3. Run default if not handled
     if (!handled) {
         await runDefault(action, context, callbacks);
+        return;
+    }
+    if (action.type === 'deep_link' || action.type === 'open_url') {
+        callbacks.onDismissSelf();
     }
 };
 

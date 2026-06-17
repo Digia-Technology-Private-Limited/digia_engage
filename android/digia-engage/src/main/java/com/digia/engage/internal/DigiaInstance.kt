@@ -70,6 +70,9 @@ internal object DigiaInstance : DigiaCEPDelegate {
 
     init {
         controller.onEvent = { event, payload -> displayCoordinator.onOverlayEvent(event, payload) }
+        controller.onAction = { actionType, url, payload ->
+            displayCoordinator.onOverlayAction(actionType, url, payload)
+        }
     }
 
     fun initialize(context: Context, config: DigiaConfig) {
