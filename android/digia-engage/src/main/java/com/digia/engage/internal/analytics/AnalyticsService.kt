@@ -227,7 +227,7 @@ constructor(
 
             android.util.Log.d(
                     "DigiaAnalytics",
-                    "[AnalyticsService] dispatchPending: sending batch of ${batch.size} event(s) to ${config.endpointUrl}"
+                    "[AnalyticsService] dispatchPending: sending batch of ${batch.size} event(s)"
             )
             queue.incrementAttempt(batch.map { it.eventId })
             val result =
@@ -364,7 +364,7 @@ constructor(
             }
             android.util.Log.d(
                     "DigiaAnalytics",
-                    "[AnalyticsService] create: analytics enabled, endpoint=${analyticsConfig.endpointUrl} batchSize=${analyticsConfig.flushBatchSize} interval=${analyticsConfig.flushIntervalMs}ms"
+                    "[AnalyticsService] create: analytics enabled, endpoint=${DigiaEndpoints.track} batchSize=${analyticsConfig.flushBatchSize} interval=${analyticsConfig.flushIntervalMs}ms"
             )
             val store =
                     SharedPrefsStore(
