@@ -67,7 +67,6 @@ constructor(
                 campaignId = campaignId,
                 campaignKey = payload.campaignKey,
                 campaignType = campaignType,
-                columns = event.columns,
                 properties = event.properties,
         )
     }
@@ -118,7 +117,6 @@ constructor(
             campaignId: String?,
             campaignKey: String?,
             campaignType: String?,
-            columns: Map<String, Any?> = emptyMap(),
             properties: Map<String, Any?> = emptyMap(),
     ) {
         val eventId = UUID.randomUUID().toString()
@@ -126,7 +124,7 @@ constructor(
 
         // Columns are ALSO included in properties (so every field is present in the
         // properties blob), and additionally hoisted to the top level below.
-        val mergedProperties = (staticContext + properties + columns).filterValues { it != null }
+        val mergedProperties = (staticContext + properties).filterValues { it != null }
 
         val payloadMap =
                 buildMap<String, Any?> {

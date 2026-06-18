@@ -25,6 +25,7 @@ import com.digia.engage.internal.event.SurveyEvent
 import com.digia.engage.internal.logging.Logger
 import com.digia.engage.internal.model.BranchingType
 import com.digia.engage.internal.model.CampaignModel
+import com.digia.engage.internal.model.SurveyBlock
 import com.digia.engage.internal.model.SurveyBlockType
 import com.digia.engage.internal.model.SurveyConfigModel
 import java.util.UUID
@@ -64,6 +65,11 @@ internal object DigiaInstance : DigiaCEPDelegate {
     private var submissionReporter: SubmissionReporter? = null
     private var completedSurveyToken: Long? = null
     private var welcomeStartToken: Long? = null
+    /**
+     * Per-question viewed-at timestamps, keyed by "<surveyToken>:<nodeId>". Used to
+     * compute `time_to_answer_ms` on QuestionAnswered.
+     */
+    private val questionViewedAt = mutableMapOf<String, Long>()
 
     val guideState = guideOrchestrator.state
     val surveyState = surveyOrchestrator.state
@@ -328,14 +334,18 @@ internal object DigiaInstance : DigiaCEPDelegate {
         val state = surveyOrchestrator.state.value ?: return
         val block = state.config.blockForNode(nodeId) ?: return
         if (block.type.isContent) return
+        questionViewedAt[questionKey(state.token, nodeId)] = System.currentTimeMillis()
+        val typeWire = block.type.wireName()
         events.toDigia(
                 SurveyEvent.QuestionViewed(
                         questionId = nodeId,
-                        questionType = block.type.wireName(),
+                        questionType = typeWire,
                         itemIndex = itemIndex,
                         itemTotal = state.config.questionCount(),
+                        blockType = typeWire,
                         blockId = block.id,
                         isRequired = block.required,
+                        questionTitle = questionTitle(block),
                 ),
                 surveyPayload(state),
         )
@@ -346,11 +356,14 @@ internal object DigiaInstance : DigiaCEPDelegate {
         val state = surveyOrchestrator.state.value ?: return
         ensureWelcomeStartIfNoWelcome(state)
         val block = state.config.blockForNode(nodeId) ?: return
+        questionViewedAt.remove(questionKey(state.token, nodeId))
         events.toDigia(
                 SurveyEvent.QuestionSkipped(
                         questionId = nodeId,
                         itemIndex = itemIndex,
+                        blockType = block.type.wireName(),
                         blockId = block.id,
+                        questionTitle = questionTitle(block),
                 ),
                 surveyPayload(state),
         )
@@ -363,15 +376,25 @@ internal object DigiaInstance : DigiaCEPDelegate {
         val block = state.config.blockForNode(stepId)
         @Suppress("UNCHECKED_CAST") val values = (answer["values"] as? List<String>).orEmpty()
         val comment = answer["comment"] as? String
+        val viewedKey = questionKey(state.token, stepId)
+        val timeToAnswerMs = questionViewedAt[viewedKey]?.let { System.currentTimeMillis() - it }
+        questionViewedAt.remove(viewedKey)
+        val scale = block?.let(::scaleBounds)
         events.toDigia(
                 SurveyEvent.QuestionAnswered(
                         questionId = stepId,
                         questionType = block?.type?.wireName(),
+                        questionTitle = block?.let(::questionTitle),
                         answerValue = values.firstOrNull(),
                         answerText = comment
                                         ?: values.joinToString(", ").takeIf { it.isNotBlank() },
-                        answerOptions = values.takeIf { it.size > 1 },
+                        blockType = block?.type?.wireName(),
                         blockId = block?.id,
+                        answerLabel = block?.let { answerLabel(it, values) },
+                        answerOptions = values.takeIf { it.size > 1 },
+                        scaleMin = scale?.first,
+                        scaleMax = scale?.second,
+                        timeToAnswerMs = timeToAnswerMs,
                         answer = answer,
                 ),
                 surveyPayload(state),
@@ -429,7 +452,38 @@ internal object DigiaInstance : DigiaCEPDelegate {
                 ),
                 payload,
         )
+        clearQuestionViewedAt(state.token)
         surveyOrchestrator.dismiss()
+    }
+
+    private fun clearQuestionViewedAt(token: Long) {
+        val prefix = "$token:"
+        questionViewedAt.entries.removeAll { it.key.startsWith(prefix) }
+    }
+
+    /** Stable per-question key. Scoped by survey token so a re-show doesn't reuse a stale viewed-at. */
+    private fun questionKey(token: Long, nodeId: String): String = "$token:$nodeId"
+
+    /** Block title, trimmed; null when empty (blank titles aren't worth shipping). */
+    private fun questionTitle(block: SurveyBlock): String? =
+            block.title.text.trim().takeIf { it.isNotEmpty() }
+
+    /**
+     * Comma-joined labels for the selected option ids on a choice block. Null when the
+     * block has no options or no selection matches (e.g. rating/nps/text inputs whose
+     * answer values aren't option ids).
+     */
+    private fun answerLabel(block: SurveyBlock, values: List<String>): String? {
+        if (values.isEmpty() || block.options.isEmpty()) return null
+        val labels = values.mapNotNull { id -> block.options.firstOrNull { it.id == id }?.label }
+        return labels.takeIf { it.isNotEmpty() }?.joinToString(", ")
+    }
+
+    /** Numeric scale bounds for scored blocks (Rating 1–5, NPS 0–10). */
+    private fun scaleBounds(block: SurveyBlock): Pair<Int, Int>? = when (block.type) {
+        SurveyBlockType.RATING -> 1 to 5
+        SurveyBlockType.NPS, SurveyBlockType.NPS_EMOJI, SurveyBlockType.NPS_SMILEY -> 0 to 10
+        else -> null
     }
 
     private fun surveyPayload(state: ActiveSurveyState): CEPTriggerPayload = state.payload
@@ -657,6 +711,9 @@ internal object DigiaInstance : DigiaCEPDelegate {
         surveyOrchestrator.dismiss()
         events.clearImpressions()
         dwellTracker.clear()
+        questionViewedAt.clear()
+        completedSurveyToken = null
+        welcomeStartToken = null
         _isUiReady.value = false
         _sdkState.value = SDKState.NOT_INITIALIZED
         lifecycleObserver?.let { ProcessLifecycleOwner.get().lifecycle.removeObserver(it) }
@@ -865,6 +922,9 @@ internal object DigiaInstance : DigiaCEPDelegate {
         surveyOrchestrator.dismiss()
         events.clearImpressions()
         dwellTracker.clear()
+        questionViewedAt.clear()
+        completedSurveyToken = null
+        welcomeStartToken = null
         _isUiReady.value = false
         _sdkState.value = SDKState.NOT_INITIALIZED
         lifecycleObserver?.let { ProcessLifecycleOwner.get().lifecycle.removeObserver(it) }

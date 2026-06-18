@@ -35,7 +35,7 @@ internal class EngageEventEmitter(
         Logger.info(
             "Event fired → DIGIA: '${event.eventName}' (${event::class.simpleName}) | " +
                 "campaignKey=${payload.campaignKey} cepCampaignId=${payload.cepCampaignId} " +
-                "columns=${event.columns} properties=${event.properties}",
+                "properties=${event.properties}",
         )
         digia.deliver(event, payload)
     }
