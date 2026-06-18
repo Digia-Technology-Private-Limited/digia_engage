@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 
 import '../../models/digia_config.dart';
+import '../digia_endpoints.dart';
 import 'campaign_model.dart';
 
 /// Fetches campaign configurations from the Digia backend during SDK init.
@@ -10,17 +11,13 @@ import 'campaign_model.dart';
 /// `{baseUrl}/api/v1/engage/sdk/getCampaigns` with the project id and a
 /// device id, then parses the response array into [CampaignModel]s.
 class CampaignFetcher {
-  static const String _production = 'https://app.digia.tech';
-  static const String _sandbox = 'https://dev.digia.tech';
-
   final DigiaConfig config;
   final String deviceId;
 
   CampaignFetcher(this.config, this.deviceId);
 
   Future<List<CampaignModel>> fetch() async {
-    final baseUrl = _resolveBaseUrl();
-    final fullUrl = '$baseUrl/api/v1/engage/sdk/getCampaigns';
+    final fullUrl = DigiaEndpoints.campaigns;
 
     final dio = Dio(BaseOptions(
       connectTimeout: const Duration(milliseconds: 10000),
@@ -39,16 +36,6 @@ class CampaignFetcher {
     }
 
     return _parseCampaigns(_extractCampaignArray(response.data));
-  }
-
-  /// Resolves the engage API origin, mirroring Android: an explicit
-  /// `config.baseUrl` wins; otherwise the host is derived from the environment.
-  String _resolveBaseUrl() {
-    final explicit = config.baseUrl;
-    if (explicit != null && explicit.isNotEmpty) {
-      return explicit.replaceAll(RegExp(r'/+$'), '');
-    }
-    return config.environment == DigiaEnvironment.sandbox ? _sandbox : _production;
   }
 
   /// Unwraps the campaign array from the response, accepting either a bare
