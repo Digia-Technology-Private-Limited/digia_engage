@@ -13,6 +13,9 @@ internal class AnalyticsIdentityManager(
     private var _lastEventMs: Long = 0L
     private var _sessionTimeoutMs: Long = DEFAULT_TIMEOUT_MS
 
+    /** Called whenever the session ID rotates. Wired by AnalyticsService to report the new session. */
+    var onSessionRotated: (() -> Unit)? = null
+
     val anonymousId: String get() = _anonymousId
     val userId: String? get() = _userId
     val sessionId: String get() = _sessionId
@@ -48,6 +51,7 @@ internal class AnalyticsIdentityManager(
 
     private fun rotateSession() {
         _sessionId = UUID.randomUUID().toString()
+        onSessionRotated?.invoke()
     }
 
     private fun loadOrCreate(key: String): String {

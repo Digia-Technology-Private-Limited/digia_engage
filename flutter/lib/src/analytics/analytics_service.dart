@@ -60,6 +60,7 @@ class DigiaAnalyticsService {
     try {
       _staticContext = await _buildStaticContext();
       await _identity.initialize(_config.sessionTimeoutMs);
+      _identity.onSessionRotated = _reportSession;
       _initialized = true;
 
       if (await _queue.length() > 0) {

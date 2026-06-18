@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:uuid/uuid.dart';
 
@@ -17,6 +19,9 @@ class AnalyticsIdentityManager {
   int? _lastEventAtMs;
   late int _sessionTimeoutMs;
 
+  /// Called whenever the session ID rotates. Wired by AnalyticsService to report the new session.
+  Future<void> Function()? onSessionRotated;
+
   String get anonymousId => _anonymousId ?? '';
   String? get userId => _userId;
   String get sessionId => _sessionId ?? _generateSessionId();
@@ -28,20 +33,12 @@ class AnalyticsIdentityManager {
       _anonymousId = EngageSettings.instance.getUuid();
 
       _userId = PreferencesStore.instance.read<String>(_kAnalyticsUserIdKey);
-      _sessionId =
-          PreferencesStore.instance.read<String>(_kAnalyticsSessionIdKey);
       _lastEventAtMs =
           PreferencesStore.instance.read<int>(_kAnalyticsSessionLastEventAtKey);
 
-      if (_sessionId == null || _sessionId!.isEmpty) {
-        _sessionId = _generateSessionId();
-        await PreferencesStore.instance
-            .write<String>(_kAnalyticsSessionIdKey, _sessionId!);
-      }
-
-      if (_isSessionExpired()) {
-        await _resetSession();
-      }
+      _sessionId = _generateSessionId();
+      await PreferencesStore.instance
+          .write<String>(_kAnalyticsSessionIdKey, _sessionId!);
     } catch (error) {
       debugPrint('[Digia Analytics] identity initialize failed: $error');
     }
@@ -109,6 +106,7 @@ class AnalyticsIdentityManager {
       _kAnalyticsSessionLastEventAtKey,
       _lastEventAtMs!,
     );
+    unawaited(onSessionRotated?.call());
   }
 
   String _generateSessionId() => const Uuid().v4();
