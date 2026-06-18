@@ -65,6 +65,7 @@ internal class DigiaModule(
             logLevel: String,
             baseUrl: String?,
             fontFamily: String?,
+            sdkVersion: String?,
             promise: Promise
     ) {
         try {
@@ -86,6 +87,9 @@ internal class DigiaModule(
                                         else -> DigiaLogLevel.ERROR
                                     },
                             fontFamily = fontFamily?.takeIf { it.isNotBlank() },
+                            // This native engine is being driven by the RN wrapper.
+                            wrapperBinding = "react_native",
+                            wrapperVersion = sdkVersion?.takeIf { it.isNotBlank() },
                     )
             Digia.initialize(reactContext.applicationContext, config)
 

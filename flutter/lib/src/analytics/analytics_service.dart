@@ -423,11 +423,13 @@ class DigiaAnalyticsService {
     final appVersion = packageInfo.version;
     final locale = _getLocale();
     final deviceInfo = await AnalyticsDeviceInfo.getDeviceInfo();
+    final devicePlatform = AnalyticsDeviceInfo.getDevicePlatform();
 
     return {
-      'sdk_version': packageVersion,
+      //   s=schema | b=binding | p=platform | c=core/engine version
+      'sdk_version': 's=1|b=flutter|p=$devicePlatform|c=$packageVersion',
       'sdk_platform': 'flutter',
-      'device_platform': AnalyticsDeviceInfo.getDevicePlatform(),
+      'device_platform': devicePlatform,
       'app_version': appVersion,
       'app_locale': locale,
       'os_version': AnalyticsDeviceInfo.formatOsVersion(),
