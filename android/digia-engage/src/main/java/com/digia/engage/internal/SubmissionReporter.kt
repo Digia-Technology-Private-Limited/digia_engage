@@ -2,7 +2,6 @@ package com.digia.engage.internal
 
 import com.digia.engage.DigiaConfig
 import com.digia.engage.DigiaEndpoints
-import com.digia.engage.DigiaEnvironment
 import com.digia.engage.internal.model.CampaignModel
 import com.digia.engage.internal.model.SurveyBlock
 import com.digia.engage.internal.model.SurveyBlockType
@@ -36,10 +35,7 @@ internal class SubmissionReporter(
     }
 
     private fun post(body: JSONObject) {
-        val baseUrl = (config.baseUrl
-            ?: if (config.environment == DigiaEnvironment.SANDBOX) DigiaEndpoints.SANDBOX
-            else DigiaEndpoints.PRODUCTION).trimEnd('/')
-        val fullUrl = "$baseUrl/api/v1/engage/sdk/recordSubmission"
+        val fullUrl = DigiaEndpoints.submission
         try {
             val connection = (URL(fullUrl).openConnection() as HttpURLConnection).apply {
                 requestMethod = "POST"

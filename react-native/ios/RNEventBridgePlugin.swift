@@ -40,9 +40,9 @@ internal final class RNEventBridgePlugin: NSObject, DigiaCEPPlugin {
         self.delegate = delegate
     }
 
-    func notifyEvent(_ event: DigiaExperienceEvent, payload: InAppPayload) {
+    func notifyEvent(_ event: DigiaExperienceEvent, payload: CEPTriggerPayload) {
 
-        var body: [String: Any] = ["campaignId": payload.id]
+        var body: [String: Any] = ["campaignId": payload.cepCampaignId]
         switch event {
         case .impressed:
             body["type"] = "impressed"
@@ -55,13 +55,15 @@ internal final class RNEventBridgePlugin: NSObject, DigiaCEPPlugin {
             body["type"] = "dismissed"
         }
         let hasEmitter = eventEmitter != nil
-        print("[DigiaRN] RNEventBridgePlugin.notifyEvent type=\(body["type"] ?? "?") campaignId=\(payload.id) hasEmitter=\(hasEmitter)")
+        print("[DigiaRN] RNEventBridgePlugin.notifyEvent type=\(body["type"] ?? "?") campaignId=\(payload.cepCampaignId) hasEmitter=\(hasEmitter)")
         eventEmitter?.sendEvent(withName: "digiaEngageEvent", body: body)
     }
 
-    func notifyAction(actionType: String, url: String, payload: InAppPayload) -> Bool {
+    /// Forwards the action to the JS layer (the host handles routing), so it
+    /// reports the action as handled — the native open fallback is skipped.
+    func notifyAction(actionType: String, url: String, payload: CEPTriggerPayload) -> Bool {
         let body: [String: Any] = [
-            "campaignId": payload.id,
+            "campaignId": payload.cepCampaignId,
             "type": "action",
             "actionType": actionType,
             "url": url,

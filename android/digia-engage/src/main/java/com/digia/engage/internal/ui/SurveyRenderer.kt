@@ -148,8 +148,13 @@ private fun SurveySession(state: ActiveSurveyState) {
     val display = survey.settings.display
 
     fun finish(completed: Boolean) {
-        if (completed) DigiaInstance.markSurveyCompleted(vm.responsePayload(), vm.answers.toMap())
-        else DigiaInstance.markSurveyDismissed()
+        if (completed) {
+            DigiaInstance.markSurveyCompleted(vm.responsePayload(), vm.answers.toMap())
+        } else {
+            val abandonedAt = if (vm.currentNode != null) vm.progressStep else null
+            val answeredCount = vm.answers.count { it.value.isAnswered }
+            DigiaInstance.markSurveyDismissed(abandonedAtItem = abandonedAt, answeredCount = answeredCount)
+        }
     }
 
     val context = LocalContext.current
@@ -345,7 +350,11 @@ private fun SurveyPanel(
             cta = survey.settings.cta,
             accent = accent,
             showClose = showCloseButton && survey.settings.display.dismissible,
-            onStart = { welcomeDone = true },
+            onStart = {
+                // Welcome "Start" tap → Digia Experience Clicked (element_id=welcome_start).
+                DigiaInstance.reportSurveyWelcomeStart()
+                welcomeDone = true
+            },
             onClose = onClose,
         )
     } else {
@@ -434,9 +443,18 @@ private fun SurveyBody(
         }
     }
 
-    val position = visibleIndexOf(survey, node) + 1
+    // Respondent-relative traversal position (not the static config index), so the
+    // progress bar and item_index reflect the actual path taken (incl. branching/back).
+    val position = vm.progressStep
     val total = survey.nodes.size.coerceAtLeast(1)
     var completionReported by remember { mutableStateOf(false) }
+
+    // Question Viewed fires each time a (non-content) question becomes visible.
+    LaunchedEffect(node.id) {
+        if (!block.type.isContent) {
+            DigiaInstance.reportSurveyQuestionViewed(node.id, position)
+        }
+    }
 
     fun reportCompletionIfResultIsNext() {
         if (!completionReported && vm.nextBlockIsResultPage()) {
@@ -491,7 +509,7 @@ private fun SurveyBody(
                 !(pagination.onlyShowOnQuestionBlock && block.type.isContent)
             if (showBarHere) {
                 ProgressBar(
-                    progress = position.toFloat() / total,
+                    progress = vm.progress,
                     style = pagination.paginationStyle,
                     segments = total,
                     currentSegment = position,
@@ -553,7 +571,7 @@ private fun SurveyBody(
 
             when (block.type) {
                 SurveyBlockType.WELCOME -> WelcomeCta(accent = accent, onStart = {
-                    DigiaInstance.reportSurveyAnswered(node.id, emptyMap())
+                    DigiaInstance.reportSurveyWelcomeStart()
                     vm.advance()
                 })
                 SurveyBlockType.RESULT_PAGE -> ResultPagePanel(cta = cta, accent = accent, onDone = onCompletedClose)
@@ -590,8 +608,12 @@ private fun SurveyBody(
                 nextLabel = footerNextLabel(survey, node, block, cta),
                 onNext = {
                     if (!block.type.isContent) {
-                        vm.answers[node.id]?.takeIf { it.isAnswered }?.let { ans ->
+                        val ans = vm.answers[node.id]?.takeIf { it.isAnswered }
+                        if (ans != null) {
                             DigiaInstance.reportSurveyAnswered(node.id, ans.toMap())
+                        } else if (!block.required) {
+                            // Advancing past an eligible optional question = a skip.
+                            DigiaInstance.reportSurveyQuestionSkipped(node.id, position)
                         }
                     }
                     reportCompletionIfResultIsNext()
@@ -874,10 +896,6 @@ private fun ctaArrangement(arrangement: CtaArrangement): Arrangement.Horizontal 
     }
 
 // ── helpers ────────────────────────────────────────────────────────────────
-
-/** Position of [node] within the survey's node list (0-based). */
-private fun visibleIndexOf(survey: SurveyConfigModel, node: SurveyNode): Int =
-    survey.nodes.indexOfFirst { it.id == node.id }.coerceAtLeast(0)
 
 /**
  * Footer Next-button label. "Finish" on the terminal node (the only node whose

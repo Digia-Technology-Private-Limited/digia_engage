@@ -50,7 +50,7 @@ export type DigiaExperienceEvent =
 
 // ─── Guide lifecycle events (analytics — used by track()) ────────────────────
 
-export type DismissReason = 'user_close' | 'scrim_tap' | 'back_gesture' | 'auto_timeout';
+export type DismissReason = 'user_close' | 'scrim_tap' | 'back_gesture' | 'auto_timeout' | 'completed';
 
 /**
  * Rich internal event emitted by guide overlays.

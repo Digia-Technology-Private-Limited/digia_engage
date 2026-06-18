@@ -46,11 +46,19 @@ internal class SurveyViewModel(val survey: SurveyConfigModel) : ViewModel() {
     val canGoBack: Boolean
         get() = backStack.isNotEmpty() && survey.settings.pagination.backButton
 
+    /**
+     * 1-based traversal depth: how many nodes the respondent has reached, not the
+     * static config index. Drives both the progress bar and respondent-relative
+     * `item_index` analytics. Mirrors Flutter's progress numerator.
+     */
+    val progressStep: Int
+        get() = backStack.size + 1
+
     /** Coarse progress estimate based on traversal depth, not graph topology. */
     val progress: Float
         get() {
             if (survey.nodes.isEmpty()) return 0f
-            return ((backStack.size + 1).toFloat() / survey.nodes.size).coerceIn(0f, 1f)
+            return (progressStep.toFloat() / survey.nodes.size).coerceIn(0f, 1f)
         }
 
     /** Whether the current node may be left — required questions must be answered. */

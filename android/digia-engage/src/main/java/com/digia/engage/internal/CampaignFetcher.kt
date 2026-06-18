@@ -2,7 +2,6 @@ package com.digia.engage.internal
 
 import com.digia.engage.DigiaConfig
 import com.digia.engage.DigiaEndpoints
-import com.digia.engage.DigiaEnvironment
 import com.digia.engage.internal.logging.Logger
 import com.digia.engage.internal.model.CampaignModel
 import java.io.IOException
@@ -14,14 +13,7 @@ import org.json.JSONObject
 internal class CampaignFetcher(private val config: DigiaConfig, private val deviceId: String) {
 
     fun fetch(): List<CampaignModel> {
-        val baseUrl =
-                (config.baseUrl
-                                ?: if (config.environment == DigiaEnvironment.SANDBOX)
-                                        DigiaEndpoints.SANDBOX
-                                else DigiaEndpoints.PRODUCTION)
-                        .trimEnd('/')
-
-        val fullUrl = "$baseUrl/api/v1/engage/sdk/getCampaigns"
+        val fullUrl = DigiaEndpoints.campaigns
         Logger.verbose("Fetching campaigns | url=$fullUrl env=${config.environment}")
         val url = URL(fullUrl)
         val connection =
