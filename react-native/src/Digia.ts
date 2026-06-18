@@ -17,6 +17,7 @@
 
 import { DeviceEventEmitter } from 'react-native';
 import { nativeDigiaModule } from './NativeDigiaEngage';
+import { DIGIA_RN_SDK_VERSION } from './SdkVersion';
 import { digiaHealthReporter, HealthEventType } from './DigiaHealthReporter';
 import { digiaGuideController } from './DigiaGuideController';
 import { digiaAnchorRegistry } from './digiaAnchorRegistry';
@@ -41,7 +42,7 @@ import type { TemplateConfig, Action } from './templateTypes';
 
 const PRODUCTION_API_ROOT = 'https://app.digia.tech';
 const SANDBOX_API_ROOT = 'https://dev.digia.tech';
-const DIGIA_SDK_VERSION = '1.0.0';
+const DIGIA_SDK_VERSION = DIGIA_RN_SDK_VERSION;
 
 interface SdkCampaign {
     id?: string;
@@ -99,7 +100,7 @@ class DigiaClass implements DigiaDelegate {
         });
 
         try {
-            await nativeDigiaModule.initialize(config.apiKey, environment, logLevel, config.baseUrl, config.fontFamily);
+            await nativeDigiaModule.initialize(config.apiKey, environment, logLevel, config.baseUrl, config.fontFamily, DIGIA_RN_SDK_VERSION);
         } catch (e) {
             this._error(`Digia SDK native init failed: ${e instanceof Error ? e.message : String(e)}`);
             throw e;
