@@ -55,7 +55,7 @@ import kotlin.math.roundToInt
 internal fun NudgeRenderer() {
     val state by DigiaInstance.controller.nudgeOverlay.collectAsState()
     val active = state ?: return
-    key(active.payload.id) {
+    key(active.payload.cepCampaignId) {
         NudgeSession(active)
     }
 }
@@ -64,7 +64,7 @@ internal fun NudgeRenderer() {
 private fun NudgeSession(state: NudgeOverlayState) {
     val surface = state.config.surface
 
-    LaunchedEffect(state.payload.id) {
+    LaunchedEffect(state.payload.cepCampaignId) {
         DigiaInstance.reportNudgeImpression()
     }
 

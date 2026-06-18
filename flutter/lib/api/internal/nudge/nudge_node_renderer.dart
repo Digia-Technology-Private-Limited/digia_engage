@@ -173,10 +173,10 @@ final class NudgeButtonRenderer extends NudgeNodeRenderer<NudgeButton> {
     if (!hasActions && !node.isPrimary) return null;
     return () {
       if (node.isPrimary) {
-        final controller = DigiaInstance.instance.controller;
-        final payload = controller.activePayload;
+        final payload = DigiaInstance.instance.controller.activePayload;
         if (payload != null) {
-          controller.onEvent?.call(const ExperienceClicked(), payload);
+          DigiaInstance.instance.events
+              .toDigia(const ExperienceClicked(), payload);
         }
       }
       if (hasActions) {

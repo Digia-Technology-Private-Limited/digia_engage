@@ -43,7 +43,6 @@ import coil.compose.SubcomposeAsyncImage
 import coil.compose.SubcomposeAsyncImageContent
 import com.digia.engage.internal.DigiaInstance
 import com.digia.engage.internal.StoryOverlayState
-import com.digia.engage.internal.extractVariables
 import com.digia.engage.internal.interpolate
 import com.digia.engage.internal.model.StoryCtaAction
 import com.digia.engage.internal.model.StoryItemConfig
@@ -57,23 +56,60 @@ internal fun DigiaStoryOverlay() {
     val overlayState by DigiaInstance.controller.storyOverlay.collectAsState()
     val state = overlayState ?: return
 
+    val itemTotal = state.config.items.size
+    var currentStoryIndex by remember(state) { mutableIntStateOf(state.initialIndex) }
+    var completed by remember(state) { mutableStateOf(false) }
+    val openedAtMs = remember(state) { System.currentTimeMillis() }
+
     Dialog(
-        onDismissRequest = { DigiaInstance.controller.dismissStoryOverlay() },
+        onDismissRequest = {
+            // User-closed (back / system) before the last frame → Step Dismissed.
+            if (!completed) {
+                DigiaInstance.reportStoryStepDismissed(state.payload, currentStoryIndex + 1)
+            }
+            DigiaInstance.controller.dismissStoryOverlay()
+        },
         properties = DialogProperties(
             usePlatformDefaultWidth = false,
             dismissOnBackPress = true,
             dismissOnClickOutside = false,
         ),
     ) {
-        DigiaStoryOverlayContent(state = state)
+        DigiaStoryOverlayContent(
+            state = state,
+            currentStoryIndex = currentStoryIndex,
+            onStoryIndexChanged = { currentStoryIndex = it },
+            onCompleted = {
+                completed = true
+                DigiaInstance.reportStoryCompleted(
+                    state.payload,
+                    itemTotal = itemTotal,
+                    timeToCompleteMs = System.currentTimeMillis() - openedAtMs,
+                )
+                DigiaInstance.controller.dismissStoryOverlay()
+            },
+        )
     }
 }
 
 @Composable
-private fun DigiaStoryOverlayContent(state: StoryOverlayState) {
+private fun DigiaStoryOverlayContent(
+    state: StoryOverlayState,
+    currentStoryIndex: Int,
+    onStoryIndexChanged: (Int) -> Unit,
+    onCompleted: () -> Unit,
+) {
     val context = LocalContext.current
-    val variables = remember(state.payload) { extractVariables(state.payload.content) }
-    var currentStoryIndex by remember(state.initialIndex) { mutableIntStateOf(state.initialIndex) }
+    val variables = remember(state.payload) { state.payload.variables }
+
+    // Step Viewed fires for each frame that becomes visible (including the first).
+    LaunchedEffect(currentStoryIndex) {
+        DigiaInstance.reportStoryStepViewed(
+            state.payload,
+            itemIndex = currentStoryIndex + 1,
+            itemTotal = state.config.items.size,
+        )
+    }
 
     val contents: List<@Composable () -> Unit> = remember(state.config) {
         state.config.items.map { item ->
@@ -109,8 +145,8 @@ private fun DigiaStoryOverlayContent(state: StoryOverlayState) {
             restartOnCompleted = state.config.restartOnCompleted,
             defaultDuration = state.config.defaultDuration.milliseconds,
             indicatorConfig = indicatorConfig,
-            onCompleted = { DigiaInstance.controller.dismissStoryOverlay() },
-            onStoryChanged = { index -> currentStoryIndex = index },
+            onCompleted = onCompleted,
+            onStoryChanged = onStoryIndexChanged,
             footer = {
                 val item = state.config.items.getOrNull(currentStoryIndex)
                 if (item != null && item.ctaEnabled && !item.ctaText.isNullOrBlank()) {
@@ -127,6 +163,14 @@ private fun DigiaStoryOverlayContent(state: StoryOverlayState) {
                             backgroundColor = parseColor(item.ctaBackgroundColor),
                             cornerRadius = item.ctaCornerRadius,
                             onTap = {
+                                // CTA inside a story frame tapped → Step Clicked.
+                                DigiaInstance.reportStoryStepClicked(
+                                    state.payload,
+                                    itemIndex = currentStoryIndex + 1,
+                                    ctaLabel = item.ctaText,
+                                    actionType = item.ctaAction?.type,
+                                    actionUrl = item.ctaAction?.url,
+                                )
                                 handleCtaAction(
                                     action = item.ctaAction,
                                     onDismiss = { DigiaInstance.controller.dismissStoryOverlay() },

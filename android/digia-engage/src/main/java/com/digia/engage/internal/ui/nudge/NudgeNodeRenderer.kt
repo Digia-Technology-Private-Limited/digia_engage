@@ -71,7 +71,6 @@ import com.airbnb.lottie.compose.LottieCompositionSpec
 import com.airbnb.lottie.compose.LottieConstants
 import com.airbnb.lottie.compose.animateLottieCompositionAsState
 import com.airbnb.lottie.compose.rememberLottieComposition
-import com.digia.engage.DigiaExperienceEvent
 import com.digia.engage.internal.DigiaFontConfig
 import com.digia.engage.internal.DigiaInstance
 import com.digia.engage.internal.interpolate
@@ -212,6 +211,19 @@ private fun nudgeImageRequest(context: Context, url: String): ImageRequest =
 
 // ─── button ───────────────────────────────────────────────────────────────────
 
+private fun forwardOrOpenUrl(context: Context, actionType: String, url: String) {
+    val payload = DigiaInstance.controller.nudgeOverlay.value?.payload
+    val handled = payload?.let { DigiaInstance.controller.onAction?.invoke(actionType, url, it) } ?: false
+    if (!handled) {
+        runCatching {
+            context.startActivity(
+                Intent(Intent.ACTION_VIEW, Uri.parse(url))
+                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            )
+        }
+    }
+}
+
 @Composable
 private fun NudgeButtonWidget(node: NudgeButton, onDismiss: () -> Unit) {
     val context = LocalContext.current
@@ -244,31 +256,33 @@ private fun NudgeButtonWidget(node: NudgeButton, onDismiss: () -> Unit) {
                     indication = ripple(),
                     interactionSource = remember { MutableInteractionSource() },
                 ) {
-                    if (node.isPrimary) {
-                        val payload = DigiaInstance.controller.nudgeOverlay.value?.payload
-                        if (payload != null) {
-                            DigiaInstance.controller.onEvent?.invoke(
-                                DigiaExperienceEvent.Clicked(), payload
-                            )
-                        }
-                    }
+                    // Every CTA tap is a click (primary or secondary) — cta_role
+                    // distinguishes them, matching the Engage matrix.
+                    val clickedAction = node.actions.firstOrNull()
+                    DigiaInstance.emitNudgeClick(
+                        elementId = if (node.isPrimary) "cta_primary" else "cta_secondary",
+                        ctaLabel = node.label,
+                        actionType = when (clickedAction) {
+                            is OpenUrlAction -> "url"
+                            is OpenDeeplinkAction -> "deeplink"
+                            DismissAction -> "dismiss"
+                            is CopyToClipboardAction, is ShareAction -> "custom"
+                            null -> null
+                        },
+                        actionUrl = when (clickedAction) {
+                            is OpenUrlAction -> clickedAction.url
+                            is OpenDeeplinkAction -> clickedAction.url
+                            else -> null
+                        },
+                        ctaRole = if (node.isPrimary) "primary" else "secondary",
+                    )
                     node.actions.forEach { action ->
                         when (action) {
                             is DismissAction -> onDismiss()
-                            is OpenUrlAction -> runCatching {
-                                context.startActivity(
-                                    Intent(Intent.ACTION_VIEW, Uri.parse(
-                                        interpolate(action.url, variables)
-                                    )).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                                )
-                            }
-                            is OpenDeeplinkAction -> runCatching {
-                                context.startActivity(
-                                    Intent(Intent.ACTION_VIEW, Uri.parse(
-                                        interpolate(action.url, variables)
-                                    )).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                                )
-                            }
+                            is OpenUrlAction ->
+                                forwardOrOpenUrl(context, "open_url", interpolate(action.url, variables))
+                            is OpenDeeplinkAction ->
+                                forwardOrOpenUrl(context, "deep_link", interpolate(action.url, variables))
                             is CopyToClipboardAction -> runCatching {
                                 val clipboard = context
                                     .getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager

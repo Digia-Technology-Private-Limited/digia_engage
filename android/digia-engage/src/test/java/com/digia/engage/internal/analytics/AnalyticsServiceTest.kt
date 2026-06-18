@@ -1,8 +1,9 @@
 package com.digia.engage.internal.analytics
 
 import com.digia.engage.AnalyticsConfig
-import com.digia.engage.DigiaExperienceEvent
-import com.digia.engage.InAppPayload
+import com.digia.engage.CEPTriggerPayload
+import com.digia.engage.internal.event.EngageAnalyticsEvent
+import com.digia.engage.internal.event.NudgeEvent
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestScope
@@ -47,14 +48,16 @@ class AnalyticsServiceTest {
         scope = testScope,
     )
 
-    private fun buildPayload(campaignKey: String) = InAppPayload(
-        id = campaignKey,
-        content = mapOf(
-            "campaign_id" to "example-campaign",
-            "campaign_key" to campaignKey,
-            "campaign_type" to "guide",
-        ),
+    private fun buildPayload(campaignKey: String) = CEPTriggerPayload(
+        cepCampaignId = campaignKey,
+        campaignKey = campaignKey,
     )
+
+    // Campaign id/type are resolved from the campaign store at event time and passed
+    // into capture() by the caller; this helper supplies fixed test values so the
+    // existing call sites stay terse.
+    private fun AnalyticsService.capture(event: EngageAnalyticsEvent, payload: CEPTriggerPayload) =
+        capture(event, payload, campaignId = "example-campaign", campaignType = "guide")
 
     // ── Tests ─────────────────────────────────────────────────────────────────
 
@@ -89,7 +92,7 @@ class AnalyticsServiceTest {
         )
         // capture is synchronous — no advanceUntilIdle needed
         for (i in 0..4) {
-            service.capture(DigiaExperienceEvent.Impressed, buildPayload("event-$i"))
+            service.capture(NudgeEvent.Viewed(displayStyle = "dialog"), buildPayload("event-$i"))
         }
 
         assertEquals(3, service.queue.size())
@@ -103,7 +106,7 @@ class AnalyticsServiceTest {
     @Test
     fun `event payload has correct structure and identity fields`() = testScope.runTest {
         val service = createService()
-        service.capture(DigiaExperienceEvent.Impressed, buildPayload("payload-1"))
+        service.capture(NudgeEvent.Viewed(displayStyle = "dialog"), buildPayload("payload-1"))
         // capture is synchronous — event is immediately in queue
 
         val entries = service.queue.peek(1)
@@ -132,9 +135,9 @@ class AnalyticsServiceTest {
         val service = createService()
         val payload = buildPayload("test")
 
-        service.capture(DigiaExperienceEvent.Impressed, payload)
-        service.capture(DigiaExperienceEvent.Clicked("cta-btn"), payload)
-        service.capture(DigiaExperienceEvent.Dismissed, payload)
+        service.capture(NudgeEvent.Viewed(displayStyle = "dialog"), payload)
+        service.capture(NudgeEvent.Clicked(elementId = "cta-btn"), payload)
+        service.capture(NudgeEvent.Dismissed(), payload)
         // capture is synchronous — all three are immediately in queue
 
         val entries = service.queue.peek(10)
@@ -143,13 +146,13 @@ class AnalyticsServiceTest {
         assertEquals("Digia Experience Clicked", entries[1].payload["event_name"])
         assertEquals("Digia Experience Dismissed", entries[2].payload["event_name"])
 
-        // element_id only present for Clicked
+        // element_id lives in the properties blob, present only for Clicked.
         @Suppress("UNCHECKED_CAST")
-        val clickProps = entries[1].payload["properties"] as? Map<String, Any?>
-        assertEquals("cta-btn", clickProps?.get("element_id"))
+        val clickedProps = entries[1].payload["properties"] as? Map<String, Any?>
+        assertEquals("cta-btn", clickedProps?.get("element_id"))
         @Suppress("UNCHECKED_CAST")
-        val impressedProps = entries[0].payload["properties"] as? Map<String, Any?>
-        assertNull(impressedProps?.get("element_id"))
+        val viewedProps = entries[0].payload["properties"] as? Map<String, Any?>
+        assertNull(viewedProps?.get("element_id"))
     }
 
     @Test
@@ -160,8 +163,8 @@ class AnalyticsServiceTest {
             sender = fakeSender,
         )
 
-        service.capture(DigiaExperienceEvent.Impressed, buildPayload("p1"))
-        service.capture(DigiaExperienceEvent.Impressed, buildPayload("p2"))
+        service.capture(NudgeEvent.Viewed(displayStyle = "dialog"), buildPayload("p1"))
+        service.capture(NudgeEvent.Viewed(displayStyle = "dialog"), buildPayload("p2"))
         // second capture triggers batch flush (size >= flushBatchSize=2); run the dispatch coroutine
         advanceUntilIdle()
 
@@ -177,7 +180,7 @@ class AnalyticsServiceTest {
             sender = fakeSender,
         )
 
-        service.capture(DigiaExperienceEvent.Impressed, buildPayload("p1"))
+        service.capture(NudgeEvent.Viewed(displayStyle = "dialog"), buildPayload("p1"))
         // capture is synchronous; timer scheduled at 50ms — do not call advanceUntilIdle here
 
         advanceTimeBy(200L)
@@ -195,7 +198,7 @@ class AnalyticsServiceTest {
             sender = fakeSender,
         )
 
-        service.capture(DigiaExperienceEvent.Impressed, buildPayload("p1"))
+        service.capture(NudgeEvent.Viewed(displayStyle = "dialog"), buildPayload("p1"))
         // capture is synchronous — event is immediately in queue
         assertEquals(1, service.queue.size())
 
@@ -217,7 +220,7 @@ class AnalyticsServiceTest {
         )
         service.retryScheduleMs = listOf(10L, 20L)
 
-        service.capture(DigiaExperienceEvent.Impressed, buildPayload("p1"))
+        service.capture(NudgeEvent.Viewed(displayStyle = "dialog"), buildPayload("p1"))
         // capture is synchronous — do not advanceUntilIdle here (would advance clock to 10_000ms and fire timer)
 
         service.flush()
@@ -242,7 +245,7 @@ class AnalyticsServiceTest {
             sender = fakeSender,
         )
 
-        service.capture(DigiaExperienceEvent.Impressed, buildPayload("p1"))
+        service.capture(NudgeEvent.Viewed(displayStyle = "dialog"), buildPayload("p1"))
         // capture is synchronous
         assertEquals(1, service.queue.size())
 
@@ -262,7 +265,7 @@ class AnalyticsServiceTest {
             config = AnalyticsConfig(flushBatchSize = 10, flushIntervalMs = 10_000L),
             store = store,
         )
-        service1.capture(DigiaExperienceEvent.Impressed, buildPayload("persisted"))
+        service1.capture(NudgeEvent.Viewed(displayStyle = "dialog"), buildPayload("persisted"))
         // capture is synchronous — do not advanceUntilIdle (would fire timer and flush)
         assertEquals(1, service1.queue.size())
         service1.resetForTest()
@@ -291,7 +294,7 @@ class AnalyticsServiceTest {
             sender = fakeSender,
         )
 
-        service.capture(DigiaExperienceEvent.Dismissed, buildPayload("p1"))
+        service.capture(NudgeEvent.Dismissed(), buildPayload("p1"))
         // capture is synchronous — do not advanceUntilIdle (would fire timer)
 
         assertEquals(1, service.queue.size())
@@ -309,8 +312,8 @@ class AnalyticsServiceTest {
             sender = fakeSender,
         )
 
-        service.capture(DigiaExperienceEvent.Impressed, buildPayload("p1"))
-        service.capture(DigiaExperienceEvent.Clicked("cta"), buildPayload("p2"))
+        service.capture(NudgeEvent.Viewed(displayStyle = "dialog"), buildPayload("p1"))
+        service.capture(NudgeEvent.Clicked(elementId = "cta"), buildPayload("p2"))
         // capture is synchronous
 
         service.flush()
