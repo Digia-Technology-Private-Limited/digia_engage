@@ -60,6 +60,10 @@ class DigiaClass implements DigiaDelegate {
     // Cache of triggered payloads keyed by cepCampaignId, used to reconstruct
     // the full CEPTriggerPayload when overlay lifecycle events arrive from native.
     private readonly _activePayloads = new Map<string, CEPTriggerPayload>();
+    // Wall-clock time (ms) the guide became visible (Experience Viewed), keyed by
+    // payloadId — used to compute dwell_ms on Experience Dismissed. Guides render in
+    // JS, so dwell is timed here rather than by the native DwellTracker.
+    private readonly _guideViewedAt = new Map<string, number>();
     private _engageSubscription: { remove(): void } | null = null;
     private _apiKey = '';
     private _deviceId = '';
@@ -226,17 +230,13 @@ class DigiaClass implements DigiaDelegate {
             }
         }
 
-        // Synthesise the content map expected by the native bridge.
-        const bridgeContent: Record<string, unknown> = { digia_campaign_key: campaignKey };
-        if (variables) bridgeContent.variables = variables;
-
         if (campaign?.campaign_type === 'inline' || campaign?.campaign_type === 'survey') {
             this._log(`${campaign.campaign_type} campaign triggered campaign_key=${campaignKey}, forwarding to native`);
             this._activePayloads.set(cepCampaignId, payload);
             if (campaign.campaign_type === 'inline') {
                 this._emitSlotWidth(campaign);
             }
-            nativeDigiaModule.triggerCampaign(cepCampaignId, bridgeContent, cepMetadata);
+            nativeDigiaModule.triggerCampaign(cepCampaignId, campaignKey, variables ?? {}, cepMetadata);
             return true;
         }
 
@@ -305,7 +305,7 @@ class DigiaClass implements DigiaDelegate {
         }
 
         this._activePayloads.set(cepCampaignId, payload);
-        nativeDigiaModule.triggerCampaign(cepCampaignId, bridgeContent, cepMetadata);
+        nativeDigiaModule.triggerCampaign(cepCampaignId, campaignKey, variables ?? {}, cepMetadata);
         return true;
     }
 
@@ -428,26 +428,41 @@ class DigiaClass implements DigiaDelegate {
         console.log(`[Digia] guide lifecycle event: type=${event.type} step=${event.stepIndex + 1}/${event.stepTotal} anchorKey=${event.anchorKey} displayStyle=${event.displayStyle} campaignKey=${campaignKey}`);
         const eventName = this._guideEventName(event.type);
         const properties = this._buildGuideProperties(event, campaignId, campaignKey);
+
+        // Dwell timing: mark when the guide becomes visible, then on dismissal emit
+        // dwell_ms (= dismiss time − viewed time) per the Engage matrix.
+        if (event.type === 'viewed' && !this._guideViewedAt.has(payloadId)) {
+            this._guideViewedAt.set(payloadId, Date.now());
+        }
+        if (event.type === 'dismissed') {
+            const viewedAt = this._guideViewedAt.get(payloadId);
+            if (viewedAt != null) {
+                properties.dwell_ms = Date.now() - viewedAt;
+            }
+        }
+
         this._plugins.forEach((p) => p.track?.(eventName, properties));
 
-        // Forward main experience events to native analytics.
-        // step_* and completed events are guide-specific and have no native equivalent.
-        if (event.type === 'viewed') {
-            nativeDigiaModule.trackEvent('impressed', campaignId, campaignKey, 'guide', null);
-        } else if (event.type === 'clicked') {
-            nativeDigiaModule.trackEvent('clicked', campaignId, campaignKey, 'guide', event.elementId ?? null);
-        } else if (event.type === 'dismissed') {
-            nativeDigiaModule.trackEvent('dismissed', campaignId, campaignKey, 'guide', null);
-        }
+        // Forward EVERY guide lifecycle event to native with its full props; native
+        // maps it to the typed Engage analytics event and records it (Digia
+        // first-party analytics). step_* and completed now reach native too.
+        nativeDigiaModule.captureAnalyticsEvent(campaignKey, eventName, properties);
 
         if (event.type === 'viewed') {
             void this._bumpFrequencyImpression(campaignKey);
         }
-        if (event.type === 'clicked' || event.type === 'completed') {
+        if (event.type === 'step_clicked' || event.type === 'completed') {
             void this._applyStopOn(campaignKey, 'click');
         }
         if (event.type === 'dismissed') {
             void this._applyStopOn(campaignKey, 'dismiss');
+        }
+
+        // Drop the dwell mark only on dismissed — which now fires unconditionally on every
+        // close (even after completed). Deleting on completed would wipe the mark before the
+        // trailing dismissed can compute dwell_ms.
+        if (event.type === 'dismissed') {
+            this._guideViewedAt.delete(payloadId);
         }
 
         // Notify plugins of CEP lifecycle termination (template cleanup) on exit events.
@@ -496,6 +511,7 @@ class DigiaClass implements DigiaDelegate {
             action_url: null,
             dismiss_reason: null,
             abandoned_at_step: null,
+            dwell_ms: null,
             digia_sdk_version: DIGIA_SDK_VERSION,
             digia_platform: 'react_native',
         };

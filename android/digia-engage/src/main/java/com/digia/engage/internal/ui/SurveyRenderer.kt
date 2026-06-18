@@ -350,7 +350,11 @@ private fun SurveyPanel(
             cta = survey.settings.cta,
             accent = accent,
             showClose = showCloseButton && survey.settings.display.dismissible,
-            onStart = { welcomeDone = true },
+            onStart = {
+                // Welcome "Start" tap → Digia Experience Clicked (element_id=welcome_start).
+                DigiaInstance.reportSurveyWelcomeStart()
+                welcomeDone = true
+            },
             onClose = onClose,
         )
     } else {

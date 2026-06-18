@@ -62,6 +62,8 @@ internal fun DigiaInlineStory(
                     .height(cardHeight)
                     .clip(RoundedCornerShape(cornerRadius))
                     .clickable {
+                        // Ring/thumbnail tap opens the story → Digia Experience Clicked (story_open).
+                        DigiaInstance.reportStoryOpened(payload)
                         DigiaInstance.controller.showStoryOverlay(config, index, payload)
                     },
             ) {

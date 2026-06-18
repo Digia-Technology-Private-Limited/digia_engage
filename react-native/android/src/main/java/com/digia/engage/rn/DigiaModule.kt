@@ -6,7 +6,7 @@
  * Exposed methods (callable from JS via NativeModules.DigiaEngageModule):
  *
  * initialize(apiKey, environment, logLevel, baseUrl): Promise<void> register(): void
- * setCurrentScreen(name): void triggerCampaign(id, content, cepContext): void
+ * setCurrentScreen(name): void triggerCampaign(cepCampaignId, campaignKey, variables, cepMetadata): void
  * invalidateCampaign(campaignId): void
  *
  * Architecture ──────────── The RN bridge mirrors the native Digia.initialize / Digia.register /
@@ -141,35 +141,15 @@ internal class DigiaModule(
     // ─── Analytics event forwarding (guide / JS-rendered campaigns) ───────────
 
     /**
-     * Records an analytics event originating from JS-rendered campaigns (guides).
-     * Native campaigns (nudge, inline, survey) are tracked internally by the SDK.
+     * Records an analytics event from a JS-rendered campaign (guide). [eventName] is
+     * the Engage matrix event name; [props] carries the wire-keyed fields. The native
+     * SDK maps it to the typed analytics event and records it. Native campaigns
+     * (nudge, inline, survey) are tracked internally by the SDK.
      */
     @ReactMethod
-    fun trackEvent(
-        eventType: String,
-        campaignId: String,
-        campaignKey: String,
-        campaignType: String,
-        elementId: String?,
-    ) {
-        android.util.Log.d("DigiaAnalytics", "[trackEvent] RN bridge received: type=$eventType campaignId=$campaignId campaignKey=$campaignKey campaignType=$campaignType elementId=$elementId")
-        val event = when (eventType) {
-            "impressed" -> DigiaExperienceEvent.Impressed
-            "clicked" -> DigiaExperienceEvent.Clicked(elementId)
-            "dismissed" -> DigiaExperienceEvent.Dismissed
-            else -> {
-                android.util.Log.w("DigiaAnalytics", "[trackEvent] unknown eventType='$eventType' — dropped")
-                return
-            }
-        }
-        // campaign id/type are resolved natively from the campaign store by
-        // campaignKey at capture time — only the trigger identity is forwarded here.
-        val payload = CEPTriggerPayload(
-            cepCampaignId = campaignId.takeIf { it.isNotBlank() } ?: campaignKey,
-            campaignKey = campaignKey,
-        )
-        android.util.Log.d("DigiaAnalytics", "[trackEvent] forwarding to Digia.captureAnalyticsEvent: event=${event::class.simpleName}")
-        Digia.captureAnalyticsEvent(event, payload)
+    fun captureAnalyticsEvent(campaignKey: String, eventName: String, props: ReadableMap) {
+        android.util.Log.d("DigiaAnalytics", "[captureAnalyticsEvent] name='$eventName' campaignKey=$campaignKey")
+        Digia.captureAnalyticsEvent(campaignKey, eventName, props.toHashMap().toMap())
     }
 
     // ─── triggerCampaign ──────────────────────────────────────────────────────
@@ -182,22 +162,23 @@ internal class DigiaModule(
      * Compose overlay for rendering.
      */
     @ReactMethod
-    fun triggerCampaign(id: String, content: ReadableMap, cepContext: ReadableMap) {
+    fun triggerCampaign(
+        cepCampaignId: String,
+        campaignKey: String,
+        variables: ReadableMap,
+        cepMetadata: ReadableMap,
+    ) {
         val delegate = rnPlugin.delegate ?: return
-        val contentMap = content.toHashMap().toMap()
-        val campaignKey = (contentMap["digia_campaign_key"] as? String)
-            ?: (contentMap["campaign_key"] as? String)
-            ?: id
-        @Suppress("UNCHECKED_CAST")
-        val variables = (contentMap["variables"] as? Map<*, *>)
-            ?.entries
-            ?.associate { it.key.toString() to it.value?.toString().orEmpty() }
+        val vars = variables.toHashMap()
+            .entries
+            .associate { it.key to it.value?.toString().orEmpty() }
+            .takeIf { it.isNotEmpty() }
         delegate.onCampaignTriggered(
                 CEPTriggerPayload(
-                        cepCampaignId = id,
+                        cepCampaignId = cepCampaignId,
                         campaignKey = campaignKey,
-                        cepMetadata = cepContext.toHashMap().toMap(),
-                        variables = variables,
+                        cepMetadata = cepMetadata.toHashMap().toMap(),
+                        variables = vars,
                 )
         )
     }

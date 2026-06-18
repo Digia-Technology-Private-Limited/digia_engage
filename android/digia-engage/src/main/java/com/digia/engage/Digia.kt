@@ -36,8 +36,14 @@ object Digia {
         DigiaInstance.clearUserId()
     }
 
-    fun captureAnalyticsEvent(event: DigiaExperienceEvent, payload: CEPTriggerPayload) {
-        android.util.Log.d("DigiaAnalytics", "[Digia] captureAnalyticsEvent: event=${event::class.simpleName} cepCampaignId=${payload.cepCampaignId} campaignKey=${payload.campaignKey}")
-        DigiaInstance.captureAnalyticsEvent(event, payload)
+    /**
+     * Records an analytics event for a JS-rendered campaign (guide). [eventName] is
+     * the Engage matrix event name (e.g. "Digia Step Viewed") and [props] carries
+     * its wire-keyed fields (step_index, anchor_key, cta_label, …). The SDK maps it
+     * to the typed analytics event and records it.
+     */
+    fun captureAnalyticsEvent(campaignKey: String, eventName: String, props: Map<String, Any?>) {
+        android.util.Log.d("DigiaAnalytics", "[Digia] captureAnalyticsEvent: name='$eventName' campaignKey=$campaignKey props=$props")
+        DigiaInstance.captureAnalyticsEvent(campaignKey, eventName, props)
     }
 }

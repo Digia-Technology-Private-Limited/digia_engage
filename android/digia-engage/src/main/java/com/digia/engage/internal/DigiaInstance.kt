@@ -192,65 +192,23 @@ internal object DigiaInstance : DigiaCEPDelegate {
     }
 
     /**
-     * Public analytics entry point (used by JS-rendered RN guides). The coarse
-     * [DigiaExperienceEvent] carries no campaign-specific fields, so we resolve the campaign from
-     * the store and build the matching campaign-typed event, filling required fields
-     * (display_style, item_total) from its config.
+     * Public analytics entry point for JS-rendered RN campaigns (guides). The JS
+     * layer fires each lifecycle event by its Engage matrix [eventName] with
+     * wire-keyed [props]; this maps it to the typed analytics event and records it
+     * to Digia. CEP forwarding for JS-rendered campaigns is handled JS-side by the
+     * registered plugins.
      */
-    fun captureAnalyticsEvent(event: DigiaExperienceEvent, payload: CEPTriggerPayload) {
-        val campaign = campaignStore.find(payload.campaignKey)
-        val analyticsEvent = coarseToAnalyticsEvent(campaign, event)
-        if (analyticsEvent == null) {
-            Logger.warning(
-                    "captureAnalyticsEvent: no analytics mapping for event=$event campaignType=${campaign?.campaignType} — skipped"
-            )
+    fun captureAnalyticsEvent(campaignKey: String, eventName: String, props: Map<String, Any?>) {
+        val event = guideEventFor(eventName, props) ?: run {
+            Logger.warning("captureAnalyticsEvent: unsupported event '$eventName' for key '$campaignKey' — skipped")
             return
         }
-        events.toDigia(analyticsEvent, payload)
-    }
-
-    private fun coarseToAnalyticsEvent(
-            campaign: CampaignModel?,
-            event: DigiaExperienceEvent,
-    ): EngageAnalyticsEvent? {
-        val elementId = (event as? DigiaExperienceEvent.Clicked)?.elementId
-        return when (campaign?.campaignType) {
-            "nudge" ->
-                    when (event) {
-                        DigiaExperienceEvent.Impressed ->
-                                NudgeEvent.Viewed(
-                                        displayStyle =
-                                                campaign.nudgeConfig?.surface?.displayType
-                                                        ?.displayStyle.orEmpty()
-                                )
-                        is DigiaExperienceEvent.Clicked -> NudgeEvent.Clicked(elementId = elementId)
-                        DigiaExperienceEvent.Dismissed -> NudgeEvent.Dismissed()
-                    }
-            "guide" -> {
-                val steps = campaign.guideConfig?.steps
-                when (event) {
-                    DigiaExperienceEvent.Impressed ->
-                            GuideEvent.Viewed(
-                                    displayStyle = steps?.firstOrNull()?.displayStyle.orEmpty(),
-                                    itemTotal = steps?.size ?: 0,
-                            )
-                    is DigiaExperienceEvent.Clicked ->
-                            GuideEvent.StepClicked(
-                                    itemIndex = (guideOrchestrator.state.value?.stepIndex ?: 0) + 1,
-                                    elementId = elementId,
-                            )
-                    DigiaExperienceEvent.Dismissed -> GuideEvent.Dismissed(itemTotal = steps?.size)
-                }
-            }
-            "survey" ->
-                    when (event) {
-                        DigiaExperienceEvent.Impressed -> SurveyEvent.Viewed()
-                        is DigiaExperienceEvent.Clicked ->
-                                SurveyEvent.Clicked(elementId = elementId)
-                        DigiaExperienceEvent.Dismissed -> SurveyEvent.Dismissed()
-                    }
-            else -> null
-        }
+        val campaign = campaignStore.find(campaignKey)
+        val payload = CEPTriggerPayload(
+            cepCampaignId = campaign?.id ?: campaignKey,
+            campaignKey = campaignKey,
+        )
+        events.toDigia(event, payload)
     }
 
     fun reportHealthEvent(eventType: String, params: Map<String, String>) {
@@ -274,6 +232,48 @@ internal object DigiaInstance : DigiaCEPDelegate {
                 ),
                 payload,
         )
+    }
+
+    // ── RN guide events ──────────────────────────────────────────────────────
+    //
+    // Guides are rendered in JS on React Native. The JS layer fires each guide
+    // lifecycle event with wire-keyed props (via captureAnalyticsEvent); this maps
+    // it to the typed [GuideEvent] (per the Engage matrix). CEP forwarding for RN
+    // guides is handled JS-side by the registered plugins.
+
+    private fun guideEventFor(eventName: String, props: Map<String, Any?>): EngageAnalyticsEvent? {
+        fun str(k: String) = props[k] as? String
+        fun int(k: String) = (props[k] as? Number)?.toInt()
+        fun long(k: String) = (props[k] as? Number)?.toLong()
+        return when (eventName) {
+            "Digia Experience Viewed" -> GuideEvent.Viewed(
+                displayStyle = str("display_style").orEmpty(),
+                itemTotal = int("step_total") ?: 0,
+                screenName = screenTracker.currentScreen,
+            )
+            "Digia Step Viewed" -> GuideEvent.StepViewed(
+                itemIndex = int("step_index") ?: 0,
+                itemTotal = int("step_total") ?: 0,
+                anchorKey = str("anchor_key"),
+                displayStyle = str("display_style"),
+            )
+            // Guides only have Step Clicked in the matrix (no Experience Clicked).
+            "Digia Step Clicked" -> GuideEvent.StepClicked(
+                itemIndex = int("step_index") ?: 0,
+                elementId = str("element_id"),
+                ctaLabel = str("cta_label"),
+                actionType = str("action_type"),
+                actionUrl = str("action_url"),
+            )
+            "Digia Step Dismissed" -> GuideEvent.StepDismissed(itemIndex = int("step_index") ?: 0)
+            "Digia Experience Dismissed" -> GuideEvent.Dismissed(
+                abandonedAtItem = int("abandoned_at_step") ?: int("step_index"),
+                itemTotal = int("step_total"),
+                dwellMs = long("dwell_ms"),
+            )
+            "Digia Experience Completed" -> GuideEvent.Completed(itemTotal = int("step_total"))
+            else -> null
+        }
     }
 
     // ── Survey lifecycle ────────────────────────────────────────────────────
@@ -551,6 +551,7 @@ internal object DigiaInstance : DigiaCEPDelegate {
                             )
                     is com.digia.engage.internal.model.CampaignConfigModel.Story ->
                             StoriesEvent.Viewed(
+                                    itemTotal = cfg.storyConfig.items.size,
                                     slotKey = cfg.storyConfig.slotKey,
                                     screenName = screenTracker.currentScreen,
                             )
@@ -586,6 +587,50 @@ internal object DigiaInstance : DigiaCEPDelegate {
                         actionType = actionType,
                         actionUrl = actionUrl
                 ),
+                payload,
+        )
+    }
+
+    // ── Inline story events (per the Engage matrix) ─────────────────────────
+
+    /** A story was opened (ring/thumbnail tapped) — drives open rate. */
+    fun reportStoryOpened(payload: CEPTriggerPayload) {
+        events.toDigia(StoriesEvent.Opened(), payload)
+    }
+
+    /** A story frame became visible. [itemIndex] is 1-based; [itemTotal] = frames in this story. */
+    fun reportStoryStepViewed(payload: CEPTriggerPayload, itemIndex: Int, itemTotal: Int) {
+        events.toDigia(StoriesEvent.StepViewed(itemIndex = itemIndex, itemTotal = itemTotal), payload)
+    }
+
+    /** A CTA inside a story frame was tapped. */
+    fun reportStoryStepClicked(
+            payload: CEPTriggerPayload,
+            itemIndex: Int,
+            ctaLabel: String?,
+            actionType: String?,
+            actionUrl: String?,
+    ) {
+        events.toDigia(
+                StoriesEvent.StepClicked(
+                        itemIndex = itemIndex,
+                        ctaLabel = ctaLabel,
+                        actionType = actionType,
+                        actionUrl = actionUrl,
+                ),
+                payload,
+        )
+    }
+
+    /** Story closed before the last frame. [itemIndex] is the 1-based frame on close. */
+    fun reportStoryStepDismissed(payload: CEPTriggerPayload, itemIndex: Int) {
+        events.toDigia(StoriesEvent.StepDismissed(itemIndex = itemIndex), payload)
+    }
+
+    /** Last story frame viewed. [itemTotal] = frames viewed; [timeToCompleteMs] from open. */
+    fun reportStoryCompleted(payload: CEPTriggerPayload, itemTotal: Int, timeToCompleteMs: Long?) {
+        events.toDigia(
+                StoriesEvent.Completed(itemTotal = itemTotal, timeToCompleteMs = timeToCompleteMs),
                 payload,
         )
     }
