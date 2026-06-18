@@ -176,16 +176,15 @@ final class DigiaModule: RCTEventEmitter {
     /// JS-rendered campaign (guide) lifecycle event to Digia.captureAnalyticsEvent.
     /// The native SDK maps the wire-keyed event to the typed Digia analytics event.
     @objc
-    func trackEvent(
-        _ eventType: String,
-        campaignId: String,
-        campaignKey: String,
-        campaignType: String,
-        elementId: String?
+    func captureAnalyticsEvent(
+        _ campaignKey: String,
+        eventName: String,
+        props: NSDictionary
     ) {
-        print(
-            "[DigiaRN] trackEvent type=\(eventType) campaignId=\(campaignId) campaignKey=\(campaignKey) campaignType=\(campaignType) elementId=\(elementId ?? "nil") — iOS capture API not available, dropping"
-        )
+        let properties = props as? [String: Any] ?? [:]
+        Task { @MainActor in
+            Digia.captureAnalyticsEvent(campaignKey: campaignKey, eventName: eventName, props: properties)
+        }
     }
 
     // ────────────────────────────────────────────────────────────────────────
