@@ -11,7 +11,7 @@ import '../../api/internal/digia_endpoints.dart';
 import '../../api/models/analytics_config.dart';
 import '../../api/models/cep_trigger_payload.dart';
 import '../../api/models/digia_experience_event.dart';
-import '../version.dart';
+import '../sdk_version.dart';
 import 'analytics_device_info.dart';
 import 'analytics_identity_manager.dart';
 import 'analytics_queue.dart';
@@ -308,7 +308,8 @@ class DigiaAnalyticsService {
           validateStatus: (_) => true,
         ),
       );
-      _log('[Digia Analytics] session reported: HTTP ${response.statusCode} sessionId=${_identity.sessionId} anonymousId=${_identity.anonymousId}');
+      _log(
+          '[Digia Analytics] session reported: HTTP ${response.statusCode} sessionId=${_identity.sessionId} anonymousId=${_identity.anonymousId}');
     } catch (e) {
       _log('[Digia Analytics] session report failed: $e');
     }

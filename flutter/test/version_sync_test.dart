@@ -1,6 +1,6 @@
 import 'dart:io';
 
-import 'package:digia_engage/src/version.dart';
+import 'package:digia_engage/src/sdk_version.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 /// Guards against `lib/src/version.dart` drifting from `pubspec.yaml`.
@@ -22,8 +22,7 @@ void main() {
     expect(
       packageVersion,
       pubspecVersion,
-      reason:
-          'lib/src/version.dart ($packageVersion) is out of sync with '
+      reason: 'lib/src/version.dart ($packageVersion) is out of sync with '
           'pubspec.yaml ($pubspecVersion). Run bump_version.sh or update '
           'version.dart to match.',
     );

@@ -17,7 +17,7 @@
 
 import { DeviceEventEmitter } from 'react-native';
 import { nativeDigiaModule } from './NativeDigiaEngage';
-import { DIGIA_RN_SDK_VERSION } from './version';
+import { DIGIA_RN_SDK_VERSION } from './SdkVersion';
 import { digiaHealthReporter, HealthEventType } from './DigiaHealthReporter';
 import { digiaGuideController } from './DigiaGuideController';
 import { digiaAnchorRegistry } from './digiaAnchorRegistry';
