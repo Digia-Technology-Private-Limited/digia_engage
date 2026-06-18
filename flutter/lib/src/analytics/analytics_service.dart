@@ -7,6 +7,7 @@ import 'package:flutter/widgets.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:uuid/uuid.dart';
 
+import '../../api/internal/digia_endpoints.dart';
 import '../../api/models/analytics_config.dart';
 import '../../api/models/cep_trigger_payload.dart';
 import '../../api/models/digia_experience_event.dart';
@@ -64,6 +65,7 @@ class DigiaAnalyticsService {
       if (await _queue.length() > 0) {
         _scheduleTimer();
       }
+      unawaited(_reportSession());
     } catch (error) {
       _log('[Digia Analytics] initialize failed: $error');
     }
@@ -284,6 +286,34 @@ class DigiaAnalyticsService {
     return min(1000 * (1 << (attempt - 1)), 16000);
   }
 
+  Future<void> _reportSession() async {
+    if (!_enabled) return;
+    try {
+      final body = <String, dynamic>{
+        'session_id': _identity.sessionId,
+        'anonymous_id': _identity.anonymousId,
+        if (_identity.userId != null) 'user_id': _identity.userId,
+        'occurred_at': DateTime.now().toUtc().toIso8601String(),
+        'properties': _staticContext,
+      };
+      final dio = dioFactory?.call() ?? Dio();
+      final response = await dio.post<dynamic>(
+        DigiaEndpoints.session,
+        data: body,
+        options: Options(
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Digia-Project-Id': _apiKey,
+          },
+          validateStatus: (_) => true,
+        ),
+      );
+      _log('[Digia Analytics] session reported: HTTP ${response.statusCode} sessionId=${_identity.sessionId} anonymousId=${_identity.anonymousId}');
+    } catch (e) {
+      _log('[Digia Analytics] session report failed: $e');
+    }
+  }
+
   Future<Response<Object?>> _sendBatch(List<AnalyticsQueueEntry> batch) async {
     final dio = dioFactory?.call() ?? Dio();
     final bodyMap = {
@@ -291,7 +321,7 @@ class DigiaAnalyticsService {
     };
 
     return dio.post(
-      _config.endpointUrl,
+      DigiaEndpoints.track,
       data: bodyMap,
       options: Options(
         headers: {

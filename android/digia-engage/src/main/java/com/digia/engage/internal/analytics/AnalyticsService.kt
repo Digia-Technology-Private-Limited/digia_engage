@@ -5,6 +5,7 @@ import androidx.annotation.VisibleForTesting
 import com.digia.engage.AnalyticsConfig
 import com.digia.engage.CEPTriggerPayload
 import com.digia.engage.DigiaConfig
+import com.digia.engage.DigiaEndpoints
 import com.digia.engage.internal.event.EngageAnalyticsEvent
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -43,6 +44,7 @@ constructor(
     init {
         identity.initialize(config.sessionTimeoutMs)
         if (queue.size() > 0) scheduleTimer()
+        scope.launch { reportSession() }
     }
 
     fun capture(
@@ -111,6 +113,42 @@ constructor(
     }
 
     // ── Internal ────────────────────────────────────────────────────────────
+
+    private suspend fun reportSession() {
+        try {
+            val props = JSONObject()
+            staticContext.forEach { (k, v) -> if (v != null) props.put(k, v) }
+            val body =
+                    JSONObject()
+                            .apply {
+                                put("session_id", identity.sessionId)
+                                put("anonymous_id", identity.anonymousId)
+                                identity.userId?.let { put("user_id", it) }
+                                put("occurred_at", isoNow())
+                                put("properties", props)
+                            }
+                            .toString()
+            val result =
+                    sender.post(
+                            url = DigiaEndpoints.session,
+                            jsonBody = body,
+                            headers =
+                                    mapOf(
+                                            "Content-Type" to "application/json",
+                                            "X-Digia-Project-Id" to apiKey,
+                                    ),
+                    )
+            android.util.Log.d(
+                    "DigiaAnalytics",
+                    "[AnalyticsService] session reported: HTTP ${result.statusCode} sessionId=${identity.sessionId} anonymousId=${identity.anonymousId}"
+            )
+        } catch (e: Exception) {
+            android.util.Log.w(
+                    "DigiaAnalytics",
+                    "[AnalyticsService] session report failed: ${e.message}"
+            )
+        }
+    }
 
     private fun enqueue(
             eventName: String,
@@ -189,13 +227,12 @@ constructor(
 
             android.util.Log.d(
                     "DigiaAnalytics",
-                    "[AnalyticsService] dispatchPending: sending batch of ${batch.size} event(s) to ${config.endpointUrl}"
+                    "[AnalyticsService] dispatchPending: sending batch of ${batch.size} event(s)"
             )
             queue.incrementAttempt(batch.map { it.eventId })
             val result =
                     sender.post(
-                            url =
-                                    "https://unesthetic-dialytic-tracie.ngrok-free.dev/api/v1/engage/sdk/track",
+                            url = DigiaEndpoints.track,
                             jsonBody = buildBatchJson(batch),
                             headers =
                                     mapOf(
@@ -327,7 +364,7 @@ constructor(
             }
             android.util.Log.d(
                     "DigiaAnalytics",
-                    "[AnalyticsService] create: analytics enabled, endpoint=${analyticsConfig.endpointUrl} batchSize=${analyticsConfig.flushBatchSize} interval=${analyticsConfig.flushIntervalMs}ms"
+                    "[AnalyticsService] create: analytics enabled, endpoint=${DigiaEndpoints.track} batchSize=${analyticsConfig.flushBatchSize} interval=${analyticsConfig.flushIntervalMs}ms"
             )
             val store =
                     SharedPrefsStore(
@@ -336,12 +373,29 @@ constructor(
             return AnalyticsService(
                     config = analyticsConfig,
                     apiKey = config.apiKey,
-                    identity = AnalyticsIdentityManager(store),
+                    identity =
+                            AnalyticsIdentityManager(
+                                    store,
+                                    deviceIdSeed = resolveDeviceId(context)
+                            ),
                     queue = AnalyticsQueue(store),
                     sender = OkHttpAnalyticsSender(),
                     staticContext = buildStaticContext(context),
-                    scope = scope,
+                    scope = scope
             )
+        }
+
+        private fun resolveDeviceId(context: Context): String {
+            val androidId =
+                    runCatching {
+                                android.provider.Settings.Secure.getString(
+                                        context.contentResolver,
+                                        android.provider.Settings.Secure.ANDROID_ID,
+                                )
+                            }
+                            .getOrNull()
+            return androidId?.takeIf { it.isNotBlank() && it != "9774d56d682e549c" }
+                    ?: UUID.randomUUID().toString()
         }
 
         private fun buildStaticContext(context: Context): Map<String, Any?> {

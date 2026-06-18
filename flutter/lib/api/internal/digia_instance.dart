@@ -8,6 +8,7 @@ import 'action/engage_action_handler.dart';
 import 'campaign/campaign_fetcher.dart';
 import 'campaign/campaign_model.dart';
 import 'campaign/campaign_store.dart';
+import 'digia_endpoints.dart';
 import 'digia_overlay_controller.dart';
 import 'engage_fonts.dart';
 import 'event/cep_plugin_sink.dart';
@@ -109,6 +110,7 @@ class DigiaInstance with WidgetsBindingObserver implements DigiaCEPDelegate {
       return;
     }
     _config = config;
+    DigiaEndpoints.configure(config);
     _initialized = true;
     _sdkState = SDKState.initializing;
 

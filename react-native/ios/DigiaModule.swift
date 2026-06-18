@@ -124,12 +124,15 @@ final class DigiaModule: RCTEventEmitter {
             if let rootVC = UIApplication.shared.connectedScenes
                 .compactMap({ ($0 as? UIWindowScene)?.keyWindow?.rootViewController })
                 .first,
-               let hostView = rootVC.view.viewWithTag(Self.overlayMountTag) {
+                let hostView = rootVC.view.viewWithTag(Self.overlayMountTag)
+            {
                 rootVC.view.bringSubviewToFront(hostView)
             }
 
             Digia.register(self.rnPlugin)
-            print("[DigiaRN] registerBridge: rnPlugin registered, delegate=\(self.rnPlugin.delegate != nil ? "set" : "nil")")
+            print(
+                "[DigiaRN] registerBridge: rnPlugin registered, delegate=\(self.rnPlugin.delegate != nil ? "set" : "nil")"
+            )
         }
     }
 
@@ -148,22 +151,14 @@ final class DigiaModule: RCTEventEmitter {
     // ────────────────────────────────────────────────────────────────────────
     // MARK: - Analytics identity
 
-    /// Sets the authenticated user ID for analytics identity stitching.
-    ///
-    /// Mirrors Android's DigiaModule.setUserId(). The public iOS SDK does not
-    /// expose Digia.setUserId yet, so this is a no-op placeholder (like
-    /// setCurrentScreen) that exists to satisfy the JS NativeDigiaEngage spec —
-    /// without it, `getModule()?.setUserId(...)` throws on iOS. Activate the body
-    /// once the iOS SDK adds the public API.
     @objc
     func setUserId(_ userId: String) {
-        // Digia.setUserId(userId)
+        Task { @MainActor in Digia.setUserId(userId) }
     }
 
-    /// Clears the user ID (e.g. on logout). No-op placeholder — see setUserId.
     @objc
     func clearUserId() {
-        // Digia.clearUserId()
+        Task { @MainActor in Digia.clearUserId() }
     }
 
     // ────────────────────────────────────────────────────────────────────────
@@ -177,16 +172,16 @@ final class DigiaModule: RCTEventEmitter {
     /// JS-rendered campaign (guide) lifecycle event to Digia.captureAnalyticsEvent.
     /// The native SDK maps the wire-keyed event to the typed Digia analytics event.
     @objc
-    func captureAnalyticsEvent(
-        _ campaignKey: String,
-        eventName: String,
-        props: NSDictionary
+    func trackEvent(
+        _ eventType: String,
+        campaignId: String,
+        campaignKey: String,
+        campaignType: String,
+        elementId: String?
     ) {
-        let propsMap = (props as? [String: Any]) ?? [:]
-        print("[DigiaRN] captureAnalyticsEvent name=\(eventName) campaignKey=\(campaignKey)")
-        Task { @MainActor in
-            Digia.captureAnalyticsEvent(campaignKey: campaignKey, eventName: eventName, props: propsMap)
-        }
+        print(
+            "[DigiaRN] trackEvent type=\(eventType) campaignId=\(campaignId) campaignKey=\(campaignKey) campaignType=\(campaignType) elementId=\(elementId ?? "nil") — iOS capture API not available, dropping"
+        )
     }
 
     // ────────────────────────────────────────────────────────────────────────
@@ -216,12 +211,16 @@ final class DigiaModule: RCTEventEmitter {
 
         Task { @MainActor in
             guard let delegate = self.rnPlugin.delegate else {
-                print("[DigiaRN] triggerCampaign: delegate is nil — registerBridge() may not have run yet")
+                print(
+                    "[DigiaRN] triggerCampaign: delegate is nil — registerBridge() may not have run yet"
+                )
                 return
             }
             delegate.onCampaignTriggered(payload)
             Task { @MainActor in
-                print("[DigiaRN] triggerCampaign post-call: hasActiveOverlay=\(Digia.hasActiveOverlay)")
+                print(
+                    "[DigiaRN] triggerCampaign post-call: hasActiveOverlay=\(Digia.hasActiveOverlay)"
+                )
             }
         }
     }
