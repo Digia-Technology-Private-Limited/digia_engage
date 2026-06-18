@@ -66,6 +66,7 @@ final class DigiaModule: RCTEventEmitter {
         logLevel: String,
         baseUrl: String?,
         fontFamily: String?,
+        sdkVersion: String?,
         resolve: @escaping RCTPromiseResolveBlock,
         reject: @escaping RCTPromiseRejectBlock
     ) {
@@ -90,7 +91,10 @@ final class DigiaModule: RCTEventEmitter {
             logLevel: logLevelValue,
             environment: envValue,
             developerConfig: cleanBaseUrl.map { DigiaDeveloperConfig(baseURL: $0) },
-            fontFamily: fontFamily.flatMap { $0.isEmpty ? nil : $0 }
+            fontFamily: fontFamily.flatMap { $0.isEmpty ? nil : $0 },
+            // This native engine is being driven by the RN wrapper.
+            wrapperBinding: "react_native",
+            wrapperVersion: sdkVersion.flatMap { $0.isEmpty ? nil : $0 }
         )
 
         Task { @MainActor in

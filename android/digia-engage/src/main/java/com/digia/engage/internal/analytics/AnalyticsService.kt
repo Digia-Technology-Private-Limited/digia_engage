@@ -3,6 +3,7 @@ package com.digia.engage.internal.analytics
 import android.content.Context
 import androidx.annotation.VisibleForTesting
 import com.digia.engage.AnalyticsConfig
+import com.digia.engage.BuildConfig
 import com.digia.engage.CEPTriggerPayload
 import com.digia.engage.DigiaConfig
 import com.digia.engage.DigiaEndpoints
@@ -380,7 +381,7 @@ constructor(
                             ),
                     queue = AnalyticsQueue(store),
                     sender = OkHttpAnalyticsSender(),
-                    staticContext = buildStaticContext(context),
+                    staticContext = buildStaticContext(context, config),
                     scope = scope
             )
         }
@@ -398,7 +399,7 @@ constructor(
                     ?: UUID.randomUUID().toString()
         }
 
-        private fun buildStaticContext(context: Context): Map<String, Any?> {
+        private fun buildStaticContext(context: Context, config: DigiaConfig): Map<String, Any?> {
             val appVersion =
                     runCatching {
                                 context.packageManager.getPackageInfo(context.packageName, 0)
@@ -406,10 +407,20 @@ constructor(
                                         ?: "unknown"
                             }
                             .getOrDefault("unknown")
+            val platform = AnalyticsDeviceInfo.platform()
+            val binding = config.wrapperBinding ?: "native"
             return buildMap {
-                put("sdk_version", "1.0.0")
-                put("sdk_platform", "android")
-                put("device_platform", AnalyticsDeviceInfo.platform())
+                put(
+                        "sdk_version",
+                        buildSdkVersion(
+                                binding = binding,
+                                platform = platform,
+                                wrapperVersion = config.wrapperVersion,
+                                core = BuildConfig.DIGIA_SDK_VERSION,
+                        ),
+                )
+                put("sdk_platform", if (binding == "native") platform else binding)
+                put("device_platform", platform)
                 put("app_version", appVersion)
                 put("app_locale", Locale.getDefault().toString())
                 put("os_version", AnalyticsDeviceInfo.osVersion())
@@ -419,5 +430,26 @@ constructor(
                 if (model.isNotBlank()) put("device_model", model)
             }
         }
+
+        /**
+         * Builds the composite SDK descriptor (schema v1):
+         *   `s=schema | b=binding | p=platform | [w=wrapper |] c=core`
+         * The wrapper segment (`w`) is present only when a thin wrapper SDK
+         * delegates to this engine (e.g. React Native).
+         */
+        private fun buildSdkVersion(
+                binding: String,
+                platform: String,
+                wrapperVersion: String?,
+                core: String,
+        ): String =
+                buildList {
+                            add("s=1")
+                            add("b=$binding")
+                            add("p=$platform")
+                            if (!wrapperVersion.isNullOrBlank()) add("w=$wrapperVersion")
+                            add("c=$core")
+                        }
+                        .joinToString("|")
     }
 }

@@ -12,6 +12,8 @@ data class DigiaConfig(
      */
     val fontFamily: String? = null,
     val analyticsConfig: AnalyticsConfig = AnalyticsConfig(),
+    val wrapperBinding: String? = null,
+    val wrapperVersion: String? = null,
 )
 
 enum class DigiaLogLevel {
