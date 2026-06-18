@@ -44,6 +44,7 @@ constructor(
 
     init {
         identity.initialize(config.sessionTimeoutMs)
+        identity.onSessionRotated = { scope.launch { reportSession() } }
         if (queue.size() > 0) scheduleTimer()
         scope.launch { reportSession() }
     }
@@ -75,6 +76,7 @@ constructor(
     }
 
     fun setUserId(userId: String) = identity.setUserId(userId)
+
     fun clearUserId() = identity.clearUserId()
 
     fun onLifecycleStop() {
