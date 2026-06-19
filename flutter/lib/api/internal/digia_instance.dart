@@ -593,6 +593,103 @@ class DigiaInstance with WidgetsBindingObserver implements DigiaCEPDelegate {
     }
   }
 
+  /// A carousel item scrolled into view. [auto] = autoplay advance vs manual
+  /// swipe. [itemIndex] is 1-based.
+  void reportCarouselStepViewed(
+    CEPTriggerPayload payload, {
+    required int itemIndex,
+    required int itemTotal,
+    required bool auto,
+  }) {
+    _events.toDigia(
+      CarouselStepViewed(
+          itemIndex: itemIndex, itemTotal: itemTotal, auto: auto),
+      payload,
+    );
+  }
+
+  /// A carousel item (or its CTA) was tapped. The first item tap also counts as
+  /// an experience-level engagement click (once, deduped).
+  void reportCarouselStepClicked(
+    CEPTriggerPayload payload, {
+    required int itemIndex,
+    String? actionUrl,
+  }) {
+    final actionType = actionUrl != null ? 'deeplink' : null;
+    _events.digiaExperienceClickedOnce(
+      payload,
+      CarouselClicked(actionType: actionType, actionUrl: actionUrl),
+    );
+    _events.toDigia(
+      CarouselStepClicked(
+        itemIndex: itemIndex,
+        actionType: actionType,
+        actionUrl: actionUrl,
+      ),
+      payload,
+    );
+  }
+
+  /// A story was opened (ring/thumbnail tapped) — drives open rate.
+  void reportStoryOpened(CEPTriggerPayload payload) {
+    _events.toDigia(const StoriesOpened(), payload);
+  }
+
+  /// A story frame became visible. [itemIndex] is 1-based; [itemTotal] = frames
+  /// in this story.
+  void reportStoryStepViewed(
+    CEPTriggerPayload payload, {
+    required int itemIndex,
+    required int itemTotal,
+  }) {
+    _events.toDigia(
+      StoriesStepViewed(itemIndex: itemIndex, itemTotal: itemTotal),
+      payload,
+    );
+  }
+
+  /// A CTA inside a story frame was tapped.
+  void reportStoryStepClicked(
+    CEPTriggerPayload payload, {
+    required int itemIndex,
+    String? ctaLabel,
+    String? actionType,
+    String? actionUrl,
+  }) {
+    _events.toDigia(
+      StoriesStepClicked(
+        itemIndex: itemIndex,
+        ctaLabel: ctaLabel,
+        actionType: actionType,
+        actionUrl: actionUrl,
+      ),
+      payload,
+    );
+  }
+
+  /// Story closed before the last frame. [itemIndex] is the 1-based frame on
+  /// close.
+  void reportStoryStepDismissed(
+    CEPTriggerPayload payload, {
+    required int itemIndex,
+  }) {
+    _events.toDigia(StoriesStepDismissed(itemIndex: itemIndex), payload);
+  }
+
+  /// Last story frame viewed. [itemTotal] = frames viewed; [timeToCompleteMs]
+  /// from open.
+  void reportStoryCompleted(
+    CEPTriggerPayload payload, {
+    required int itemTotal,
+    int? timeToCompleteMs,
+  }) {
+    _events.toDigia(
+      StoriesCompleted(
+          itemTotal: itemTotal, timeToCompleteMs: timeToCompleteMs),
+      payload,
+    );
+  }
+
   // ─── WidgetsBindingObserver ────────────────────────────────────────────────
 
   @override

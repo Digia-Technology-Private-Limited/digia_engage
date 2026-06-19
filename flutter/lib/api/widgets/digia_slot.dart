@@ -81,6 +81,14 @@ class _DigiaSlotState extends State<DigiaSlot> {
   /// per-campaign dedup that survives this widget's disposal.
   CEPTriggerPayload? _impressionScheduledFor;
 
+  /// The currently-visible carousel item index (0-based), tracked from page
+  /// changes so a slide tap reports the right `item_index`.
+  int _carouselIndex = 0;
+
+  /// The active trigger payload for this slot, or null if none.
+  CEPTriggerPayload? get _slotPayload =>
+      DigiaInstance.instance.controller.getSlot(widget.placementKey);
+
   void _onControllerChanged() {
     if (_syncConfig()) setState(() {});
   }
@@ -125,7 +133,29 @@ class _DigiaSlotState extends State<DigiaSlot> {
     );
   }
 
+  /// Reports a carousel page settling into view (step viewed). [auto] is true
+  /// for autoplay advances, false for manual swipes.
+  void _onCarouselPageChanged(int index, bool auto, int itemTotal) {
+    _carouselIndex = index;
+    final payload = _slotPayload;
+    if (payload == null) return;
+    DigiaInstance.instance.reportCarouselStepViewed(
+      payload,
+      itemIndex: index + 1,
+      itemTotal: itemTotal,
+      auto: auto,
+    );
+  }
+
   void _onCarouselItemTap(CarouselItem item) {
+    final payload = _slotPayload;
+    if (payload != null) {
+      DigiaInstance.instance.reportCarouselStepClicked(
+        payload,
+        itemIndex: _carouselIndex + 1,
+        actionUrl: item.deepLink,
+      );
+    }
     // The deeplink arrives already resolved against the slot's [VariableScope]
     // (see DigiaInlineCarousel), so it only needs to be opened here.
     final deepLink = item.deepLink;
@@ -162,6 +192,8 @@ class _DigiaSlotState extends State<DigiaSlot> {
           DigiaInlineCarousel(
             config: inlineConfig,
             onItemTap: _onCarouselItemTap,
+            onPageChanged: (index, auto) =>
+                _onCarouselPageChanged(index, auto, inlineConfig.items.length),
           ),
         );
       case InlineStoryCampaignConfig(:final storyConfig):
