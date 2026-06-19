@@ -53,6 +53,9 @@ internal final class RNEventBridgePlugin: NSObject, DigiaCEPPlugin {
             }
         case .dismissed:
             body["type"] = "dismissed"
+        @unknown default:
+            // Unknown future event kind — nothing meaningful to forward.
+            return
         }
         let hasEmitter = eventEmitter != nil
         print("[DigiaRN] RNEventBridgePlugin.notifyEvent type=\(body["type"] ?? "?") campaignId=\(payload.cepCampaignId) hasEmitter=\(hasEmitter)")
