@@ -33,8 +33,11 @@ import SwiftUI
 import UIKit
 
 @objc(DigiaEngageModule)
-final class DigiaModule: RCTEventEmitter {
+final class DigiaModule: RCTEventEmitter, @unchecked Sendable {
 
+    // RNEventBridgePlugin.init is main-actor-isolated (DigiaCEPPlugin is a
+    // @MainActor protocol). The first access happens inside a `Task { @MainActor }`,
+    // so assuming main-actor isolation here is safe.
     private lazy var rnPlugin: RNEventBridgePlugin = MainActor.assumeIsolated {
         RNEventBridgePlugin(eventEmitter: self)
     }
@@ -97,6 +100,10 @@ final class DigiaModule: RCTEventEmitter {
             wrapperVersion: sdkVersion.flatMap { $0.isEmpty ? nil : $0 }
         )
 
+        // RCTPromise blocks aren't Sendable; we hop to the main actor and own
+        // their single invocation, so the unchecked capture is safe.
+        nonisolated(unsafe) let resolve = resolve
+        nonisolated(unsafe) let reject = reject
         Task { @MainActor in
             do {
                 try await Digia.initialize(config)
@@ -181,7 +188,9 @@ final class DigiaModule: RCTEventEmitter {
         eventName: String,
         props: NSDictionary
     ) {
-        let properties = props as? [String: Any] ?? [:]
+        // [String: Any] isn't Sendable; hop to the main actor with an unchecked
+        // capture (the dict is built here and only read on the main actor).
+        nonisolated(unsafe) let properties = props as? [String: Any] ?? [:]
         Task { @MainActor in
             Digia.captureAnalyticsEvent(campaignKey: campaignKey, eventName: eventName, props: properties)
         }
