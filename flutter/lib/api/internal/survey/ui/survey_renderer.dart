@@ -108,7 +108,12 @@ class _SurveySessionState extends State<_SurveySession> {
     if (completed) {
       instance.markSurveyCompleted(_controller.responsePayload());
     } else {
-      instance.markSurveyDismissed();
+      instance.markSurveyDismissed(
+        abandonedAtItem:
+            _controller.currentNode != null ? _controller.progressStep : null,
+        answeredCount:
+            _controller.answers.values.where((a) => a.isAnswered).length,
+      );
     }
   }
 
@@ -447,7 +452,12 @@ class _SurveyRendererState extends State<SurveyRenderer> {
     // The route closed without a teardown call having cleared the survey — i.e.
     // a Flutter swipe / barrier gesture popped it — so report the dismissal.
     if (_orchestrator.state?.token == state.token) {
-      DigiaInstance.instance.markSurveyDismissed();
+      DigiaInstance.instance.markSurveyDismissed(
+        abandonedAtItem:
+            controller.currentNode != null ? controller.progressStep : null,
+        answeredCount:
+            controller.answers.values.where((a) => a.isAnswered).length,
+      );
     }
     controller.dispose();
   }
@@ -620,14 +630,20 @@ class _SurveyModalContentState extends State<_SurveyModalContent> {
         if (_c.canGoBack) {
           _c.back();
         } else if (display.dismissible) {
-          DigiaInstance.instance.markSurveyDismissed();
+          DigiaInstance.instance.markSurveyDismissed(
+            abandonedAtItem: _c.currentNode != null ? _c.progressStep : null,
+            answeredCount: _c.answers.values.where((a) => a.isAnswered).length,
+          );
         }
       },
       child: _SurveyPanel(
         controller: _c,
         survey: widget.survey,
         accent: widget.accent,
-        onClose: () => DigiaInstance.instance.markSurveyDismissed(),
+        onClose: () => DigiaInstance.instance.markSurveyDismissed(
+          abandonedAtItem: _c.currentNode != null ? _c.progressStep : null,
+          answeredCount: _c.answers.values.where((a) => a.isAnswered).length,
+        ),
         onCompletedClose: () => DigiaInstance.instance.markSurveyDismissed(),
         showCloseButton: widget.showCloseButton,
       ),
@@ -784,6 +800,10 @@ class _SurveyBodyState extends State<_SurveyBody> {
   /// same step (which surfaced as the clicked event firing twice on a CTA tap).
   String? _lastAnsweredKey;
 
+  /// Last node a `QuestionViewed` event was emitted for, so rebuilds don't
+  /// re-fire it for the same on-screen question.
+  String? _lastViewedNodeId;
+
   SurveyController get _c => widget.controller;
   SurveyConfigModel get _survey => widget.survey;
 
@@ -794,6 +814,7 @@ class _SurveyBodyState extends State<_SurveyBody> {
     _c.addListener(_onChanged);
     _maybeStartTimer();
     _maybeScheduleAutoAdvance();
+    _maybeReportQuestionViewed();
   }
 
   @override
@@ -808,6 +829,18 @@ class _SurveyBodyState extends State<_SurveyBody> {
     if (mounted) setState(() {});
     _maybeStartTimer();
     _maybeScheduleAutoAdvance();
+    _maybeReportQuestionViewed();
+  }
+
+  /// Fires `QuestionViewed` once when a non-content question becomes current
+  /// (including on a revisit via Back, which changes the node id).
+  void _maybeReportQuestionViewed() {
+    final node = _c.currentNode;
+    final block = _c.currentBlock;
+    if (node == null || block == null || block.type.isContent) return;
+    if (_lastViewedNodeId == node.id) return;
+    _lastViewedNodeId = node.id;
+    DigiaInstance.instance.reportSurveyQuestionViewed(node.id, _c.progressStep);
   }
 
   void _maybeStartTimer() {
@@ -888,6 +921,10 @@ class _SurveyBodyState extends State<_SurveyBody> {
       final ans = _c.answers[node.id];
       if (ans != null && ans.isAnswered) {
         _reportAnswered(node, ans);
+      } else if (!block.required) {
+        // Advancing past an eligible optional question = a skip.
+        DigiaInstance.instance
+            .reportSurveyQuestionSkipped(node.id, _c.progressStep);
       }
     }
     _reportCompletionIfResultIsNext();

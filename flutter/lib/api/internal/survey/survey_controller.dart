@@ -37,7 +37,13 @@ class SurveyController extends ChangeNotifier {
     return node == null ? null : survey.blockFor(node);
   }
 
-  bool get canGoBack => _backStack.isNotEmpty && survey.settings.pagination.backButton;
+  bool get canGoBack =>
+      _backStack.isNotEmpty && survey.settings.pagination.backButton;
+
+  /// Respondent traversal depth (1-based) — the number of nodes reached so far,
+  /// accounting for back navigation. Mirrors Android's `SurveyViewModel`
+  /// `progressStep` and is reported as analytics `item_index`.
+  int get progressStep => _backStack.length + 1;
 
   /// Coarse progress estimate based on traversal depth, not graph topology.
   double get progress {
@@ -61,7 +67,8 @@ class SurveyController extends ChangeNotifier {
 
   bool nextBlockIsResultPage() {
     if (_isComplete || _currentNodeId == surveyFinished) return false;
-    final navigation = SurveyLogicHandler.nextStep(survey, _currentNodeId, answers);
+    final navigation =
+        SurveyLogicHandler.nextStep(survey, _currentNodeId, answers);
     final nextNode = survey.nodeById(navigation.nextNodeId);
     if (nextNode == null) return false;
     return survey.blockFor(nextNode)?.type == SurveyBlockType.resultPage;

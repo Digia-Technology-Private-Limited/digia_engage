@@ -80,6 +80,10 @@ class DigiaInstance with WidgetsBindingObserver implements DigiaCEPDelegate {
   /// the welcome screen is hidden.
   int? _clickedSurveyToken;
 
+  /// `"<surveyToken>:<nodeId>"` → wall-clock ms when that question was viewed,
+  /// used to compute `time_to_answer_ms`. Mirrors Android's `questionViewedAt`.
+  final Map<String, int> _questionViewedAt = {};
+
   /// Controller for inline campaigns, notifies when they change.
   // final InlineCampaignController inlineController = InlineCampaignController();
 
@@ -396,22 +400,84 @@ class DigiaInstance with WidgetsBindingObserver implements DigiaCEPDelegate {
     );
   }
 
+  /// Fired when a (non-content) question becomes visible. [itemIndex] is the
+  /// 1-based respondent traversal depth. Stamps the view time for
+  /// `time_to_answer_ms`. First-party Digia analytics only.
+  void reportSurveyQuestionViewed(String nodeId, int itemIndex) {
+    final state = _surveyOrchestrator.state;
+    if (state == null) return;
+    final block = _blockForNode(state.config, nodeId);
+    if (block == null || block.type.isContent) return;
+    _questionViewedAt[_questionKey(state.token, nodeId)] =
+        DateTime.now().millisecondsSinceEpoch;
+    final typeWire = _blockTypeWire(block.type);
+    _events.toDigia(
+      SurveyQuestionViewed(
+        questionId: nodeId,
+        questionType: typeWire,
+        itemIndex: itemIndex,
+        itemTotal: _surveyItemTotal(state.config),
+        blockType: typeWire,
+        blockId: block.id,
+        isRequired: block.required,
+        questionTitle: _questionTitle(block),
+      ),
+      state.payload,
+    );
+  }
+
+  /// Fired when the user advances past an unanswered, optional question.
+  /// First-party Digia analytics only.
+  void reportSurveyQuestionSkipped(String nodeId, int itemIndex) {
+    final state = _surveyOrchestrator.state;
+    if (state == null) return;
+    final block = _blockForNode(state.config, nodeId);
+    if (block == null) return;
+    _questionViewedAt.remove(_questionKey(state.token, nodeId));
+    _events.toDigia(
+      SurveyQuestionSkipped(
+        questionId: nodeId,
+        itemIndex: itemIndex,
+        blockType: _blockTypeWire(block.type),
+        blockId: block.id,
+        questionTitle: _questionTitle(block),
+      ),
+      state.payload,
+    );
+  }
+
   /// Fired after a question (any block other than welcome) is answered.
   /// [stepId] identifies the node. First-party Digia analytics only.
   void reportSurveyAnswered(String stepId, Map<String, dynamic> answer) {
     final state = _surveyOrchestrator.state;
     if (state == null) return;
+    final block = _blockForNode(state.config, stepId);
     final values = (answer['values'] as List?)
         ?.map((value) => value.toString())
         .toList(growable: false);
     final hasValues = values != null && values.isNotEmpty;
     final comment = answer['comment'] as String?;
+    final viewedKey = _questionKey(state.token, stepId);
+    final viewedAt = _questionViewedAt.remove(viewedKey);
+    final scale = block == null ? null : _scaleBounds(block);
+    final typeWire = block == null ? null : _blockTypeWire(block.type);
     _events.toDigia(
       SurveyQuestionAnswered(
         questionId: stepId,
+        questionType: typeWire,
+        questionTitle: block == null ? null : _questionTitle(block),
         answerValue: hasValues ? values.first : null,
         answerText: comment ?? (hasValues ? values.join(', ') : null),
+        blockType: typeWire,
+        blockId: block?.id,
+        answerLabel:
+            block == null ? null : _answerLabel(block, values ?? const []),
         answerOptions: (values != null && values.length > 1) ? values : null,
+        scaleMin: scale?.min,
+        scaleMax: scale?.max,
+        timeToAnswerMs: viewedAt == null
+            ? null
+            : DateTime.now().millisecondsSinceEpoch - viewedAt,
         answer: answer,
       ),
       state.payload,
@@ -476,22 +542,89 @@ class DigiaInstance with WidgetsBindingObserver implements DigiaCEPDelegate {
   /// Clears the active survey after the user closes the result page.
 
   /// Fired when the user closes the survey without completing it.
-  void markSurveyDismissed() {
+  /// [abandonedAtItem] is the 1-based question they were on; [answeredCount]
+  /// is how many they had answered.
+  void markSurveyDismissed({int? abandonedAtItem, int? answeredCount}) {
     final state = _surveyOrchestrator.state;
     if (state == null) return;
     _events.toBoth(
       const ExperienceDismissed(),
       SurveyDismissed(
+        abandonedAtItem: abandonedAtItem,
         itemTotal: _surveyItemTotal(state.config),
+        answeredCount: answeredCount,
         dwellMs: _dwellTracker.consumeDwellMs(state.payload.cepCampaignId),
       ),
       state.payload,
     );
+    _clearQuestionViewedAt(state.token);
     _surveyOrchestrator.dismiss();
   }
 
   // ── Survey config derivations (mirror Android's SurveyConfig helpers) ──
   int _surveyItemTotal(SurveyConfigModel config) => config.nodes.length;
+
+  String _questionKey(int token, String nodeId) => '$token:$nodeId';
+
+  void _clearQuestionViewedAt(int token) =>
+      _questionViewedAt.removeWhere((key, _) => key.startsWith('$token:'));
+
+  SurveyBlock? _blockForNode(SurveyConfigModel config, String nodeId) {
+    final node = config.nodeById(nodeId);
+    return node == null ? null : config.blockFor(node);
+  }
+
+  /// The analytics wire value for a block type, e.g. `single_select`, `nps_emoji`.
+  String _blockTypeWire(SurveyBlockType type) => switch (type) {
+        SurveyBlockType.singleSelect => 'single_select',
+        SurveyBlockType.multiSelect => 'multi_select',
+        SurveyBlockType.rating => 'rating',
+        SurveyBlockType.nps => 'nps',
+        SurveyBlockType.npsEmoji => 'nps_emoji',
+        SurveyBlockType.npsSmiley => 'nps_smiley',
+        SurveyBlockType.reaction => 'reaction',
+        SurveyBlockType.thisOrThat => 'this_or_that',
+        SurveyBlockType.tierList => 'tier_list',
+        SurveyBlockType.upvote => 'upvote',
+        SurveyBlockType.shortText => 'short_text',
+        SurveyBlockType.longText => 'long_text',
+        SurveyBlockType.number => 'number',
+        SurveyBlockType.email => 'email',
+        SurveyBlockType.date => 'date',
+        SurveyBlockType.welcome => 'welcome',
+        SurveyBlockType.textMedia => 'text_media',
+        SurveyBlockType.resultPage => 'result_page',
+      };
+
+  String? _questionTitle(SurveyBlock block) {
+    final text = block.title.text.trim();
+    return text.isEmpty ? null : text;
+  }
+
+  /// Maps answer value ids to their option labels (comma-joined), or null.
+  String? _answerLabel(SurveyBlock block, List<String> values) {
+    if (values.isEmpty || block.options.isEmpty) return null;
+    final labels = <String>[];
+    for (final id in values) {
+      for (final option in block.options) {
+        if (option.id == id) {
+          labels.add(option.label);
+          break;
+        }
+      }
+    }
+    return labels.isEmpty ? null : labels.join(', ');
+  }
+
+  /// Numeric scale bounds for rating (1–5) and NPS variants (0–10), else null.
+  ({int min, int max})? _scaleBounds(SurveyBlock block) => switch (block.type) {
+        SurveyBlockType.rating => (min: 1, max: 5),
+        SurveyBlockType.nps ||
+        SurveyBlockType.npsEmoji ||
+        SurveyBlockType.npsSmiley =>
+          (min: 0, max: 10),
+        _ => null,
+      };
 
   bool _surveyHasWelcome(SurveyConfigModel config) =>
       config.welcomeBlock() != null;
