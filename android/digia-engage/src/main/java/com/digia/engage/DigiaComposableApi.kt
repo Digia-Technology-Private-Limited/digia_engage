@@ -41,6 +41,7 @@ import com.digia.engage.internal.ui.DigiaStoryOverlay
 import com.digia.engage.internal.ui.GuideRenderer
 import com.digia.engage.internal.ui.NudgeRenderer
 import com.digia.engage.internal.ui.SurveyRenderer
+import com.digia.engage.internal.ui.rememberIsViewOnScreen
 import kotlinx.coroutines.delay
 
 @Composable
@@ -109,7 +110,9 @@ private fun InlineCarouselView(
     // swipe) so the Step Viewed event can carry `auto`.
     var autoAdvancePending by remember { mutableStateOf(false) }
 
-    if (config.autoPlay && pageCount > 1) {
+    val isOnScreen by rememberIsViewOnScreen()
+
+    if (config.autoPlay && pageCount > 1 && isOnScreen) {
         LaunchedEffect(pagerState) {
             while (true) {
                 delay(config.autoPlayInterval)
@@ -122,10 +125,12 @@ private fun InlineCarouselView(
         }
     }
 
-    // Step Viewed fires for each item that settles into view (including the first).
+    // Step Viewed fires for each item that settles into view (including the first), but only
+    // while the slot is on screen — never for autoplay advances the user can't see.
     if (payload != null) {
         LaunchedEffect(pagerState, payload) {
             snapshotFlow { pagerState.settledPage }.collect { page ->
+                if (!isOnScreen) return@collect
                 val realIndex = page % pageCount
                 DigiaInstance.reportCarouselStepViewed(
                     payload,
