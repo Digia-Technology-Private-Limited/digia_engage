@@ -13,10 +13,13 @@ import 'digia_overlay_controller.dart';
 import 'engage_fonts.dart';
 import 'event/cep_plugin_sink.dart';
 import 'event/digia_analytics_sink.dart';
+import 'event/dwell_tracker.dart';
+import 'event/engage_analytics_event.dart';
 import 'event/engage_event_emitter.dart';
-import 'event/engage_event_router.dart';
+import 'nudge/nudge_config.dart';
 import 'sdk_state.dart';
 import 'survey/submission_reporter.dart';
+import 'survey/survey_config.dart';
 import 'survey/survey_logic_handler.dart';
 import 'survey/survey_orchestrator.dart';
 
@@ -83,20 +86,27 @@ class DigiaInstance with WidgetsBindingObserver implements DigiaCEPDelegate {
   /// Exposed so [DigiaHost] can subscribe at mount time.
   DigiaOverlayController get controller => _controller;
 
-  /// The SDK's experience-event emitter. Composition root: assembles the
-  /// concrete sinks behind the [EngageEventSink] abstraction. Built lazily on
-  /// first use — it only reads [_campaignStore] (ready) and [_activePlugin]
-  /// (resolved at dispatch time), so no init ordering is required.
+  /// The SDK's experience-event emitter. Composition root: assembles the two
+  /// concrete delivery sinks — the CEP sink (coarse [DigiaExperienceEvent]s)
+  /// and the Digia analytics sink (rich [EngageAnalyticsEvent]s). Built lazily
+  /// on first use — it only reads [_campaignStore] (ready) and [_activePlugin]
+  /// (resolved at delivery time), so no init ordering is required.
   late final EngageEventEmitter _events = EngageEventEmitter(
-    EngageEventRouter([
-      DigiaAnalyticsSink(DigiaAnalyticsService.instance, _campaignStore),
-      CepPluginSink(() => _activePlugin),
-    ]),
+    CepPluginSink(() => _activePlugin),
+    DigiaAnalyticsSink(DigiaAnalyticsService.instance, _campaignStore),
   );
 
   /// Experience-event emitter used by render surfaces ([DigiaSlot],
   /// [DigiaHost], nudge widgets) to route lifecycle events to CEP and/or Digia.
   EngageEventEmitter get events => _events;
+
+  /// Measures how long each campaign instance was on screen (`dwell_ms`).
+  /// Mirrors Android's `DigiaInstance.dwellTracker`.
+  final DwellTracker _dwellTracker = DwellTracker();
+
+  /// The most recent screen name reported via [setCurrentScreen], attached to
+  /// every "Viewed" analytics event. Mirrors Android's `screenTracker`.
+  String? _currentScreen;
 
   /// Gets the active inline campaign for a given placement key, if any.
   CEPTriggerPayload? getInlineCampaign(String placementKey) =>
@@ -170,6 +180,7 @@ class DigiaInstance with WidgetsBindingObserver implements DigiaCEPDelegate {
   }
 
   void setCurrentScreen(String name) {
+    _currentScreen = name;
     if (_activePlugin == null) {
       _logDegradedWarning('setCurrentScreen("$name")');
       return;
@@ -370,7 +381,19 @@ class DigiaInstance with WidgetsBindingObserver implements DigiaCEPDelegate {
   void reportSurveyStarted() {
     final state = _surveyOrchestrator.state;
     if (state == null) return;
-    _events.toAll(const ExperienceImpressed(), state.payload);
+    _dwellTracker.markViewed(state.payload.cepCampaignId);
+    final config = state.config;
+    _events.toBoth(
+      const ExperienceImpressed(),
+      SurveyViewed(
+        itemTotal: _surveyItemTotal(config),
+        hasWelcome: _surveyHasWelcome(config),
+        hasThanks: _surveyHasThanks(config),
+        hasBranching: _surveyHasBranching(config),
+        screenName: _currentScreen,
+      ),
+      state.payload,
+    );
   }
 
   /// Fired after a question (any block other than welcome) is answered.
@@ -378,8 +401,19 @@ class DigiaInstance with WidgetsBindingObserver implements DigiaCEPDelegate {
   void reportSurveyAnswered(String stepId, Map<String, dynamic> answer) {
     final state = _surveyOrchestrator.state;
     if (state == null) return;
+    final values = (answer['values'] as List?)
+        ?.map((value) => value.toString())
+        .toList(growable: false);
+    final hasValues = values != null && values.isNotEmpty;
+    final comment = answer['comment'] as String?;
     _events.toDigia(
-      DigiaQuestionAnswered(stepId: stepId, answer: answer),
+      SurveyQuestionAnswered(
+        questionId: stepId,
+        answerValue: hasValues ? values.first : null,
+        answerText: comment ?? (hasValues ? values.join(', ') : null),
+        answerOptions: (values != null && values.length > 1) ? values : null,
+        answer: answer,
+      ),
       state.payload,
     );
   }
@@ -391,7 +425,10 @@ class DigiaInstance with WidgetsBindingObserver implements DigiaCEPDelegate {
     final state = _surveyOrchestrator.state;
     if (state == null || _clickedSurveyToken == state.token) return;
     _clickedSurveyToken = state.token;
-    _events.toDigia(const ExperienceClicked(), state.payload);
+    _events.toDigia(
+      const SurveyClicked(elementId: 'welcome_start'),
+      state.payload,
+    );
   }
 
   /// Fired once when the survey finishes (idempotent per showing). Beyond the
@@ -404,7 +441,16 @@ class DigiaInstance with WidgetsBindingObserver implements DigiaCEPDelegate {
     final state = _surveyOrchestrator.state;
     if (state == null || _completedSurveyToken == state.token) return;
     _completedSurveyToken = state.token;
-    _events.toDigia(const ExperienceCompleted(), state.payload);
+    _events.toDigia(
+      SurveyCompleted(
+        itemTotal: _surveyItemTotal(state.config),
+        answeredCount: answers.isNotEmpty ? answers.length : response.length,
+        timeToCompleteMs:
+            DateTime.now().millisecondsSinceEpoch - state.startedAtMs,
+        response: response,
+      ),
+      state.payload,
+    );
 
     if (answers.isNotEmpty) {
       _logIfVerbose(
@@ -433,8 +479,118 @@ class DigiaInstance with WidgetsBindingObserver implements DigiaCEPDelegate {
   void markSurveyDismissed() {
     final state = _surveyOrchestrator.state;
     if (state == null) return;
-    _events.toAll(const ExperienceDismissed(), state.payload);
+    _events.toBoth(
+      const ExperienceDismissed(),
+      SurveyDismissed(
+        itemTotal: _surveyItemTotal(state.config),
+        dwellMs: _dwellTracker.consumeDwellMs(state.payload.cepCampaignId),
+      ),
+      state.payload,
+    );
     _surveyOrchestrator.dismiss();
+  }
+
+  // ── Survey config derivations (mirror Android's SurveyConfig helpers) ──
+  int _surveyItemTotal(SurveyConfigModel config) => config.nodes.length;
+
+  bool _surveyHasWelcome(SurveyConfigModel config) =>
+      config.welcomeBlock() != null;
+
+  bool _surveyHasThanks(SurveyConfigModel config) =>
+      config.blocks.any((block) => block.type == SurveyBlockType.resultPage);
+
+  bool _surveyHasBranching(SurveyConfigModel config) => config.nodes.any(
+        (node) =>
+            node.branching.type != BranchingType.linear ||
+            node.branching.rules.isNotEmpty,
+      );
+
+  // ─── Nudge lifecycle ───────────────────────────────────────────────────────
+  // Called by `DigiaHost`/nudge widgets. Mirrors Android's reportNudgeImpression
+  // / emitNudgeClick / markNudgeDismissed.
+
+  /// Fired once when the nudge first becomes visible (its impression).
+  void reportNudgeImpression(CEPTriggerPayload payload, NudgeConfig config) {
+    _dwellTracker.markViewed(payload.cepCampaignId);
+    _events.toBoth(
+      const ExperienceImpressed(),
+      NudgeViewed(
+        displayStyle: _nudgeDisplayStyle(config),
+        screenName: _currentScreen,
+      ),
+      payload,
+    );
+  }
+
+  /// Fired when the user taps the nudge's primary CTA. First-party Digia
+  /// analytics only; `time_to_action_ms` is the dwell so far (nudge still open).
+  void reportNudgeClicked(
+    CEPTriggerPayload payload, {
+    String? elementId,
+    String? ctaLabel,
+    String? actionType,
+    String? actionUrl,
+    String? ctaRole,
+  }) {
+    _events.toDigia(
+      NudgeClicked(
+        elementId: elementId,
+        ctaLabel: ctaLabel,
+        actionType: actionType,
+        actionUrl: actionUrl,
+        ctaRole: ctaRole,
+        timeToActionMs: _dwellTracker.elapsedMs(payload.cepCampaignId),
+      ),
+      payload,
+    );
+  }
+
+  /// Fired when the nudge is dismissed — by the user or programmatically.
+  void markNudgeDismissed(CEPTriggerPayload payload) {
+    _events.toBoth(
+      const ExperienceDismissed(),
+      NudgeDismissed(
+          dwellMs: _dwellTracker.consumeDwellMs(payload.cepCampaignId)),
+      payload,
+    );
+  }
+
+  String _nudgeDisplayStyle(NudgeConfig config) =>
+      config.surface.displayType == NudgeDisplayType.bottomSheet
+          ? 'bottom_sheet'
+          : 'dialog';
+
+  // ─── Inline lifecycle ──────────────────────────────────────────────────────
+
+  /// Fired when an inline slot first paints. Records the deduped Digia
+  /// impression as a [CarouselViewed] or [StoriesViewed] depending on the
+  /// campaign type. Mirrors Android's reportSlotFirstRender.
+  void reportSlotFirstRender(CEPTriggerPayload payload) {
+    final campaign = _campaignStore.find(payload.campaignKey);
+    if (campaign == null) return;
+    final config = campaign.config;
+    switch (config) {
+      case InlineCarouselCampaignConfig(:final inlineConfig):
+        _events.digiaImpressionOnce(
+          payload,
+          CarouselViewed(
+            itemTotal: inlineConfig.items.length,
+            slotKey: inlineConfig.slotKey,
+            screenName: _currentScreen,
+          ),
+        );
+      case InlineStoryCampaignConfig(:final storyConfig):
+        _events.digiaImpressionOnce(
+          payload,
+          StoriesViewed(
+            itemTotal: storyConfig.items.length,
+            slotKey: storyConfig.slotKey,
+            screenName: _currentScreen,
+          ),
+        );
+      case _:
+        break;
+    }
   }
 
   // ─── WidgetsBindingObserver ────────────────────────────────────────────────

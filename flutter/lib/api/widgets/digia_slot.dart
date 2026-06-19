@@ -93,7 +93,7 @@ class _DigiaSlotState extends State<DigiaSlot> {
     if (payload == null || identical(payload, _impressionScheduledFor)) return;
     _impressionScheduledFor = payload;
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      DigiaInstance.instance.events.digiaImpressionOnce(payload);
+      DigiaInstance.instance.reportSlotFirstRender(payload);
     });
   }
 

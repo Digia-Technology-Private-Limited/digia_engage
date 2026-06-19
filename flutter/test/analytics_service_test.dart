@@ -1,9 +1,10 @@
-import 'package:dio/dio.dart';
+import 'package:digia_engage/api/internal/event/engage_analytics_event.dart';
 import 'package:digia_engage/api/models/analytics_config.dart';
 import 'package:digia_engage/api/models/cep_trigger_payload.dart';
 import 'package:digia_engage/api/models/digia_experience_event.dart';
 import 'package:digia_engage/src/analytics/analytics_service.dart';
 import 'package:digia_engage/src/preferences_store.dart';
+import 'package:dio/dio.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:package_info_plus/package_info_plus.dart';
@@ -139,8 +140,8 @@ void main() {
 
     for (var i = 0; i < 5; i++) {
       final payload = _buildPayload('event-$i');
-      await DigiaAnalyticsService.instance.captureExperienceEvent(
-        const ExperienceImpressed(),
+      await DigiaAnalyticsService.instance.capture(
+        const CarouselViewed(),
         payload,
       );
       await Future<void>.delayed(const Duration(milliseconds: 1));
@@ -167,8 +168,8 @@ void main() {
     );
 
     final payload = _buildPayload('payload-1');
-    await DigiaAnalyticsService.instance.captureExperienceEvent(
-      const ExperienceImpressed(),
+    await DigiaAnalyticsService.instance.capture(
+      const CarouselViewed(),
       payload,
       campaignId: 'example-campaign',
     );
@@ -224,12 +225,12 @@ void main() {
     );
     DigiaAnalyticsService.instance.dioFactory = () => fakeDio;
 
-    await DigiaAnalyticsService.instance.captureExperienceEvent(
-      const ExperienceImpressed(),
+    await DigiaAnalyticsService.instance.capture(
+      const CarouselViewed(),
       _buildPayload('payload-1'),
     );
-    await DigiaAnalyticsService.instance.captureExperienceEvent(
-      const ExperienceImpressed(),
+    await DigiaAnalyticsService.instance.capture(
+      const CarouselViewed(),
       _buildPayload('payload-2'),
     );
 
@@ -259,8 +260,8 @@ void main() {
     );
     DigiaAnalyticsService.instance.dioFactory = () => fakeDio;
 
-    await DigiaAnalyticsService.instance.captureExperienceEvent(
-      const ExperienceImpressed(),
+    await DigiaAnalyticsService.instance.capture(
+      const CarouselViewed(),
       _buildPayload('payload-1'),
     );
 
@@ -291,8 +292,8 @@ void main() {
     );
     DigiaAnalyticsService.instance.dioFactory = () => fakeDio;
 
-    await DigiaAnalyticsService.instance.captureExperienceEvent(
-      const ExperienceImpressed(),
+    await DigiaAnalyticsService.instance.capture(
+      const CarouselViewed(),
       _buildPayload('payload-1'),
     );
     expect(await DigiaAnalyticsService.instance.getQueueLength(), equals(1));
@@ -329,8 +330,8 @@ void main() {
     DigiaAnalyticsService.instance.dioFactory = () => fakeDio;
     DigiaAnalyticsService.instance.retryScheduleMs = [10, 20];
 
-    await DigiaAnalyticsService.instance.captureExperienceEvent(
-      const ExperienceImpressed(),
+    await DigiaAnalyticsService.instance.capture(
+      const CarouselViewed(),
       _buildPayload('payload-1'),
     );
 
@@ -366,8 +367,8 @@ void main() {
     );
     DigiaAnalyticsService.instance.dioFactory = () => fakeDio;
 
-    await DigiaAnalyticsService.instance.captureExperienceEvent(
-      const ExperienceImpressed(),
+    await DigiaAnalyticsService.instance.capture(
+      const CarouselViewed(),
       _buildPayload('payload-1'),
     );
     expect(await DigiaAnalyticsService.instance.getQueueLength(), equals(1));
@@ -401,8 +402,8 @@ void main() {
     );
     DigiaAnalyticsService.instance.dioFactory = () => fakeDio;
 
-    await DigiaAnalyticsService.instance.captureExperienceEvent(
-      const ExperienceImpressed(),
+    await DigiaAnalyticsService.instance.capture(
+      const CarouselViewed(),
       _buildPayload('payload-opened'),
     );
     expect(await DigiaAnalyticsService.instance.getQueueLength(), equals(1));
@@ -442,8 +443,8 @@ void main() {
     );
     DigiaAnalyticsService.instance.dioFactory = () => fakeDio;
 
-    await DigiaAnalyticsService.instance.captureExperienceEvent(
-      const ExperienceDismissed(),
+    await DigiaAnalyticsService.instance.capture(
+      const SurveyDismissed(),
       _buildPayload('payload-dismissed'),
     );
 
@@ -479,12 +480,12 @@ void main() {
     );
     DigiaAnalyticsService.instance.dioFactory = () => fakeDio;
 
-    await DigiaAnalyticsService.instance.captureExperienceEvent(
-      const ExperienceImpressed(),
+    await DigiaAnalyticsService.instance.capture(
+      const CarouselViewed(),
       _buildPayload('payload-1'),
     );
-    await DigiaAnalyticsService.instance.captureExperienceEvent(
-      const ExperienceClicked(elementId: 'cta'),
+    await DigiaAnalyticsService.instance.capture(
+      const CarouselClicked(elementId: 'cta'),
       _buildPayload('payload-2'),
       campaignId: 'digia-campaign-123',
     );

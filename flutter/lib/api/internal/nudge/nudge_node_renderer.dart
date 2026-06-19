@@ -4,7 +4,6 @@ import 'package:lottie/lottie.dart';
 
 import '../../../src/components/carousel/internal_carousel.dart';
 import '../../../src/components/video/internal_video_player.dart';
-import '../../models/digia_experience_event.dart';
 import '../action/engage_action_context.dart';
 import '../action/engage_action_handler.dart';
 import '../digia_instance.dart';
@@ -175,8 +174,7 @@ final class NudgeButtonRenderer extends NudgeNodeRenderer<NudgeButton> {
       if (node.isPrimary) {
         final payload = DigiaInstance.instance.controller.activePayload;
         if (payload != null) {
-          DigiaInstance.instance.events
-              .toDigia(const ExperienceClicked(), payload);
+          DigiaInstance.instance.reportNudgeClicked(payload);
         }
       }
       if (hasActions) {
