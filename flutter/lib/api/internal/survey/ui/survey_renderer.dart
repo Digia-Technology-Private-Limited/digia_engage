@@ -481,7 +481,9 @@ class _SurveyRendererState extends State<SurveyRenderer> {
       isScrollControlled: true,
       isDismissible: sheet.backdropDismissible,
       enableDrag: sheet.draggable,
-      showDragHandle: sheet.showHandle,
+      // Render our own compact handle (matching Android) rather than Flutter's
+      // native one, whose ~48dp interactive band pushes the close button down.
+      showDragHandle: false,
       useSafeArea: true,
       backgroundColor: background,
       barrierColor: Colors.black.withValues(alpha: 0.4),
@@ -491,7 +493,15 @@ class _SurveyRendererState extends State<SurveyRenderer> {
       ),
       constraints:
           maxHeight == null ? null : BoxConstraints(maxHeight: maxHeight),
-      builder: (_) => content,
+      builder: (_) => sheet.showHandle
+          ? Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const _SheetDragHandle(),
+                Flexible(child: content),
+              ],
+            )
+          : content,
     );
   }
 
@@ -1442,6 +1452,28 @@ class _CloseButton extends StatelessWidget {
           width: 26,
           height: 26,
           child: Icon(Icons.close, size: 18, color: SurveyTokens.textTertiary),
+        ),
+      );
+}
+
+/// Compact bottom-sheet grab handle — a 40×4 pill with 8dp vertical padding,
+/// matching the Android renderer (keeps the top tight so the close button sits
+/// snug in the corner instead of floating below Flutter's taller native handle).
+class _SheetDragHandle extends StatelessWidget {
+  const _SheetDragHandle();
+
+  @override
+  Widget build(BuildContext context) => Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        child: Center(
+          child: Container(
+            width: 40,
+            height: 4,
+            decoration: BoxDecoration(
+              color: SurveyTokens.border,
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
         ),
       );
 }
