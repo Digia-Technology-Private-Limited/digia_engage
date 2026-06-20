@@ -10,7 +10,7 @@ class ActiveGuideState {
   final CampaignModel campaign;
   final CEPTriggerPayload payload;
   final int token;
-  final GuideConfigModel config;
+  final GuideConfig config;
 
   ActiveGuideState({
     required this.campaign,
@@ -36,7 +36,7 @@ class GuideOrchestrator extends ChangeNotifier {
     if (campaign.campaignType != 'guide' || config is! GuideCampaignConfig) {
       return false;
     }
-    if (config.guideConfig.steps.isEmpty) return false;
+    if (config.guideConfig.stepCount == 0) return false;
     if (_state != null) return false;
     _state = ActiveGuideState(
       campaign: campaign,

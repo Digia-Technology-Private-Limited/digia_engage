@@ -68,10 +68,10 @@ class SurveyCampaignConfig extends CampaignConfigModel {
   });
 }
 
-/// A guide campaign — anchored tooltips / spotlights presented over the app by
-/// the [GuideOrchestrator] and `GuideRenderer` (onboarding_overlay engine).
+/// A guide campaign — anchored tooltips / spotlights surfaced at [DigiaAnchor]
+/// sites via the showcaseview engine, driven by the [GuideOrchestrator].
 class GuideCampaignConfig extends CampaignConfigModel {
-  final GuideConfigModel guideConfig;
+  final GuideConfig guideConfig;
 
   const GuideCampaignConfig(
     this.guideConfig, {
@@ -192,20 +192,16 @@ class CampaignConfigFactory {
   }
 
   static CampaignConfigModel? _guide(Map<String, dynamic> json) {
-    // The guide schema arrives as a nested `guideConfig`, or a `templateConfig`
-    // whose `templateType` is `tooltip`/`spotlight` (mirrors Android's
-    // `parseGuideConfig`). The fallback id matches `CampaignModel.fromJson`.
-    var fallbackId = optString(json, 'id');
-    if (fallbackId.isEmpty) fallbackId = optString(json, '_id');
-    final guide = GuideConfigModel.fromCampaignJson(json, fallbackId);
-    if (guide == null) return null;
-    // Defaults can live on a `templateConfig` (flat schema) when present.
+    // Guides arrive as a flat `templateConfig` with `templateType`
+    // `tooltip`/`spotlight` + `steps[]` — the exact shape React Native parses
+    // and renders (so the Flutter UI matches RN).
     final templateConfig = optMap(json, 'templateConfig');
+    if (templateConfig == null) return null;
+    final guide = GuideConfig.fromCampaignJson(json);
+    if (guide == null) return null;
     return GuideCampaignConfig(
       guide,
-      defaultVariables: templateConfig == null
-          ? const <String, dynamic>{}
-          : _declaredVariables(templateConfig),
+      defaultVariables: _declaredVariables(templateConfig),
     );
   }
 

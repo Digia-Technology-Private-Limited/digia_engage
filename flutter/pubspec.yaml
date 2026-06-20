@@ -28,8 +28,8 @@ dependencies:
     sdk: flutter
   # Guide (tooltip + spotlight) overlay engine: provides the scrim, anchor
   # cutout and auto-placement; the bubble itself is rendered by our own
-  # GuideBubble via OnboardingStep.stepBuilder for cross-platform UI parity.
-  onboarding_overlay: ^3.2.3
+  # GuideBubble via Showcase.withWidget(container:) for cross-platform UI parity.
+  showcaseview: ^5.0.1
   lottie: ^3.3.1
   package_info_plus: ^8.3.1
   device_info_plus: ^10.1.0

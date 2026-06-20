@@ -1,11 +1,11 @@
 import 'package:digia_engage/api/internal/campaign/campaign_model.dart';
 import 'package:digia_engage/api/internal/guide/guide_config_model.dart';
-import 'package:flutter/material.dart';
+import 'package:flutter/painting.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  group('GuideConfigModel.fromCampaignJson', () {
-    test('parses flat templateConfig (tooltip) into a guide campaign', () {
+  group('GuideConfig.fromCampaignJson (RN flat shape)', () {
+    test('parses a tooltip guide campaign', () {
       final json = <String, dynamic>{
         'id': 'camp_1',
         'campaignKey': 'onboarding_guide',
@@ -13,30 +13,23 @@ void main() {
         'templateConfig': {
           'templateType': 'tooltip',
           'templateId': 'guide_42',
+          'outsideTapBehavior': 'dismiss',
           'variables': [
             {'name': 'userName', 'fallbackValue': 'there'},
           ],
           'steps': [
             {
               'anchorKey': 'signup_button',
-              'sequenceOrder': 0,
-              'advanceTrigger': 'tap',
-              'bubble': {
-                'background_color': '#1E40AF',
-                'corner_radius': 12,
-                'arrow': {'visible': true, 'preferred_direction': 'top', 'size': 8},
-              },
-              'overlay': {'visible': false},
-              'content': {
-                'title': {
-                  'text': 'Hi {{userName}}',
-                  'textStyle': {'textColor': '#FFFFFF'},
-                },
-                'body': {'text': 'Tap to sign up'},
-                'step_indicator': {'visible': true, 'color': '#FFFFFFAA'},
-              },
+              'title': 'Hi {{userName}}',
+              'body': 'Tap to sign up',
+              'placement': 'top',
+              'backgroundColor': '#1E40AF',
+              'cornerRadius': 12,
+              'showArrow': true,
+              'titleColor': '#FFFFFF',
+              'titleWeight': '600',
               'actions': [
-                {'id': 'next', 'label': 'Next', 'action_type': 'NEXT'},
+                {'type': 'next', 'label': 'Next', 'style': 'primary'},
               ],
             },
           ],
@@ -49,52 +42,44 @@ void main() {
       expect(config, isA<GuideCampaignConfig>());
 
       final guide = (config as GuideCampaignConfig).guideConfig;
-      expect(guide.id, 'guide_42');
-      expect(guide.multiStep, isFalse); // single step
-      expect(guide.steps, hasLength(1));
+      expect(guide, isA<TooltipGuideConfig>());
+      expect(guide.templateId, 'guide_42');
+      expect(guide.outsideTapBehavior, 'dismiss');
+      expect(guide.stepCount, 1);
+      expect(guide.firstAnchorKey, 'signup_button');
 
-      final step = guide.steps.first;
-      expect(step.anchorKey, 'signup_button');
-      expect(step.displayStyle, 'tooltip');
-      expect(step.widgetConfig.overlay.visible, isFalse); // tooltip
-      expect(step.widgetConfig.bubble.arrow.preferredDirection, 'top');
-      expect(step.widgetConfig.content.title?.text, 'Hi {{userName}}');
-      expect(step.widgetConfig.content.title?.color, const Color(0xFFFFFFFF));
-      expect(step.widgetConfig.actions, hasLength(1));
-      expect(step.widgetConfig.actions.first.actionType, GuideActionType.next);
+      final step = (guide as TooltipGuideConfig).steps.first;
+      expect(step.title, 'Hi {{userName}}');
+      expect(step.placement, 'top');
+      expect(step.backgroundColor, const Color(0xFF1E40AF));
+      expect(step.titleWeight, FontWeight.w600);
+      expect(step.actions.single.type, GuideActionType.next);
+      expect(step.actions.single.style, GuideActionStyle.primary);
 
-      // Dashboard variable default flows through to the campaign config.
       expect(config.defaultVariables['userName'], 'there');
     });
 
-    test('parses nested guideConfig (spotlight) and sorts steps', () {
+    test('parses a spotlight guide campaign with multiple steps', () {
       final json = <String, dynamic>{
         'id': 'camp_2',
         'campaignKey': 'feature_tour',
         'campaignType': 'guide',
-        'guideConfig': {
-          'id': 'tour_1',
-          'multiStep': true,
+        'templateConfig': {
+          'templateType': 'spotlight',
           'steps': [
             {
-              'anchorKey': 'b',
-              'sequenceOrder': 1,
-              'displayStyle': 'spotlight',
-              'widgetConfig': {
-                'overlay': {
-                  'visible': true,
-                  'alpha': 0.7,
-                  'cutout': {'shape': 'circle', 'padding': 6},
-                },
-              },
+              'anchorKey': 'a',
+              'title': 'One',
+              'highlightShape': 'circle',
+              'overlayColor': '#000000',
+              'overlayOpacity': 0.7,
+              'calloutPosition': 'below',
             },
             {
-              'anchorKey': 'a',
-              'sequenceOrder': 0,
-              'displayStyle': 'spotlight',
-              'widgetConfig': {
-                'overlay': {'visible': true},
-              },
+              'anchorKey': 'b',
+              'title': 'Two',
+              'highlightShape': 'pill',
+              'highlightPadding': 6,
             },
           ],
         },
@@ -102,23 +87,23 @@ void main() {
 
       final campaign = CampaignModel.fromJson(json);
       final guide = (campaign!.config as GuideCampaignConfig).guideConfig;
-      expect(guide.multiStep, isTrue);
-      // Sorted by sequenceOrder: a (0) before b (1).
-      expect(guide.steps.map((s) => s.anchorKey).toList(), ['a', 'b']);
-      expect(guide.steps[1].widgetConfig.overlay.visible, isTrue);
-      expect(guide.steps[1].widgetConfig.overlay.cutout.shape, 'circle');
+      expect(guide, isA<SpotlightGuideConfig>());
+      expect(guide.anchorKeys, ['a', 'b']);
+
+      final first = (guide as SpotlightGuideConfig).steps.first;
+      expect(first.highlightShape, 'circle');
+      expect(first.overlayOpacity, 0.7);
+      expect(first.calloutPosition, 'below');
     });
 
-    test('returns UnsupportedCampaignConfig when no guide payload present', () {
+    test('drops a guide campaign with an unknown templateType', () {
       final json = <String, dynamic>{
         'id': 'camp_3',
         'campaignKey': 'broken_guide',
         'campaignType': 'guide',
-        'templateConfig': {'templateType': 'carousel'}, // not a guide template
+        'templateConfig': {'templateType': 'carousel'},
       };
-      final campaign = CampaignModel.fromJson(json);
-      // No usable guide payload → builder returns null → campaign dropped.
-      expect(campaign, isNull);
+      expect(CampaignModel.fromJson(json), isNull);
     });
   });
 }

@@ -16,6 +16,7 @@ import 'event/engage_event_emitter.dart';
 import 'event/engage_event_router.dart';
 import 'guide/anchor_registry.dart';
 import 'guide/guide_orchestrator.dart';
+import 'guide/guide_showcase_manager.dart';
 import 'sdk_state.dart';
 import 'survey/submission_reporter.dart';
 import 'survey/survey_logic_handler.dart';
@@ -71,10 +72,20 @@ class DigiaInstance with WidgetsBindingObserver implements DigiaCEPDelegate {
   final GuideOrchestrator _guideOrchestrator = GuideOrchestrator();
   GuideOrchestrator get guideOrchestrator => _guideOrchestrator;
 
-  /// Maps campaign `anchorKey`s to host-widget [FocusNode]s. Shared by
-  /// `DigiaAnchor` (registers anchors) and `GuideRenderer` (positions steps).
+  /// Maps campaign `anchorKey`s to the `Showcase` [GlobalKey]s `DigiaAnchor`
+  /// builds. Shared by `DigiaAnchor` and [GuideShowcaseManager].
   final AnchorRegistry _anchorRegistry = AnchorRegistry();
   AnchorRegistry get anchorRegistry => _anchorRegistry;
+
+  /// Bridges the guide orchestrator to the showcaseview engine. Constructed
+  /// lazily on first access (registers the `ShowcaseView` controller and starts
+  /// listening to [_guideOrchestrator]); `DigiaAnchor` reads it to present steps.
+  late final GuideShowcaseManager _guideManager = GuideShowcaseManager(
+    orchestrator: _guideOrchestrator,
+    registry: _anchorRegistry,
+    events: () => _events,
+  );
+  GuideShowcaseManager get guideManager => _guideManager;
 
   /// Posts completed-survey answers to the backend. Created during [initialize]
   /// once the device id is known. Mirrors Android's `submissionReporter`.
@@ -129,6 +140,10 @@ class DigiaInstance with WidgetsBindingObserver implements DigiaCEPDelegate {
     EngageFonts.fontFamily = config.fontFamily;
 
     WidgetsBinding.instance.addObserver(this);
+
+    // Construct the guide manager now so it registers the showcase controller
+    // and listens to the orchestrator before any campaign is routed.
+    _guideManager;
 
     // The whole init runs under one guard (mirrors Android's DigiaInstance):
     // any failure leaves the SDK in [SDKState.failed] and resets the
