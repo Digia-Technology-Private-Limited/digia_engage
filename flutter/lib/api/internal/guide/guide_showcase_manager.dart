@@ -1,17 +1,15 @@
 import 'package:flutter/material.dart';
-import 'package:showcaseview/showcaseview.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../../src/vendor/showcaseview/showcaseview.dart';
 import '../../models/digia_experience_event.dart';
 import '../action/engage_action.dart';
 import '../action/engage_action_context.dart';
 import '../action/engage_action_handler.dart';
-import '../engage_fonts.dart';
 import '../event/engage_event_emitter.dart';
 import '../variable_scope.dart';
 import 'anchor_registry.dart';
-import 'guide_action_button.dart';
-import 'guide_callout.dart';
+import 'guide_bubble.dart';
 import 'guide_config_model.dart';
 import 'guide_orchestrator.dart';
 
@@ -19,72 +17,31 @@ import 'guide_orchestrator.dart';
 /// showcaseview the host app might run itself.
 const String kDigiaGuideScope = 'digia_guide';
 
-/// What [DigiaAnchor] should present for the active step.
+/// What [DigiaAnchor] should hand `Showcase.withWidget` for the active step.
 ///
-/// Tooltips use showcaseview's **built-in** tooltip ([TooltipShowcase]) so the
-/// package draws its own placement-aware arrow (the resolved side is internal to
-/// its render delegate, so a custom container couldn't). Spotlights use a fully
-/// custom callout ([SpotlightShowcase] → `Showcase.withWidget`), which needs no
-/// arrow.
-sealed class GuidePresentation {
+/// Both tooltip and spotlight render our own exact [container] bubble; the
+/// (vendored, patched) showcaseview draws the placement-aware arrow at the
+/// resolved side, in [arrowColor], so the bubble stays exact and the arrow
+/// stays correct on flip.
+class ShowcasePresentation {
+  final Widget container;
   final Color overlayColor;
   final double overlayOpacity;
   final ShapeBorder targetShapeBorder;
   final EdgeInsets targetPadding;
   final TooltipPosition? tooltipPosition;
+  final bool showArrow;
+  final Color arrowColor;
 
-  const GuidePresentation({
+  const ShowcasePresentation({
+    required this.container,
     required this.overlayColor,
     required this.overlayOpacity,
     required this.targetShapeBorder,
     required this.targetPadding,
     required this.tooltipPosition,
-  });
-}
-
-/// A tooltip step → showcaseview's standard `Showcase` (title/description/arrow).
-class TooltipShowcase extends GuidePresentation {
-  final String title;
-  final String description;
-  final TextStyle titleTextStyle;
-  final TextStyle descTextStyle;
-  final Color tooltipBackgroundColor;
-  final BorderRadius tooltipBorderRadius;
-  final EdgeInsets tooltipPadding;
-  final bool showArrow;
-  final List<TooltipActionButton> actions;
-  final TooltipActionConfig actionConfig;
-
-  const TooltipShowcase({
-    required this.title,
-    required this.description,
-    required this.titleTextStyle,
-    required this.descTextStyle,
-    required this.tooltipBackgroundColor,
-    required this.tooltipBorderRadius,
-    required this.tooltipPadding,
     required this.showArrow,
-    required this.actions,
-    required this.actionConfig,
-    required super.overlayColor,
-    required super.overlayOpacity,
-    required super.targetShapeBorder,
-    required super.targetPadding,
-    required super.tooltipPosition,
-  });
-}
-
-/// A spotlight step → `Showcase.withWidget` with a custom [container] callout.
-class SpotlightShowcase extends GuidePresentation {
-  final Widget container;
-
-  const SpotlightShowcase({
-    required this.container,
-    required super.overlayColor,
-    required super.overlayOpacity,
-    required super.targetShapeBorder,
-    required super.targetPadding,
-    required super.tooltipPosition,
+    required this.arrowColor,
   });
 }
 
@@ -117,7 +74,9 @@ class GuideShowcaseManager {
     ShowcaseView.register(
       scope: kDigiaGuideScope,
       autoPlay: false,
-      enableAutoScroll: false,
+      // Auto-scroll a scrolled-away anchor into view before showing its step
+      // (single-target only; shows a brief loader, then `ensureVisible`).
+      enableAutoScroll: true,
       onStart: (index, key) {
         if (index == 0) _emit(const ExperienceImpressed());
       },
@@ -167,7 +126,7 @@ class GuideShowcaseManager {
 
   /// The presentation for [anchorKey] under the active guide, or `null` when no
   /// guide is active or no step targets this anchor.
-  GuidePresentation? presentationFor(String anchorKey) {
+  ShowcasePresentation? presentationFor(String anchorKey) {
     final state = _orchestrator.state;
     if (state == null) return null;
     final scope = VariableScope({
@@ -179,41 +138,34 @@ class GuideShowcaseManager {
     if (config is TooltipGuideConfig) {
       final step = _firstWhere(config.steps, (s) => s.anchorKey == anchorKey);
       if (step == null) return null;
-      return TooltipShowcase(
-        title: scope.resolve(step.title),
-        description: scope.resolve(step.body),
-        titleTextStyle: _textStyle(step.titleColor, step.titleSize, step.titleWeight),
-        descTextStyle: _textStyle(step.bodyColor, step.bodySize, FontWeight.w400),
-        tooltipBackgroundColor: step.backgroundColor,
-        tooltipBorderRadius: BorderRadius.circular(step.cornerRadius),
-        tooltipPadding: EdgeInsets.all(step.padding),
-        showArrow: step.showArrow,
-        tooltipPosition: _tooltipPosition(step.placement),
+      return ShowcasePresentation(
+        container:
+            GuideBubble.tooltip(step: step, scope: scope, onAction: handleAction),
         // Tooltip = no dim (RN renders the bubble over a transparent scrim).
         overlayColor: const Color(0x00000000),
         overlayOpacity: 0,
         targetShapeBorder:
             RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
         targetPadding: EdgeInsets.zero,
-        actions: _actions(step.actions, scope, step.buttonPrimaryBackgroundColor,
-            step.buttonPrimaryTextColor, step.buttonGhostTextColor),
-        actionConfig: _actionConfig,
+        tooltipPosition: _tooltipPosition(step.placement),
+        showArrow: step.showArrow,
+        // RN: arrowColor ?? backgroundColor — the arrow matches the bubble.
+        arrowColor: step.arrowColor ?? step.backgroundColor,
       );
     }
     if (config is SpotlightGuideConfig) {
       final step = _firstWhere(config.steps, (s) => s.anchorKey == anchorKey);
       if (step == null) return null;
-      return SpotlightShowcase(
-        container: GuideCallout(
-          step: step,
-          scope: scope,
-          onAction: handleAction,
-        ),
+      return ShowcasePresentation(
+        container: GuideBubble.spotlight(
+            step: step, scope: scope, onAction: handleAction),
         overlayColor: step.overlayColor,
         overlayOpacity: step.overlayOpacity,
         targetShapeBorder: _highlightShape(step),
         targetPadding: EdgeInsets.all(step.highlightPadding),
         tooltipPosition: _calloutPosition(step.calloutPosition),
+        showArrow: step.showArrow,
+        arrowColor: step.arrowColor ?? step.calloutBackgroundColor,
       );
     }
     return null;
@@ -292,42 +244,6 @@ class GuideShowcaseManager {
   }
 
   // ─── Mapping helpers ──────────────────────────────────────────────────────
-
-  static const TooltipActionConfig _actionConfig = TooltipActionConfig(
-    alignment: MainAxisAlignment.end,
-    position: TooltipActionPosition.inside,
-    actionGap: 8,
-    gapBetweenContentAndAction: 12,
-  );
-
-  TextStyle _textStyle(Color color, double size, FontWeight weight) => TextStyle(
-        color: color,
-        fontSize: size,
-        fontWeight: weight,
-        fontFamily: EngageFonts.fontFamily,
-      );
-
-  List<TooltipActionButton> _actions(
-    List<GuideAction> actions,
-    VariableScope scope,
-    Color primaryBg,
-    Color primaryText,
-    Color ghostText,
-  ) {
-    return [
-      for (final action in actions)
-        TooltipActionButton.custom(
-          button: GuideActionButton(
-            label: scope.resolve(action.label),
-            isPrimary: action.style == GuideActionStyle.primary,
-            primaryBg: primaryBg,
-            primaryText: primaryText,
-            ghostText: ghostText,
-            onTap: () => handleAction(action),
-          ),
-        ),
-    ];
-  }
 
   // Returns null for `auto` so showcaseview chooses + flips on available space
   // (it still draws a correct arrow either way).

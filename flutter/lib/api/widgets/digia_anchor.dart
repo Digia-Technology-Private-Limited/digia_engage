@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:showcaseview/showcaseview.dart';
+import '../../src/vendor/showcaseview/showcaseview.dart';
 
 import '../internal/digia_instance.dart';
 import '../internal/guide/anchor_registry.dart';
@@ -80,50 +80,23 @@ class _DigiaAnchorState extends State<DigiaAnchor> {
     // No active step for this anchor → render the child as-is.
     if (p == null) return widget.child;
 
-    return switch (p) {
-      // Tooltip → built-in Showcase so showcaseview draws its own
-      // placement-aware arrow and flips when there's no room.
-      TooltipShowcase t => Showcase(
-          key: _showcaseKey,
-          scope: kDigiaGuideScope,
-          title: t.title,
-          description: t.description,
-          titleTextStyle: t.titleTextStyle,
-          descTextStyle: t.descTextStyle,
-          // Left-aligned, RN-like layout.
-          titleAlignment: Alignment.centerLeft,
-          descriptionAlignment: Alignment.centerLeft,
-          titleTextAlign: TextAlign.start,
-          descriptionTextAlign: TextAlign.start,
-          descriptionPadding: const EdgeInsets.only(top: 4),
-          tooltipBackgroundColor: t.tooltipBackgroundColor,
-          tooltipBorderRadius: t.tooltipBorderRadius,
-          tooltipPadding: t.tooltipPadding,
-          showArrow: t.showArrow,
-          tooltipPosition: t.tooltipPosition,
-          overlayColor: t.overlayColor,
-          overlayOpacity: t.overlayOpacity,
-          targetShapeBorder: t.targetShapeBorder,
-          targetPadding: t.targetPadding,
-          tooltipActions: t.actions,
-          tooltipActionConfig: t.actionConfig,
-          // The action buttons drive the flow; don't hijack target taps.
-          disableDefaultTargetGestures: true,
-          child: widget.child,
-        ),
-      // Spotlight → fully custom callout (no arrow needed).
-      SpotlightShowcase s => Showcase.withWidget(
-          key: _showcaseKey,
-          scope: kDigiaGuideScope,
-          container: s.container,
-          overlayColor: s.overlayColor,
-          overlayOpacity: s.overlayOpacity,
-          targetShapeBorder: s.targetShapeBorder,
-          targetPadding: s.targetPadding,
-          tooltipPosition: s.tooltipPosition,
-          disableDefaultTargetGestures: true,
-          child: widget.child,
-        ),
-    };
+    // Both tooltip and spotlight use our exact custom bubble (`container`); the
+    // vendored, patched showcaseview draws the placement-aware arrow at the
+    // resolved side, in `tooltipBackgroundColor` (the arrow colour).
+    return Showcase.withWidget(
+      key: _showcaseKey,
+      scope: kDigiaGuideScope,
+      container: p.container,
+      showArrow: p.showArrow,
+      tooltipBackgroundColor: p.arrowColor,
+      overlayColor: p.overlayColor,
+      overlayOpacity: p.overlayOpacity,
+      targetShapeBorder: p.targetShapeBorder,
+      targetPadding: p.targetPadding,
+      tooltipPosition: p.tooltipPosition,
+      // The bubble's own buttons drive the flow; don't hijack target taps.
+      disableDefaultTargetGestures: true,
+      child: widget.child,
+    );
   }
 }
