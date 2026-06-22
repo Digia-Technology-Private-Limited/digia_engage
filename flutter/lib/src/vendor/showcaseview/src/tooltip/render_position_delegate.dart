@@ -764,20 +764,25 @@ class _RenderPositionDelegate extends RenderBox
       case TooltipPosition.top:
         // Arrow points down from bottom of tooltip
         arrowBoxParentData.offset = Offset(
-          targetPosition.dx +
-              halfTargetWidth -
-              halfArrowWidth -
-              showcaseOffset.dx,
+          // DIGIA: clamp so the arrow stays within the bubble — if the target
+          // centre is past the bubble edge, it slides back instead of poking out.
+          _clampArrowAlong(
+            targetPosition.dx + halfTargetWidth - halfArrowWidth - showcaseOffset.dx,
+            _xOffset,
+            _toolTipBoxSize.width,
+          ),
           _yOffset + _toolTipBoxSize.height - 2,
         );
 
       case TooltipPosition.bottom:
         // Arrow points up from top of tooltip
         arrowBoxParentData.offset = Offset(
-          targetPosition.dx +
-              halfTargetWidth -
-              halfArrowWidth -
-              showcaseOffset.dx,
+          // DIGIA: clamp within the bubble (see above).
+          _clampArrowAlong(
+            targetPosition.dx + halfTargetWidth - halfArrowWidth - showcaseOffset.dx,
+            _xOffset,
+            _toolTipBoxSize.width,
+          ),
           _yOffset - Constants.arrowHeight + 1,
         );
 
@@ -785,25 +790,43 @@ class _RenderPositionDelegate extends RenderBox
         // Arrow points right from right side of tooltip
         arrowBoxParentData.offset = Offset(
           _xOffset + _toolTipBoxSize.width - halfArrowHeight + 4,
-          targetPosition.dy +
-              halfTargetHeight -
-              halfArrowWidth +
-              4 -
-              showcaseOffset.dy,
+          // DIGIA: clamp within the bubble (see above).
+          _clampArrowAlong(
+            targetPosition.dy + halfTargetHeight - halfArrowWidth + 4 - showcaseOffset.dy,
+            _yOffset,
+            _toolTipBoxSize.height,
+          ),
         );
 
       case TooltipPosition.right:
         // Arrow points left from left side of tooltip
         arrowBoxParentData.offset = Offset(
           _xOffset - Constants.arrowHeight - 4,
-          targetPosition.dy +
-              halfTargetHeight -
-              halfArrowHeight +
-              4 -
-              showcaseOffset.dy,
+          // DIGIA: clamp within the bubble (see above).
+          _clampArrowAlong(
+            targetPosition.dy + halfTargetHeight - halfArrowHeight + 4 - showcaseOffset.dy,
+            _yOffset,
+            _toolTipBoxSize.height,
+          ),
         );
     }
   }
+
+  /// DIGIA: keep the arrow inside the tooltip box, ≥ [_arrowEdgeMargin] from each
+  /// corner. [start] is the box's local origin on the relevant axis, [extent]
+  /// its size on that axis. When the desired position (the target centre) falls
+  /// outside, the arrow slides back to the nearest in‑bounds spot instead of
+  /// rendering past the bubble edge. Falls back to centring if the box is too
+  /// small to hold the arrow plus margins.
+  double _clampArrowAlong(double value, double start, double extent) {
+    final min = start + _arrowEdgeMargin;
+    final max = start + extent - Constants.arrowWidth - _arrowEdgeMargin;
+    if (max <= min) return start + (extent - Constants.arrowWidth) / 2;
+    return value.clamp(min, max);
+  }
+
+  /// DIGIA: clearance kept between the arrow and the bubble's corners.
+  static const double _arrowEdgeMargin = Constants.arrowWidth;
 
   /// Helper function to calculate position based on selected direction
   Offset positionToolTip({
