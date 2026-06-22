@@ -47,3 +47,9 @@ class ShareAction extends EngageAction {
   final String text;
   const ShareAction(this.text);
 }
+
+/// Copy [text] to the system clipboard.
+class CopyToClipboardAction extends EngageAction {
+  final String text;
+  const CopyToClipboardAction(this.text);
+}
