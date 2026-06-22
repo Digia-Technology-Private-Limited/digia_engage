@@ -89,11 +89,16 @@ class _DigiaAnchorState extends State<DigiaAnchor> {
       container: p.container,
       showArrow: p.showArrow,
       tooltipBackgroundColor: p.arrowColor,
+      arrowBorderColor: p.arrowBorderColor,
+      arrowBorderWidth: p.arrowBorderWidth,
       overlayColor: p.overlayColor,
       overlayOpacity: p.overlayOpacity,
       targetShapeBorder: p.targetShapeBorder,
       targetPadding: p.targetPadding,
       tooltipPosition: p.tooltipPosition,
+      // No animation for now — the scale animation is already disabled for a
+      // custom container; this turns off the moving/bounce animation too.
+      disableMovingAnimation: true,
       // The bubble's own buttons drive the flow; don't hijack target taps.
       disableDefaultTargetGestures: true,
       child: widget.child,

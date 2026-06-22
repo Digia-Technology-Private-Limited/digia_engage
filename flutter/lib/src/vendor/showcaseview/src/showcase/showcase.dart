@@ -78,6 +78,9 @@ class Showcase extends StatefulWidget {
     this.textColor = Colors.black,
     this.scrollLoadingWidget = Constants.defaultProgressIndicator,
     this.showArrow = true,
+    // DIGIA: optional arrow border (RN's arrowBorderColor / arrowBorderWidth).
+    this.arrowBorderColor,
+    this.arrowBorderWidth = 0,
     this.onTargetClick,
     this.disposeOnTap,
     this.autoPlayDelay,
@@ -205,10 +208,13 @@ class Showcase extends StatefulWidget {
     this.targetTooltipGap = 10,
     this.onTargetRectUpdate,
     this.scope,
-    // DIGIA: allow a placement-aware arrow (drawn at the resolved side) and an
-    // arrow colour with a custom container — upstream hardcodes these off.
+    // DIGIA: allow a placement-aware arrow (drawn at the resolved side), an
+    // arrow colour, and an arrow border with a custom container — upstream
+    // hardcodes these off.
     this.showArrow = false,
     this.tooltipBackgroundColor = Colors.white,
+    this.arrowBorderColor,
+    this.arrowBorderWidth = 0,
   })  : onToolTipClick = null,
         scaleAnimationDuration = const Duration(milliseconds: 300),
         scaleAnimationCurve = Curves.decelerate,
@@ -351,6 +357,13 @@ class Showcase extends StatefulWidget {
   ///
   /// Default to `true`
   final bool showArrow;
+
+  /// DIGIA: optional border colour for the arrow (RN's arrowBorderColor). When
+  /// null or [arrowBorderWidth] is 0, no border is drawn.
+  final Color? arrowBorderColor;
+
+  /// DIGIA: optional border width for the arrow (RN's arrowBorderWidth).
+  final double arrowBorderWidth;
 
   /// The duration of time the bouncing animation of tooltip should last.
   ///

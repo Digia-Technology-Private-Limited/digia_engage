@@ -1,3 +1,5 @@
+import 'dart:math' as math; // DIGIA: safe-area edge padding (tooltip_wrapper)
+
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 

@@ -32,6 +32,8 @@ class ShowcasePresentation {
   final TooltipPosition? tooltipPosition;
   final bool showArrow;
   final Color arrowColor;
+  final Color? arrowBorderColor;
+  final double arrowBorderWidth;
 
   const ShowcasePresentation({
     required this.container,
@@ -42,6 +44,8 @@ class ShowcasePresentation {
     required this.tooltipPosition,
     required this.showArrow,
     required this.arrowColor,
+    required this.arrowBorderColor,
+    required this.arrowBorderWidth,
   });
 }
 
@@ -151,6 +155,9 @@ class GuideShowcaseManager {
         showArrow: step.showArrow,
         // RN: arrowColor ?? backgroundColor — the arrow matches the bubble.
         arrowColor: step.arrowColor ?? step.backgroundColor,
+        // RN: arrowBorderColor ?? borderColor; border width follows the bubble.
+        arrowBorderColor: step.arrowBorderColor ?? step.borderColor,
+        arrowBorderWidth: step.borderWidth,
       );
     }
     if (config is SpotlightGuideConfig) {
@@ -166,6 +173,8 @@ class GuideShowcaseManager {
         tooltipPosition: _calloutPosition(step.calloutPosition),
         showArrow: step.showArrow,
         arrowColor: step.arrowColor ?? step.calloutBackgroundColor,
+        arrowBorderColor: step.arrowBorderColor ?? step.calloutBorderColor,
+        arrowBorderWidth: step.calloutBorderWidth,
       );
     }
     return null;

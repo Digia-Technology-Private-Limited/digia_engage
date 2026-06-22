@@ -73,6 +73,9 @@ class ToolTipWrapper extends StatefulWidget {
     this.descriptionPadding,
     this.titleTextDirection,
     this.descriptionTextDirection,
+    // DIGIA: optional arrow border (RN's arrowBorderColor / arrowBorderWidth).
+    this.arrowBorderColor,
+    this.arrowBorderWidth = 0,
     super.key,
   });
 
@@ -110,6 +113,9 @@ class ToolTipWrapper extends StatefulWidget {
   final ShowcaseController showcaseController;
   final double targetTooltipGap;
   final bool semanticEnable;
+  // DIGIA: optional arrow border.
+  final Color? arrowBorderColor;
+  final double arrowBorderWidth;
 
   @override
   State<ToolTipWrapper> createState() => _ToolTipWrapperState();
@@ -244,7 +250,19 @@ class _ToolTipWrapperState extends State<ToolTipWrapper>
         toolTipSlideEndDistance: widget.toolTipSlideEndDistance,
         gapBetweenContentAndAction:
             widget.tooltipActionConfig.gapBetweenContentAndAction,
-        screenEdgePadding: widget.toolTipMargin,
+        // DIGIA: keep the tooltip clear of the system insets (status bar / nav
+        // bar), not just `toolTipMargin`. Upstream uses a flat margin and the
+        // full screen size, so a tooltip can render under the status bar and
+        // won't flip to a side with real room. This wrapper sits in the root
+        // overlay (above any SafeArea), so MediaQuery here is the true device
+        // padding. We widen the edge padding to the largest system inset.
+        screenEdgePadding: math.max(
+          widget.toolTipMargin,
+          math.max(
+            MediaQuery.paddingOf(context).top,
+            MediaQuery.paddingOf(context).bottom,
+          ),
+        ),
         showcaseOffset: widget.showcaseController.rootRenderObject
                 ?.localToGlobal(Offset.zero) ??
             Offset.zero,
@@ -282,6 +300,9 @@ class _ToolTipWrapperState extends State<ToolTipWrapper>
               key: UniqueKey(),
               child: ShowcaseArrow(
                 strokeColor: widget.tooltipBackgroundColor,
+                // DIGIA: optional arrow border (RN's arrowBorderColor/Width).
+                borderColor: widget.arrowBorderColor,
+                borderWidth: widget.arrowBorderWidth,
               ),
             ),
         ],

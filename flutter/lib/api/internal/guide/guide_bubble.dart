@@ -121,13 +121,17 @@ class GuideBubble extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final screenW = MediaQuery.of(context).size.width;
-    final width = math.min(maxWidth, screenW - 32);
+    final width = math.min(maxWidth, MediaQuery.of(context).size.width - 32);
     final fontFamily = EngageFonts.fontFamily;
 
     return Container(
       width: width,
       padding: EdgeInsets.all(padding),
+      // Clip to the rounded box: when showcaseview must place the bubble in tight
+      // space it shrinks the box, and a custom `withWidget` container can't
+      // shrink on its own — clipping keeps any overflow inside the bubble
+      // instead of spilling off‑screen ("content goes outside").
+      clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
         color: backgroundColor,
         borderRadius: BorderRadius.circular(cornerRadius),
@@ -191,8 +195,8 @@ class GuideBubble extends StatelessWidget {
                 ],
               ),
             ),
-        ],
-      ),
+          ],
+        ),
     );
   }
 }
