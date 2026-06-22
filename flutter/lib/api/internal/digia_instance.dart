@@ -8,7 +8,6 @@ import 'action/engage_action_handler.dart';
 import 'campaign/campaign_fetcher.dart';
 import 'campaign/campaign_model.dart';
 import 'campaign/campaign_store.dart';
-import 'digia_endpoints.dart';
 import 'digia_overlay_controller.dart';
 import 'engage_fonts.dart';
 import 'event/cep_plugin_sink.dart';
@@ -110,7 +109,6 @@ class DigiaInstance with WidgetsBindingObserver implements DigiaCEPDelegate {
       return;
     }
     _config = config;
-    DigiaEndpoints.configure(config);
     _initialized = true;
     _sdkState = SDKState.initializing;
 
@@ -151,6 +149,14 @@ class DigiaInstance with WidgetsBindingObserver implements DigiaCEPDelegate {
       _initialized = false;
       _sdkState = SDKState.failed;
       debugPrint('[Digia] initialize failed: $e');
+      // A template presented during init left a CEP slot held (we returned
+      // `true` from onCampaignTriggered). Init failed so it will never route —
+      // release the slot, else later in-apps queue forever.
+      final pending = _pendingPayload;
+      _pendingPayload = null;
+      if (pending != null) {
+        _events.toCep(const ExperienceDismissed(), pending);
+      }
     }
   }
 
@@ -227,14 +233,14 @@ class DigiaInstance with WidgetsBindingObserver implements DigiaCEPDelegate {
   // ─── DigiaCEPDelegate ──────────────────────────────────────────────────────
 
   @override
-  void onCampaignTriggered(CEPTriggerPayload payload) {
+  bool onCampaignTriggered(CEPTriggerPayload payload) {
     // State gating mirrors Android's DigiaInstance.onCampaignTriggered.
     switch (_sdkState) {
       case SDKState.notInitialized:
         debugPrint(
           '[Digia] campaign dropped — SDK not initialized: ${payload.campaignKey}',
         );
-        return;
+        return false;
       case SDKState.initializing:
         // Buffer campaigns that arrive while the engage fetch is in flight.
         if (_pendingPayload != null) {
@@ -243,32 +249,39 @@ class DigiaInstance with WidgetsBindingObserver implements DigiaCEPDelegate {
           );
         }
         _pendingPayload = payload;
-        return;
+        // Accepted: it will route once init resolves. The CEP keeps its in-app
+        // slot held until then; [_flushPendingPayloadIfAny] (or the init-failure
+        // path) releases it if routing ultimately drops the campaign.
+        return true;
       case SDKState.failed:
         debugPrint(
           '[Digia] campaign dropped — SDK initialization failed: ${payload.campaignKey}',
         );
-        return;
+        return false;
       case SDKState.ready:
-        _routeCampaign(payload);
+        return _routeCampaign(payload);
     }
   }
 
   // ─── Routing ───────────────────────────────────────────────────────────────
 
   /// Routes a triggered campaign by looking up the campaign key in the store.
-  void _routeCampaign(CEPTriggerPayload payload) {
+  ///
+  /// Returns whether the campaign was accepted for rendering (see
+  /// [onCampaignTriggered]).
+  bool _routeCampaign(CEPTriggerPayload payload) {
     final campaign = _campaignStore.find(payload.campaignKey);
     if (campaign != null) {
-      _routeStoredCampaign(campaign, payload);
-      return;
+      return _routeStoredCampaign(campaign, payload);
     }
     debugPrint('[Digia] campaign not found in store: ${payload.campaignKey}');
+    return false;
   }
 
-  /// Routes a campaign resolved from the store. Only inline carousels are
-  /// rendered; every other (recognised) type is dropped with a log.
-  void _routeStoredCampaign(CampaignModel campaign, CEPTriggerPayload payload) {
+  /// Routes a campaign resolved from the store. Returns whether the campaign was
+  /// accepted for rendering — `false` for dropped types (unsupported, or an
+  /// orchestrator that refused because another experience is on screen).
+  bool _routeStoredCampaign(CampaignModel campaign, CEPTriggerPayload payload) {
     final config = campaign.config;
     switch (config) {
       case InlineCarouselCampaignConfig(:final inlineConfig):
@@ -283,6 +296,7 @@ class DigiaInstance with WidgetsBindingObserver implements DigiaCEPDelegate {
           "inline carousel routed to slot '${inlineConfig.slotKey}' "
           '(campaignKey=${campaign.campaignKey}).',
         );
+        return true;
       case InlineStoryCampaignConfig(:final storyConfig):
         _controller.addInlineSlot(storyConfig.slotKey, config, payload);
         // CEP instantly; Digia impression on first render (see DigiaSlot).
@@ -293,9 +307,11 @@ class DigiaInstance with WidgetsBindingObserver implements DigiaCEPDelegate {
           "inline story routed to slot '${storyConfig.slotKey}' "
           '(campaignKey=${campaign.campaignKey}).',
         );
+        return true;
       case NudgeCampaignConfig():
         _controller.show(payload);
         _logIfVerbose('nudge scheduled (campaignKey=${campaign.campaignKey}).');
+        return true;
       case SurveyCampaignConfig():
         final started = _surveyOrchestrator.start(
           campaign,
@@ -307,14 +323,16 @@ class DigiaInstance with WidgetsBindingObserver implements DigiaCEPDelegate {
             "[Digia] survey campaign '${campaign.campaignKey}' dropped: "
             'another survey is on screen.',
           );
-        } else {
-          _logIfVerbose(
-              'survey scheduled (campaignKey=${campaign.campaignKey}).');
+          return false;
         }
+        _logIfVerbose(
+            'survey scheduled (campaignKey=${campaign.campaignKey}).');
+        return true;
       case UnsupportedCampaignConfig(:final reason):
         debugPrint(
           "[Digia] campaign '${campaign.campaignKey}' dropped: $reason",
         );
+        return false;
     }
   }
 
@@ -342,7 +360,13 @@ class DigiaInstance with WidgetsBindingObserver implements DigiaCEPDelegate {
     final payload = _pendingPayload;
     if (payload == null) return;
     _pendingPayload = null;
-    _routeCampaign(payload);
+    if (!_routeCampaign(payload)) {
+      // We returned `true` from onCampaignTriggered while initializing, so a CEP
+      // plugin may be holding its in-app slot for this campaign. Routing dropped
+      // it and no terminal event will fire — release the slot now, else later
+      // in-apps queue forever.
+      _events.toCep(const ExperienceDismissed(), payload);
+    }
   }
 
   @override
