@@ -17,10 +17,15 @@ class DigiaInlineCarousel extends StatelessWidget {
   /// placeholders already resolved against the active [VariableScope].
   final void Function(CarouselItem item)? onItemTap;
 
+  /// Invoked on every settled page change with the new 0-based index and whether
+  /// it came from autoplay (`auto = true`) vs a manual swipe.
+  final void Function(int index, bool auto)? onPageChanged;
+
   const DigiaInlineCarousel({
     super.key,
     required this.config,
     this.onItemTap,
+    this.onPageChanged,
   });
 
   @override
@@ -67,6 +72,7 @@ class DigiaInlineCarousel extends StatelessWidget {
       activeDotColor:
           _parseHexColor(indicator.activeDotColor) ?? const Color(0xFF4945FF),
       indicatorEffectType: indicator.indicatorEffectType,
+      onChanged: onPageChanged,
       children: slides,
     );
   }

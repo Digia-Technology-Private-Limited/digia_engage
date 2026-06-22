@@ -32,7 +32,10 @@ class InternalCarousel extends StatefulWidget {
   final String indicatorEffectType;
   final Color? activeDotColor;
   final bool? keepAlive;
-  final ValueChanged<int>? onChanged;
+
+  /// Fired on every settled page change with the new page index and whether the
+  /// change came from autoplay (`auto = true`) vs a manual swipe / controller.
+  final void Function(int index, bool auto)? onChanged;
   const InternalCarousel(
       {super.key,
       this.itemBuilder,
@@ -118,7 +121,8 @@ class _InternalCarouselState extends State<InternalCarousel> {
             reverse: widget.reverseScroll,
             onPageChanged: (index, reason) {
               _currentPageNotifier.value = index;
-              widget.onChanged?.call(index);
+              widget.onChanged
+                  ?.call(index, reason == CarouselPageChangedReason.timed);
             },
           ),
         ),
@@ -154,7 +158,8 @@ class _InternalCarouselState extends State<InternalCarousel> {
             reverse: widget.reverseScroll,
             onPageChanged: (index, reason) {
               _currentPageNotifier.value = index;
-              widget.onChanged?.call(index);
+              widget.onChanged
+                  ?.call(index, reason == CarouselPageChangedReason.timed);
             },
           ),
         ),

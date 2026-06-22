@@ -1,54 +1,98 @@
+import 'package:flutter/foundation.dart';
+
 import '../../models/cep_trigger_payload.dart';
 import '../../models/digia_experience_event.dart';
-import 'engage_event_router.dart';
-import 'event_sink.dart';
+import 'cep_plugin_sink.dart';
+import 'digia_analytics_sink.dart';
+import 'engage_analytics_event.dart';
 
-/// The SDK's single entry point for emitting [DigiaExperienceEvent]s.
+/// The SDK's single entry point for emitting events, and the one place every
+/// emission is logged.
 ///
-/// Wraps [EngageEventRouter] with intent-revealing helpers ([toCep], [toDigia],
-/// [toAll]) so call sites name *where* and *when* an event goes without
-/// touching sink ids. Also owns the first-render impression dedup, which is
-/// an emission concern — not widget-tree state — so it lives here rather than
-/// on [DigiaOverlayController].
+/// Facade over the two delivery channels, which carry deliberately different
+/// event models: the CEP plugin gets the coarse [DigiaExperienceEvent] protocol
+/// via [toCep]; Digia analytics gets the rich, campaign-grouped
+/// [EngageAnalyticsEvent] via [toDigia]. [toBoth] fires a dual signal (e.g. a
+/// nudge impression). Also owns the first-render impression dedup, an emission
+/// concern rather than widget state.
 class EngageEventEmitter {
-  final EngageEventRouter _router;
+  final CepPluginSink _cep;
+  final DigiaAnalyticsSink _digia;
 
   /// `cepCampaignId`s that have already fired a Digia first-render impression.
-  /// Outlives any single [DigiaSlot] widget, so revisiting a sticky slot does
-  /// not re-impress to Digia. Reset on slot invalidation via [resetImpression].
   final Set<String> _digiaImpressed = <String>{};
 
-  EngageEventEmitter(this._router);
+  /// `cepCampaignId`s that have already fired a Digia first-engagement click.
+  final Set<String> _digiaClicked = <String>{};
 
-  /// Emits [event] to the CEP plugin only.
-  void toCep(DigiaExperienceEvent event, CEPTriggerPayload payload) =>
-      _router.dispatch(event, payload, const {EventSinkId.cep});
+  EngageEventEmitter(this._cep, this._digia);
 
-  /// Emits [event] to Digia's first-party analytics only.
-  void toDigia(DigiaExperienceEvent event, CEPTriggerPayload payload) =>
-      _router.dispatch(event, payload, const {EventSinkId.digia});
-
-  /// Emits [event] to both destinations.
-  void toAll(DigiaExperienceEvent event, CEPTriggerPayload payload) =>
-      _router.dispatch(
-        event,
-        payload,
-        const {EventSinkId.digia, EventSinkId.cep},
-      );
-
-  /// Emits a Digia-only [ExperienceImpressed] for [payload] the first time its
-  /// campaign renders, deduped by `cepCampaignId`. CEP is impressed separately
-  /// and instantly at route time.
-  void digiaImpressionOnce(CEPTriggerPayload payload) {
-    if (!_digiaImpressed.add(payload.cepCampaignId)) return;
-    toDigia(const ExperienceImpressed(), payload);
+  /// Coarse signal to the CEP plugin only.
+  void toCep(DigiaExperienceEvent event, CEPTriggerPayload payload) {
+    _log(
+      "Event fired → CEP: $event | campaignKey=${payload.campaignKey} "
+      'cepCampaignId=${payload.cepCampaignId}',
+    );
+    _cep.deliver(event, payload);
   }
 
-  /// Forgets the impression mark for [cepCampaignId] so a later re-trigger of
-  /// the same campaign impresses afresh. Called on slot invalidation.
-  void resetImpression(String cepCampaignId) =>
-      _digiaImpressed.remove(cepCampaignId);
+  /// Rich analytics signal to Digia only.
+  void toDigia(EngageAnalyticsEvent event, CEPTriggerPayload payload) {
+    _log(
+      "Event fired → DIGIA: '${event.eventName}' (${event.runtimeType}) | "
+      'campaignKey=${payload.campaignKey} cepCampaignId=${payload.cepCampaignId} '
+      'properties=${event.properties}',
+    );
+    _digia.deliver(event, payload);
+  }
 
-  /// Forgets every impression mark.
-  void clearImpressions() => _digiaImpressed.clear();
+  /// Fires a coarse CEP signal and its rich Digia counterpart together.
+  void toBoth(
+    DigiaExperienceEvent cepEvent,
+    EngageAnalyticsEvent digiaEvent,
+    CEPTriggerPayload payload,
+  ) {
+    toCep(cepEvent, payload);
+    toDigia(digiaEvent, payload);
+  }
+
+  /// Records [event] (a campaign "Viewed") to Digia the first time its campaign
+  /// renders, deduped by `cepCampaignId`. CEP is impressed separately and
+  /// instantly at route time.
+  void digiaImpressionOnce(
+      CEPTriggerPayload payload, EngageAnalyticsEvent event) {
+    if (!_digiaImpressed.add(payload.cepCampaignId)) return;
+    toDigia(event, payload);
+  }
+
+  /// Records [event] (an experience-level "Clicked") to Digia the first time the
+  /// user engages with this campaign, deduped by `cepCampaignId`. Used for
+  /// inline widgets where the first item tap is the campaign's engagement
+  /// signal.
+  void digiaExperienceClickedOnce(
+    CEPTriggerPayload payload,
+    EngageAnalyticsEvent event,
+  ) {
+    if (!_digiaClicked.add(payload.cepCampaignId)) return;
+    toDigia(event, payload);
+  }
+
+  /// Forgets the impression + first-click marks so a later re-trigger re-arms
+  /// both.
+  void resetImpression(String cepCampaignId) {
+    _digiaImpressed.remove(cepCampaignId);
+    _digiaClicked.remove(cepCampaignId);
+  }
+
+  /// Forgets every impression + first-click mark.
+  void clearImpressions() {
+    _digiaImpressed.clear();
+    _digiaClicked.clear();
+  }
+
+  void _log(String message) {
+    if (kDebugMode) {
+      debugPrint('[Digia] $message');
+    }
+  }
 }

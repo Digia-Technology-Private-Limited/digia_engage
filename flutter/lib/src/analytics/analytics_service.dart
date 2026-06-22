@@ -8,9 +8,9 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../api/internal/digia_endpoints.dart';
+import '../../api/internal/event/engage_analytics_event.dart';
 import '../../api/models/analytics_config.dart';
 import '../../api/models/cep_trigger_payload.dart';
-import '../../api/models/digia_experience_event.dart';
 import '../sdk_version.dart';
 import 'analytics_device_info.dart';
 import 'analytics_identity_manager.dart';
@@ -162,9 +162,13 @@ class DigiaAnalyticsService {
     }
   }
 
-  /// Captures an experience event with campaign context
-  Future<void> captureExperienceEvent(
-    DigiaExperienceEvent event,
+  /// Captures a rich first-party analytics event.
+  ///
+  /// Records an [EngageAnalyticsEvent]'s own [EngageAnalyticsEvent.eventName]
+  /// and typed [EngageAnalyticsEvent.properties], merged with the static
+  /// context. These events are Digia-only and never reach a CEP plugin.
+  Future<void> capture(
+    EngageAnalyticsEvent event,
     CEPTriggerPayload payload, {
     String? campaignType,
     String? campaignId,
@@ -172,30 +176,54 @@ class DigiaAnalyticsService {
     if (!_enabled) return;
 
     try {
-      final occurredAt = DateTime.now().toUtc().toIso8601String();
-      final eventName = event.analyticsEventName;
-      final eventId = _uuid.v4();
-      await _identity.captureEventTime();
-
-      final eventPayload = _buildEventPayload(
-        eventId: eventId,
-        eventName: eventName,
-        occurredAt: occurredAt,
-        payload: payload,
-        event: event,
-        campaignType: campaignType,
+      await _enqueue(
+        eventName: event.eventName,
         campaignId: campaignId,
+        campaignKey: payload.campaignKey,
+        campaignType: campaignType,
+        properties: event.properties,
       );
-
-      await _queue.appendEvent(eventPayload, _config.queueMaxEvents);
-
-      if (await _queue.length() >= _config.flushBatchSize) {
-        await flush();
-      } else {
-        _scheduleTimer();
-      }
     } catch (error) {
-      _log('[Digia Analytics] captureExperienceEvent failed: $error');
+      _log('[Digia Analytics] capture failed: $error');
+    }
+  }
+
+  /// Builds the wire payload, enqueues it, and flushes or schedules dispatch by
+  /// batch size. Mirrors Android's `AnalyticsService.enqueue`.
+  Future<void> _enqueue({
+    required String eventName,
+    String? campaignId,
+    String? campaignKey,
+    String? campaignType,
+    Map<String, Object?> properties = const {},
+  }) async {
+    final eventId = _uuid.v4();
+    await _identity.captureEventTime();
+
+    final mergedProperties = <String, dynamic>{
+      ..._staticContext,
+      ...properties,
+    }..removeWhere((_, value) => value == null);
+
+    final payloadMap = <String, dynamic>{
+      'event_id': eventId,
+      'event_name': eventName,
+      'occurred_at': DateTime.now().toUtc().toIso8601String(),
+      if (campaignId != null) 'campaign_id': campaignId,
+      if (campaignKey != null) 'campaign_key': campaignKey,
+      if (campaignType != null) 'campaign_type': campaignType,
+      'anonymous_id': _identity.anonymousId,
+      'session_id': _identity.sessionId,
+      if (_identity.userId != null) 'user_id': _identity.userId,
+      'properties': mergedProperties,
+    };
+
+    await _queue.appendEvent(payloadMap, _config.queueMaxEvents);
+
+    if (await _queue.length() >= _config.flushBatchSize) {
+      await flush();
+    } else {
+      _scheduleTimer();
     }
   }
 
@@ -392,61 +420,6 @@ class DigiaAnalyticsService {
     }
 
     await _queue.removeByEventIds(eventIds);
-  }
-
-  Map<String, dynamic> _buildEventPayload({
-    required String eventId,
-    required String eventName,
-    required String occurredAt,
-    required CEPTriggerPayload payload,
-    required DigiaExperienceEvent event,
-    String? campaignType,
-    String? campaignId,
-  }) {
-    final eventSpecific = <String, dynamic>{};
-    if (event is ExperienceClicked) {
-      eventSpecific['element_id'] = event.elementId;
-    } else if (event is DigiaQuestionAnswered) {
-      eventSpecific['element_id'] = event.stepId;
-      if (event.answer.isNotEmpty) eventSpecific['answer'] = event.answer;
-    }
-
-    final metadata = payload.cepMetadata;
-    if (metadata['displayStyle'] is String) {
-      eventSpecific['display_style'] = metadata['displayStyle'];
-    }
-    if (metadata['anchorKey'] is String) {
-      eventSpecific['anchor_key'] = metadata['anchorKey'];
-    }
-    if (metadata['slotKey'] is String) {
-      eventSpecific['slot_key'] = metadata['slotKey'];
-    }
-
-    final mergedProperties = <String, dynamic>{
-      ...eventSpecific,
-      ..._staticContext,
-    };
-
-    if (payload.variables != null && payload.variables!.isNotEmpty) {
-      mergedProperties['variables'] = payload.variables;
-    }
-
-    mergedProperties.removeWhere((_, v) => v == null);
-
-    final payloadMap = {
-      'event_id': eventId,
-      'event_name': eventName,
-      'occurred_at': occurredAt,
-      'campaign_id': campaignId,
-      'campaign_key': payload.campaignKey,
-      'campaign_type': campaignType,
-      'properties': mergedProperties,
-      'anonymous_id': _identity.anonymousId,
-      'session_id': _identity.sessionId,
-      if (_identity.userId != null) 'user_id': _identity.userId,
-    };
-
-    return payloadMap;
   }
 
   /// Builds static context with device, OS, and app information

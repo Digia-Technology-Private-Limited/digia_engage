@@ -6,7 +6,9 @@ import '../../internal/action/engage_action.dart';
 import '../../internal/action/engage_action_context.dart';
 import '../../internal/action/engage_action_handler.dart';
 import '../../internal/campaign/inline_story_config.dart';
+import '../../internal/digia_instance.dart';
 import '../../internal/variable_scope.dart';
+import '../../models/cep_trigger_payload.dart';
 
 /// Pushes the full-screen story viewer for [config], starting at [initialIndex].
 ///
@@ -70,6 +72,18 @@ class _DigiaStoryOverlayState extends State<_DigiaStoryOverlay>
   late int _currentIndex;
   bool _paused = false;
 
+  /// The active trigger payload for this story's slot, resolved once at open.
+  /// Null disables analytics (e.g. the slot was invalidated mid-view).
+  CEPTriggerPayload? _payload;
+
+  /// Wall-clock ms when the overlay opened, for `time_to_complete_ms`.
+  int? _openedAtMs;
+
+  /// Ensures exactly one terminal event fires per showing: either
+  /// [DigiaInstance.reportStoryCompleted] (reached the end) or
+  /// [DigiaInstance.reportStoryStepDismissed] (closed early, in [dispose]).
+  bool _exitReported = false;
+
   /// Progress of the current item, 0..1. Fed by either the image animation or
   /// the video's playback position.
   double _progress = 0;
@@ -82,6 +96,8 @@ class _DigiaStoryOverlayState extends State<_DigiaStoryOverlay>
   void initState() {
     super.initState();
     _currentIndex = widget.initialIndex.clamp(0, _items.length - 1);
+    _payload = DigiaInstance.instance.controller.getSlot(widget.config.slotKey);
+    _openedAtMs = DateTime.now().millisecondsSinceEpoch;
     _imageController = AnimationController(vsync: this)
       ..addListener(_onImageTick)
       ..addStatusListener(_onImageStatus);
@@ -90,6 +106,18 @@ class _DigiaStoryOverlayState extends State<_DigiaStoryOverlay>
 
   @override
   void dispose() {
+    // Catch-all for early exits (swipe-down, CTA dismiss, system back): if no
+    // terminal event has fired yet, this close is a dismissal.
+    if (!_exitReported) {
+      _exitReported = true;
+      final payload = _payload;
+      if (payload != null) {
+        DigiaInstance.instance.reportStoryStepDismissed(
+          payload,
+          itemIndex: _currentIndex + 1,
+        );
+      }
+    }
     _imageController.dispose();
     _disposeVideo();
     super.dispose();
@@ -110,6 +138,17 @@ class _DigiaStoryOverlayState extends State<_DigiaStoryOverlay>
       _startVideo(item);
     } else {
       _startImage(item);
+    }
+
+    // Fired for every frame that becomes visible (first, advance, back, loop) —
+    // mirrors Android's per-frame StepViewed.
+    final payload = _payload;
+    if (payload != null) {
+      DigiaInstance.instance.reportStoryStepViewed(
+        payload,
+        itemIndex: index + 1,
+        itemTotal: _items.length,
+      );
     }
   }
 
@@ -173,11 +212,29 @@ class _DigiaStoryOverlayState extends State<_DigiaStoryOverlay>
   void _next() {
     if (_currentIndex < _items.length - 1) {
       _startItem(_currentIndex + 1);
-    } else if (widget.config.restartOnCompleted) {
-      _startItem(0);
     } else {
-      _dismiss();
+      _reportCompleted();
+      if (widget.config.restartOnCompleted) {
+        _startItem(0);
+      } else {
+        _dismiss();
+      }
     }
+  }
+
+  /// Fires the terminal "completed" event once, when the last frame is passed.
+  void _reportCompleted() {
+    if (_exitReported) return;
+    _exitReported = true;
+    final payload = _payload;
+    if (payload == null) return;
+    DigiaInstance.instance.reportStoryCompleted(
+      payload,
+      itemTotal: _items.length,
+      timeToCompleteMs: _openedAtMs == null
+          ? null
+          : DateTime.now().millisecondsSinceEpoch - _openedAtMs!,
+    );
   }
 
   void _previous() {
@@ -223,8 +280,18 @@ class _DigiaStoryOverlayState extends State<_DigiaStoryOverlay>
 
   void _onCtaTap() {
     final item = _current;
-    final actions = <EngageAction>[];
     final action = item.ctaAction;
+    final payload = _payload;
+    if (payload != null) {
+      DigiaInstance.instance.reportStoryStepClicked(
+        payload,
+        itemIndex: _currentIndex + 1,
+        ctaLabel: item.ctaText,
+        actionType: action?.type,
+        actionUrl: action?.url,
+      );
+    }
+    final actions = <EngageAction>[];
     final url = action?.url;
     if (url != null && url.isNotEmpty) {
       switch (action!.type) {
@@ -293,14 +360,16 @@ class _DigiaStoryOverlayState extends State<_DigiaStoryOverlay>
                 child: SafeArea(
                   top: false,
                   child: Padding(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 24, vertical: 20),
                     child: _StoryCtaButton(
-                      text: VariableScopeProvider.of(context).resolve(item.ctaText!),
-                      textColor: _parseHexColor(item.ctaTextColor) ??
-                          Colors.white,
-                      backgroundColor: _parseHexColor(item.ctaBackgroundColor) ??
-                          const Color(0xFF4945FF),
+                      text: VariableScopeProvider.of(context)
+                          .resolve(item.ctaText!),
+                      textColor:
+                          _parseHexColor(item.ctaTextColor) ?? Colors.white,
+                      backgroundColor:
+                          _parseHexColor(item.ctaBackgroundColor) ??
+                              const Color(0xFF4945FF),
                       cornerRadius: item.ctaCornerRadius.toDouble(),
                       onTap: _onCtaTap,
                     ),
