@@ -337,27 +337,36 @@ class _NpsFaceQuestion extends StatelessWidget {
     final labelWeight = surveyFontWeight(nps.textStyle.weight);
     final labelSize = nps.textStyle.sizePx > 0 ? nps.textStyle.sizePx : 13.0;
     final selectedValue = int.tryParse(answer?.values.firstOrNull ?? '');
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        for (var index = 0; index < faces.length; index++) ...[
-          if (index > 0) const SizedBox(width: 10),
-          _faceTile(
-            face: faces[index],
-            value: index + 1,
-            isOn: selectedValue == index + 1,
-            nps: nps,
-            sel: sel,
-            baseBg: baseBg,
-            baseBorder: baseBorder,
-            baseRadius: baseRadius,
-            selRadius: selRadius,
-            labelColor: labelColor,
-            labelWeight: labelWeight,
-            labelSize: labelSize,
-          ),
+    if (faces.isEmpty) return const SizedBox.shrink();
+    // Single centred row (like Android/iOS): lay the faces out at natural size
+    // and let FittedBox scale the row down to fit when the 5-face emoji scale
+    // would overflow a narrow panel. `scaleDown` never enlarges, so the 3-face
+    // smiley scale stays full-size.
+    return FittedBox(
+      fit: BoxFit.scaleDown,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          for (var index = 0; index < faces.length; index++) ...[
+            if (index > 0) const SizedBox(width: 10),
+            _faceTile(
+              face: faces[index],
+              value: index + 1,
+              isOn: selectedValue == index + 1,
+              nps: nps,
+              sel: sel,
+              baseBg: baseBg,
+              baseBorder: baseBorder,
+              baseRadius: baseRadius,
+              selRadius: selRadius,
+              labelColor: labelColor,
+              labelWeight: labelWeight,
+              labelSize: labelSize,
+            ),
+          ],
         ],
-      ],
+      ),
     );
   }
 
@@ -434,14 +443,22 @@ class _ReactionQuestion extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final selectedId = answer?.values.firstOrNull;
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        for (var i = 0; i < block.options.length; i++) ...[
-          if (i > 0) const SizedBox(width: 10),
-          _reactionTile(block.options[i], selectedId == block.options[i].id),
+    if (block.options.isEmpty) return const SizedBox.shrink();
+    // Keep the tiles on a single centred row (like Android): lay them out at the
+    // natural 64px size and let FittedBox scale the whole row down to fit the
+    // width when there are too many. `scaleDown` never enlarges, so a few options
+    // stay full-size; the emoji and gaps scale with the row automatically.
+    return FittedBox(
+      fit: BoxFit.scaleDown,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          for (var i = 0; i < block.options.length; i++) ...[
+            if (i > 0) const SizedBox(width: 10),
+            _reactionTile(block.options[i], selectedId == block.options[i].id),
+          ],
         ],
-      ],
+      ),
     );
   }
 
