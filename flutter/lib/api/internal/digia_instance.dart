@@ -16,6 +16,9 @@ import 'event/dwell_tracker.dart';
 import 'event/engage_analytics_event.dart';
 import 'event/engage_event_emitter.dart';
 import 'nudge/nudge_config.dart';
+import 'guide/anchor_registry.dart';
+import 'guide/guide_orchestrator.dart';
+import 'guide/guide_showcase_manager.dart';
 import 'sdk_state.dart';
 import 'survey/submission_reporter.dart';
 import 'survey/survey_config.dart';
@@ -66,6 +69,28 @@ class DigiaInstance with WidgetsBindingObserver implements DigiaCEPDelegate {
   /// [DigiaHost] mounts the survey renderer against it.
   final SurveyOrchestrator _surveyOrchestrator = SurveyOrchestrator();
   SurveyOrchestrator get surveyOrchestrator => _surveyOrchestrator;
+
+  /// Holds the single active guide. Mirrors Android's `GuideOrchestrator`;
+  /// `GuideRenderer` (mounted by [DigiaHost]) drives it.
+  final GuideOrchestrator _guideOrchestrator = GuideOrchestrator();
+  GuideOrchestrator get guideOrchestrator => _guideOrchestrator;
+
+  /// Maps campaign `anchorKey`s to the `Showcase` [GlobalKey]s `DigiaAnchor`
+  /// builds. Shared by `DigiaAnchor` and [GuideShowcaseManager].
+  final AnchorRegistry _anchorRegistry = AnchorRegistry();
+  AnchorRegistry get anchorRegistry => _anchorRegistry;
+
+  /// Bridges the guide orchestrator to the showcaseview engine. Constructed
+  /// lazily on first access (registers the `ShowcaseView` controller and starts
+  /// listening to [_guideOrchestrator]); `DigiaAnchor` reads it to present steps.
+  late final GuideShowcaseManager _guideManager = GuideShowcaseManager(
+    orchestrator: _guideOrchestrator,
+    registry: _anchorRegistry,
+    events: () => _events,
+    dwell: _dwellTracker,
+    screenName: () => _currentScreen,
+  );
+  GuideShowcaseManager get guideManager => _guideManager;
 
   /// Posts completed-survey answers to the backend. Created during [initialize]
   /// once the device id is known. Mirrors Android's `submissionReporter`.
@@ -131,6 +156,10 @@ class DigiaInstance with WidgetsBindingObserver implements DigiaCEPDelegate {
     EngageFonts.fontFamily = config.fontFamily;
 
     WidgetsBinding.instance.addObserver(this);
+
+    // Construct the guide manager now so it registers the showcase controller
+    // and listens to the orchestrator before any campaign is routed.
+    _guideManager;
 
     // The whole init runs under one guard (mirrors Android's DigiaInstance):
     // any failure leaves the SDK in [SDKState.failed] and resets the
@@ -339,9 +368,21 @@ class DigiaInstance with WidgetsBindingObserver implements DigiaCEPDelegate {
             'another survey is on screen.',
           );
           return false;
+        } else {
+          _logIfVerbose(
+              'survey scheduled (campaignKey=${campaign.campaignKey}).');
+          return true;
         }
-        _logIfVerbose(
-            'survey scheduled (campaignKey=${campaign.campaignKey}).');
+      case GuideCampaignConfig():
+        final started = _guideOrchestrator.start(campaign, payload);
+        if (!started) {
+          debugPrint(
+            "[Digia] guide campaign '${campaign.campaignKey}' dropped: "
+            'another guide is on screen, or it has no steps.',
+          );
+          return false;
+        }
+        _logIfVerbose('guide scheduled (campaignKey=${campaign.campaignKey}).');
         return true;
       case UnsupportedCampaignConfig(:final reason):
         debugPrint(
@@ -393,6 +434,10 @@ class DigiaInstance with WidgetsBindingObserver implements DigiaCEPDelegate {
     // Active survey, if this campaign triggered it.
     if (_surveyOrchestrator.state?.payload.cepCampaignId == campaignId) {
       _surveyOrchestrator.dismiss();
+    }
+    // Active guide, if this campaign triggered it.
+    if (_guideOrchestrator.state?.payload.cepCampaignId == campaignId) {
+      _guideOrchestrator.dismiss();
     }
     // Inline slot (carousel or story), if this campaign populated one.
     _controller.removeInlineSlotByCampaignId(campaignId);

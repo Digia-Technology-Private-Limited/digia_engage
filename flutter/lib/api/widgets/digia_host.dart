@@ -97,12 +97,8 @@ class _DigiaHostState extends State<DigiaHost> {
           _presentNudge(campaign, nudgeConfig);
         case InlineCarouselCampaignConfig():
         case InlineStoryCampaignConfig():
-          // Inline campaigns are handled by DigiaSlot — nothing to do here.
-          _controller.dismiss();
         case SurveyCampaignConfig():
-          // Surveys are driven by the SurveyOrchestrator + SurveyRenderer, not
-          // the overlay-controller path — nothing to present here.
-          _controller.dismiss();
+        case GuideCampaignConfig():
         case UnsupportedCampaignConfig():
           _controller.dismiss();
       }

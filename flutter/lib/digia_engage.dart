@@ -11,6 +11,7 @@ export 'package:digia_engage/api/models/analytics_config.dart';
 export 'package:digia_engage/api/models/cep_trigger_payload.dart';
 export 'package:digia_engage/api/models/digia_config.dart';
 export 'package:digia_engage/api/models/digia_experience_event.dart';
+export 'package:digia_engage/api/widgets/digia_anchor.dart';
 export 'package:digia_engage/api/widgets/digia_host.dart';
 export 'package:digia_engage/api/widgets/digia_navigator_observer.dart';
 export 'package:digia_engage/api/widgets/digia_slot.dart';

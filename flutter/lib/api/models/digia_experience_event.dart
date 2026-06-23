@@ -35,21 +35,6 @@ class ExperienceClicked extends DigiaExperienceEvent {
   String get analyticsEventName => 'Digia Experience Clicked';
 }
 
-/// The user answered a survey question (any question other than the welcome
-/// screen). First-party Digia analytics only.
-class DigiaQuestionAnswered extends DigiaExperienceEvent {
-  /// Identifier of the answered question node.
-  final String? stepId;
-
-  /// The submitted answer, serialised for analytics.
-  final Map<String, dynamic> answer;
-
-  const DigiaQuestionAnswered({this.stepId, this.answer = const {}});
-
-  @override
-  String get analyticsEventName => 'Digia Question Answered';
-}
-
 /// The experience was dismissed — by the user or programmatically.
 /// Map to: CleverTap dismissTemplate, MoEngage trackDismissed
 class ExperienceDismissed extends DigiaExperienceEvent {
@@ -57,18 +42,6 @@ class ExperienceDismissed extends DigiaExperienceEvent {
 
   @override
   String get analyticsEventName => 'Digia Experience Dismissed';
-
-  @override
-  bool get flushOnCapture => true;
-}
-
-/// The user completed the experience.
-/// Map to: completion analytics semantics.
-class ExperienceCompleted extends DigiaExperienceEvent {
-  const ExperienceCompleted();
-
-  @override
-  String get analyticsEventName => 'Digia Experience Completed';
 
   @override
   bool get flushOnCapture => true;
