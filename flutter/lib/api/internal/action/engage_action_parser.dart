@@ -8,6 +8,7 @@ import 'engage_action.dart';
 /// be consumed by the native action engine:
 ///   • `Action.openUrl`        → url (external) or deeplink, by `launchMode`
 ///   • `Action.share`          → share
+///   • `Action.copyToClipBoard` → copy to clipboard
 ///   • `Action.hideBottomSheet` / `Action.dismissDialog` → dismiss
 class EngageActionParser {
   const EngageActionParser();
@@ -31,12 +32,25 @@ class EngageActionParser {
             ? OpenUrlAction(url)
             : OpenDeeplinkAction(url);
       case 'Action.share':
-        return ShareAction(optString(data, 'message'));
+        final text = _text(data);
+        return text.isEmpty ? null : ShareAction(text);
+      case 'Action.copyToClipBoard':
+        final text = _text(data);
+        return text.isEmpty ? null : CopyToClipboardAction(text);
       case 'Action.hideBottomSheet':
       case 'Action.dismissDialog':
         return const HideAction();
       default:
         return null;
     }
+  }
+
+  /// The action's text payload — canonical `message`, with `text`/`value` fallbacks.
+  String _text(Map<String, dynamic> data) {
+    for (final key in const ['message', 'text', 'value']) {
+      final value = optString(data, key);
+      if (value.isNotEmpty) return value;
+    }
+    return '';
   }
 }

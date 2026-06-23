@@ -278,19 +278,17 @@ class _DigiaStoryOverlayState extends State<_DigiaStoryOverlay>
 
   // ─── CTA ─────────────────────────────────────────────────────────────────────
 
-  void _onCtaTap() {
+  void _onCtaTap() async {
     final item = _current;
     final action = item.ctaAction;
+    // Capture the report fields + scope before running: the trailing HideAction
+    // dismisses (and disposes) this overlay, and the click is reported only once
+    // the actions run successfully.
     final payload = _payload;
-    if (payload != null) {
-      DigiaInstance.instance.reportStoryStepClicked(
-        payload,
-        itemIndex: _currentIndex + 1,
-        ctaLabel: item.ctaText,
-        actionType: action?.type,
-        actionUrl: action?.url,
-      );
-    }
+    final itemIndex = _currentIndex + 1;
+    final ctaLabel = item.ctaText;
+    final scope = EngageActionScope.fromContext(context);
+
     final actions = <EngageAction>[];
     final url = action?.url;
     if (url != null && url.isNotEmpty) {
@@ -303,11 +301,20 @@ class _DigiaStoryOverlayState extends State<_DigiaStoryOverlay>
     }
     // Always dismiss after the (optional) link, matching Android's CTA handler.
     actions.add(const HideAction());
-    EngageActionRunner.shared.run(
-      actions,
-      EngageActionScope.fromContext(context),
-      widget.actionContext,
-    );
+    try {
+      await EngageActionRunner.shared.run(actions, scope, widget.actionContext);
+    } catch (_) {
+      return; // action failed → no click reported
+    }
+    if (payload != null) {
+      DigiaInstance.instance.reportStoryStepClicked(
+        payload,
+        itemIndex: itemIndex,
+        ctaLabel: ctaLabel,
+        actionType: action?.type,
+        actionUrl: action?.url,
+      );
+    }
   }
 
   // ─── Build ─────────────────────────────────────────────────────────────────

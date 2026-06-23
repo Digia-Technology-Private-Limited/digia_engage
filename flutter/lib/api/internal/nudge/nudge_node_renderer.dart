@@ -165,17 +165,25 @@ final class NudgeButtonRenderer extends NudgeNodeRenderer<NudgeButton> {
     );
   }
 
-  /// Builds the tap handler. Every CTA tap (primary or secondary) emits a
-  /// `NudgeClicked` analytics event — `cta_role` distinguishes them, matching
-  /// the Engage matrix — before running its actions. A button with neither
-  /// actions nor the primary flag is inert.
+  /// Builds the tap handler. A CTA tap emits a `NudgeClicked` event (`cta_role`
+  /// distinguishes primary from secondary, matching the Engage matrix) only
+  /// *after* its actions run successfully; a button with no actions is inert, and
+  /// an action that throws (e.g. an un-launchable URL) reports nothing.
   VoidCallback? _onTap(NudgeButton node, BuildContext context) {
-    final hasActions = node.actions.isNotEmpty;
-    if (!hasActions && !node.isPrimary) return null;
-    return () {
+    if (node.actions.isEmpty) return null;
+    return () async {
+      // Capture the scope before running: a dismiss action unmounts the context.
       final payload = DigiaInstance.instance.controller.activePayload;
+      final scope = EngageActionScope.fromContext(context);
+      final actionContext =
+          EngageActionContextScope.of(context) ?? EngageActionContext.unknown;
+      try {
+        await EngageActionRunner.shared.run(node.actions, scope, actionContext);
+      } catch (_) {
+        return; // action failed → not a successful click; report nothing.
+      }
       if (payload != null) {
-        final action = hasActions ? node.actions.first : null;
+        final action = node.actions.first;
         DigiaInstance.instance.reportNudgeClicked(
           payload,
           elementId: node.isPrimary ? 'cta_primary' : 'cta_secondary',
@@ -183,13 +191,6 @@ final class NudgeButtonRenderer extends NudgeNodeRenderer<NudgeButton> {
           actionType: _nudgeActionType(action),
           actionUrl: _nudgeActionUrl(action),
           ctaRole: node.isPrimary ? 'primary' : 'secondary',
-        );
-      }
-      if (hasActions) {
-        EngageActionRunner.shared.run(
-          node.actions,
-          EngageActionScope.fromContext(context),
-          EngageActionContextScope.of(context) ?? EngageActionContext.unknown,
         );
       }
     };
