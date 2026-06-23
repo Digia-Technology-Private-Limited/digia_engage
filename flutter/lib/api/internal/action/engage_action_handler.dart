@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/services.dart' show Clipboard, ClipboardData;
 import 'package:flutter/widgets.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -22,10 +23,14 @@ class EngageActionScope {
   /// Present the native share sheet.
   final Future<void> Function(String text) share;
 
+  /// Copy text to the system clipboard.
+  final Future<void> Function(String text) copy;
+
   const EngageActionScope({
     required this.dismiss,
     required this.openUri,
     required this.share,
+    required this.copy,
   });
 
   /// Default binding from a tap's [context] (inside the surface's modal route).
@@ -43,6 +48,7 @@ class EngageActionScope {
       share: (text) => SharePlus.instance.share(
         ShareParams(text: text, sharePositionOrigin: shareOrigin),
       ),
+      copy: (text) => Clipboard.setData(ClipboardData(text: text)),
     );
   }
 
@@ -94,6 +100,7 @@ class EngageActionRunner {
     OpenDeeplinkHandler(),
     HideHandler(),
     ShareHandler(),
+    CopyToClipboardHandler(),
   ];
 
   /// The default runner — handlers are stateless, so one instance is shared.
@@ -182,5 +189,14 @@ final class ShareHandler extends EngageActionHandler<ShareAction> {
   @override
   Future<void> run(ShareAction action, EngageActionScope scope) async {
     if (action.text.isNotEmpty) await scope.share(action.text);
+  }
+}
+
+final class CopyToClipboardHandler extends EngageActionHandler<CopyToClipboardAction> {
+  const CopyToClipboardHandler();
+
+  @override
+  Future<void> run(CopyToClipboardAction action, EngageActionScope scope) async {
+    if (action.text.isNotEmpty) await scope.copy(action.text);
   }
 }
