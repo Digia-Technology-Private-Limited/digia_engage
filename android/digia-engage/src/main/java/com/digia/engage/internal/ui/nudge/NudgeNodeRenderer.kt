@@ -73,6 +73,7 @@ import com.airbnb.lottie.compose.animateLottieCompositionAsState
 import com.airbnb.lottie.compose.rememberLottieComposition
 import com.digia.engage.internal.DigiaFontConfig
 import com.digia.engage.internal.DigiaInstance
+import com.digia.engage.internal.VariableContext
 import com.digia.engage.internal.interpolate
 import com.digia.engage.internal.logging.Logger
 import com.digia.engage.internal.model.CopyToClipboardAction
@@ -96,11 +97,11 @@ import com.digia.engage.internal.model.OpenUrlAction
 import com.digia.engage.internal.model.ShareAction
 import kotlinx.coroutines.delay
 
-/// Carries the active nudge's variables down the render tree so each leaf can
-/// interpolate `{{ placeholder }}` copy at draw time, without threading the map
-/// through every widget. Mirrors Flutter's `VariableScopeProvider`. Null/empty
-/// means every placeholder collapses to empty (see [interpolate]).
-internal val LocalNudgeVariables = compositionLocalOf<Map<String, String>?> { null }
+/// Carries the active nudge's variable context down the render tree so each leaf can
+/// interpolate `{{ placeholder }}` copy at draw time, without threading the context
+/// through every widget. Mirrors Flutter's `VariableScopeProvider`. Null means
+/// every placeholder collapses to empty (see [interpolate]).
+internal val LocalNudgeVariables = compositionLocalOf<VariableContext?> { null }
 
 @Composable
 internal fun NudgeColumnContent(

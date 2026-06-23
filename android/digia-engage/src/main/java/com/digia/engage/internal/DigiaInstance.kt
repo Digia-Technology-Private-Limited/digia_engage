@@ -799,16 +799,15 @@ internal object DigiaInstance : DigiaCEPDelegate {
         when (campaign.campaignType) {
             "guide" -> {
                 dwellTracker.markViewed(payload.cepCampaignId)
-                guideOrchestrator.start(campaign, payload)
+                val guideContext = buildVariableContext(campaign.variableSchemas, payload.variables)
+                guideOrchestrator.start(campaign, payload, guideContext)
             }
             "nudge" -> {
                 val nudgeConfig =
                         campaign.nudgeConfig
                                 ?: error("unexpected config for nudge campaign '$campaignKey'")
-                // Merge dashboard defaults with the CEP trigger's variables (CEP
-                // wins), matching Flutter's `{...defaultVariables, ...payload.variables}`.
-                val variables = campaign.defaultVariables + (payload.variables ?: emptyMap())
-                displayCoordinator.routeNudge(nudgeConfig, payload, variables)
+                val context = buildVariableContext(campaign.variableSchemas, payload.variables)
+                displayCoordinator.routeNudge(nudgeConfig, payload, context)
             }
             "inline" -> {
                 when (val cfg = campaign.config) {

@@ -1,0 +1,103 @@
+[
+  {
+    "description": "plain string var from CEP",
+    "expr": "name",
+    "vars": { "name": { "type": "string", "value": "Alex" } },
+    "out": "Alex"
+  },
+  {
+    "description": "empty CEP value falls through to _fallback",
+    "expr": "name",
+    "vars": { "name": { "type": "string", "value": "" }, "_fallback": { "name": "Anon" } },
+    "out": "Anon"
+  },
+  {
+    "description": "no CEP value and no fallback — empty string",
+    "expr": "name",
+    "vars": {},
+    "out": ""
+  },
+  {
+    "description": "BODMAS: a + b*c = a + (b*c)",
+    "expr": "a + b*c",
+    "vars": {
+      "a": { "type": "number", "value": "2" },
+      "b": { "type": "number", "value": "3" },
+      "c": { "type": "number", "value": "4" }
+    },
+    "out": "14"
+  },
+  {
+    "description": "BODMAS: a*b + c = (a*b) + c",
+    "expr": "a*b + c",
+    "vars": {
+      "a": { "type": "number", "value": "2" },
+      "b": { "type": "number", "value": "3" },
+      "c": { "type": "number", "value": "4" }
+    },
+    "out": "10"
+  },
+  {
+    "description": "decimal mul rounds to 4 dp, strip trailing zeros",
+    "expr": "price * 1.18",
+    "vars": { "price": { "type": "number", "value": "99" } },
+    "out": "116.82"
+  },
+  {
+    "description": "10/3 rounds to 4 dp",
+    "expr": "10 / 3",
+    "vars": {},
+    "out": "3.3333"
+  },
+  {
+    "description": "exact division strips trailing zeros",
+    "expr": "4 / 2",
+    "vars": {},
+    "out": "2"
+  },
+  {
+    "description": "floating-point 0.1+0.2 rounds to 0.3",
+    "expr": "0.1 + 0.2",
+    "vars": {},
+    "out": "0.3"
+  },
+  {
+    "description": "unary minus on variable",
+    "expr": "-a + b",
+    "vars": {
+      "a": { "type": "number", "value": "5" },
+      "b": { "type": "number", "value": "8" }
+    },
+    "out": "3"
+  },
+  {
+    "description": "unary minus on literal",
+    "expr": "a * -2",
+    "vars": { "a": { "type": "number", "value": "5" } },
+    "out": "-10"
+  },
+  {
+    "description": "division by zero — empty string",
+    "expr": "a / b",
+    "vars": {
+      "a": { "type": "number", "value": "5" },
+      "b": { "type": "number", "value": "0" }
+    },
+    "out": ""
+  },
+  {
+    "description": "non-numeric CEP value in arithmetic — empty string",
+    "expr": "a + b",
+    "vars": {
+      "a": { "type": "number", "value": "x" },
+      "b": { "type": "number", "value": "2" }
+    },
+    "out": ""
+  },
+  {
+    "description": "variable missing from schema — empty string",
+    "expr": "a + b",
+    "vars": { "a": { "type": "number", "value": "2" } },
+    "out": ""
+  }
+]
