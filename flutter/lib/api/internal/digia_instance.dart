@@ -8,6 +8,7 @@ import 'action/engage_action_handler.dart';
 import 'campaign/campaign_fetcher.dart';
 import 'campaign/campaign_model.dart';
 import 'campaign/campaign_store.dart';
+import 'digia_endpoints.dart';
 import 'digia_overlay_controller.dart';
 import 'engage_fonts.dart';
 import 'event/cep_plugin_sink.dart';
@@ -167,6 +168,9 @@ class DigiaInstance with WidgetsBindingObserver implements DigiaCEPDelegate {
     try {
       // Register the host's action override (if any) on the shared runner.
       EngageActionRunner.shared.interceptor = config.onAction;
+
+      // ── Resolve base URL (sandbox → dev.digia.tech, prod → app.digia.tech) ─
+      DigiaEndpoints.configure(config);
 
       // ── Fetch + cache engage campaigns ──────────────────────────────────
       await PreferencesStore.instance.initialize();
