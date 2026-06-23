@@ -147,24 +147,32 @@ class _DigiaSlotState extends State<DigiaSlot> {
     );
   }
 
-  void _onCarouselItemTap(CarouselItem item) {
+  void _onCarouselItemTap(CarouselItem item) async {
+    // No deeplink → no action to run → nothing to report.
+    final deepLink = item.deepLink;
+    if (deepLink == null || deepLink.isEmpty) return;
+    // Snapshot the payload + scope before running; report only on success.
     final payload = _slotPayload;
+    final scope = EngageActionScope.fromContext(context);
+    final actionContext = _actionContext();
+    try {
+      // The deeplink arrives already resolved against the slot's [VariableScope]
+      // (see DigiaInlineCarousel), so it only needs to be opened here.
+      await EngageActionRunner.shared.run(
+        [OpenDeeplinkAction(deepLink)],
+        scope,
+        actionContext,
+      );
+    } catch (_) {
+      return; // action failed → no click reported
+    }
     if (payload != null) {
       DigiaInstance.instance.reportCarouselStepClicked(
         payload,
         itemIndex: _carouselIndex + 1,
-        actionUrl: item.deepLink,
+        actionUrl: deepLink,
       );
     }
-    // The deeplink arrives already resolved against the slot's [VariableScope]
-    // (see DigiaInlineCarousel), so it only needs to be opened here.
-    final deepLink = item.deepLink;
-    if (deepLink == null || deepLink.isEmpty) return;
-    EngageActionRunner.shared.run(
-      [OpenDeeplinkAction(deepLink)],
-      EngageActionScope.fromContext(context),
-      _actionContext(),
-    );
   }
 
   /// Wraps inline content in the slot's [VariableScope], built from the trigger
