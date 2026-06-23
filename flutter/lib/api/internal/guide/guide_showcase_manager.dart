@@ -92,6 +92,11 @@ class GuideShowcaseManager {
   int? _shownToken;
   bool _finishing = false;
 
+  /// True while a delayed step transition (a button next/prev waiting out the
+  /// target step's `delayInMs`) is pending, so a second tap can't queue a second
+  /// advance. Cleared when the next step actually shows.
+  bool _advancing = false;
+
   /// The `anchorKey`s actually shown this session, in showcase order — parallel
   /// to the keys handed to `startShowCase`, so an `onStart` index maps back to
   /// its anchor (and through it, the full-config step index). Rebuilt per guide.
@@ -165,7 +170,21 @@ class GuideShowcaseManager {
       _activeAnchorKeys = shownAnchorKeys;
       _currentItemIndex = 1;
       _currentShownIndex = 0;
-      _view.startShowCase(keys);
+      _advancing = false;
+      // Honor the first step's `delayInMs` before the guide appears (RN waits
+      // the step's delay before measuring/showing it). Token-guarded so a guide
+      // swapped out during the wait doesn't pop in late.
+      final firstDelay = shownAnchorKeys.isEmpty
+          ? 0
+          : _stepDelayMs(state.config, shownAnchorKeys.first);
+      if (firstDelay <= 0) {
+        _view.startShowCase(keys);
+      } else {
+        Future<void>.delayed(Duration(milliseconds: firstDelay), () {
+          if (_orchestrator.state?.token != state.token) return;
+          _view.startShowCase(keys);
+        });
+      }
     });
   }
 
@@ -195,8 +214,8 @@ class GuideShowcaseManager {
       final step = _firstWhere(config.steps, (s) => s.anchorKey == anchorKey);
       if (step == null) return null;
       return ShowcasePresentation(
-        container:
-            GuideBubble.tooltip(step: step, scope: scope, onAction: handleAction),
+        container: GuideBubble.tooltip(
+            step: step, scope: scope, onAction: handleAction),
         // Tooltip = no dim (RN renders the bubble over a transparent scrim).
         overlayColor: const Color(0x00000000),
         overlayOpacity: 0,
@@ -241,9 +260,9 @@ class GuideShowcaseManager {
   void handleAction(GuideAction action) {
     final state = _orchestrator.state;
     if (state == null) return;
-    // Coarse click to the CEP plugin; the rich, step-keyed signal to Digia.
-    _events().toBoth(
-      ExperienceClicked(elementId: action.label),
+    // Guides only have Step Clicked in the matrix (no Experience Clicked), so
+    // the click is Digia analytics only — never forwarded to the CEP plugin.
+    _events().toDigia(
       GuideStepClicked(
         itemIndex: _currentItemIndex,
         ctaLabel: action.label,
@@ -255,11 +274,11 @@ class GuideShowcaseManager {
 
     switch (action.type) {
       case GuideActionType.next:
-        _view.next();
+        _transition(forward: true);
         break;
       case GuideActionType.back:
       case GuideActionType.prev:
-        _view.previous();
+        _transition(forward: false);
         break;
       case GuideActionType.dismiss:
         _view.dismiss();
@@ -274,6 +293,49 @@ class GuideShowcaseManager {
         // Custom analytics event — not yet bridged to the Flutter event model.
         break;
     }
+  }
+
+  /// Advances (or rewinds) the showcase, honoring the destination step's
+  /// `delayInMs` before it appears — mirroring RN, which waits the step's delay
+  /// on every entry (forward or back) before showing it. A pending delayed
+  /// transition swallows further taps ([_advancing]); leaving the active
+  /// sequence (a completion) carries no delay.
+  void _transition({required bool forward}) {
+    final state = _orchestrator.state;
+    if (state == null || _advancing) return;
+    final targetIndex = forward ? _currentShownIndex + 1 : _currentShownIndex - 1;
+    final delayMs = (targetIndex >= 0 && targetIndex < _activeAnchorKeys.length)
+        ? _stepDelayMs(state.config, _activeAnchorKeys[targetIndex])
+        : 0;
+    if (delayMs <= 0) {
+      _runTransition(forward);
+      return;
+    }
+    _advancing = true;
+    Future<void>.delayed(Duration(milliseconds: delayMs), () {
+      if (_orchestrator.state?.token != state.token) {
+        _advancing = false;
+        return;
+      }
+      _runTransition(forward);
+    });
+  }
+
+  void _runTransition(bool forward) =>
+      forward ? _view.next() : _view.previous();
+
+  /// The configured `delayInMs` for the step targeting [anchorKey], or 0.
+  static int _stepDelayMs(GuideConfig config, String anchorKey) {
+    if (config is TooltipGuideConfig) {
+      for (final s in config.steps) {
+        if (s.anchorKey == anchorKey) return s.delayInMs ?? 0;
+      }
+    } else if (config is SpotlightGuideConfig) {
+      for (final s in config.steps) {
+        if (s.anchorKey == anchorKey) return s.delayInMs ?? 0;
+      }
+    }
+    return 0;
   }
 
   void _runLink(LinkAction action, ActiveGuideState state) {
@@ -308,6 +370,7 @@ class GuideShowcaseManager {
     final state = _orchestrator.state;
     if (state == null) return;
     _currentShownIndex = index;
+    _advancing = false;
     final anchorKey = (index >= 0 && index < _activeAnchorKeys.length)
         ? _activeAnchorKeys[index]
         : null;
@@ -371,8 +434,7 @@ class GuideShowcaseManager {
     // an advance-past-last (`completed == true`) does not. Step-level dismiss is
     // Digia-only — the coarse channel has no per-step dismiss.
     if (reachedEnd) {
-      _events().toBoth(
-        const ExperienceCompleted(),
+      _events().toDigia(
         GuideCompleted(itemTotal: total, timeToCompleteMs: elapsedMs),
         state.payload,
       );
@@ -458,7 +520,8 @@ class GuideShowcaseManager {
       case 'circle':
         return const CircleBorder();
       case 'pill':
-        return RoundedRectangleBorder(borderRadius: BorderRadius.circular(9999));
+        return RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(9999));
       case 'rect':
       default:
         return RoundedRectangleBorder(

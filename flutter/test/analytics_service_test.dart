@@ -192,13 +192,10 @@ void main() {
         equals('Digia Experience Clicked'));
     expect(const ExperienceDismissed().analyticsEventName,
         equals('Digia Experience Dismissed'));
-    expect(const ExperienceCompleted().analyticsEventName,
-        equals('Digia Experience Completed'));
 
     expect(const ExperienceImpressed().flushOnCapture, isFalse);
     expect(const ExperienceClicked().flushOnCapture, isFalse);
     expect(const ExperienceDismissed().flushOnCapture, isTrue);
-    expect(const ExperienceCompleted().flushOnCapture, isTrue);
   });
 
   test('flushes immediately when queue reaches flushBatchSize', () async {
