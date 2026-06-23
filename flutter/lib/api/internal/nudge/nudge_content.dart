@@ -117,9 +117,10 @@ class NudgeButton extends NudgeNode {
   /// Ordered actions to run on tap (may be empty). Run by EngageActionRunner.
   final List<EngageAction> actions;
 
-  /// Marks this as the experience's primary call-to-action. Tapping a primary
-  /// button emits an `ExperienceClicked` analytics event (in addition to running
-  /// any [actions]); non-primary buttons only run their actions.
+  /// Marks this as the experience's primary call-to-action, distinguishing the
+  /// emitted click (`cta_primary` vs `cta_secondary`). A button tap emits an
+  /// `ExperienceClicked` event only after its [actions] run successfully; a
+  /// button with no [actions], or one whose action throws, emits nothing.
   final bool isPrimary;
 
   const NudgeButton(
