@@ -101,6 +101,12 @@ class _DigiaAnchorState extends State<DigiaAnchor> {
       disableMovingAnimation: true,
       // The bubble's own buttons drive the flow; don't hijack target taps.
       disableDefaultTargetGestures: true,
+      // Honor the campaign's `outsideTapBehavior`: 'nothing' makes scrim taps
+      // inert so they can't silently advance/complete the guide (only the bubble
+      // buttons do); 'dismiss' routes a scrim tap to dismissal; 'next' (default)
+      // leaves the engine's advance behavior.
+      disableBarrierInteraction: p.disableBarrierInteraction,
+      onBarrierClick: p.onBarrierClick,
       child: widget.child,
     );
   }

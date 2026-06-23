@@ -87,6 +87,8 @@ class DigiaInstance with WidgetsBindingObserver implements DigiaCEPDelegate {
     orchestrator: _guideOrchestrator,
     registry: _anchorRegistry,
     events: () => _events,
+    dwell: _dwellTracker,
+    screenName: () => _currentScreen,
   );
   GuideShowcaseManager get guideManager => _guideManager;
 
@@ -365,19 +367,29 @@ class DigiaInstance with WidgetsBindingObserver implements DigiaCEPDelegate {
             "[Digia] survey campaign '${campaign.campaignKey}' dropped: "
             'another survey is on screen.',
           );
+          return false;
         } else {
           _logIfVerbose(
               'survey scheduled (campaignKey=${campaign.campaignKey}).');
+          return true;
         }
       case GuideCampaignConfig():
-        return false;
+        final started = _guideOrchestrator.start(campaign, payload);
+        if (!started) {
+          debugPrint(
+            "[Digia] guide campaign '${campaign.campaignKey}' dropped: "
+            'another guide is on screen, or it has no steps.',
+          );
+          return false;
+        }
+        _logIfVerbose('guide scheduled (campaignKey=${campaign.campaignKey}).');
+        return true;
       case UnsupportedCampaignConfig(:final reason):
         debugPrint(
           "[Digia] campaign '${campaign.campaignKey}' dropped: $reason",
         );
         return false;
     }
-    return false;
   }
 
   /// Resolves the [CampaignModel] for the active payload so [DigiaHost] can

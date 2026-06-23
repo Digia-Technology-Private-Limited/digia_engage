@@ -6,6 +6,8 @@ import '../../models/digia_experience_event.dart';
 import '../action/engage_action.dart';
 import '../action/engage_action_context.dart';
 import '../action/engage_action_handler.dart';
+import '../event/dwell_tracker.dart';
+import '../event/engage_analytics_event.dart';
 import '../event/engage_event_emitter.dart';
 import '../variable_scope.dart';
 import 'anchor_registry.dart';
@@ -35,6 +37,14 @@ class ShowcasePresentation {
   final Color? arrowBorderColor;
   final double arrowBorderWidth;
 
+  /// Whether scrim/barrier taps are inert (`outsideTapBehavior == 'nothing'`).
+  /// When false, [onBarrierClick] (if set) runs, else the engine advances.
+  final bool disableBarrierInteraction;
+
+  /// What a scrim/barrier tap should do, for `outsideTapBehavior == 'dismiss'`.
+  /// Null means use the engine default (advance) — i.e. `'next'`.
+  final VoidCallback? onBarrierClick;
+
   const ShowcasePresentation({
     required this.container,
     required this.overlayColor,
@@ -46,6 +56,8 @@ class ShowcasePresentation {
     required this.arrowColor,
     required this.arrowBorderColor,
     required this.arrowBorderWidth,
+    required this.disableBarrierInteraction,
+    required this.onBarrierClick,
   });
 }
 
@@ -59,20 +71,47 @@ class GuideShowcaseManager {
   final GuideOrchestrator _orchestrator;
   final AnchorRegistry _registry;
   final EngageEventEmitter Function() _events;
+  final DwellTracker _dwell;
+  final String? Function() _screenName;
 
   GuideShowcaseManager({
     required GuideOrchestrator orchestrator,
     required AnchorRegistry registry,
     required EngageEventEmitter Function() events,
+    required DwellTracker dwell,
+    required String? Function() screenName,
   })  : _orchestrator = orchestrator,
         _registry = registry,
-        _events = events {
+        _events = events,
+        _dwell = dwell,
+        _screenName = screenName {
     _register();
     _orchestrator.addListener(_onOrchestratorChanged);
   }
 
   int? _shownToken;
   bool _finishing = false;
+
+  /// The `anchorKey`s actually shown this session, in showcase order — parallel
+  /// to the keys handed to `startShowCase`, so an `onStart` index maps back to
+  /// its anchor (and through it, the full-config step index). Rebuilt per guide.
+  List<String> _activeAnchorKeys = const [];
+
+  /// 1-based index (into the full config's steps) of the step on screen, and its
+  /// anchor — tracked on each `onStart` so step clicks / dismissal can report
+  /// which step they happened on. Mirrors the wire's `item_index` / `anchor_key`.
+  int _currentItemIndex = 1;
+
+  /// 0-based position of the current step within [_activeAnchorKeys] (the shown
+  /// sequence), used to decide whether a termination landed on the final step.
+  int _currentShownIndex = 0;
+
+  /// Whether the step on screen is the last one in the active (shown) sequence.
+  /// Reaching it means the user saw every step, so any close from here counts as
+  /// a completion rather than an early abandonment.
+  bool get _isOnLastActiveStep =>
+      _activeAnchorKeys.isNotEmpty &&
+      _currentShownIndex >= _activeAnchorKeys.length - 1;
 
   void _register() {
     ShowcaseView.register(
@@ -81,9 +120,7 @@ class GuideShowcaseManager {
       // Auto-scroll a scrolled-away anchor into view before showing its step
       // (single-target only; shows a brief loader, then `ensureVisible`).
       enableAutoScroll: true,
-      onStart: (index, key) {
-        if (index == 0) _emit(const ExperienceImpressed());
-      },
+      onStart: (index, key) => _onStepShown(index ?? 0),
       onFinish: () => _finish(completed: true),
       onDismiss: (_) => _finish(completed: false),
     );
@@ -117,11 +154,17 @@ class GuideShowcaseManager {
         _orchestrator.dismiss();
         return;
       }
-      final keys = <GlobalKey>[
-        for (final anchorKey in state.config.anchorKeys)
-          if (_view.isTargetRendered(_registry.keyFor(anchorKey)))
-            _registry.keyFor(anchorKey),
-      ];
+      final keys = <GlobalKey>[];
+      final shownAnchorKeys = <String>[];
+      for (final anchorKey in state.config.anchorKeys) {
+        if (_view.isTargetRendered(_registry.keyFor(anchorKey))) {
+          keys.add(_registry.keyFor(anchorKey));
+          shownAnchorKeys.add(anchorKey);
+        }
+      }
+      _activeAnchorKeys = shownAnchorKeys;
+      _currentItemIndex = 1;
+      _currentShownIndex = 0;
       _view.startShowCase(keys);
     });
   }
@@ -138,6 +181,15 @@ class GuideShowcaseManager {
       ...?state.payload.variables,
     });
     final config = state.config;
+
+    // Honor the dashboard's `outsideTapBehavior` for scrim/barrier taps instead
+    // of the engine default (which always advances — silently completing the
+    // last step and stealing taps meant for the bubble button). 'nothing' makes
+    // the scrim inert (buttons drive the flow); 'dismiss' dismisses; 'next'
+    // (default) keeps the engine's advance.
+    final behavior = config.outsideTapBehavior.trim().toLowerCase();
+    final disableBarrier = behavior == 'nothing';
+    final onBarrier = behavior == 'dismiss' ? () => _view.dismiss() : null;
 
     if (config is TooltipGuideConfig) {
       final step = _firstWhere(config.steps, (s) => s.anchorKey == anchorKey);
@@ -158,6 +210,8 @@ class GuideShowcaseManager {
         // RN: arrowBorderColor ?? borderColor; border width follows the bubble.
         arrowBorderColor: step.arrowBorderColor ?? step.borderColor,
         arrowBorderWidth: step.borderWidth,
+        disableBarrierInteraction: disableBarrier,
+        onBarrierClick: onBarrier,
       );
     }
     if (config is SpotlightGuideConfig) {
@@ -175,6 +229,8 @@ class GuideShowcaseManager {
         arrowColor: step.arrowColor ?? step.calloutBackgroundColor,
         arrowBorderColor: step.arrowBorderColor ?? step.calloutBorderColor,
         arrowBorderWidth: step.calloutBorderWidth,
+        disableBarrierInteraction: disableBarrier,
+        onBarrierClick: onBarrier,
       );
     }
     return null;
@@ -185,7 +241,17 @@ class GuideShowcaseManager {
   void handleAction(GuideAction action) {
     final state = _orchestrator.state;
     if (state == null) return;
-    _events().toAll(ExperienceClicked(elementId: action.label), state.payload);
+    // Coarse click to the CEP plugin; the rich, step-keyed signal to Digia.
+    _events().toBoth(
+      ExperienceClicked(elementId: action.label),
+      GuideStepClicked(
+        itemIndex: _currentItemIndex,
+        ctaLabel: action.label,
+        actionType: _actionTypeWire(action.type),
+        actionUrl: action.url,
+      ),
+      state.payload,
+    );
 
     switch (action.type) {
       case GuideActionType.next:
@@ -235,24 +301,125 @@ class GuideShowcaseManager {
 
   // ─── Lifecycle events ─────────────────────────────────────────────────────
 
+  /// Fired by showcaseview as each step appears. The first step is also the
+  /// guide-level "Viewed"; every step emits a rich step-viewed to Digia. Mirrors
+  /// Android's `GuideEvent.Viewed` / `GuideEvent.StepViewed` and the RN wire.
+  void _onStepShown(int index) {
+    final state = _orchestrator.state;
+    if (state == null) return;
+    _currentShownIndex = index;
+    final anchorKey = (index >= 0 && index < _activeAnchorKeys.length)
+        ? _activeAnchorKeys[index]
+        : null;
+    // Report the step's position within the full config (some anchors may have
+    // been skipped because they weren't on screen), 1-based like the RN wire.
+    final fullIndex =
+        anchorKey == null ? index : state.config.anchorKeys.indexOf(anchorKey);
+    _currentItemIndex = fullIndex + 1;
+
+    final total = state.config.stepCount;
+    final style = _displayStyle(state.config);
+
+    if (index == 0) {
+      _dwell.markViewed(state.payload.cepCampaignId);
+      // Coarse impression to the CEP plugin; rich guide-viewed to Digia.
+      _events().toBoth(
+        const ExperienceImpressed(),
+        GuideViewed(
+          displayStyle: style,
+          itemTotal: total,
+          screenName: _screenName(),
+        ),
+        state.payload,
+      );
+    }
+
+    // Step views have no coarse CEP counterpart — Digia analytics only.
+    _events().toDigia(
+      GuideStepViewed(
+        itemIndex: _currentItemIndex,
+        itemTotal: total,
+        anchorKey: anchorKey,
+        displayStyle: style,
+      ),
+      state.payload,
+    );
+  }
+
+  /// [completed] is true when showcaseview advanced past the last step; a close
+  /// (dismiss button, scrim, back) arrives with it false. Either way, if we're
+  /// on the final step the user saw the whole guide, so it counts as a
+  /// completion — only a close *before* the last step is a real abandonment.
   void _finish({required bool completed}) {
     if (_finishing) return;
     final state = _orchestrator.state;
     if (state == null) return;
     _finishing = true;
-    _events().toAll(
-      completed ? const ExperienceCompleted() : const ExperienceDismissed(),
+    final total = state.config.stepCount;
+    final elapsedMs = _dwell.consumeDwellMs(state.payload.cepCampaignId);
+    // A single-step guide has no completion semantics (matches RN) — closing the
+    // only step is just a dismiss. For multi-step, reaching the final step (by
+    // advancing past it or closing it) is a completion.
+    final reachedEnd =
+        _activeAnchorKeys.length > 1 && (completed || _isOnLastActiveStep);
+
+    // Mirrors RN exactly. Reaching the end adds Completed first (RN's last-step
+    // CTA / `complete()`). Every terminal close then emits Dismissed — the CEP
+    // plugin's unconditional teardown signal, even right after a completion. A
+    // *close* (the onDismiss path, `completed == false`) on a multi-step guide
+    // also emits the step-level dismiss (RN's `dismiss()` → `step_dismissed`);
+    // an advance-past-last (`completed == true`) does not. Step-level dismiss is
+    // Digia-only — the coarse channel has no per-step dismiss.
+    if (reachedEnd) {
+      _events().toBoth(
+        const ExperienceCompleted(),
+        GuideCompleted(itemTotal: total, timeToCompleteMs: elapsedMs),
+        state.payload,
+      );
+    }
+    _events().toBoth(
+      const ExperienceDismissed(),
+      GuideDismissed(
+        abandonedAtItem: _currentItemIndex,
+        itemTotal: total,
+        dwellMs: elapsedMs,
+      ),
       state.payload,
     );
+    if (!completed && total > 1) {
+      _events().toDigia(
+        GuideStepDismissed(itemIndex: _currentItemIndex),
+        state.payload,
+      );
+    }
     _orchestrator.dismiss();
   }
 
-  void _emit(DigiaExperienceEvent event) {
-    final state = _orchestrator.state;
-    if (state != null) _events().toAll(event, state.payload);
-  }
-
   // ─── Mapping helpers ──────────────────────────────────────────────────────
+
+  static String _displayStyle(GuideConfig config) =>
+      config is SpotlightGuideConfig ? 'spotlight' : 'tooltip';
+
+  // Inverse of `_actionTypeFrom` — the raw wire token the dashboard configured,
+  // matching what RN forwards as `action_type`.
+  static String _actionTypeWire(GuideActionType type) {
+    switch (type) {
+      case GuideActionType.next:
+        return 'next';
+      case GuideActionType.back:
+        return 'back';
+      case GuideActionType.prev:
+        return 'prev';
+      case GuideActionType.deepLink:
+        return 'deep_link';
+      case GuideActionType.openUrl:
+        return 'open_url';
+      case GuideActionType.fireEvent:
+        return 'fire_event';
+      case GuideActionType.dismiss:
+        return 'dismiss';
+    }
+  }
 
   // Returns null for `auto` so showcaseview chooses + flips on available space
   // (it still draws a correct arrow either way).

@@ -30,7 +30,7 @@ class EngageEventEmitter {
   /// Coarse signal to the CEP plugin only.
   void toCep(DigiaExperienceEvent event, CEPTriggerPayload payload) {
     _log(
-      "Event fired → CEP: $event | campaignKey=${payload.campaignKey} "
+      'Event fired → CEP: $event | campaignKey=${payload.campaignKey} '
       'cepCampaignId=${payload.cepCampaignId}',
     );
     _cep.deliver(event, payload);
