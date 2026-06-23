@@ -296,14 +296,15 @@ class GuideShowcaseManager {
   }
 
   /// Advances (or rewinds) the showcase, honoring the destination step's
-  /// `delayInMs` before it appears — mirroring RN, which waits the step's delay
-  /// on every entry (forward or back) before showing it. A pending delayed
-  /// transition swallows further taps ([_advancing]); leaving the active
-  /// sequence (a completion) carries no delay.
+  /// `delayInMs` before it appears — mirroring RN, which on every step entry
+  /// hides the current step, waits the delay, then shows the next (a blank gap
+  /// in between). A pending delayed transition swallows further taps
+  /// ([_advancing]); leaving the active sequence (a completion) carries no delay.
   void _transition({required bool forward}) {
     final state = _orchestrator.state;
     if (state == null || _advancing) return;
-    final targetIndex = forward ? _currentShownIndex + 1 : _currentShownIndex - 1;
+    final targetIndex =
+        forward ? _currentShownIndex + 1 : _currentShownIndex - 1;
     final delayMs = (targetIndex >= 0 && targetIndex < _activeAnchorKeys.length)
         ? _stepDelayMs(state.config, _activeAnchorKeys[targetIndex])
         : 0;
@@ -311,7 +312,10 @@ class GuideShowcaseManager {
       _runTransition(forward);
       return;
     }
+    // Hide the current bubble now; advancing after the delay re-shows the
+    // overlay on the destination step (and fires its StepViewed then).
     _advancing = true;
+    _view.hideOverlay();
     Future<void>.delayed(Duration(milliseconds: delayMs), () {
       if (_orchestrator.state?.token != state.token) {
         _advancing = false;
@@ -349,6 +353,7 @@ class GuideShowcaseManager {
             : LaunchMode.platformDefault,
       ),
       share: (_) async {},
+      copy: (_) async {},
     );
     EngageActionRunner.shared.run(
       [action],

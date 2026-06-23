@@ -350,6 +350,12 @@ class ShowcaseView {
   void updateOverlay() =>
       OverlayManager.instance.update(show: isShowcaseRunning, scope: scope);
 
+  /// Temporarily hides the active showcase overlay without ending the run, so a
+  /// host can blank the screen (e.g. during a step's entry delay) and later let
+  /// [next]/[previous]/[updateOverlay] bring it back.
+  void hideOverlay() =>
+      OverlayManager.instance.update(show: false, scope: scope);
+
   /// Updates list of showcase keys that should hide floating action widget.
   ///
   /// * [updatedList] - New list of keys to hide floating action widget for

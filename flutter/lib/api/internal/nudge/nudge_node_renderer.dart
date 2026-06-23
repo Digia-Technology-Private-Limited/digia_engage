@@ -204,6 +204,7 @@ String? _nudgeActionType(EngageAction? action) => switch (action) {
       OpenDeeplinkAction() => 'deeplink',
       HideAction() => 'dismiss',
       ShareAction() => 'custom',
+      CopyToClipboardAction() => 'copy',
       null => null,
     };
 
