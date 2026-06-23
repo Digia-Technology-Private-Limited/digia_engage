@@ -492,13 +492,7 @@ class _SurveyRendererState extends State<SurveyRenderer> {
     Widget content,
   ) {
     final media = MediaQuery.of(ctx);
-    final maxWidth = switch (dialog.width) {
-      DialogWidthPreset.small => media.size.width * 0.6,
-      DialogWidthPreset.medium => media.size.width * 0.8,
-      DialogWidthPreset.large => media.size.width * 0.95,
-      DialogWidthPreset.custom =>
-        dialog.customWidth.clamp(200, 1 << 20).toDouble(),
-    };
+
     return showDialog<bool>(
       context: ctx,
       barrierDismissible: dialog.backdropDismissible,
@@ -512,7 +506,7 @@ class _SurveyRendererState extends State<SurveyRenderer> {
         ),
         child: ConstrainedBox(
           constraints: BoxConstraints(
-            maxWidth: maxWidth,
+            maxWidth: double.infinity,
             maxHeight: media.size.height * 0.85,
           ),
           child: content,
