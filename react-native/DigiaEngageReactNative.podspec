@@ -23,12 +23,12 @@ Pod::Spec.new do |s|
   s.source_files = 'ios/**/*.{h,m,mm,swift}'
 
   # Swift version must match the Digia iOS SDK.
-  s.swift_version = '5.9'
+  s.swift_version = '6.0'
 
   s.dependency 'React-Core'
 
   # ── Digia Engage iOS SDK ──────────────────────────────────────────────────
-  s.dependency 'DigiaEngage','~> 2.4.1'
+  s.dependency 'DigiaEngage','~> 3.0.0'
 
   # ── New Architecture (Fabric / TurboModules) support ─────────────────────
   install_modules_dependencies(s)

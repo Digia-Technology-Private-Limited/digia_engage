@@ -4,6 +4,7 @@ import 'package:video_player/video_player.dart';
 
 import '../internal/action/engage_action_context.dart';
 import '../internal/campaign/inline_story_config.dart';
+import '../internal/digia_instance.dart';
 import '../internal/variable_scope.dart';
 import 'story/digia_story_overlay.dart';
 
@@ -50,13 +51,20 @@ class DigiaInlineStory extends StatelessWidget {
           final item = config.items[index];
           return GestureDetector(
             behavior: HitTestBehavior.opaque,
-            onTap: () => openStoryOverlay(
-              context: context,
-              config: config,
-              initialIndex: index,
-              scope: scope,
-              actionContext: actionContext,
-            ),
+            onTap: () {
+              final payload =
+                  DigiaInstance.instance.controller.getSlot(config.slotKey);
+              if (payload != null) {
+                DigiaInstance.instance.reportStoryOpened(payload);
+              }
+              openStoryOverlay(
+                context: context,
+                config: config,
+                initialIndex: index,
+                scope: scope,
+                actionContext: actionContext,
+              );
+            },
             child: ClipRRect(
               borderRadius: radius,
               child: SizedBox(

@@ -1,16 +1,18 @@
 package com.digia.engage.internal
 
-import com.digia.engage.InAppPayload
+import com.digia.engage.CEPTriggerPayload
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
 
 class DigiaOverlayControllerTest {
 
+    private fun payload(id: String) = CEPTriggerPayload(cepCampaignId = id, campaignKey = id)
+
     @Test
     fun `show sets activePayload`() {
         val controller = DigiaOverlayController()
-        val payload = InAppPayload("p1", mapOf("type" to "dialog", "componentId" to "w1"))
+        val payload = payload("p1")
 
         controller.show(payload)
 
@@ -20,8 +22,8 @@ class DigiaOverlayControllerTest {
     @Test
     fun `show replaces active payload`() {
         val controller = DigiaOverlayController()
-        val payloadA = InAppPayload("p1", mapOf("type" to "dialog", "componentId" to "w1"))
-        val payloadB = InAppPayload("p2", mapOf("type" to "dialog", "componentId" to "w2"))
+        val payloadA = payload("p1")
+        val payloadB = payload("p2")
 
         controller.show(payloadA)
         controller.show(payloadB)
@@ -32,7 +34,7 @@ class DigiaOverlayControllerTest {
     @Test
     fun `dismiss clears activePayload`() {
         val controller = DigiaOverlayController()
-        val payload = InAppPayload("p1", mapOf("type" to "dialog", "componentId" to "w1"))
+        val payload = payload("p1")
 
         controller.show(payload)
         controller.dismiss()
@@ -43,10 +45,7 @@ class DigiaOverlayControllerTest {
     @Test
     fun `addSlot stores payload by placementKey`() {
         val controller = DigiaOverlayController()
-        val payload = InAppPayload(
-            "s1",
-            mapOf("type" to "slot", "placementKey" to "hero", "componentId" to "c1"),
-        )
+        val payload = payload("s1")
 
         controller.addSlot("hero", payload)
 
@@ -56,24 +55,18 @@ class DigiaOverlayControllerTest {
     @Test
     fun `removeSlotById removes matching payload`() {
         val controller = DigiaOverlayController()
-        val payload = InAppPayload(
-            "s1",
-            mapOf("type" to "slot", "placementKey" to "hero", "componentId" to "c1"),
-        )
+        val payload = payload("s1")
 
         controller.addSlot("hero", payload)
         controller.removeSlotById("s1")
 
-        assertEquals(emptyMap<String, InAppPayload>(), controller.slotPayloads.value)
+        assertEquals(emptyMap<String, CEPTriggerPayload>(), controller.slotPayloads.value)
     }
 
     @Test
     fun `removeSlotById no-op when id does not exist`() {
         val controller = DigiaOverlayController()
-        val payload = InAppPayload(
-            "s1",
-            mapOf("type" to "slot", "placementKey" to "hero", "componentId" to "c1"),
-        )
+        val payload = payload("s1")
 
         controller.addSlot("hero", payload)
         val before = controller.slotPayloads.value
@@ -85,14 +78,14 @@ class DigiaOverlayControllerTest {
     @Test
     fun `removeSlotByKey removes matching placement key`() {
         val controller = DigiaOverlayController()
-        controller.addSlot("hero", InAppPayload("s1", mapOf("type" to "slot")))
-        controller.addSlot("footer", InAppPayload("s2", mapOf("type" to "slot")))
+        controller.addSlot("hero", payload("s1"))
+        controller.addSlot("footer", payload("s2"))
 
         controller.removeSlotByKey("hero")
 
         assertEquals(1, controller.slotPayloads.value.size)
         assertNull(controller.slotPayloads.value["hero"])
-        assertEquals("s2", controller.slotPayloads.value["footer"]?.id)
+        assertEquals("s2", controller.slotPayloads.value["footer"]?.cepCampaignId)
     }
 
     @Test
@@ -107,11 +100,11 @@ class DigiaOverlayControllerTest {
     @Test
     fun `clearSlots removes all`() {
         val controller = DigiaOverlayController()
-        controller.addSlot("a", InAppPayload("1", mapOf()))
-        controller.addSlot("b", InAppPayload("2", mapOf()))
+        controller.addSlot("a", payload("1"))
+        controller.addSlot("b", payload("2"))
 
         controller.clearSlots()
 
-        assertEquals(emptyMap<String, InAppPayload>(), controller.slotPayloads.value)
+        assertEquals(emptyMap<String, CEPTriggerPayload>(), controller.slotPayloads.value)
     }
 }

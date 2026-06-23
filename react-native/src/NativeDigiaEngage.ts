@@ -24,7 +24,7 @@ import { NativeModules, TurboModuleRegistry } from 'react-native';
  */
 export interface Spec extends TurboModule {
     /** Initialise the SDK. Call once before anything else. */
-    initialize(projectId: string, environment: string, logLevel: string, baseUrl?: string, fontFamily?: string): Promise<void>;
+    initialize(projectId: string, environment: string, logLevel: string, baseUrl?: string, fontFamily?: string, sdkVersion?: string): Promise<void>;
 
     /**
      * Wire the internal RNEventBridgePlugin with the native SDK.
@@ -37,13 +37,16 @@ export interface Spec extends TurboModule {
     setCurrentScreen(name: string): void;
 
     /**
-     * Forward a campaign payload from a JS CEP plugin into the native
-     * rendering engine via the DigiaCEPDelegate.
+     * Forward a campaign trigger from a JS CEP plugin into the native rendering
+     * engine via the DigiaCEPDelegate. Maps directly to the native CEPTriggerPayload:
+     * [variables] are the `{{ }}` interpolation values, [cepMetadata] is the CEP's
+     * opaque pass-through.
      */
     triggerCampaign(
-        id: string,
-        content: Object,
-        cepContext: Object,
+        cepCampaignId: string,
+        campaignKey: string,
+        variables: Object,
+        cepMetadata: Object,
     ): void;
 
     /** Invalidate / dismiss a campaign by its ID. */
@@ -62,15 +65,12 @@ export interface Spec extends TurboModule {
     clearUserId(): void;
     /**
      * Record an analytics event from a JS-rendered campaign (guide/tooltip/spotlight).
-     * Native campaigns (nudge, inline, survey) are tracked automatically by the SDK.
+     * [eventName] is the Engage matrix event name (e.g. "Digia Step Viewed"); [props]
+     * carries its wire-keyed fields (step_index, anchor_key, cta_label, action_type, …).
+     * The native SDK maps it to the typed analytics event and records it. Native
+     * campaigns (nudge, inline, survey) are tracked automatically by the SDK.
      */
-    trackEvent(
-        eventType: string,
-        campaignId: string,
-        campaignKey: string,
-        campaignType: string,
-        elementId?: string | null,
-    ): void;
+    captureAnalyticsEvent(campaignKey: string, eventName: string, props: Object): void;
 }
 
 let _resolved: Spec | null = null;
@@ -95,19 +95,19 @@ function getModule(): Spec | null {
 }
 
 export const nativeDigiaModule: Spec = {
-    initialize: (projectId, environment, logLevel, baseUrl, fontFamily) =>
-        getModule()?.initialize(projectId, environment, logLevel, baseUrl, fontFamily) ?? Promise.resolve(),
+    initialize: (projectId, environment, logLevel, baseUrl, fontFamily, sdkVersion) =>
+        getModule()?.initialize(projectId, environment, logLevel, baseUrl, fontFamily, sdkVersion) ?? Promise.resolve(),
     registerBridge: () => getModule()?.registerBridge(),
     setCurrentScreen: (name) => getModule()?.setCurrentScreen(name),
-    triggerCampaign: (id, content, cepContext) =>
-        getModule()?.triggerCampaign(id, content, cepContext),
+    triggerCampaign: (cepCampaignId, campaignKey, variables, cepMetadata) =>
+        getModule()?.triggerCampaign(cepCampaignId, campaignKey, variables, cepMetadata),
     invalidateCampaign: (campaignId) => getModule()?.invalidateCampaign(campaignId),
     registerAnchor: (key, x, y, width, height) => getModule()?.registerAnchor(key, x, y, width, height),
     unregisterAnchor: (key) => getModule()?.unregisterAnchor(key),
     getRegisteredComponents: () => getModule()?.getRegisteredComponents() ?? Promise.resolve([]),
     setUserId: (userId) => getModule()?.setUserId(userId),
     clearUserId: () => getModule()?.clearUserId(),
-    trackEvent: (eventType, campaignId, campaignKey, campaignType, elementId) =>
-        getModule()?.trackEvent(eventType, campaignId, campaignKey, campaignType, elementId),
+    captureAnalyticsEvent: (campaignKey, eventName, props) =>
+        getModule()?.captureAnalyticsEvent(campaignKey, eventName, props),
     getConstants: () => getModule()?.getConstants?.() ?? {},
 };

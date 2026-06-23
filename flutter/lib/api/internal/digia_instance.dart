@@ -12,13 +12,16 @@ import 'digia_overlay_controller.dart';
 import 'engage_fonts.dart';
 import 'event/cep_plugin_sink.dart';
 import 'event/digia_analytics_sink.dart';
+import 'event/dwell_tracker.dart';
+import 'event/engage_analytics_event.dart';
 import 'event/engage_event_emitter.dart';
-import 'event/engage_event_router.dart';
+import 'nudge/nudge_config.dart';
 import 'guide/anchor_registry.dart';
 import 'guide/guide_orchestrator.dart';
 import 'guide/guide_showcase_manager.dart';
 import 'sdk_state.dart';
 import 'survey/submission_reporter.dart';
+import 'survey/survey_config.dart';
 import 'survey/survey_logic_handler.dart';
 import 'survey/survey_orchestrator.dart';
 
@@ -99,26 +102,37 @@ class DigiaInstance with WidgetsBindingObserver implements DigiaCEPDelegate {
   /// the welcome screen is hidden.
   int? _clickedSurveyToken;
 
+  /// `"<surveyToken>:<nodeId>"` → wall-clock ms when that question was viewed,
+  /// used to compute `time_to_answer_ms`. Mirrors Android's `questionViewedAt`.
+  final Map<String, int> _questionViewedAt = {};
+
   /// Controller for inline campaigns, notifies when they change.
   // final InlineCampaignController inlineController = InlineCampaignController();
 
   /// Exposed so [DigiaHost] can subscribe at mount time.
   DigiaOverlayController get controller => _controller;
 
-  /// The SDK's experience-event emitter. Composition root: assembles the
-  /// concrete sinks behind the [EngageEventSink] abstraction. Built lazily on
-  /// first use — it only reads [_campaignStore] (ready) and [_activePlugin]
-  /// (resolved at dispatch time), so no init ordering is required.
+  /// The SDK's experience-event emitter. Composition root: assembles the two
+  /// concrete delivery sinks — the CEP sink (coarse [DigiaExperienceEvent]s)
+  /// and the Digia analytics sink (rich [EngageAnalyticsEvent]s). Built lazily
+  /// on first use — it only reads [_campaignStore] (ready) and [_activePlugin]
+  /// (resolved at delivery time), so no init ordering is required.
   late final EngageEventEmitter _events = EngageEventEmitter(
-    EngageEventRouter([
-      DigiaAnalyticsSink(DigiaAnalyticsService.instance, _campaignStore),
-      CepPluginSink(() => _activePlugin),
-    ]),
+    CepPluginSink(() => _activePlugin),
+    DigiaAnalyticsSink(DigiaAnalyticsService.instance, _campaignStore),
   );
 
   /// Experience-event emitter used by render surfaces ([DigiaSlot],
   /// [DigiaHost], nudge widgets) to route lifecycle events to CEP and/or Digia.
   EngageEventEmitter get events => _events;
+
+  /// Measures how long each campaign instance was on screen (`dwell_ms`).
+  /// Mirrors Android's `DigiaInstance.dwellTracker`.
+  final DwellTracker _dwellTracker = DwellTracker();
+
+  /// The most recent screen name reported via [setCurrentScreen], attached to
+  /// every "Viewed" analytics event. Mirrors Android's `screenTracker`.
+  String? _currentScreen;
 
   /// Gets the active inline campaign for a given placement key, if any.
   CEPTriggerPayload? getInlineCampaign(String placementKey) =>
@@ -203,6 +217,7 @@ class DigiaInstance with WidgetsBindingObserver implements DigiaCEPDelegate {
   }
 
   void setCurrentScreen(String name) {
+    _currentScreen = name;
     if (_activePlugin == null) {
       _logDegradedWarning('setCurrentScreen("$name")');
       return;
@@ -350,27 +365,19 @@ class DigiaInstance with WidgetsBindingObserver implements DigiaCEPDelegate {
             "[Digia] survey campaign '${campaign.campaignKey}' dropped: "
             'another survey is on screen.',
           );
-          return false;
+        } else {
+          _logIfVerbose(
+              'survey scheduled (campaignKey=${campaign.campaignKey}).');
         }
-        _logIfVerbose('survey scheduled (campaignKey=${campaign.campaignKey}).');
-        return true;
       case GuideCampaignConfig():
-        final started = _guideOrchestrator.start(campaign, payload);
-        if (!started) {
-          debugPrint(
-            "[Digia] guide campaign '${campaign.campaignKey}' dropped: "
-            'another guide is on screen, or it has no steps.',
-          );
-          return false;
-        }
-        _logIfVerbose('guide scheduled (campaignKey=${campaign.campaignKey}).');
-        return true;
+        return false;
       case UnsupportedCampaignConfig(:final reason):
         debugPrint(
           "[Digia] campaign '${campaign.campaignKey}' dropped: $reason",
         );
         return false;
     }
+    return false;
   }
 
   /// Resolves the [CampaignModel] for the active payload so [DigiaHost] can
@@ -435,7 +442,65 @@ class DigiaInstance with WidgetsBindingObserver implements DigiaCEPDelegate {
   void reportSurveyStarted() {
     final state = _surveyOrchestrator.state;
     if (state == null) return;
-    _events.toAll(const ExperienceImpressed(), state.payload);
+    _dwellTracker.markViewed(state.payload.cepCampaignId);
+    final config = state.config;
+    _events.toBoth(
+      const ExperienceImpressed(),
+      SurveyViewed(
+        itemTotal: _surveyItemTotal(config),
+        hasWelcome: _surveyHasWelcome(config),
+        hasThanks: _surveyHasThanks(config),
+        hasBranching: _surveyHasBranching(config),
+        screenName: _currentScreen,
+      ),
+      state.payload,
+    );
+  }
+
+  /// Fired when a (non-content) question becomes visible. [itemIndex] is the
+  /// 1-based respondent traversal depth. Stamps the view time for
+  /// `time_to_answer_ms`. First-party Digia analytics only.
+  void reportSurveyQuestionViewed(String nodeId, int itemIndex) {
+    final state = _surveyOrchestrator.state;
+    if (state == null) return;
+    final block = _blockForNode(state.config, nodeId);
+    if (block == null || block.type.isContent) return;
+    _questionViewedAt[_questionKey(state.token, nodeId)] =
+        DateTime.now().millisecondsSinceEpoch;
+    final typeWire = _blockTypeWire(block.type);
+    _events.toDigia(
+      SurveyQuestionViewed(
+        questionId: nodeId,
+        questionType: typeWire,
+        itemIndex: itemIndex,
+        itemTotal: _surveyItemTotal(state.config),
+        blockType: typeWire,
+        blockId: block.id,
+        isRequired: block.required,
+        questionTitle: _questionTitle(block),
+      ),
+      state.payload,
+    );
+  }
+
+  /// Fired when the user advances past an unanswered, optional question.
+  /// First-party Digia analytics only.
+  void reportSurveyQuestionSkipped(String nodeId, int itemIndex) {
+    final state = _surveyOrchestrator.state;
+    if (state == null) return;
+    final block = _blockForNode(state.config, nodeId);
+    if (block == null) return;
+    _questionViewedAt.remove(_questionKey(state.token, nodeId));
+    _events.toDigia(
+      SurveyQuestionSkipped(
+        questionId: nodeId,
+        itemIndex: itemIndex,
+        blockType: _blockTypeWire(block.type),
+        blockId: block.id,
+        questionTitle: _questionTitle(block),
+      ),
+      state.payload,
+    );
   }
 
   /// Fired after a question (any block other than welcome) is answered.
@@ -443,8 +508,35 @@ class DigiaInstance with WidgetsBindingObserver implements DigiaCEPDelegate {
   void reportSurveyAnswered(String stepId, Map<String, dynamic> answer) {
     final state = _surveyOrchestrator.state;
     if (state == null) return;
+    final block = _blockForNode(state.config, stepId);
+    final values = (answer['values'] as List?)
+        ?.map((value) => value.toString())
+        .toList(growable: false);
+    final hasValues = values != null && values.isNotEmpty;
+    final comment = answer['comment'] as String?;
+    final viewedKey = _questionKey(state.token, stepId);
+    final viewedAt = _questionViewedAt.remove(viewedKey);
+    final scale = block == null ? null : _scaleBounds(block);
+    final typeWire = block == null ? null : _blockTypeWire(block.type);
     _events.toDigia(
-      DigiaQuestionAnswered(stepId: stepId, answer: answer),
+      SurveyQuestionAnswered(
+        questionId: stepId,
+        questionType: typeWire,
+        questionTitle: block == null ? null : _questionTitle(block),
+        answerValue: hasValues ? values.first : null,
+        answerText: comment ?? (hasValues ? values.join(', ') : null),
+        blockType: typeWire,
+        blockId: block?.id,
+        answerLabel:
+            block == null ? null : _answerLabel(block, values ?? const []),
+        answerOptions: (values != null && values.length > 1) ? values : null,
+        scaleMin: scale?.min,
+        scaleMax: scale?.max,
+        timeToAnswerMs: viewedAt == null
+            ? null
+            : DateTime.now().millisecondsSinceEpoch - viewedAt,
+        answer: answer,
+      ),
       state.payload,
     );
   }
@@ -456,7 +548,10 @@ class DigiaInstance with WidgetsBindingObserver implements DigiaCEPDelegate {
     final state = _surveyOrchestrator.state;
     if (state == null || _clickedSurveyToken == state.token) return;
     _clickedSurveyToken = state.token;
-    _events.toDigia(const ExperienceClicked(), state.payload);
+    _events.toDigia(
+      const SurveyClicked(elementId: 'welcome_start'),
+      state.payload,
+    );
   }
 
   /// Fired once when the survey finishes (idempotent per showing). Beyond the
@@ -469,7 +564,16 @@ class DigiaInstance with WidgetsBindingObserver implements DigiaCEPDelegate {
     final state = _surveyOrchestrator.state;
     if (state == null || _completedSurveyToken == state.token) return;
     _completedSurveyToken = state.token;
-    _events.toDigia(const ExperienceCompleted(), state.payload);
+    _events.toDigia(
+      SurveyCompleted(
+        itemTotal: _surveyItemTotal(state.config),
+        answeredCount: answers.isNotEmpty ? answers.length : response.length,
+        timeToCompleteMs:
+            DateTime.now().millisecondsSinceEpoch - state.startedAtMs,
+        response: response,
+      ),
+      state.payload,
+    );
 
     if (answers.isNotEmpty) {
       _logIfVerbose(
@@ -495,11 +599,285 @@ class DigiaInstance with WidgetsBindingObserver implements DigiaCEPDelegate {
   /// Clears the active survey after the user closes the result page.
 
   /// Fired when the user closes the survey without completing it.
-  void markSurveyDismissed() {
+  /// [abandonedAtItem] is the 1-based question they were on; [answeredCount]
+  /// is how many they had answered.
+  void markSurveyDismissed({int? abandonedAtItem, int? answeredCount}) {
     final state = _surveyOrchestrator.state;
     if (state == null) return;
-    _events.toAll(const ExperienceDismissed(), state.payload);
+    _events.toBoth(
+      const ExperienceDismissed(),
+      SurveyDismissed(
+        abandonedAtItem: abandonedAtItem,
+        itemTotal: _surveyItemTotal(state.config),
+        answeredCount: answeredCount,
+        dwellMs: _dwellTracker.consumeDwellMs(state.payload.cepCampaignId),
+      ),
+      state.payload,
+    );
+    _clearQuestionViewedAt(state.token);
     _surveyOrchestrator.dismiss();
+  }
+
+  // ── Survey config derivations (mirror Android's SurveyConfig helpers) ──
+  int _surveyItemTotal(SurveyConfigModel config) => config.nodes.length;
+
+  String _questionKey(int token, String nodeId) => '$token:$nodeId';
+
+  void _clearQuestionViewedAt(int token) =>
+      _questionViewedAt.removeWhere((key, _) => key.startsWith('$token:'));
+
+  SurveyBlock? _blockForNode(SurveyConfigModel config, String nodeId) {
+    final node = config.nodeById(nodeId);
+    return node == null ? null : config.blockFor(node);
+  }
+
+  /// The analytics wire value for a block type, e.g. `single_select`, `nps_emoji`.
+  String _blockTypeWire(SurveyBlockType type) => switch (type) {
+        SurveyBlockType.singleSelect => 'single_select',
+        SurveyBlockType.multiSelect => 'multi_select',
+        SurveyBlockType.rating => 'rating',
+        SurveyBlockType.nps => 'nps',
+        SurveyBlockType.npsEmoji => 'nps_emoji',
+        SurveyBlockType.npsSmiley => 'nps_smiley',
+        SurveyBlockType.reaction => 'reaction',
+        SurveyBlockType.thisOrThat => 'this_or_that',
+        SurveyBlockType.tierList => 'tier_list',
+        SurveyBlockType.upvote => 'upvote',
+        SurveyBlockType.shortText => 'short_text',
+        SurveyBlockType.longText => 'long_text',
+        SurveyBlockType.number => 'number',
+        SurveyBlockType.email => 'email',
+        SurveyBlockType.date => 'date',
+        SurveyBlockType.welcome => 'welcome',
+        SurveyBlockType.textMedia => 'text_media',
+        SurveyBlockType.resultPage => 'result_page',
+      };
+
+  String? _questionTitle(SurveyBlock block) {
+    final text = block.title.text.trim();
+    return text.isEmpty ? null : text;
+  }
+
+  /// Maps answer value ids to their option labels (comma-joined), or null.
+  String? _answerLabel(SurveyBlock block, List<String> values) {
+    if (values.isEmpty || block.options.isEmpty) return null;
+    final labels = <String>[];
+    for (final id in values) {
+      for (final option in block.options) {
+        if (option.id == id) {
+          labels.add(option.label);
+          break;
+        }
+      }
+    }
+    return labels.isEmpty ? null : labels.join(', ');
+  }
+
+  /// Numeric scale bounds for rating (1–5) and NPS variants (0–10), else null.
+  ({int min, int max})? _scaleBounds(SurveyBlock block) => switch (block.type) {
+        SurveyBlockType.rating => (min: 1, max: 5),
+        SurveyBlockType.nps ||
+        SurveyBlockType.npsEmoji ||
+        SurveyBlockType.npsSmiley =>
+          (min: 0, max: 10),
+        _ => null,
+      };
+
+  bool _surveyHasWelcome(SurveyConfigModel config) =>
+      config.welcomeBlock() != null;
+
+  bool _surveyHasThanks(SurveyConfigModel config) =>
+      config.blocks.any((block) => block.type == SurveyBlockType.resultPage);
+
+  bool _surveyHasBranching(SurveyConfigModel config) => config.nodes.any(
+        (node) =>
+            node.branching.type != BranchingType.linear ||
+            node.branching.rules.isNotEmpty,
+      );
+
+  // ─── Nudge lifecycle ───────────────────────────────────────────────────────
+  // Called by `DigiaHost`/nudge widgets. Mirrors Android's reportNudgeImpression
+  // / emitNudgeClick / markNudgeDismissed.
+
+  /// Fired once when the nudge first becomes visible (its impression).
+  void reportNudgeImpression(CEPTriggerPayload payload, NudgeConfig config) {
+    _dwellTracker.markViewed(payload.cepCampaignId);
+    _events.toBoth(
+      const ExperienceImpressed(),
+      NudgeViewed(
+        displayStyle: _nudgeDisplayStyle(config),
+        screenName: _currentScreen,
+      ),
+      payload,
+    );
+  }
+
+  /// Fired when the user taps the nudge's primary CTA. First-party Digia
+  /// analytics only; `time_to_action_ms` is the dwell so far (nudge still open).
+  void reportNudgeClicked(
+    CEPTriggerPayload payload, {
+    String? elementId,
+    String? ctaLabel,
+    String? actionType,
+    String? actionUrl,
+    String? ctaRole,
+  }) {
+    _events.toDigia(
+      NudgeClicked(
+        elementId: elementId,
+        ctaLabel: ctaLabel,
+        actionType: actionType,
+        actionUrl: actionUrl,
+        ctaRole: ctaRole,
+        timeToActionMs: _dwellTracker.elapsedMs(payload.cepCampaignId),
+      ),
+      payload,
+    );
+  }
+
+  /// Fired when the nudge is dismissed — by the user or programmatically.
+  void markNudgeDismissed(CEPTriggerPayload payload) {
+    _events.toBoth(
+      const ExperienceDismissed(),
+      NudgeDismissed(
+          dwellMs: _dwellTracker.consumeDwellMs(payload.cepCampaignId)),
+      payload,
+    );
+  }
+
+  String _nudgeDisplayStyle(NudgeConfig config) =>
+      config.surface.displayType == NudgeDisplayType.bottomSheet
+          ? 'bottom_sheet'
+          : 'dialog';
+
+  // ─── Inline lifecycle ──────────────────────────────────────────────────────
+
+  /// Fired when an inline slot first paints. Records the deduped Digia
+  /// impression as a [CarouselViewed] or [StoriesViewed] depending on the
+  /// campaign type. Mirrors Android's reportSlotFirstRender.
+  void reportSlotFirstRender(CEPTriggerPayload payload) {
+    final campaign = _campaignStore.find(payload.campaignKey);
+    if (campaign == null) return;
+    final config = campaign.config;
+    switch (config) {
+      case InlineCarouselCampaignConfig(:final inlineConfig):
+        _events.digiaImpressionOnce(
+          payload,
+          CarouselViewed(
+            itemTotal: inlineConfig.items.length,
+            slotKey: inlineConfig.slotKey,
+            screenName: _currentScreen,
+          ),
+        );
+      case InlineStoryCampaignConfig(:final storyConfig):
+        _events.digiaImpressionOnce(
+          payload,
+          StoriesViewed(
+            itemTotal: storyConfig.items.length,
+            slotKey: storyConfig.slotKey,
+            screenName: _currentScreen,
+          ),
+        );
+      case _:
+        break;
+    }
+  }
+
+  /// A carousel item scrolled into view. [auto] = autoplay advance vs manual
+  /// swipe. [itemIndex] is 1-based.
+  void reportCarouselStepViewed(
+    CEPTriggerPayload payload, {
+    required int itemIndex,
+    required int itemTotal,
+    required bool auto,
+  }) {
+    _events.toDigia(
+      CarouselStepViewed(
+          itemIndex: itemIndex, itemTotal: itemTotal, auto: auto),
+      payload,
+    );
+  }
+
+  /// A carousel item (or its CTA) was tapped. The first item tap also counts as
+  /// an experience-level engagement click (once, deduped).
+  void reportCarouselStepClicked(
+    CEPTriggerPayload payload, {
+    required int itemIndex,
+    String? actionUrl,
+  }) {
+    final actionType = actionUrl != null ? 'deeplink' : null;
+    _events.digiaExperienceClickedOnce(
+      payload,
+      CarouselClicked(actionType: actionType, actionUrl: actionUrl),
+    );
+    _events.toDigia(
+      CarouselStepClicked(
+        itemIndex: itemIndex,
+        actionType: actionType,
+        actionUrl: actionUrl,
+      ),
+      payload,
+    );
+  }
+
+  /// A story was opened (ring/thumbnail tapped) — drives open rate.
+  void reportStoryOpened(CEPTriggerPayload payload) {
+    _events.toDigia(const StoriesOpened(), payload);
+  }
+
+  /// A story frame became visible. [itemIndex] is 1-based; [itemTotal] = frames
+  /// in this story.
+  void reportStoryStepViewed(
+    CEPTriggerPayload payload, {
+    required int itemIndex,
+    required int itemTotal,
+  }) {
+    _events.toDigia(
+      StoriesStepViewed(itemIndex: itemIndex, itemTotal: itemTotal),
+      payload,
+    );
+  }
+
+  /// A CTA inside a story frame was tapped.
+  void reportStoryStepClicked(
+    CEPTriggerPayload payload, {
+    required int itemIndex,
+    String? ctaLabel,
+    String? actionType,
+    String? actionUrl,
+  }) {
+    _events.toDigia(
+      StoriesStepClicked(
+        itemIndex: itemIndex,
+        ctaLabel: ctaLabel,
+        actionType: actionType,
+        actionUrl: actionUrl,
+      ),
+      payload,
+    );
+  }
+
+  /// Story closed before the last frame. [itemIndex] is the 1-based frame on
+  /// close.
+  void reportStoryStepDismissed(
+    CEPTriggerPayload payload, {
+    required int itemIndex,
+  }) {
+    _events.toDigia(StoriesStepDismissed(itemIndex: itemIndex), payload);
+  }
+
+  /// Last story frame viewed. [itemTotal] = frames viewed; [timeToCompleteMs]
+  /// from open.
+  void reportStoryCompleted(
+    CEPTriggerPayload payload, {
+    required int itemTotal,
+    int? timeToCompleteMs,
+  }) {
+    _events.toDigia(
+      StoriesCompleted(
+          itemTotal: itemTotal, timeToCompleteMs: timeToCompleteMs),
+      payload,
+    );
   }
 
   // ─── WidgetsBindingObserver ────────────────────────────────────────────────

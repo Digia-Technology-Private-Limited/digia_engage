@@ -108,7 +108,12 @@ class _SurveySessionState extends State<_SurveySession> {
     if (completed) {
       instance.markSurveyCompleted(_controller.responsePayload());
     } else {
-      instance.markSurveyDismissed();
+      instance.markSurveyDismissed(
+        abandonedAtItem:
+            _controller.currentNode != null ? _controller.progressStep : null,
+        answeredCount:
+            _controller.answers.values.where((a) => a.isAnswered).length,
+      );
     }
   }
 
@@ -447,7 +452,12 @@ class _SurveyRendererState extends State<SurveyRenderer> {
     // The route closed without a teardown call having cleared the survey — i.e.
     // a Flutter swipe / barrier gesture popped it — so report the dismissal.
     if (_orchestrator.state?.token == state.token) {
-      DigiaInstance.instance.markSurveyDismissed();
+      DigiaInstance.instance.markSurveyDismissed(
+        abandonedAtItem:
+            controller.currentNode != null ? controller.progressStep : null,
+        answeredCount:
+            controller.answers.values.where((a) => a.isAnswered).length,
+      );
     }
     controller.dispose();
   }
@@ -471,7 +481,9 @@ class _SurveyRendererState extends State<SurveyRenderer> {
       isScrollControlled: true,
       isDismissible: sheet.backdropDismissible,
       enableDrag: sheet.draggable,
-      showDragHandle: sheet.showHandle,
+      // Render our own compact handle (matching Android) rather than Flutter's
+      // native one, whose ~48dp interactive band pushes the close button down.
+      showDragHandle: false,
       useSafeArea: true,
       backgroundColor: background,
       barrierColor: Colors.black.withValues(alpha: 0.4),
@@ -481,7 +493,15 @@ class _SurveyRendererState extends State<SurveyRenderer> {
       ),
       constraints:
           maxHeight == null ? null : BoxConstraints(maxHeight: maxHeight),
-      builder: (_) => content,
+      builder: (_) => sheet.showHandle
+          ? Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const _SheetDragHandle(),
+                Flexible(child: content),
+              ],
+            )
+          : content,
     );
   }
 
@@ -620,14 +640,20 @@ class _SurveyModalContentState extends State<_SurveyModalContent> {
         if (_c.canGoBack) {
           _c.back();
         } else if (display.dismissible) {
-          DigiaInstance.instance.markSurveyDismissed();
+          DigiaInstance.instance.markSurveyDismissed(
+            abandonedAtItem: _c.currentNode != null ? _c.progressStep : null,
+            answeredCount: _c.answers.values.where((a) => a.isAnswered).length,
+          );
         }
       },
       child: _SurveyPanel(
         controller: _c,
         survey: widget.survey,
         accent: widget.accent,
-        onClose: () => DigiaInstance.instance.markSurveyDismissed(),
+        onClose: () => DigiaInstance.instance.markSurveyDismissed(
+          abandonedAtItem: _c.currentNode != null ? _c.progressStep : null,
+          answeredCount: _c.answers.values.where((a) => a.isAnswered).length,
+        ),
         onCompletedClose: () => DigiaInstance.instance.markSurveyDismissed(),
         showCloseButton: widget.showCloseButton,
       ),
@@ -784,6 +810,10 @@ class _SurveyBodyState extends State<_SurveyBody> {
   /// same step (which surfaced as the clicked event firing twice on a CTA tap).
   String? _lastAnsweredKey;
 
+  /// Last node a `QuestionViewed` event was emitted for, so rebuilds don't
+  /// re-fire it for the same on-screen question.
+  String? _lastViewedNodeId;
+
   SurveyController get _c => widget.controller;
   SurveyConfigModel get _survey => widget.survey;
 
@@ -794,6 +824,7 @@ class _SurveyBodyState extends State<_SurveyBody> {
     _c.addListener(_onChanged);
     _maybeStartTimer();
     _maybeScheduleAutoAdvance();
+    _maybeReportQuestionViewed();
   }
 
   @override
@@ -808,6 +839,18 @@ class _SurveyBodyState extends State<_SurveyBody> {
     if (mounted) setState(() {});
     _maybeStartTimer();
     _maybeScheduleAutoAdvance();
+    _maybeReportQuestionViewed();
+  }
+
+  /// Fires `QuestionViewed` once when a non-content question becomes current
+  /// (including on a revisit via Back, which changes the node id).
+  void _maybeReportQuestionViewed() {
+    final node = _c.currentNode;
+    final block = _c.currentBlock;
+    if (node == null || block == null || block.type.isContent) return;
+    if (_lastViewedNodeId == node.id) return;
+    _lastViewedNodeId = node.id;
+    DigiaInstance.instance.reportSurveyQuestionViewed(node.id, _c.progressStep);
   }
 
   void _maybeStartTimer() {
@@ -888,6 +931,10 @@ class _SurveyBodyState extends State<_SurveyBody> {
       final ans = _c.answers[node.id];
       if (ans != null && ans.isAnswered) {
         _reportAnswered(node, ans);
+      } else if (!block.required) {
+        // Advancing past an eligible optional question = a skip.
+        DigiaInstance.instance
+            .reportSurveyQuestionSkipped(node.id, _c.progressStep);
       }
     }
     _reportCompletionIfResultIsNext();
@@ -1405,6 +1452,28 @@ class _CloseButton extends StatelessWidget {
           width: 26,
           height: 26,
           child: Icon(Icons.close, size: 18, color: SurveyTokens.textTertiary),
+        ),
+      );
+}
+
+/// Compact bottom-sheet grab handle — a 40×4 pill with 8dp vertical padding,
+/// matching the Android renderer (keeps the top tight so the close button sits
+/// snug in the corner instead of floating below Flutter's taller native handle).
+class _SheetDragHandle extends StatelessWidget {
+  const _SheetDragHandle();
+
+  @override
+  Widget build(BuildContext context) => Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        child: Center(
+          child: Container(
+            width: 40,
+            height: 4,
+            decoration: BoxDecoration(
+              color: SurveyTokens.border,
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
         ),
       );
 }

@@ -7,10 +7,11 @@ import 'package:flutter/widgets.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:uuid/uuid.dart';
 
+import '../../api/internal/digia_endpoints.dart';
+import '../../api/internal/event/engage_analytics_event.dart';
 import '../../api/models/analytics_config.dart';
 import '../../api/models/cep_trigger_payload.dart';
-import '../../api/models/digia_experience_event.dart';
-import '../version.dart';
+import '../sdk_version.dart';
 import 'analytics_device_info.dart';
 import 'analytics_identity_manager.dart';
 import 'analytics_queue.dart';
@@ -59,11 +60,13 @@ class DigiaAnalyticsService {
     try {
       _staticContext = await _buildStaticContext();
       await _identity.initialize(_config.sessionTimeoutMs);
+      _identity.onSessionRotated = _reportSession;
       _initialized = true;
 
       if (await _queue.length() > 0) {
         _scheduleTimer();
       }
+      unawaited(_reportSession());
     } catch (error) {
       _log('[Digia Analytics] initialize failed: $error');
     }
@@ -159,9 +162,13 @@ class DigiaAnalyticsService {
     }
   }
 
-  /// Captures an experience event with campaign context
-  Future<void> captureExperienceEvent(
-    DigiaExperienceEvent event,
+  /// Captures a rich first-party analytics event.
+  ///
+  /// Records an [EngageAnalyticsEvent]'s own [EngageAnalyticsEvent.eventName]
+  /// and typed [EngageAnalyticsEvent.properties], merged with the static
+  /// context. These events are Digia-only and never reach a CEP plugin.
+  Future<void> capture(
+    EngageAnalyticsEvent event,
     CEPTriggerPayload payload, {
     String? campaignType,
     String? campaignId,
@@ -169,30 +176,54 @@ class DigiaAnalyticsService {
     if (!_enabled) return;
 
     try {
-      final occurredAt = DateTime.now().toUtc().toIso8601String();
-      final eventName = event.analyticsEventName;
-      final eventId = _uuid.v4();
-      await _identity.captureEventTime();
-
-      final eventPayload = _buildEventPayload(
-        eventId: eventId,
-        eventName: eventName,
-        occurredAt: occurredAt,
-        payload: payload,
-        event: event,
-        campaignType: campaignType,
+      await _enqueue(
+        eventName: event.eventName,
         campaignId: campaignId,
+        campaignKey: payload.campaignKey,
+        campaignType: campaignType,
+        properties: event.properties,
       );
-
-      await _queue.appendEvent(eventPayload, _config.queueMaxEvents);
-
-      if (await _queue.length() >= _config.flushBatchSize) {
-        await flush();
-      } else {
-        _scheduleTimer();
-      }
     } catch (error) {
-      _log('[Digia Analytics] captureExperienceEvent failed: $error');
+      _log('[Digia Analytics] capture failed: $error');
+    }
+  }
+
+  /// Builds the wire payload, enqueues it, and flushes or schedules dispatch by
+  /// batch size. Mirrors Android's `AnalyticsService.enqueue`.
+  Future<void> _enqueue({
+    required String eventName,
+    String? campaignId,
+    String? campaignKey,
+    String? campaignType,
+    Map<String, Object?> properties = const {},
+  }) async {
+    final eventId = _uuid.v4();
+    await _identity.captureEventTime();
+
+    final mergedProperties = <String, dynamic>{
+      ..._staticContext,
+      ...properties,
+    }..removeWhere((_, value) => value == null);
+
+    final payloadMap = <String, dynamic>{
+      'event_id': eventId,
+      'event_name': eventName,
+      'occurred_at': DateTime.now().toUtc().toIso8601String(),
+      if (campaignId != null) 'campaign_id': campaignId,
+      if (campaignKey != null) 'campaign_key': campaignKey,
+      if (campaignType != null) 'campaign_type': campaignType,
+      'anonymous_id': _identity.anonymousId,
+      'session_id': _identity.sessionId,
+      if (_identity.userId != null) 'user_id': _identity.userId,
+      'properties': mergedProperties,
+    };
+
+    await _queue.appendEvent(payloadMap, _config.queueMaxEvents);
+
+    if (await _queue.length() >= _config.flushBatchSize) {
+      await flush();
+    } else {
+      _scheduleTimer();
     }
   }
 
@@ -284,6 +315,35 @@ class DigiaAnalyticsService {
     return min(1000 * (1 << (attempt - 1)), 16000);
   }
 
+  Future<void> _reportSession() async {
+    if (!_enabled) return;
+    try {
+      final body = <String, dynamic>{
+        'session_id': _identity.sessionId,
+        'anonymous_id': _identity.anonymousId,
+        if (_identity.userId != null) 'user_id': _identity.userId,
+        'occurred_at': DateTime.now().toUtc().toIso8601String(),
+        'properties': _staticContext,
+      };
+      final dio = dioFactory?.call() ?? Dio();
+      final response = await dio.post<dynamic>(
+        DigiaEndpoints.session,
+        data: body,
+        options: Options(
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Digia-Project-Id': _apiKey,
+          },
+          validateStatus: (_) => true,
+        ),
+      );
+      _log(
+          '[Digia Analytics] session reported: HTTP ${response.statusCode} sessionId=${_identity.sessionId} anonymousId=${_identity.anonymousId}');
+    } catch (e) {
+      _log('[Digia Analytics] session report failed: $e');
+    }
+  }
+
   Future<Response<Object?>> _sendBatch(List<AnalyticsQueueEntry> batch) async {
     final dio = dioFactory?.call() ?? Dio();
     final bodyMap = {
@@ -291,7 +351,7 @@ class DigiaAnalyticsService {
     };
 
     return dio.post(
-      _config.endpointUrl,
+      DigiaEndpoints.track,
       data: bodyMap,
       options: Options(
         headers: {
@@ -362,72 +422,19 @@ class DigiaAnalyticsService {
     await _queue.removeByEventIds(eventIds);
   }
 
-  Map<String, dynamic> _buildEventPayload({
-    required String eventId,
-    required String eventName,
-    required String occurredAt,
-    required CEPTriggerPayload payload,
-    required DigiaExperienceEvent event,
-    String? campaignType,
-    String? campaignId,
-  }) {
-    final eventSpecific = <String, dynamic>{};
-    if (event is ExperienceClicked) {
-      eventSpecific['element_id'] = event.elementId;
-    } else if (event is DigiaQuestionAnswered) {
-      eventSpecific['element_id'] = event.stepId;
-      if (event.answer.isNotEmpty) eventSpecific['answer'] = event.answer;
-    }
-
-    final metadata = payload.cepMetadata;
-    if (metadata['displayStyle'] is String) {
-      eventSpecific['display_style'] = metadata['displayStyle'];
-    }
-    if (metadata['anchorKey'] is String) {
-      eventSpecific['anchor_key'] = metadata['anchorKey'];
-    }
-    if (metadata['slotKey'] is String) {
-      eventSpecific['slot_key'] = metadata['slotKey'];
-    }
-
-    final mergedProperties = <String, dynamic>{
-      ...eventSpecific,
-      ..._staticContext,
-    };
-
-    if (payload.variables != null && payload.variables!.isNotEmpty) {
-      mergedProperties['variables'] = payload.variables;
-    }
-
-    mergedProperties.removeWhere((_, v) => v == null);
-
-    final payloadMap = {
-      'event_id': eventId,
-      'event_name': eventName,
-      'occurred_at': occurredAt,
-      'campaign_id': campaignId,
-      'campaign_key': payload.campaignKey,
-      'campaign_type': campaignType,
-      'properties': mergedProperties,
-      'anonymous_id': _identity.anonymousId,
-      'session_id': _identity.sessionId,
-      if (_identity.userId != null) 'user_id': _identity.userId,
-    };
-
-    return payloadMap;
-  }
-
   /// Builds static context with device, OS, and app information
   Future<Map<String, dynamic>> _buildStaticContext() async {
     final packageInfo = await PackageInfo.fromPlatform();
     final appVersion = packageInfo.version;
     final locale = _getLocale();
     final deviceInfo = await AnalyticsDeviceInfo.getDeviceInfo();
+    final devicePlatform = AnalyticsDeviceInfo.getDevicePlatform();
 
     return {
-      'sdk_version': packageVersion,
+      //   s=schema | b=binding | p=platform | c=core/engine version
+      'sdk_version': 's=1|b=flutter|p=$devicePlatform|c=$packageVersion',
       'sdk_platform': 'flutter',
-      'device_platform': AnalyticsDeviceInfo.getDevicePlatform(),
+      'device_platform': devicePlatform,
       'app_version': appVersion,
       'app_locale': locale,
       'os_version': AnalyticsDeviceInfo.formatOsVersion(),

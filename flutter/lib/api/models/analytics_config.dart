@@ -18,9 +18,6 @@ class DigiaAnalyticsConfig {
   /// Session idle timeout in milliseconds.
   final int sessionTimeoutMs;
 
-  /// Analytics endpoint URL.
-  final String endpointUrl;
-
   const DigiaAnalyticsConfig({
     this.enabled = true,
     this.flushIntervalMs = 5000,
@@ -28,6 +25,5 @@ class DigiaAnalyticsConfig {
     this.maxBatchSize = 100,
     this.queueMaxEvents = 5000,
     this.sessionTimeoutMs = 30 * 60 * 1000,
-    this.endpointUrl = 'https://app.digia.tech/api/v1/engage/sdk/track',
   });
 }

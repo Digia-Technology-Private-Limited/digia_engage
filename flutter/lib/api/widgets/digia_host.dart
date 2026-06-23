@@ -8,7 +8,6 @@ import '../internal/nudge/nudge_config.dart';
 import '../internal/nudge/nudge_presenter.dart';
 import '../internal/survey/ui/survey_renderer.dart';
 import '../internal/variable_scope.dart';
-import '../models/digia_experience_event.dart';
 
 /// Wraps the application root and renders in-app message overlays
 /// (dialogs, bottom sheets, PIPs, fullscreen) above all app content.
@@ -122,7 +121,7 @@ class _DigiaHostState extends State<DigiaHost> {
         DigiaInstance.instance.navigator?.context ??
         context;
 
-    DigiaInstance.instance.events.toAll(const ExperienceImpressed(), payload);
+    DigiaInstance.instance.reportNudgeImpression(payload, config);
 
     presentNudge(
       context: navContext,
@@ -138,7 +137,7 @@ class _DigiaHostState extends State<DigiaHost> {
         ...?payload.variables,
       }),
     ).whenComplete(() {
-      DigiaInstance.instance.events.toAll(const ExperienceDismissed(), payload);
+      DigiaInstance.instance.markNudgeDismissed(payload);
       _controller.dismiss();
     });
   }

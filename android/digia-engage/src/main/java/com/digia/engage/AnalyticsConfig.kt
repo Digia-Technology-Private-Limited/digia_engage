@@ -7,5 +7,4 @@ data class AnalyticsConfig(
     val maxBatchSize: Int = 100,
     val queueMaxEvents: Int = 5_000,
     val sessionTimeoutMs: Long = 30L * 60 * 1_000,
-    val endpointUrl: String = "https://app.digia.tech/api/v1/engage/sdk/track",
 )

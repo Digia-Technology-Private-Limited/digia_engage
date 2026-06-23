@@ -4,7 +4,7 @@ import 'package:lottie/lottie.dart';
 
 import '../../../src/components/carousel/internal_carousel.dart';
 import '../../../src/components/video/internal_video_player.dart';
-import '../../models/digia_experience_event.dart';
+import '../action/engage_action.dart';
 import '../action/engage_action_context.dart';
 import '../action/engage_action_handler.dart';
 import '../digia_instance.dart';
@@ -165,19 +165,25 @@ final class NudgeButtonRenderer extends NudgeNodeRenderer<NudgeButton> {
     );
   }
 
-  /// Builds the tap handler. A primary button is the experience's call-to-action:
-  /// tapping it emits an `ExperienceClicked` analytics event before running its
-  /// actions. A button with neither actions nor the primary flag is inert.
+  /// Builds the tap handler. Every CTA tap (primary or secondary) emits a
+  /// `NudgeClicked` analytics event — `cta_role` distinguishes them, matching
+  /// the Engage matrix — before running its actions. A button with neither
+  /// actions nor the primary flag is inert.
   VoidCallback? _onTap(NudgeButton node, BuildContext context) {
     final hasActions = node.actions.isNotEmpty;
     if (!hasActions && !node.isPrimary) return null;
     return () {
-      if (node.isPrimary) {
-        final payload = DigiaInstance.instance.controller.activePayload;
-        if (payload != null) {
-          DigiaInstance.instance.events
-              .toDigia(const ExperienceClicked(), payload);
-        }
+      final payload = DigiaInstance.instance.controller.activePayload;
+      if (payload != null) {
+        final action = hasActions ? node.actions.first : null;
+        DigiaInstance.instance.reportNudgeClicked(
+          payload,
+          elementId: node.isPrimary ? 'cta_primary' : 'cta_secondary',
+          ctaLabel: node.label,
+          actionType: _nudgeActionType(action),
+          actionUrl: _nudgeActionUrl(action),
+          ctaRole: node.isPrimary ? 'primary' : 'secondary',
+        );
       }
       if (hasActions) {
         EngageActionRunner.shared.run(
@@ -189,6 +195,23 @@ final class NudgeButtonRenderer extends NudgeNodeRenderer<NudgeButton> {
     };
   }
 }
+
+/// Maps a nudge CTA's first [action] to the analytics `action_type` wire value.
+/// Mirrors Android's NudgeNodeRenderer mapping.
+String? _nudgeActionType(EngageAction? action) => switch (action) {
+      OpenUrlAction() => 'url',
+      OpenDeeplinkAction() => 'deeplink',
+      HideAction() => 'dismiss',
+      ShareAction() => 'custom',
+      null => null,
+    };
+
+/// The destination URL/URI for link actions, else null.
+String? _nudgeActionUrl(EngageAction? action) => switch (action) {
+      OpenUrlAction(:final url) => url,
+      OpenDeeplinkAction(:final uri) => uri,
+      _ => null,
+    };
 
 final class NudgeGapRenderer extends NudgeNodeRenderer<NudgeGap> {
   const NudgeGapRenderer();

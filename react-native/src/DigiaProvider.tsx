@@ -229,6 +229,10 @@ function TooltipOverlay({
     const { width: screenW } = useWindowDimensions();
     const opacityAnim = useRef(new Animated.Value(1)).current;
     const pendingFadeIn = useRef(false);
+    // Experience Viewed fires once per guide showing — not again on returning to step 0.
+    const viewedFired = useRef(false);
+    // Tracks the last step index for which Step Viewed fired, to avoid re-firing on reposition.
+    const stepViewedFor = useRef(-1);
     const fontFamily = Digia.fontFamily;
 
     const arrowSize = step.arrowSize ?? 8;
@@ -306,27 +310,24 @@ function TooltipOverlay({
         }
     }, [floatPos, opacityAnim]);
 
-    // Fire viewed/step_viewed when the step renders (after any delay has elapsed).
+    // Fire viewed/step_viewed only once the tooltip is actually positioned and visible
+    // (floatPos set) — not merely when the step becomes ready, since the anchor may still
+    // resolve off-screen and cancel the campaign before anything is drawn.
     useEffect(() => {
-        if (!ready) return;
+        if (!floatPos) return;
         const isMultiStep = config.steps.length > 1;
-        if (stepIndex === 0) {
-            request.onExperienceEvent({ type: 'viewed', stepIndex: 0, stepTotal: config.steps.length, anchorKey: step.anchorKey, displayStyle: 'tooltip' });
+        if (!viewedFired.current) {
+            viewedFired.current = true;
+            request.onExperienceEvent({ type: 'viewed', stepIndex, stepTotal: config.steps.length, anchorKey: step.anchorKey, displayStyle: 'tooltip' });
         }
-        if (isMultiStep) {
+        if (isMultiStep && stepViewedFor.current !== stepIndex) {
+            stepViewedFor.current = stepIndex;
             request.onExperienceEvent({ type: 'step_viewed', stepIndex, stepTotal: config.steps.length, anchorKey: step.anchorKey, displayStyle: 'tooltip' });
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [stepIndex, ready]);
+    }, [stepIndex, floatPos]);
 
-    // Closes guide without firing analytics — used after CTA actions have already fired clicked events.
-    const closeFromCTA = useCallback(() => {
-        Animated.timing(opacityAnim, { toValue: 0, duration: 150, useNativeDriver: true }).start(() => {
-            digiaGuideController.cancel(request.payloadId);
-        });
-    }, [opacityAnim, request]);
-
-    // Fires dismissed analytics then closes — used for non-CTA dismissals (scrim, back gesture).
+    // Fires dismissed analytics then closes — used for every dismissal (scrim, back gesture, close CTA).
     const dismiss = useCallback((reason: DismissReason = 'scrim_tap') => {
         Animated.timing(opacityAnim, { toValue: 0, duration: 150, useNativeDriver: true }).start(() => {
             const isMultiStep = config.steps.length > 1;
@@ -349,15 +350,33 @@ function TooltipOverlay({
         });
     }, [opacityAnim, request]);
 
-    const next = useCallback(() => stepTo(stepIndex < config.steps.length - 1 ? stepIndex + 1 : null), [stepIndex, config.steps.length, stepTo]);
+    // Finishes the guide: fires Completed, then Dismissed (which fires unconditionally
+    // on every close, even after completion — per the Engage matrix), then closes.
+    const complete = useCallback((reason: DismissReason = 'completed') => {
+        Animated.timing(opacityAnim, { toValue: 0, duration: 150, useNativeDriver: true }).start(() => {
+            request.onExperienceEvent({ type: 'completed', stepIndex, stepTotal: config.steps.length, anchorKey: step.anchorKey, displayStyle: 'tooltip' });
+            request.onExperienceEvent({ type: 'dismissed', stepIndex, stepTotal: config.steps.length, anchorKey: step.anchorKey, displayStyle: 'tooltip', dismissReason: reason });
+            digiaGuideController.cancel(request.payloadId);
+        });
+    }, [request, opacityAnim, step, config, stepIndex]);
+
+    const next = useCallback(() => {
+        if (stepIndex < config.steps.length - 1) {
+            stepTo(stepIndex + 1);
+        } else if (config.steps.length > 1) {
+            complete();          // advancing past the last step finishes a multi-step guide
+        } else {
+            dismiss();           // single-step guide has no completion semantics
+        }
+    }, [stepIndex, config.steps.length, stepTo, complete, dismiss]);
     const prev = useCallback(() => { if (stepIndex > 0) stepTo(stepIndex - 1); }, [stepIndex, stepTo]);
 
     const actionCallbacks = useCallback((): ActionCallbacks => ({
         onNext: next,
         onBack: prev,
-        onDismissSelf: closeFromCTA,
-        onDismissAll: closeFromCTA,
-    }), [next, prev, closeFromCTA]);
+        onDismissSelf: () => dismiss('user_close'),
+        onDismissAll: () => dismiss('user_close'),
+    }), [next, prev, dismiss]);
 
     const tooltipW = Math.min(step.maxWidth, screenW - 32);
 
@@ -435,10 +454,9 @@ function TooltipOverlay({
                                                 const isMultiStep = config.steps.length > 1;
                                                 const isLastStep = stepIndex === config.steps.length - 1;
                                                 const actionUrl = 'url' in action ? (action as { url: string }).url : undefined;
-                                                request.onExperienceEvent({ type: 'clicked', stepIndex, stepTotal: config.steps.length, anchorKey: step.anchorKey, displayStyle: 'tooltip', ctaLabel: action.label, actionType: action.type, actionUrl });
-                                                if (isMultiStep) {
-                                                    request.onExperienceEvent({ type: 'step_clicked', stepIndex, stepTotal: config.steps.length, anchorKey: step.anchorKey, displayStyle: 'tooltip', ctaLabel: action.label, actionType: action.type, actionUrl });
-                                                }
+                                                // Guides only have Step Clicked in the matrix (no Experience Clicked) —
+                                                // fire it once per CTA tap, single- and multi-step alike.
+                                                request.onExperienceEvent({ type: 'step_clicked', stepIndex, stepTotal: config.steps.length, anchorKey: step.anchorKey, displayStyle: 'tooltip', ctaLabel: action.label, actionType: action.type, actionUrl });
                                                 if (isMultiStep && isLastStep && action.type !== 'back') {
                                                     request.onExperienceEvent({ type: 'completed', stepIndex, stepTotal: config.steps.length, anchorKey: step.anchorKey, displayStyle: 'tooltip' });
                                                 }
@@ -636,6 +654,10 @@ function SpotlightOverlay({
     const { width: screenW, height: screenH } = useWindowDimensions();
     const opacityAnim = useRef(new Animated.Value(1)).current;
     const pendingFadeIn = useRef(false);
+    // Experience Viewed fires once per guide showing — not again on returning to step 0.
+    const viewedFired = useRef(false);
+    // Tracks the last step index for which Step Viewed fired, to avoid re-firing on remeasure.
+    const stepViewedFor = useRef(-1);
 
     // Wait for the step's delayInMs before marking it ready. Re-runs on every step entry.
     useEffect(() => {
@@ -689,24 +711,22 @@ function SpotlightOverlay({
         }
     }, [layout, opacityAnim]);
 
-    // Fire viewed/step_viewed when the step renders (after any delay has elapsed).
+    // Fire viewed/step_viewed only once the spotlight cutout is actually laid out and visible
+    // (layout set) — not merely when the step becomes ready, since the anchor may still resolve
+    // off-screen and cancel the campaign before anything is drawn.
     useEffect(() => {
-        if (!ready) return;
+        if (!layout) return;
         const isMultiStep = config.steps.length > 1;
-        if (stepIndex === 0) {
-            request.onExperienceEvent({ type: 'viewed', stepIndex: 0, stepTotal: config.steps.length, anchorKey: step.anchorKey, displayStyle: 'spotlight' });
+        if (!viewedFired.current) {
+            viewedFired.current = true;
+            request.onExperienceEvent({ type: 'viewed', stepIndex, stepTotal: config.steps.length, anchorKey: step.anchorKey, displayStyle: 'spotlight' });
         }
-        if (isMultiStep) {
+        if (isMultiStep && stepViewedFor.current !== stepIndex) {
+            stepViewedFor.current = stepIndex;
             request.onExperienceEvent({ type: 'step_viewed', stepIndex, stepTotal: config.steps.length, anchorKey: step.anchorKey, displayStyle: 'spotlight' });
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [stepIndex, ready]);
-
-    const closeFromCTA = useCallback(() => {
-        Animated.timing(opacityAnim, { toValue: 0, duration: 150, useNativeDriver: true }).start(() => {
-            digiaGuideController.cancel(request.payloadId);
-        });
-    }, [opacityAnim, request]);
+    }, [stepIndex, layout]);
 
     const dismiss = useCallback((reason: DismissReason = 'scrim_tap') => {
         Animated.timing(opacityAnim, { toValue: 0, duration: 150, useNativeDriver: true }).start(() => {
@@ -730,24 +750,41 @@ function SpotlightOverlay({
         });
     }, [opacityAnim, request]);
 
-    const next = useCallback(() => stepTo(stepIndex < config.steps.length - 1 ? stepIndex + 1 : null), [stepIndex, config.steps.length, stepTo]);
+    // Finishes the guide: fires Completed, then Dismissed (which fires unconditionally
+    // on every close, even after completion — per the Engage matrix), then closes.
+    const complete = useCallback((reason: DismissReason = 'completed') => {
+        Animated.timing(opacityAnim, { toValue: 0, duration: 150, useNativeDriver: true }).start(() => {
+            request.onExperienceEvent({ type: 'completed', stepIndex, stepTotal: config.steps.length, anchorKey: step.anchorKey, displayStyle: 'spotlight' });
+            request.onExperienceEvent({ type: 'dismissed', stepIndex, stepTotal: config.steps.length, anchorKey: step.anchorKey, displayStyle: 'spotlight', dismissReason: reason });
+            digiaGuideController.cancel(request.payloadId);
+        });
+    }, [request, opacityAnim, step, config, stepIndex]);
+
+    const next = useCallback(() => {
+        if (stepIndex < config.steps.length - 1) {
+            stepTo(stepIndex + 1);
+        } else if (config.steps.length > 1) {
+            complete();          // advancing past the last step finishes a multi-step guide
+        } else {
+            dismiss();           // single-step guide has no completion semantics
+        }
+    }, [stepIndex, config.steps.length, stepTo, complete, dismiss]);
     const prev = useCallback(() => { if (stepIndex > 0) stepTo(stepIndex - 1); }, [stepIndex, stepTo]);
 
     const actionCallbacks = useCallback((): ActionCallbacks => ({
         onNext: next,
         onBack: prev,
-        onDismissSelf: closeFromCTA,
-        onDismissAll: closeFromCTA,
-    }), [next, prev, closeFromCTA]);
+        onDismissSelf: () => dismiss('user_close'),
+        onDismissAll: () => dismiss('user_close'),
+    }), [next, prev, dismiss]);
 
     const handleActionPress = useCallback((action: Action) => {
         const isMultiStep = config.steps.length > 1;
         const isLastStep = stepIndex === config.steps.length - 1;
         const actionUrl = 'url' in action ? (action as { url: string }).url : undefined;
-        request.onExperienceEvent({ type: 'clicked', stepIndex, stepTotal: config.steps.length, anchorKey: step.anchorKey, displayStyle: 'spotlight', ctaLabel: action.label, actionType: action.type, actionUrl });
-        if (isMultiStep) {
-            request.onExperienceEvent({ type: 'step_clicked', stepIndex, stepTotal: config.steps.length, anchorKey: step.anchorKey, displayStyle: 'spotlight', ctaLabel: action.label, actionType: action.type, actionUrl });
-        }
+        // Guides only have Step Clicked in the matrix (no Experience Clicked) —
+        // fire it once per CTA tap, single- and multi-step alike.
+        request.onExperienceEvent({ type: 'step_clicked', stepIndex, stepTotal: config.steps.length, anchorKey: step.anchorKey, displayStyle: 'spotlight', ctaLabel: action.label, actionType: action.type, actionUrl });
         if (isMultiStep && isLastStep && action.type !== 'back') {
             request.onExperienceEvent({ type: 'completed', stepIndex, stepTotal: config.steps.length, anchorKey: step.anchorKey, displayStyle: 'spotlight' });
         }

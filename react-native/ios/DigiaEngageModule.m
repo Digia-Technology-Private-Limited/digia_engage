@@ -27,8 +27,9 @@
 RCT_EXTERN_METHOD(initialize : (NSString *)projectId environment : (NSString *)
                       environment logLevel : (NSString *)logLevel baseUrl : (
                           NSString *)baseUrl fontFamily : (NSString *)
-                          fontFamily resolve : (RCTPromiseResolveBlock)
-                              resolve reject : (RCTPromiseRejectBlock)reject)
+                          fontFamily sdkVersion : (NSString *)sdkVersion
+                              resolve : (RCTPromiseResolveBlock)
+                                  resolve reject : (RCTPromiseRejectBlock)reject)
 
 RCT_EXTERN_METHOD(registerBridge)
 
@@ -38,12 +39,12 @@ RCT_EXTERN_METHOD(setUserId : (NSString *)userId)
 
 RCT_EXTERN_METHOD(clearUserId)
 
-RCT_EXTERN_METHOD(trackEvent : (NSString *)eventType campaignId : (NSString *)
-                      campaignId campaignKey : (NSString *)campaignKey campaignType
-                  : (NSString *)campaignType elementId : (NSString *)elementId)
+RCT_EXTERN_METHOD(captureAnalyticsEvent : (NSString *)campaignKey eventName : (NSString *)
+                      eventName props : (NSDictionary *)props)
 
-RCT_EXTERN_METHOD(triggerCampaign : (NSString *)id content : (NSDictionary *)
-                      content cepContext : (NSDictionary *)cepContext)
+RCT_EXTERN_METHOD(triggerCampaign : (NSString *)cepCampaignId campaignKey : (NSString *)
+                      campaignKey variables : (NSDictionary *)variables cepMetadata
+                  : (NSDictionary *)cepMetadata)
 
 RCT_EXTERN_METHOD(invalidateCampaign : (NSString *)campaignId)
 

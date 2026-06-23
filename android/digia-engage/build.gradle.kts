@@ -16,6 +16,12 @@ android {
         targetSdk = 35
         consumerProguardFiles("consumer-rules.pro")
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+        buildConfigField(
+            "String",
+            "DIGIA_SDK_VERSION",
+            "\"${project.findProperty("VERSION_NAME") ?: "unknown"}\""
+        )
     }
 
     buildTypes {
@@ -39,6 +45,7 @@ android {
 
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 
     testOptions {

@@ -33,8 +33,11 @@ import SwiftUI
 import UIKit
 
 @objc(DigiaEngageModule)
-final class DigiaModule: RCTEventEmitter {
+final class DigiaModule: RCTEventEmitter, @unchecked Sendable {
 
+    // RNEventBridgePlugin.init is main-actor-isolated (DigiaCEPPlugin is a
+    // @MainActor protocol). The first access happens inside a `Task { @MainActor }`,
+    // so assuming main-actor isolation here is safe.
     private lazy var rnPlugin: RNEventBridgePlugin = MainActor.assumeIsolated {
         RNEventBridgePlugin(eventEmitter: self)
     }
@@ -66,6 +69,7 @@ final class DigiaModule: RCTEventEmitter {
         logLevel: String,
         baseUrl: String?,
         fontFamily: String?,
+        sdkVersion: String?,
         resolve: @escaping RCTPromiseResolveBlock,
         reject: @escaping RCTPromiseRejectBlock
     ) {
@@ -90,9 +94,16 @@ final class DigiaModule: RCTEventEmitter {
             logLevel: logLevelValue,
             environment: envValue,
             developerConfig: cleanBaseUrl.map { DigiaDeveloperConfig(baseURL: $0) },
-            fontFamily: fontFamily.flatMap { $0.isEmpty ? nil : $0 }
+            fontFamily: fontFamily.flatMap { $0.isEmpty ? nil : $0 },
+            // This native engine is being driven by the RN wrapper.
+            wrapperBinding: "react_native",
+            wrapperVersion: sdkVersion.flatMap { $0.isEmpty ? nil : $0 }
         )
 
+        // RCTPromise blocks aren't Sendable; we hop to the main actor and own
+        // their single invocation, so the unchecked capture is safe.
+        nonisolated(unsafe) let resolve = resolve
+        nonisolated(unsafe) let reject = reject
         Task { @MainActor in
             do {
                 try await Digia.initialize(config)
@@ -124,12 +135,15 @@ final class DigiaModule: RCTEventEmitter {
             if let rootVC = UIApplication.shared.connectedScenes
                 .compactMap({ ($0 as? UIWindowScene)?.keyWindow?.rootViewController })
                 .first,
-               let hostView = rootVC.view.viewWithTag(Self.overlayMountTag) {
+                let hostView = rootVC.view.viewWithTag(Self.overlayMountTag)
+            {
                 rootVC.view.bringSubviewToFront(hostView)
             }
 
             Digia.register(self.rnPlugin)
-            print("[DigiaRN] registerBridge: rnPlugin registered, delegate=\(self.rnPlugin.delegate != nil ? "set" : "nil")")
+            print(
+                "[DigiaRN] registerBridge: rnPlugin registered, delegate=\(self.rnPlugin.delegate != nil ? "set" : "nil")"
+            )
         }
     }
 
@@ -148,48 +162,38 @@ final class DigiaModule: RCTEventEmitter {
     // ────────────────────────────────────────────────────────────────────────
     // MARK: - Analytics identity
 
-    /// Sets the authenticated user ID for analytics identity stitching.
-    ///
-    /// Mirrors Android's DigiaModule.setUserId(). The public iOS SDK does not
-    /// expose Digia.setUserId yet, so this is a no-op placeholder (like
-    /// setCurrentScreen) that exists to satisfy the JS NativeDigiaEngage spec —
-    /// without it, `getModule()?.setUserId(...)` throws on iOS. Activate the body
-    /// once the iOS SDK adds the public API.
     @objc
     func setUserId(_ userId: String) {
-        // Digia.setUserId(userId)
+        Task { @MainActor in Digia.setUserId(userId) }
     }
 
-    /// Clears the user ID (e.g. on logout). No-op placeholder — see setUserId.
     @objc
     func clearUserId() {
-        // Digia.clearUserId()
+        Task { @MainActor in Digia.clearUserId() }
     }
 
     // ────────────────────────────────────────────────────────────────────────
-    // MARK: - trackEvent (guide / JS-rendered campaigns)
+    // MARK: - captureAnalyticsEvent (guide / JS-rendered campaigns)
 
     /// Records an analytics event originating from JS-rendered campaigns
     /// (guides / tooltips / spotlights). Native campaigns (nudge, inline,
     /// survey) are tracked internally by the SDK.
     ///
-    /// Mirrors Android's DigiaModule.trackEvent(), which forwards to
-    /// Digia.captureAnalyticsEvent(event, payload). The public iOS SDK does not
-    /// expose an equivalent capture API yet, so iOS analytics for JS-rendered
-    /// campaigns are not forwarded — this method logs the event and otherwise
-    /// no-ops. It MUST exist regardless: without it,
-    /// `getModule()?.trackEvent(...)` throws "trackEvent is not a function" and
-    /// crashes the JS render tree (DigiaProvider). Wire up the body once the iOS
-    /// SDK adds a public capture API.
+    /// Mirrors Android's DigiaModule.captureAnalyticsEvent(), which forwards a
+    /// JS-rendered campaign (guide) lifecycle event to Digia.captureAnalyticsEvent.
+    /// The native SDK maps the wire-keyed event to the typed Digia analytics event.
     @objc
-    func trackEvent(
-        _ eventType: String,
-        campaignId: String,
-        campaignKey: String,
-        campaignType: String,
-        elementId: String?
+    func captureAnalyticsEvent(
+        _ campaignKey: String,
+        eventName: String,
+        props: NSDictionary
     ) {
-        print("[DigiaRN] trackEvent type=\(eventType) campaignId=\(campaignId) campaignKey=\(campaignKey) campaignType=\(campaignType) elementId=\(elementId ?? "nil") — iOS capture API not available, dropping")
+        // [String: Any] isn't Sendable; hop to the main actor with an unchecked
+        // capture (the dict is built here and only read on the main actor).
+        nonisolated(unsafe) let properties = props as? [String: Any] ?? [:]
+        Task { @MainActor in
+            Digia.captureAnalyticsEvent(campaignKey: campaignKey, eventName: eventName, props: properties)
+        }
     }
 
     // ────────────────────────────────────────────────────────────────────────
@@ -202,23 +206,33 @@ final class DigiaModule: RCTEventEmitter {
     /// routes it into the SwiftUI overlay for rendering.
     @objc
     func triggerCampaign(
-        _ id: String,
-        content contentMap: NSDictionary,
-        cepContext cepContextMap: NSDictionary
+        _ cepCampaignId: String,
+        campaignKey: String,
+        variables: NSDictionary,
+        cepMetadata cepMetadataMap: NSDictionary
     ) {
-        let content = buildInAppPayloadContent(from: contentMap)
-        let cepContext = (cepContextMap as? [String: String]) ?? [:]
-        let payload = InAppPayload(id: id, content: content, cepContext: cepContext)
-        print("[DigiaRN] triggerCampaign id=\(id) campaignKey=\(content.campaignKey ?? "nil")")
+        // The bridge sends the CEPTriggerPayload fields explicitly — build it
+        // directly (mirrors Android's RN DigiaModule.triggerCampaign).
+        let payload = CEPTriggerPayload(
+            cepCampaignId: cepCampaignId,
+            campaignKey: campaignKey,
+            cepMetadata: Self.variableMap(cepMetadataMap) ?? [:],
+            variables: Self.variableMap(variables)
+        )
+        print("[DigiaRN] triggerCampaign cepCampaignId=\(cepCampaignId) campaignKey=\(campaignKey)")
 
         Task { @MainActor in
             guard let delegate = self.rnPlugin.delegate else {
-                print("[DigiaRN] triggerCampaign: delegate is nil — registerBridge() may not have run yet")
+                print(
+                    "[DigiaRN] triggerCampaign: delegate is nil — registerBridge() may not have run yet"
+                )
                 return
             }
             delegate.onCampaignTriggered(payload)
             Task { @MainActor in
-                print("[DigiaRN] triggerCampaign post-call: hasActiveOverlay=\(Digia.hasActiveOverlay)")
+                print(
+                    "[DigiaRN] triggerCampaign post-call: hasActiveOverlay=\(Digia.hasActiveOverlay)"
+                )
             }
         }
     }
@@ -319,49 +333,6 @@ final class DigiaModule: RCTEventEmitter {
 
     // ────────────────────────────────────────────────────────────────────────
     // MARK: - Private helpers
-
-    private func buildInAppPayloadContent(from map: NSDictionary) -> InAppPayloadContent {
-        let pk = map["placementKey"] as? String
-        let title = map["title"] as? String
-        let text = map["text"] as? String
-        let viewId = map["viewId"] as? String
-        let command = map["command"] as? String
-        let screenId = map["screenId"] as? String
-        let campaignKey =
-            (map["campaignKey"] as? String) ?? (map["campaign_key"] as? String)
-            ?? (map["digia_campaign_key"] as? String)
-            ?? (map["digiaKey"] as? String)
-        var type = (map["type"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-        if type.isEmpty {
-            type =
-                (pk?.trimmingCharacters(in: .whitespacesAndNewlines) ?? "").isEmpty
-                ? "dialog" : "inline"
-        }
-        let args: [String: JSONValue] = {
-            guard let raw = map["args"] as? [String: Any] else { return [:] }
-            return raw.compactMapValues { JSONValue(rawValue: $0) }
-        }()
-
-        // CEP trigger variables for `{{ }}` interpolation. CleverTap's nudge
-        // mapper puts them at `content.variables` (top-level); the command/inline
-        // mappers may nest them under `args.variables`. Mirror the JS bridge's
-        // `_extractVariables` (content.variables first, then args.variables).
-        let variables = Self.variableMap(map["variables"])
-            ?? Self.variableMap((map["args"] as? [String: Any])?["variables"])
-
-        return InAppPayloadContent(
-            type: type,
-            placementKey: pk,
-            title: title,
-            text: text,
-            viewId: viewId,
-            command: command,
-            args: args,
-            screenId: screenId,
-            campaignKey: campaignKey,
-            variables: variables
-        )
-    }
 
     /// Coerces a raw `variables` value into a `[String: String]` map, stringifying
     /// scalar values (string / number / bool) and dropping anything else. Returns

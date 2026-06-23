@@ -1,5 +1,7 @@
 package com.digia.engage.internal.ui
 
+import android.graphics.Matrix
+import android.view.TextureView
 import android.view.ViewGroup.LayoutParams.MATCH_PARENT
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -14,11 +16,8 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
@@ -28,13 +27,11 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
-import androidx.media3.common.util.UnstableApi
+import androidx.media3.common.VideoSize
 import androidx.media3.exoplayer.ExoPlayer
-import androidx.media3.ui.AspectRatioFrameLayout
-import androidx.media3.ui.PlayerView
 import coil.compose.SubcomposeAsyncImage
 import coil.compose.SubcomposeAsyncImageContent
-import com.digia.engage.InAppPayload
+import com.digia.engage.CEPTriggerPayload
 import com.digia.engage.internal.DigiaInstance
 import com.digia.engage.internal.model.InlineStoryConfig
 import com.digia.engage.internal.model.StoryItemConfig
@@ -42,7 +39,7 @@ import com.digia.engage.internal.model.StoryItemConfig
 @Composable
 internal fun DigiaInlineStory(
     config: InlineStoryConfig,
-    payload: InAppPayload,
+    payload: CEPTriggerPayload,
     modifier: Modifier = Modifier,
 ) {
     val cardHeight = config.card.height.dp
@@ -62,6 +59,8 @@ internal fun DigiaInlineStory(
                     .height(cardHeight)
                     .clip(RoundedCornerShape(cornerRadius))
                     .clickable {
+                        // Ring/thumbnail tap opens the story → Digia Experience Clicked (story_open).
+                        DigiaInstance.reportStoryOpened(payload)
                         DigiaInstance.controller.showStoryOverlay(config, index, payload)
                     },
             ) {
@@ -91,11 +90,11 @@ private fun StoryThumbnailImage(url: String) {
     )
 }
 
-@androidx.annotation.OptIn(UnstableApi::class)
 @Composable
 private fun StoryThumbnailVideoPlayer(url: String) {
     val context = LocalContext.current
-    var isReady by remember { mutableStateOf(false) }
+    val textureView = remember { mutableStateOf<TextureView?>(null) }
+    val videoSize = remember { mutableStateOf(VideoSize.UNKNOWN) }
 
     val exoPlayer = remember(url) {
         ExoPlayer.Builder(context).build().apply {
@@ -106,37 +105,60 @@ private fun StoryThumbnailVideoPlayer(url: String) {
         }
     }
 
-    LaunchedEffect(exoPlayer) {
+    DisposableEffect(exoPlayer) {
         val listener = object : Player.Listener {
             override fun onPlaybackStateChanged(state: Int) {
-                if (state == Player.STATE_READY && !isReady) {
-                    isReady = true
-                    exoPlayer.play()
-                }
+                if (state == Player.STATE_READY) exoPlayer.play()
+            }
+
+            override fun onVideoSizeChanged(size: VideoSize) {
+                videoSize.value = size
+                textureView.value?.centerCrop(size)
             }
         }
         exoPlayer.addListener(listener)
-    }
-
-    DisposableEffect(Unit) {
         onDispose {
+            exoPlayer.removeListener(listener)
             exoPlayer.stop()
             exoPlayer.release()
         }
     }
 
+    DisposableEffect(exoPlayer, textureView.value) {
+        val view = textureView.value
+        view?.let(exoPlayer::setVideoTextureView)
+        onDispose { view?.let(exoPlayer::clearVideoTextureView) }
+    }
+
     Box(modifier = Modifier.fillMaxSize().background(Color.Black)) {
         AndroidView(
             modifier = Modifier.fillMaxSize(),
+            // A TextureView composites inline; PlayerView's default SurfaceView lives in a
+            // separate window layer where neighbouring videos in the row overlap each other.
             factory = { ctx ->
-                PlayerView(ctx).apply {
-                    player = exoPlayer
-                    useController = false
-                    setResizeMode(AspectRatioFrameLayout.RESIZE_MODE_ZOOM)
-                    layoutParams = android.view.ViewGroup.LayoutParams(MATCH_PARENT, MATCH_PARENT)
+                TextureView(ctx).also { view ->
+                    // The crop also has to re-run on layout: the video size can resolve before
+                    // the view is measured, when its width/height are still zero.
+                    view.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ ->
+                        view.centerCrop(videoSize.value)
+                    }
+                    textureView.value = view
                 }
             },
-            update = { view -> view.player = exoPlayer },
         )
     }
+}
+
+/** Scales the surface to fill the view while preserving the video's aspect ratio (center crop). */
+private fun TextureView.centerCrop(videoSize: VideoSize) {
+    if (videoSize.width == 0 || videoSize.height == 0 || width == 0 || height == 0) return
+    val videoAspect = videoSize.width * videoSize.pixelWidthHeightRatio / videoSize.height
+    val viewAspect = width.toFloat() / height
+    val matrix = Matrix()
+    if (videoAspect > viewAspect) {
+        matrix.setScale(videoAspect / viewAspect, 1f, width / 2f, height / 2f)
+    } else {
+        matrix.setScale(1f, viewAspect / videoAspect, width / 2f, height / 2f)
+    }
+    setTransform(matrix)
 }
