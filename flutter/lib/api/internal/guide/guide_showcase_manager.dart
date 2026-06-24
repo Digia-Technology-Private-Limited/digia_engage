@@ -195,10 +195,10 @@ class GuideShowcaseManager {
   ShowcasePresentation? presentationFor(String anchorKey) {
     final state = _orchestrator.state;
     if (state == null) return null;
-    final scope = VariableScope({
-      ...state.campaign.config.defaultVariables,
-      ...?state.payload.variables,
-    });
+    final scope = VariableScope.fromSchemas(
+      state.campaign.config.defaultVariables,
+      state.payload.variables,
+    );
     final config = state.config;
 
     // Honor the dashboard's `outsideTapBehavior` for scrim/barrier taps instead
