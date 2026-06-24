@@ -13,12 +13,13 @@ internal data class StoryOverlayState(
         val config: InlineStoryConfig,
         val initialIndex: Int,
         val payload: CEPTriggerPayload,
+        val variableSchemas: List<VariableSchema> = emptyList(),
 )
 
 internal data class NudgeOverlayState(
         val config: NudgeConfig,
         val payload: CEPTriggerPayload,
-        val defaultVariables: Map<String, String> = emptyMap(),
+        val context: VariableContext = VariableContext.empty,
 )
 
 internal class DigiaOverlayController {
@@ -91,7 +92,7 @@ internal class DigiaOverlayController {
     }
 
     fun showStoryOverlay(config: InlineStoryConfig, initialIndex: Int, payload: CEPTriggerPayload) {
-        _storyOverlay.value = StoryOverlayState(config, initialIndex, payload)
+        _storyOverlay.value = StoryOverlayState(config, initialIndex, payload, config.variableSchemas)
     }
 
     fun dismissStoryOverlay() {
@@ -101,9 +102,9 @@ internal class DigiaOverlayController {
     fun showNudge(
             config: NudgeConfig,
             payload: CEPTriggerPayload,
-            defaultVariables: Map<String, String> = emptyMap()
+            context: VariableContext = VariableContext.empty,
     ) {
-        _nudgeOverlay.value = NudgeOverlayState(config, payload, defaultVariables)
+        _nudgeOverlay.value = NudgeOverlayState(config, payload, context)
     }
 
     fun dismissNudge() {

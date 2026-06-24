@@ -41,8 +41,10 @@ import androidx.media3.ui.AspectRatioFrameLayout
 import androidx.media3.ui.PlayerView
 import coil.compose.SubcomposeAsyncImage
 import coil.compose.SubcomposeAsyncImageContent
+import com.digia.engage.internal.buildVariableContext
 import com.digia.engage.internal.DigiaInstance
 import com.digia.engage.internal.StoryOverlayState
+import com.digia.engage.internal.VariableContext
 import com.digia.engage.internal.interpolate
 import com.digia.engage.internal.model.StoryCtaAction
 import com.digia.engage.internal.model.StoryItemConfig
@@ -100,7 +102,10 @@ private fun DigiaStoryOverlayContent(
     onCompleted: () -> Unit,
 ) {
     val context = LocalContext.current
-    val variables = remember(state.payload) { state.payload.variables }
+    // Build a VariableContext from campaign schemas (type info) + CEP runtime variables.
+    val varContext = remember(state.variableSchemas, state.payload) {
+        buildVariableContext(state.variableSchemas, state.payload.variables)
+    }
 
     // Step Viewed fires for each frame that becomes visible (including the first).
     LaunchedEffect(currentStoryIndex) {
@@ -158,7 +163,7 @@ private fun DigiaStoryOverlayContent(
                         contentAlignment = Alignment.Center,
                     ) {
                         StoryCtaButton(
-                            text = interpolate(item.ctaText ?: "", variables),
+                            text = interpolate(item.ctaText ?: "", varContext),
                             textColor = parseColor(item.ctaTextColor),
                             backgroundColor = parseColor(item.ctaBackgroundColor),
                             cornerRadius = item.ctaCornerRadius,

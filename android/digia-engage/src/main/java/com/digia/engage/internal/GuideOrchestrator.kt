@@ -13,7 +13,7 @@ internal data class ActiveGuideState(
     /** The original trigger payload, retained so lifecycle events reuse the CEP's
      *  identity/metadata instead of a synthesized one (matches nudge/inline). */
     val payload: CEPTriggerPayload,
-    val variables: Map<String, String>? = payload.variables,
+    val context: VariableContext = VariableContext.empty,
 ) {
     val currentStep: GuideStepModel
         get() = campaign.guideConfig!!.steps[stepIndex]
@@ -26,12 +26,12 @@ internal class GuideOrchestrator {
     private val _state = MutableStateFlow<ActiveGuideState?>(null)
     val state: StateFlow<ActiveGuideState?> = _state.asStateFlow()
 
-    fun start(campaign: CampaignModel, payload: CEPTriggerPayload) {
+    fun start(campaign: CampaignModel, payload: CEPTriggerPayload, context: VariableContext = VariableContext.empty) {
         val guideConfig = campaign.guideConfig
         require(campaign.campaignType == "guide" && guideConfig != null)
         require(guideConfig.steps.isNotEmpty())
         // android.util.Log.d("Digia", "[GuideOrchestrator] starting campaign='${campaign.campaignKey}' steps=${guideConfig.steps.size}")
-        _state.value = ActiveGuideState(campaign, 0, payload)
+        _state.value = ActiveGuideState(campaign, 0, payload, context)
         // android.util.Log.d("Digia", "[GuideOrchestrator] state set → step[0] anchorKey='${guideConfig.steps[0].anchorKey}'")
     }
 

@@ -21,7 +21,7 @@ import { DIGIA_RN_SDK_VERSION } from './SdkVersion';
 import { digiaHealthReporter, HealthEventType } from './DigiaHealthReporter';
 import { digiaGuideController } from './DigiaGuideController';
 import { digiaAnchorRegistry } from './digiaAnchorRegistry';
-import { parseVariableMap } from './interpolate';
+import { parseVariableMap, normalizeVariable, type VariableSchema } from './interpolate';
 import { digiaActionHandler } from './actionHandler';
 import uuid from 'react-native-uuid';
 import { frequencyStore } from './frequencyStore';
@@ -269,11 +269,18 @@ class DigiaClass implements DigiaDelegate {
 
             this._activePayloads.set(cepCampaignId, payload);
             const digiaId = campaign._id ?? campaign.id ?? campaignKey;
+            const rawVars = (campaign as unknown as Record<string, unknown>)?.templateConfig as Record<string, unknown> | undefined;
+            const variableSchemas: VariableSchema[] = Array.isArray(rawVars?.['variables'])
+                ? (rawVars!['variables'] as unknown[])
+                    .map((v) => normalizeVariable(v as { name: string; type?: string; fallbackValue?: string; sampleValue?: string }))
+                    .filter((s) => s.name.length > 0)
+                : [];
             const mounted = digiaGuideController.start({
                 payloadId: cepCampaignId,
                 campaignKey,
                 campaignId: digiaId,
                 variables,
+                variableSchemas,
                 config,
                 onExperienceEvent: (event) => this._onGuideLifecycleEvent(event, cepCampaignId, campaignKey, digiaId),
                 // Safety net: release the CEP slot on every guide exit, including

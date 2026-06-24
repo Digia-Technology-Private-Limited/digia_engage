@@ -20,18 +20,18 @@ import { digiaHealthReporter, HealthEventType } from './DigiaHealthReporter';
 import { digiaActionHandler, type ActionCallbacks } from './actionHandler';
 import type { DismissReason } from './types';
 import type { Action, SpotlightConfig, SpotlightStep, TooltipConfig, TooltipStep } from './templateTypes';
-import { interpolateVariables, type VariableMap } from './interpolate';
+import { buildVariableContext, interpolate, type VariableContext } from './interpolate';
 
 // ─── Variable context ─────────────────────────────────────────────────────────
-// Provides the active campaign's variable map to all descendant components.
-// Avoids threading `variables` through every prop chain.
+// Provides the active campaign's VariableContext to all descendant components.
+// Avoids threading the context through every prop chain.
 
-const VariableContext = createContext<VariableMap | undefined>(undefined);
+const DigiaVariableCtx = createContext<VariableContext | undefined>(undefined);
 
-function TextWithVariables({ children, ...props }: Omit<React.ComponentProps<typeof Text>, 'children'> & { children: string }) {
-    const variables = useContext(VariableContext);
-    return <Text {...props}>{interpolateVariables(children, variables)}</Text>;
-}
+const TextWithVariables = ({ children, ...props }: Omit<React.ComponentProps<typeof Text>, 'children'> & { children: string }) => {
+    const ctx = useContext(DigiaVariableCtx);
+    return <Text {...props}>{interpolate(children, ctx)}</Text>;
+};
 
 // ─── @floating-ui/core platform adapter ──────────────────────────────────────
 
@@ -391,8 +391,9 @@ function TooltipOverlay({
         if (behavior === 'dismiss') dismiss();
     }, [config.outsideTapBehavior, next, dismiss]);
 
+    const tooltipVarCtx = buildVariableContext(request.variableSchemas ?? [], request.variables);
     return (
-        <VariableContext.Provider value={request.variables}>
+        <DigiaVariableCtx.Provider value={tooltipVarCtx}>
             <Modal transparent statusBarTranslucent animationType="none" visible>
                 {/* pointerEvents="box-none": container passes touches through; only children intercept.
                     This prevents the invisible measurement pass from blocking the screen. */}
@@ -494,7 +495,7 @@ function TooltipOverlay({
                     )}
                 </Animated.View>
             </Modal>
-        </VariableContext.Provider>
+        </DigiaVariableCtx.Provider>
     );
 }
 
@@ -815,8 +816,9 @@ function SpotlightOverlay({
         ? buildCutoutPath(cutoutX, cutoutY, cutoutW, cutoutH, step.highlightCornerRadius, step.highlightShape)
         : '';
 
+    const spotlightVarCtx = buildVariableContext(request.variableSchemas ?? [], request.variables);
     return (
-        <VariableContext.Provider value={request.variables}>
+        <DigiaVariableCtx.Provider value={spotlightVarCtx}>
             <Modal transparent statusBarTranslucent animationType="none" visible>
                 <Animated.View style={[StyleSheet.absoluteFill, { opacity: opacityAnim }]} pointerEvents="box-none">
                     {layout && (
@@ -853,7 +855,7 @@ function SpotlightOverlay({
                     )}
                 </Animated.View>
             </Modal>
-        </VariableContext.Provider>
+        </DigiaVariableCtx.Provider>
     );
 }
 

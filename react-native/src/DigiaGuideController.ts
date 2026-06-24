@@ -1,12 +1,13 @@
 import type { GuideLifecycleEvent } from './types';
 import type { TemplateConfig } from './templateTypes';
-import type { VariableMap } from './interpolate';
+import type { VariableMap, VariableSchema } from './interpolate';
 
 export interface DigiaGuideRequest {
     payloadId: string;
     campaignKey: string;
     campaignId: string;
     variables?: VariableMap;
+    variableSchemas?: VariableSchema[];
     config: TemplateConfig;
     onExperienceEvent: (event: GuideLifecycleEvent) => void;
     onEnd?: () => void;
