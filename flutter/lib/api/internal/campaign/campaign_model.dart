@@ -1,3 +1,4 @@
+import '../../models/variable_schema.dart';
 import '../guide/guide_config_model.dart';
 import '../nudge/nudge_config.dart';
 import '../nudge/nudge_parser.dart';
@@ -19,10 +20,10 @@ sealed class CampaignConfigModel {
   /// payload's variables are layered on top of these (CEP wins), so a `{{ }}`
   /// placeholder falls back to its dashboard default when the trigger omits it.
   /// Values keep their JSON type and are stringified only at substitution.
-  final Map<String, dynamic> defaultVariables;
+  final List<VariableSchema> defaultVariables;
 
   const CampaignConfigModel({
-    this.defaultVariables = const <String, dynamic>{},
+    this.defaultVariables = const <VariableSchema>[],
   });
 }
 
@@ -168,17 +169,17 @@ class CampaignConfigFactory {
   static CampaignConfigModel? _inline(Map<String, dynamic> json) {
     final templateConfig = optMap(json, 'templateConfig');
     if (templateConfig == null) return null;
-    final variables = _declaredVariables(templateConfig);
+    final schemas = _parseSchemas(templateConfig);
     if (optString(templateConfig, 'templateType', 'carousel') == 'story') {
       final story = InlineStoryConfig.fromJson(templateConfig);
       return story == null
           ? null
-          : InlineStoryCampaignConfig(story, defaultVariables: variables);
+          : InlineStoryCampaignConfig(story, defaultVariables: schemas);
     }
     final inline = InlineCarouselConfig.fromJson(templateConfig);
     return inline == null
         ? null
-        : InlineCarouselCampaignConfig(inline, defaultVariables: variables);
+        : InlineCarouselCampaignConfig(inline, defaultVariables: schemas);
   }
 
   static CampaignConfigModel? _nudge(Map<String, dynamic> json) {
@@ -188,7 +189,7 @@ class CampaignConfigFactory {
     return nudge == null
         ? null
         : NudgeCampaignConfig(nudge,
-            defaultVariables: _declaredVariables(templateConfig));
+            defaultVariables: _parseSchemas(templateConfig));
   }
 
   static CampaignConfigModel? _guide(Map<String, dynamic> json) {
@@ -201,7 +202,7 @@ class CampaignConfigFactory {
     if (guide == null) return null;
     return GuideCampaignConfig(
       guide,
-      defaultVariables: _declaredVariables(templateConfig),
+      defaultVariables: _parseSchemas(templateConfig),
     );
   }
 
@@ -213,29 +214,20 @@ class CampaignConfigFactory {
     final survey = SurveyConfigModel.fromJson(templateConfig);
     if (survey == null) return null;
     return SurveyCampaignConfig(survey,
-        defaultVariables: _declaredVariables(templateConfig));
+        defaultVariables: _parseSchemas(templateConfig));
   }
 
-  /// The dashboard-declared variable defaults block on a `templateConfig`, or an
-  /// empty map when absent. Values keep their JSON type (stringified later, at
-  /// interpolation), so a declared `count: 3` survives as a number here.
-  static Map<String, dynamic> _declaredVariables(
+  static List<VariableSchema> _parseSchemas(
       Map<String, dynamic> templateConfig) {
     final list = optList(templateConfig, 'variables');
-    if (list != null) {
-      final result = <String, dynamic>{};
-      for (final entry in list) {
-        if (entry is Map) {
-          final name = entry['name'];
-          if (name is String && name.isNotEmpty) {
-            result[name] = entry.containsKey('fallbackValue')
-                ? entry['fallbackValue']
-                : entry['sampleValue'];
-          }
-        }
+    if (list == null) return const <VariableSchema>[];
+    final result = <VariableSchema>[];
+    for (final entry in list) {
+      if (entry is Map) {
+        final schema = normalizeVariable(Map<String, dynamic>.from(entry));
+        if (schema != null) result.add(schema);
       }
-      return result;
     }
-    return const <String, dynamic>{};
+    return result;
   }
 }

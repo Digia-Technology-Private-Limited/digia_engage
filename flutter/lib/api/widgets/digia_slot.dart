@@ -179,14 +179,11 @@ class _DigiaSlotState extends State<DigiaSlot> {
   /// payload's variables, so descendants resolve `{{ placeholder }}` copy
   /// through [VariableScopeProvider] (same mechanism as nudges).
   Widget _scoped(Widget child) {
-    final payload =
-        DigiaInstance.instance.controller.getSlot(widget.placementKey);
-    // Dashboard-declared defaults first, CEP trigger variables layered on top.
     return VariableScopeProvider(
-      scope: VariableScope({
-        ...?_currentConfig?.defaultVariables,
-        ...?payload?.variables,
-      }),
+      scope: VariableScope.fromSchemas(
+        _currentConfig?.defaultVariables ?? const [],
+        _slotPayload?.variables,
+      ),
       child: child,
     );
   }
