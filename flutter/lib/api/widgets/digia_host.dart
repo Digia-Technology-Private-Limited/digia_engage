@@ -61,6 +61,7 @@ class _DigiaHostState extends State<DigiaHost> {
     _controller.addListener(_onControllerChanged);
     DigiaInstance.instance.onHostMounted();
     _attachNavigatorFromKey();
+    _onControllerChanged();
   }
 
   /// Surveys present via Navigator routes and need a context below the app's

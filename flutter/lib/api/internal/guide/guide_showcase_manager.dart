@@ -439,6 +439,9 @@ class GuideShowcaseManager {
     // an advance-past-last (`completed == true`) does not. Step-level dismiss is
     // Digia-only — the coarse channel has no per-step dismiss.
     if (reachedEnd) {
+      // Completing the guide is its CEP engagement signal — the coarse channel
+      // has no "completed", so a completion maps to ExperienceClicked.
+      _events().toCep(const ExperienceClicked(), state.payload);
       _events().toDigia(
         GuideCompleted(itemTotal: total, timeToCompleteMs: elapsedMs),
         state.payload,

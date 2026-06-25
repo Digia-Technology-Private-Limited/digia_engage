@@ -16,10 +16,10 @@ import 'event/digia_analytics_sink.dart';
 import 'event/dwell_tracker.dart';
 import 'event/engage_analytics_event.dart';
 import 'event/engage_event_emitter.dart';
-import 'nudge/nudge_config.dart';
 import 'guide/anchor_registry.dart';
 import 'guide/guide_orchestrator.dart';
 import 'guide/guide_showcase_manager.dart';
+import 'nudge/nudge_config.dart';
 import 'sdk_state.dart';
 import 'survey/submission_reporter.dart';
 import 'survey/survey_config.dart';
@@ -580,6 +580,9 @@ class DigiaInstance with WidgetsBindingObserver implements DigiaCEPDelegate {
     final state = _surveyOrchestrator.state;
     if (state == null || _completedSurveyToken == state.token) return;
     _completedSurveyToken = state.token;
+    // Completing the survey is its CEP engagement signal — the coarse channel
+    // has no "completed", so a completion maps to ExperienceClicked.
+    _events.toCep(const ExperienceClicked(), state.payload);
     _events.toDigia(
       SurveyCompleted(
         itemTotal: _surveyItemTotal(state.config),
@@ -728,8 +731,10 @@ class DigiaInstance with WidgetsBindingObserver implements DigiaCEPDelegate {
     );
   }
 
-  /// Fired when the user taps the nudge's primary CTA. First-party Digia
-  /// analytics only; `time_to_action_ms` is the dwell so far (nudge still open).
+  /// Fired when the user taps a nudge CTA. A *primary* CTA tap is the nudge's
+  /// CEP engagement signal and emits ExperienceClicked on the coarse channel;
+  /// secondary taps stay Digia-only. `time_to_action_ms` is the dwell so far
+  /// (nudge still open).
   void reportNudgeClicked(
     CEPTriggerPayload payload, {
     String? elementId,
@@ -738,6 +743,9 @@ class DigiaInstance with WidgetsBindingObserver implements DigiaCEPDelegate {
     String? actionUrl,
     String? ctaRole,
   }) {
+    if (ctaRole == 'primary') {
+      _events.toCep(ExperienceClicked(elementId: elementId), payload);
+    }
     _events.toDigia(
       NudgeClicked(
         elementId: elementId,
