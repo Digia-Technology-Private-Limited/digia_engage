@@ -839,8 +839,11 @@ internal object DigiaInstance : DigiaCEPDelegate {
                     // RN: native owns capping, JS owns rendering. Gate here; the
                     // counter is bumped later on the guide's "Digia Experience
                     // Viewed" event (see captureAnalyticsEvent).
-                    if (frequencyManager?.isAllowed(campaignKey, campaign.frequency) == false) {
-                        Logger.verbose("Guide dropped — frequency capped: key=$campaignKey")
+                    val capReason = frequencyManager?.blockReason(campaignKey, campaign.frequency)
+                    if (capReason != null) {
+                        Logger.verbose(
+                                "Guide dropped — frequency capped: key=$campaignKey cep=${payload.cepCampaignId} reason=$capReason policy=${campaign.frequency}"
+                        )
                         return
                     }
                     renderViaJs(payload)
@@ -851,8 +854,11 @@ internal object DigiaInstance : DigiaCEPDelegate {
                 guideOrchestrator.start(campaign, payload, guideContext)
             }
             "nudge" -> {
-                if (frequencyManager?.isAllowed(campaignKey, campaign.frequency) == false) {
-                    Logger.verbose("Nudge dropped — frequency capped: key=$campaignKey")
+                val capReason = frequencyManager?.blockReason(campaignKey, campaign.frequency)
+                if (capReason != null) {
+                    Logger.verbose(
+                            "Nudge dropped — frequency capped: key=$campaignKey cep=${payload.cepCampaignId} reason=$capReason policy=${campaign.frequency}"
+                    )
                     return
                 }
                 val nudgeConfig =
@@ -876,8 +882,11 @@ internal object DigiaInstance : DigiaCEPDelegate {
                 events.toCep(DigiaExperienceEvent.Dismissed, payload)
             }
             "survey" -> {
-                if (frequencyManager?.isAllowed(campaignKey, campaign.frequency) == false) {
-                    Logger.verbose("Survey dropped — frequency capped: key=$campaignKey")
+                val capReason = frequencyManager?.blockReason(campaignKey, campaign.frequency)
+                if (capReason != null) {
+                    Logger.verbose(
+                            "Survey dropped — frequency capped: key=$campaignKey cep=${payload.cepCampaignId} reason=$capReason policy=${campaign.frequency}"
+                    )
                     return
                 }
                 if (!surveyOrchestrator.start(campaign, payload)) {

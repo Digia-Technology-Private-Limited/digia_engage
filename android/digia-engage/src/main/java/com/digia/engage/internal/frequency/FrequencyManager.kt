@@ -21,10 +21,17 @@ internal class FrequencyManager(
 ) {
 
     /** Gate: whether the campaign may show now. Capping-free policies always pass. */
-    fun isAllowed(campaignKey: String, policy: FrequencyPolicy?): Boolean {
-        if (policy == null || !policy.hasConstraint()) return true
-        val result = FrequencyEvaluator.evaluate(policy, load(campaignKey), clock(), sessionIdProvider())
-        return result.allow
+    fun isAllowed(campaignKey: String, policy: FrequencyPolicy?): Boolean =
+        blockReason(campaignKey, policy) == null
+
+    /**
+     * The reason this campaign would be capped right now, or null when it is
+     * allowed (or carries no constraint). Drives the gate via [isAllowed] and lets
+     * the route emit a verbose "why it was dropped" log without re-deriving it.
+     */
+    fun blockReason(campaignKey: String, policy: FrequencyPolicy?): FrequencySkipReason? {
+        if (policy == null || !policy.hasConstraint()) return null
+        return FrequencyEvaluator.evaluate(policy, load(campaignKey), clock(), sessionIdProvider()).reason
     }
 
     /** Record one show on "Digia Experience Viewed". */
