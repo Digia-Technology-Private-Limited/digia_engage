@@ -1,3 +1,4 @@
+import '../frequency/frequency_policy.dart';
 import '../guide/guide_config_model.dart';
 import '../nudge/nudge_config.dart';
 import '../nudge/nudge_parser.dart';
@@ -97,11 +98,16 @@ class CampaignModel {
   final String campaignType;
   final CampaignConfigModel config;
 
+  /// Server-configured frequency cap, or `null` when the campaign has none.
+  /// Consulted by the [FrequencyController] to gate and silence the campaign.
+  final FrequencyPolicy? frequency;
+
   const CampaignModel({
     required this.id,
     required this.campaignKey,
     required this.campaignType,
     required this.config,
+    this.frequency,
   });
 
   /// Parses one campaign object from the `getCampaigns` response.
@@ -138,6 +144,7 @@ class CampaignModel {
       campaignKey: campaignKey,
       campaignType: campaignType,
       config: config,
+      frequency: FrequencyPolicy.fromJson(optMap(json, 'frequency')),
     );
   }
 }

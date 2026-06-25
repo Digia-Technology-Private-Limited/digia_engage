@@ -12,6 +12,7 @@ import '../../api/internal/event/engage_analytics_event.dart';
 import '../../api/models/analytics_config.dart';
 import '../../api/models/cep_trigger_payload.dart';
 import '../sdk_version.dart';
+import '../session/session_manager.dart';
 import 'analytics_device_info.dart';
 import 'analytics_identity_manager.dart';
 import 'analytics_queue.dart';
@@ -59,14 +60,15 @@ class DigiaAnalyticsService {
 
     try {
       _staticContext = await _buildStaticContext();
-      await _identity.initialize(_config.sessionTimeoutMs);
-      _identity.onSessionRotated = _reportSession;
+      await _identity.initialize();
+      // Session lifecycle is owned by [SessionManager] and reporting by
+      // SessionReporter (both wired from DigiaInstance). Analytics only consumes
+      // the session: it stamps session_id on events and marks activity on touch.
       _initialized = true;
 
       if (await _queue.length() > 0) {
         _scheduleTimer();
       }
-      unawaited(_reportSession());
     } catch (error) {
       _log('[Digia Analytics] initialize failed: $error');
     }
@@ -83,6 +85,8 @@ class DigiaAnalyticsService {
     _initialized = false;
     _enabled = true;
     _apiKey = null;
+    // ignore: invalid_use_of_visible_for_testing_member
+    SessionManager.instance.resetForTest();
   }
 
   bool get isEnabled => _enabled;
@@ -93,7 +97,11 @@ class DigiaAnalyticsService {
 
   String? get userId => _identity.userId;
 
-  String get sessionId => _identity.sessionId;
+  String get sessionId => SessionManager.instance.sessionId;
+
+  /// The static device/app/SDK context stamped on every event. Exposed so the
+  /// session reporter can attach the same context to its session report.
+  Map<String, dynamic> get staticContext => _staticContext;
 
   Future<int> getQueueLength() async {
     try {
@@ -128,6 +136,8 @@ class DigiaAnalyticsService {
     if (!_enabled) return;
     try {
       await _identity.clearUserId();
+      // A new identity starts a new session.
+      await SessionManager.instance.reset();
     } catch (error) {
       _log('[Digia Analytics] clearUserId failed: $error');
     }
@@ -144,14 +154,12 @@ class DigiaAnalyticsService {
     }
   }
 
-  /// Responds to app lifecycle changes for session and dispatch management
+  /// Flushes pending events when the app leaves the foreground. Session expiry
+  /// on resume is handled by [SessionManager] (driven from DigiaInstance), not
+  /// here — analytics only manages its own dispatch.
   Future<void> appLifecycleChanged(AppLifecycleState state) async {
     if (!_enabled) return;
     try {
-      if (state == AppLifecycleState.resumed) {
-        await _identity.maybeExpireSession();
-      }
-
       if (state == AppLifecycleState.paused ||
           state == AppLifecycleState.inactive ||
           state == AppLifecycleState.detached) {
@@ -198,7 +206,7 @@ class DigiaAnalyticsService {
     Map<String, Object?> properties = const {},
   }) async {
     final eventId = _uuid.v4();
-    await _identity.captureEventTime();
+    await SessionManager.instance.touch();
 
     final mergedProperties = <String, dynamic>{
       ..._staticContext,
@@ -213,7 +221,7 @@ class DigiaAnalyticsService {
       if (campaignKey != null) 'campaign_key': campaignKey,
       if (campaignType != null) 'campaign_type': campaignType,
       'anonymous_id': _identity.anonymousId,
-      'session_id': _identity.sessionId,
+      'session_id': SessionManager.instance.sessionId,
       if (_identity.userId != null) 'user_id': _identity.userId,
       'properties': mergedProperties,
     };
@@ -313,35 +321,6 @@ class DigiaAnalyticsService {
     }
     // Exponential backoff: 1s, 2s, 4s, 8s, 16s (capped)
     return min(1000 * (1 << (attempt - 1)), 16000);
-  }
-
-  Future<void> _reportSession() async {
-    if (!_enabled) return;
-    try {
-      final body = <String, dynamic>{
-        'session_id': _identity.sessionId,
-        'anonymous_id': _identity.anonymousId,
-        if (_identity.userId != null) 'user_id': _identity.userId,
-        'occurred_at': DateTime.now().toUtc().toIso8601String(),
-        'properties': _staticContext,
-      };
-      final dio = dioFactory?.call() ?? Dio();
-      final response = await dio.post<dynamic>(
-        DigiaEndpoints.session,
-        data: body,
-        options: Options(
-          headers: {
-            'Content-Type': 'application/json',
-            'X-Digia-Project-Id': _apiKey,
-          },
-          validateStatus: (_) => true,
-        ),
-      );
-      _log(
-          '[Digia Analytics] session reported: HTTP ${response.statusCode} sessionId=${_identity.sessionId} anonymousId=${_identity.anonymousId}');
-    } catch (e) {
-      _log('[Digia Analytics] session report failed: $e');
-    }
   }
 
   Future<Response<Object?>> _sendBatch(List<AnalyticsQueueEntry> batch) async {

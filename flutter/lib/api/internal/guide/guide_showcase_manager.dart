@@ -9,6 +9,8 @@ import '../action/engage_action_handler.dart';
 import '../event/dwell_tracker.dart';
 import '../event/engage_analytics_event.dart';
 import '../event/engage_event_emitter.dart';
+import '../frequency/frequency_controller.dart';
+import '../frequency/frequency_policy.dart';
 import '../variable_scope.dart';
 import 'anchor_registry.dart';
 import 'guide_bubble.dart';
@@ -71,6 +73,7 @@ class GuideShowcaseManager {
   final GuideOrchestrator _orchestrator;
   final AnchorRegistry _registry;
   final EngageEventEmitter Function() _events;
+  final FrequencyController Function() _frequency;
   final DwellTracker _dwell;
   final String? Function() _screenName;
 
@@ -78,11 +81,13 @@ class GuideShowcaseManager {
     required GuideOrchestrator orchestrator,
     required AnchorRegistry registry,
     required EngageEventEmitter Function() events,
+    required FrequencyController Function() frequency,
     required DwellTracker dwell,
     required String? Function() screenName,
   })  : _orchestrator = orchestrator,
         _registry = registry,
         _events = events,
+        _frequency = frequency,
         _dwell = dwell,
         _screenName = screenName {
     _register();
@@ -257,9 +262,15 @@ class GuideShowcaseManager {
 
   // ─── Button actions ───────────────────────────────────────────────────────
 
+  /// Wall-clock now, in ms — the frequency clock's time source.
+  int get _nowMs => DateTime.now().millisecondsSinceEpoch;
+
   void handleAction(GuideAction action) {
     final state = _orchestrator.state;
     if (state == null) return;
+    // A guide step CTA is the guide's "click" engagement — apply stop_on.
+    _frequency().applyStopOn(
+        state.campaign, FrequencyInteraction.click, _nowMs);
     // Guides only have Step Clicked in the matrix (no Experience Clicked), so
     // the click is Digia analytics only — never forwarded to the CEP plugin.
     _events().toDigia(
@@ -389,6 +400,7 @@ class GuideShowcaseManager {
     final style = _displayStyle(state.config);
 
     if (index == 0) {
+      _frequency().recordImpression(state.campaign, _nowMs);
       _dwell.markViewed(state.payload.cepCampaignId);
       // Coarse impression to the CEP plugin; rich guide-viewed to Digia.
       _events().toBoth(
@@ -439,11 +451,19 @@ class GuideShowcaseManager {
     // an advance-past-last (`completed == true`) does not. Step-level dismiss is
     // Digia-only — the coarse channel has no per-step dismiss.
     if (reachedEnd) {
+      // Completing the guide is a "click" engagement (mirrors RN's completed →
+      // stop_on click).
+      _frequency().applyStopOn(
+          state.campaign, FrequencyInteraction.click, _nowMs);
       _events().toDigia(
         GuideCompleted(itemTotal: total, timeToCompleteMs: elapsedMs),
         state.payload,
       );
     }
+    // Every terminal close is a "dismiss" — apply stop_on (idempotent if already
+    // stopped by the completion above).
+    _frequency().applyStopOn(
+        state.campaign, FrequencyInteraction.dismiss, _nowMs);
     _events().toBoth(
       const ExperienceDismissed(),
       GuideDismissed(

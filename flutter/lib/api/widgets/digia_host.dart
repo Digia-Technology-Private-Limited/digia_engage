@@ -61,6 +61,13 @@ class _DigiaHostState extends State<DigiaHost> {
     _controller.addListener(_onControllerChanged);
     DigiaInstance.instance.onHostMounted();
     _attachNavigatorFromKey();
+    // A campaign can be scheduled before this host subscribes — e.g. a
+    // launch-triggered campaign that fires during SDK init, before runApp()
+    // mounts the host. The controller retains it in [activePayload], but the
+    // notifyListeners() that accompanied [show] was emitted with no subscriber
+    // and is gone. Sync to the controller's current state on mount so that
+    // payload is presented instead of being silently stranded.
+    _onControllerChanged();
   }
 
   /// Surveys present via Navigator routes and need a context below the app's
