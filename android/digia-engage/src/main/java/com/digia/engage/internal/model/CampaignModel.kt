@@ -1,6 +1,8 @@
 package com.digia.engage.internal.model
 
 import com.digia.engage.internal.VariableSchema
+import com.digia.engage.internal.frequency.FrequencyManager
+import com.digia.engage.internal.frequency.FrequencyPolicy
 import com.digia.engage.internal.normalizeVariable
 import org.json.JSONObject
 
@@ -18,6 +20,7 @@ internal data class CampaignModel(
         val campaignType: String,
         val config: CampaignConfigModel,
         val variableSchemas: List<VariableSchema> = emptyList(),
+        val frequency: FrequencyPolicy? = null,
 ) {
         val guideConfig: GuideConfigModel?
                 get() = (config as? CampaignConfigModel.Guide)?.guideConfig
@@ -104,6 +107,7 @@ internal data class CampaignModel(
                                 campaignType = campaignType,
                                 config = config,
                                 variableSchemas = parseVariableSchemas(json.optJSONObject("templateConfig")),
+                                frequency = FrequencyManager.parsePolicy(json.optJSONObject("frequency")),
                         )
                 }
 

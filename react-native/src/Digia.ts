@@ -21,11 +21,9 @@ import { DIGIA_RN_SDK_VERSION } from './SdkVersion';
 import { digiaHealthReporter, HealthEventType } from './DigiaHealthReporter';
 import { digiaGuideController } from './DigiaGuideController';
 import { digiaAnchorRegistry } from './digiaAnchorRegistry';
-import { parseVariableMap, normalizeVariable, type VariableSchema } from './interpolate';
+import { normalizeVariable, type VariableSchema } from './interpolate';
 import { digiaActionHandler } from './actionHandler';
 import uuid from 'react-native-uuid';
-import { frequencyStore } from './frequencyStore';
-import { evaluate, hasPolicy, isSessionPolicy } from './frequencyEvaluator';
 import type {
     ActionContext,
     CEPTriggerPayload,
@@ -34,8 +32,6 @@ import type {
     DigiaDelegate,
     DigiaExperienceEvent,
     DigiaPlugin,
-    FrequencyPolicy,
-    FrequencyState,
     GuideLifecycleEvent,
 } from './types';
 import type { TemplateConfig, Action } from './templateTypes';
@@ -50,7 +46,6 @@ interface SdkCampaign {
     campaign_key: string;
     campaign_type: CampaignType;
     templateConfig?: Record<string, unknown>;
-    frequency?: FrequencyPolicy | null;
 }
 
 class DigiaClass implements DigiaDelegate {
@@ -74,6 +69,9 @@ class DigiaClass implements DigiaDelegate {
     private _currentScreen: string | null = null;
     private readonly _campaignsByKey = new Map<string, SdkCampaign>();
     private readonly _registeredAnchorKeys = new Set<string>();
+    // Listens for `digiaRenderGuide` — native's "guide cleared frequency capping,
+    // render it in JS" signal.
+    private _renderGuideSubscription: { remove(): void } | null = null;
 
     /**
      * Initialise the Digia Engage SDK.
@@ -107,7 +105,7 @@ class DigiaClass implements DigiaDelegate {
         }
 
         this._deviceId = await this._loadOrCreateDeviceId();
-        await frequencyStore.checkApiKey(config.apiKey);
+        this._startRenderGuideListener();
         await this._refreshCampaignStore();
         this._log(`Digia SDK ready | campaigns=${this._campaignsByKey.size}`);
     }
@@ -220,17 +218,6 @@ class DigiaClass implements DigiaDelegate {
 
         const campaign = this._campaignsByKey.get(campaignKey);
 
-        if (campaign && hasPolicy(campaign.frequency)) {
-            const policy = campaign.frequency!;
-            const isSession = isSessionPolicy(policy);
-            const state = await this._getFrequencyState(campaignKey, isSession);
-            const result = evaluate(policy, state, Date.now());
-            if (!result.allow) {
-                this._log(`frequency_capped campaign_key=${campaignKey} reason=${result.reason}`);
-                return false;
-            }
-        }
-
         if (campaign?.campaign_type === 'inline' || campaign?.campaign_type === 'survey') {
             this._log(`${campaign.campaign_type} campaign triggered campaign_key=${campaignKey}, forwarding to native`);
             this._activePayloads.set(cepCampaignId, payload);
@@ -267,38 +254,12 @@ class DigiaClass implements DigiaDelegate {
                 return false;
             }
 
+            // JS-only pre-checks passed. Stash the payload and forward to native,
+            // which owns frequency capping. If the trigger clears the native gate
+            // the SDK fires `digiaRenderGuide` and JS renders via `_renderGuide`.
             this._activePayloads.set(cepCampaignId, payload);
-            const digiaId = campaign._id ?? campaign.id ?? campaignKey;
-            const rawVars = (campaign as unknown as Record<string, unknown>)?.templateConfig as Record<string, unknown> | undefined;
-            const variableSchemas: VariableSchema[] = Array.isArray(rawVars?.['variables'])
-                ? (rawVars!['variables'] as unknown[])
-                    .map((v) => normalizeVariable(v as { name: string; type?: string; fallbackValue?: string; sampleValue?: string }))
-                    .filter((s) => s.name.length > 0)
-                : [];
-            const mounted = digiaGuideController.start({
-                payloadId: cepCampaignId,
-                campaignKey,
-                campaignId: digiaId,
-                variables,
-                variableSchemas,
-                config,
-                onExperienceEvent: (event) => this._onGuideLifecycleEvent(event, cepCampaignId, campaignKey, digiaId),
-                // Safety net: release the CEP slot on every guide exit, including
-                // CTA-close / advance-past-end / anchor-drop paths that emit no
-                // terminal lifecycle event. Idempotent with the explicit path below.
-                onEnd: () => this._releaseGuideSlot(cepCampaignId),
-            });
-
-            this._log(`guide trigger campaign_key=${campaignKey} mounted=${mounted}`);
-            if (!mounted) {
-                this._log(`event controller failed to mount guide campaign_key=${campaignKey}`);
-                digiaHealthReporter.report(HealthEventType.host_not_mounted, {
-                    campaign_key: campaignKey,
-                    payload_id: cepCampaignId,
-                });
-                this._activePayloads.delete(cepCampaignId);
-                return false;
-            }
+            nativeDigiaModule.triggerCampaign(cepCampaignId, campaignKey, variables ?? {}, cepMetadata);
+            this._log(`guide trigger forwarded to native campaign_key=${campaignKey}`);
             return true;
         }
 
@@ -378,15 +339,12 @@ class DigiaClass implements DigiaDelegate {
         switch (data.type) {
             case 'impressed':
                 event = { type: 'impressed' };
-                void this._bumpFrequencyImpression(campaignKey);
                 break;
             case 'clicked':
                 event = { type: 'clicked', elementId: data.elementId };
-                void this._applyStopOn(campaignKey, 'click');
                 break;
             case 'dismissed':
                 event = { type: 'dismissed' };
-                void this._applyStopOn(campaignKey, 'dismiss');
                 this._activePayloads.delete(data.campaignId);
                 break;
             default:
@@ -455,16 +413,6 @@ class DigiaClass implements DigiaDelegate {
         // maps it to the typed Engage analytics event and records it (Digia
         // first-party analytics). step_* and completed now reach native too.
         nativeDigiaModule.captureAnalyticsEvent(campaignKey, eventName, properties);
-
-        if (event.type === 'viewed') {
-            void this._bumpFrequencyImpression(campaignKey);
-        }
-        if (event.type === 'step_clicked' || event.type === 'completed') {
-            void this._applyStopOn(campaignKey, 'click');
-        }
-        if (event.type === 'dismissed') {
-            void this._applyStopOn(campaignKey, 'dismiss');
-        }
 
         // Drop the dwell mark only on dismissed — which now fires unconditionally on every
         // close (even after completed). Deleting on completed would wipe the mark before the
@@ -664,48 +612,75 @@ class DigiaClass implements DigiaDelegate {
         }
     }
 
-    // ── Frequency capping ────────────────────────────────────────────────────
+    // ── Guide rendering (native-gated) ─────────────────────────────────────────
 
-    private async _getFrequencyState(campaignKey: string, isSession: boolean): Promise<FrequencyState | null> {
-        return frequencyStore.get(campaignKey, isSession);
+    /**
+     * Subscribes to `digiaRenderGuide`, emitted by the native bridge after a
+     * forwarded guide trigger clears native frequency capping. Native owns
+     * capping; JS owns rendering — this is the "render now" signal.
+     */
+    private _startRenderGuideListener(): void {
+        if (this._renderGuideSubscription) return;
+        this._renderGuideSubscription = DeviceEventEmitter.addListener(
+            'digiaRenderGuide',
+            (data: { cepCampaignId?: string }) => {
+                if (data?.cepCampaignId) this._renderGuide(data.cepCampaignId);
+            },
+        );
     }
 
-    async _bumpFrequencyImpression(campaignKey: string): Promise<void> {
+    /**
+     * Renders a guide whose trigger has cleared native frequency capping.
+     * Resolves the stashed payload + campaign and mounts the JS guide overlay.
+     */
+    private _renderGuide(cepCampaignId: string): void {
+        const payload = this._activePayloads.get(cepCampaignId);
+        if (!payload) {
+            this._log(`digiaRenderGuide for unknown payload ${cepCampaignId} — ignored`);
+            return;
+        }
+        const { campaignKey, variables } = payload;
         const campaign = this._campaignsByKey.get(campaignKey);
-        if (!campaign || !hasPolicy(campaign.frequency)) return;
-        const isSession = isSessionPolicy(campaign.frequency!);
-        const now = Date.now();
-        const prev = await frequencyStore.get(campaignKey, isSession);
-        const next: FrequencyState = {
-            shown_count: (prev?.shown_count ?? 0) + 1,
-            first_shown_at: prev?.first_shown_at ?? now,
-            last_shown_at: now,
-            stopped_at: prev?.stopped_at ?? null,
-            stopped_reason: prev?.stopped_reason ?? null,
-        };
-        await frequencyStore.set(campaignKey, next, isSession);
-    }
+        const config = campaign ? this._parseTemplateConfig(campaign) : null;
+        if (
+            !campaign ||
+            !config ||
+            (config.templateType !== 'tooltip' && config.templateType !== 'spotlight') ||
+            config.steps.length === 0
+        ) {
+            this._activePayloads.delete(cepCampaignId);
+            return;
+        }
 
-    async _applyStopOn(campaignKey: string, interactionType: 'click' | 'dismiss'): Promise<void> {
-        const campaign = this._campaignsByKey.get(campaignKey);
-        const stopOn = campaign?.frequency?.stop_on;
-        if (!stopOn) return;
-        const matches =
-            stopOn === 'any_action' ||
-            stopOn === interactionType;
-        if (!matches) return;
-        const isSession = isSessionPolicy(campaign!.frequency!);
-        const prev = await frequencyStore.get(campaignKey, isSession);
-        if (prev?.stopped_at) return;
-        const now = Date.now();
-        const next: FrequencyState = {
-            shown_count: prev?.shown_count ?? 0,
-            first_shown_at: prev?.first_shown_at ?? null,
-            last_shown_at: prev?.last_shown_at ?? null,
-            stopped_at: now,
-            stopped_reason: interactionType,
-        };
-        await frequencyStore.set(campaignKey, next, isSession);
+        const digiaId = campaign._id ?? campaign.id ?? campaignKey;
+        const rawVars = (campaign as unknown as Record<string, unknown>)?.templateConfig as Record<string, unknown> | undefined;
+        const variableSchemas: VariableSchema[] = Array.isArray(rawVars?.['variables'])
+            ? (rawVars!['variables'] as unknown[])
+                .map((v) => normalizeVariable(v as { name: string; type?: string; fallbackValue?: string; sampleValue?: string }))
+                .filter((s) => s.name.length > 0)
+            : [];
+        const mounted = digiaGuideController.start({
+            payloadId: cepCampaignId,
+            campaignKey,
+            campaignId: digiaId,
+            variables,
+            variableSchemas,
+            config,
+            onExperienceEvent: (event) => this._onGuideLifecycleEvent(event, cepCampaignId, campaignKey, digiaId),
+            // Safety net: release the CEP slot on every guide exit, including
+            // CTA-close / advance-past-end / anchor-drop paths that emit no
+            // terminal lifecycle event. Idempotent with the explicit path below.
+            onEnd: () => this._releaseGuideSlot(cepCampaignId),
+        });
+
+        this._log(`guide rendered campaign_key=${campaignKey} mounted=${mounted}`);
+        if (!mounted) {
+            digiaHealthReporter.report(HealthEventType.host_not_mounted, {
+                campaign_key: campaignKey,
+                payload_id: cepCampaignId,
+            });
+            this._activePayloads.delete(cepCampaignId);
+        }
     }
 
     private _log(message: string): void {

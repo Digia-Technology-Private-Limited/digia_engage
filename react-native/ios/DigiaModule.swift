@@ -53,10 +53,11 @@ final class DigiaModule: RCTEventEmitter, @unchecked Sendable {
         // events when JS uses DeviceEventEmitter (which doesn't call native
         // addListener: on iOS and therefore never increments the count).
         addListener("digiaEngageEvent")
+        addListener("digiaRenderGuide")
     }
 
     override func supportedEvents() -> [String]! {
-        return ["digiaEngageEvent"]
+        return ["digiaEngageEvent", "digiaRenderGuide"]
     }
 
     // ────────────────────────────────────────────────────────────────────────
@@ -108,6 +109,13 @@ final class DigiaModule: RCTEventEmitter, @unchecked Sendable {
             do {
                 try await Digia.initialize(config)
                 self.mountDigiaHost()
+                // Guides render in JS but are frequency-capped natively. When a
+                // guide trigger (forwarded via triggerCampaign) clears the native
+                // gate, the SDK calls this hook; tell JS to render the stashed
+                // payload, keyed by cepCampaignId.
+                Digia.setOnGuideRenderRequest { [weak self] payload in
+                    self?.sendEvent(withName: "digiaRenderGuide", body: ["cepCampaignId": payload.cepCampaignId])
+                }
                 resolve(nil)
             } catch {
                 reject("DIGIA_INIT_ERROR", error.localizedDescription, error)

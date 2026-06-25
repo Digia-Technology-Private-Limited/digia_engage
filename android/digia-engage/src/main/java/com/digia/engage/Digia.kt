@@ -37,6 +37,16 @@ object Digia {
     }
 
     /**
+     * Register the RN render hook. When set, the SDK treats guides as JS-rendered:
+     * on a guide trigger native applies frequency capping and, if allowed, invokes
+     * this callback (with the trigger payload) to ask JS to render — it does not
+     * render the guide natively. Used only by the React Native bridge.
+     */
+    fun setOnGuideRenderRequest(callback: ((CEPTriggerPayload) -> Unit)?) {
+        DigiaInstance.onGuideRenderRequest = callback
+    }
+
+    /**
      * Records an analytics event for a JS-rendered campaign (guide). [eventName] is
      * the Engage matrix event name (e.g. "Digia Step Viewed") and [props] carries
      * its wire-keyed fields (step_index, anchor_key, cta_label, …). The SDK maps it

@@ -13,6 +13,8 @@ import com.digia.engage.DigiaConfig
 import com.digia.engage.DigiaEndpoints
 import com.digia.engage.DigiaExperienceEvent
 import com.digia.engage.internal.analytics.AnalyticsService
+import com.digia.engage.internal.analytics.SharedPrefsStore
+import com.digia.engage.internal.frequency.FrequencyManager
 import com.digia.engage.internal.event.CarouselEvent
 import com.digia.engage.internal.event.CepPluginSink
 import com.digia.engage.internal.event.DigiaAnalyticsSink
@@ -77,6 +79,18 @@ internal object DigiaInstance : DigiaCEPDelegate {
 
     private val diagnosticsReporter = DiagnosticsReporter(::logWarning)
     private var analyticsService: AnalyticsService? = null
+
+    // Frequency capping for natively-rendered campaigns (nudge + survey). Null
+    // until initialize(). Session windows pull the live analytics sessionId.
+    private var frequencyManager: FrequencyManager? = null
+
+    /**
+     * Set by the RN bridge. When non-null the SDK is RN-driven: guides are
+     * rendered in JS, so on a guide trigger native only applies frequency capping
+     * and (if allowed) asks JS to render via this hook instead of rendering the
+     * guide natively. Null in pure-native apps, where guides render natively.
+     */
+    var onGuideRenderRequest: ((CEPTriggerPayload) -> Unit)? = null
     private val pluginRegistry =
             PluginRegistry(delegate = this, diagnosticsReporter = diagnosticsReporter)
     private val screenTracker = ScreenTracker(onScreenChanged = pluginRegistry::forwardScreen)
@@ -118,6 +132,14 @@ internal object DigiaInstance : DigiaCEPDelegate {
         _sdkState.value = SDKState.INITIALIZING
         com.digia.engage.internal.DigiaFontConfig.fontFamily = config.fontFamily
         analyticsService = AnalyticsService.create(context.applicationContext, config, scope)
+
+        val freqStore = SharedPrefsStore(
+                context.applicationContext.getSharedPreferences("digia_frequency", Context.MODE_PRIVATE),
+        )
+        frequencyManager = FrequencyManager(
+                store = freqStore,
+                sessionIdProvider = { analyticsService?.identity?.sessionId },
+        )
 
         val deviceId = resolveDeviceId(context)
         submissionReporter = SubmissionReporter(config, deviceId, scope)
@@ -212,6 +234,12 @@ internal object DigiaInstance : DigiaCEPDelegate {
             return
         }
         val campaign = campaignStore.find(campaignKey)
+        // Native frequency capping for RN-rendered guides: bump on Viewed, apply
+        // the permanent stop on Completed (when the policy opts into stopOn).
+        when (eventName) {
+            "Digia Experience Viewed" -> frequencyManager?.recordShow(campaignKey, campaign?.frequency)
+            "Digia Experience Completed" -> frequencyManager?.recordCompleted(campaignKey, campaign?.frequency)
+        }
         val payload = CEPTriggerPayload(
             cepCampaignId = campaign?.id ?: campaignKey,
             campaignKey = campaignKey,
@@ -301,6 +329,8 @@ internal object DigiaInstance : DigiaCEPDelegate {
         val payload = surveyPayload(state)
         val config = state.config
         dwellTracker.markViewed(payload.cepCampaignId)
+        // Bump frequency on "Digia Experience Viewed" (the moment the survey shows).
+        frequencyManager?.recordShow(state.campaign.campaignKey, state.campaign.frequency)
         events.toBoth(
                 DigiaExperienceEvent.Impressed,
                 SurveyEvent.Viewed(
@@ -418,6 +448,8 @@ internal object DigiaInstance : DigiaCEPDelegate {
         val state = surveyOrchestrator.state.value ?: return
         if (completedSurveyToken == state.token) return
         completedSurveyToken = state.token
+        // Permanent stop on "Digia Experience Completed" when stopOn is set.
+        frequencyManager?.recordCompleted(state.campaign.campaignKey, state.campaign.frequency)
         val answeredCount = if (answers.isNotEmpty()) answers.size else response.size
         events.toDigia(
                 SurveyEvent.Completed(
@@ -544,6 +576,9 @@ internal object DigiaInstance : DigiaCEPDelegate {
     fun reportNudgeImpression() {
         val state = controller.nudgeOverlay.value ?: return
         dwellTracker.markViewed(state.payload.cepCampaignId)
+        // Bump frequency on "Digia Experience Viewed" (the moment the nudge shows).
+        val campaignKey = state.payload.campaignKey
+        frequencyManager?.recordShow(campaignKey, campaignStore.find(campaignKey)?.frequency)
         events.toBoth(
                 DigiaExperienceEvent.Impressed,
                 NudgeEvent.Viewed(
@@ -701,6 +736,7 @@ internal object DigiaInstance : DigiaCEPDelegate {
         pluginRegistry.teardown()
         analyticsService?.clear()
         analyticsService = null
+        frequencyManager = null
         campaignStore.populate(emptyList())
         controller.dismiss()
         controller.clearSlots()
@@ -798,11 +834,27 @@ internal object DigiaInstance : DigiaCEPDelegate {
         Logger.verbose("Routing campaign: key=$campaignKey type=${campaign.campaignType}")
         when (campaign.campaignType) {
             "guide" -> {
+                val renderViaJs = onGuideRenderRequest
+                if (renderViaJs != null) {
+                    // RN: native owns capping, JS owns rendering. Gate here; the
+                    // counter is bumped later on the guide's "Digia Experience
+                    // Viewed" event (see captureAnalyticsEvent).
+                    if (frequencyManager?.isAllowed(campaignKey, campaign.frequency) == false) {
+                        Logger.verbose("Guide dropped — frequency capped: key=$campaignKey")
+                        return
+                    }
+                    renderViaJs(payload)
+                    return
+                }
                 dwellTracker.markViewed(payload.cepCampaignId)
                 val guideContext = buildVariableContext(campaign.variableSchemas, payload.variables)
                 guideOrchestrator.start(campaign, payload, guideContext)
             }
             "nudge" -> {
+                if (frequencyManager?.isAllowed(campaignKey, campaign.frequency) == false) {
+                    Logger.verbose("Nudge dropped — frequency capped: key=$campaignKey")
+                    return
+                }
                 val nudgeConfig =
                         campaign.nudgeConfig
                                 ?: error("unexpected config for nudge campaign '$campaignKey'")
@@ -824,6 +876,10 @@ internal object DigiaInstance : DigiaCEPDelegate {
                 events.toCep(DigiaExperienceEvent.Dismissed, payload)
             }
             "survey" -> {
+                if (frequencyManager?.isAllowed(campaignKey, campaign.frequency) == false) {
+                    Logger.verbose("Survey dropped — frequency capped: key=$campaignKey")
+                    return
+                }
                 if (!surveyOrchestrator.start(campaign, payload)) {
                     Logger.warning(
                             "Survey campaign skipped — another survey is already on screen: key=$campaignKey"
@@ -911,6 +967,7 @@ internal object DigiaInstance : DigiaCEPDelegate {
         pluginRegistry.teardown()
         analyticsService?.clear()
         analyticsService = null
+        frequencyManager = null
         screenTracker.clear()
         campaignStore.populate(emptyList())
         controller.dismiss()
