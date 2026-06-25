@@ -1,199 +1,186 @@
 /// Typed frequency-capping policy + state models.
 ///
-/// Dart port of the React Native SDK's frequency types (`types.ts`). A campaign
-/// may carry a server-configured [FrequencyPolicy] that limits how often it is
-/// allowed to show; the SDK tracks a [FrequencyState] per campaign and the
-/// `FrequencyEvaluator` decides eligibility. The on-the-wire field names are
-/// snake_case (matching the RN SDK and the backend), so the JSON keys here stay
-/// snake_case for cross-platform parity.
+/// Dart port of the cross-platform frequency core (Android
+/// `FrequencyEvaluator.kt` / `FrequencyManager.kt`, RN, iOS). The wire format is
+/// camelCase — `maxTotal`, `maxPerWindow { count, window }`, `stopOn` — and a
+/// campaign carries it under a top-level `frequency` object. Old snake_case
+/// payloads have no recognised keys and parse to a no-constraint (uncapped)
+/// policy.
 library;
 
-/// How long a `max_per_window` budget lasts, measured from the first show.
-enum FrequencyWindowUnit {
-  session,
-  day,
-  week,
-  month;
-
-  /// Window length in milliseconds, or `null` for [session] (which is bounded
-  /// by the app process, not wall-clock time, and so is checked in-memory).
-  int? get durationMs {
-    const day = 86400000;
-    switch (this) {
-      case FrequencyWindowUnit.session:
-        return null;
-      case FrequencyWindowUnit.day:
-        return day;
-      case FrequencyWindowUnit.week:
-        return 7 * day;
-      case FrequencyWindowUnit.month:
-        return 30 * day;
-    }
-  }
-
-  static FrequencyWindowUnit? fromWire(Object? value) {
-    switch (value) {
-      case 'session':
-        return FrequencyWindowUnit.session;
-      case 'day':
-        return FrequencyWindowUnit.day;
-      case 'week':
-        return FrequencyWindowUnit.week;
-      case 'month':
-        return FrequencyWindowUnit.month;
-      default:
-        return null;
-    }
-  }
-}
-
-/// The interaction that, per `stop_on`, permanently silences a campaign.
-enum FrequencyStopOn {
-  click,
-  dismiss,
-  anyAction;
-
-  static FrequencyStopOn? fromWire(Object? value) {
-    switch (value) {
-      case 'click':
-        return FrequencyStopOn.click;
-      case 'dismiss':
-        return FrequencyStopOn.dismiss;
-      case 'any_action':
-        return FrequencyStopOn.anyAction;
-      default:
-        return null;
-    }
-  }
-}
-
-/// A user interaction reported to `FrequencyController.applyStopOn`.
-enum FrequencyInteraction {
-  click('click'),
-  dismiss('dismiss');
-
-  const FrequencyInteraction(this.wire);
-
-  /// The value persisted as `stopped_reason`.
-  final String wire;
-}
-
-/// Why an evaluation blocked a campaign (`null` when allowed).
-enum FrequencySkipReason { maxTotal, window, stopped }
-
-/// `{ count, window }` — at most [count] shows within one [window].
+/// `{ count, window }` — at most [count] shows within one [window]. [window] is
+/// one of `session` / `day` / `week` / `month` (kept as the raw wire string so
+/// the golden matrix matches the other platforms exactly).
 class FrequencyWindow {
   final int count;
-  final FrequencyWindowUnit window;
+  final String window;
 
   const FrequencyWindow({required this.count, required this.window});
+
+  @override
+  bool operator ==(Object other) =>
+      other is FrequencyWindow &&
+      other.count == count &&
+      other.window == window;
+
+  @override
+  int get hashCode => Object.hash(count, window);
 }
 
 /// A campaign's server-configured frequency policy. Any field may be absent;
-/// [hasPolicy] is `false` when none of the limiting fields are set, in which
-/// case the campaign is never capped.
+/// [hasConstraint] is `false` when none are set, in which case the campaign is
+/// never capped.
 class FrequencyPolicy {
   final int? maxTotal;
   final FrequencyWindow? maxPerWindow;
-  final FrequencyStopOn? stopOn;
 
-  /// Reserved — not evaluated in v1 (mirrors RN's `min_gap_ms`).
-  final int? minGapMs;
+  /// The only recognised value is `experienceCompleted` — permanently stop the
+  /// campaign once it reports a "Digia Experience Completed".
+  final String? stopOn;
 
   const FrequencyPolicy({
     this.maxTotal,
     this.maxPerWindow,
     this.stopOn,
-    this.minGapMs,
   });
 
-  /// Whether this policy imposes any limit. Mirrors RN's `hasPolicy`.
-  bool get hasPolicy =>
+  /// True when the policy carries at least one active constraint.
+  bool get hasConstraint =>
       maxTotal != null || maxPerWindow != null || stopOn != null;
 
-  /// Whether the per-window budget is bounded by the app session (in-memory)
-  /// rather than wall-clock time. Mirrors RN's `isSessionPolicy`.
-  bool get isSession => maxPerWindow?.window == FrequencyWindowUnit.session;
+  @override
+  String toString() {
+    final window = maxPerWindow;
+    final parts = <String>[
+      if (maxTotal != null) 'maxTotal=$maxTotal',
+      if (window != null) 'maxPerWindow=${window.count}/${window.window}',
+      if (stopOn != null) 'stopOn=$stopOn',
+    ];
+    return 'FrequencyPolicy(${parts.join(', ')})';
+  }
 
-  /// Parses the campaign-level `frequency` block, or `null` when absent.
+  /// Parses the campaign-level `frequency` block, or `null` when it is absent or
+  /// carries no recognised constraint (mirrors Android's `parsePolicy`).
   static FrequencyPolicy? fromJson(Map<String, dynamic>? json) {
     if (json == null) return null;
 
-    final maxTotal = json['max_total'];
-    final mpwRaw = json['max_per_window'];
-    final minGap = json['min_gap_ms'];
+    final maxTotalRaw = json['maxTotal'];
+    final maxTotal = maxTotalRaw is num ? maxTotalRaw.toInt() : null;
 
     FrequencyWindow? maxPerWindow;
-    if (mpwRaw is Map) {
-      final count = mpwRaw['count'];
-      final window = FrequencyWindowUnit.fromWire(mpwRaw['window']);
-      if (count is num && window != null) {
-        maxPerWindow = FrequencyWindow(count: count.toInt(), window: window);
+    final windowRaw = json['maxPerWindow'];
+    if (windowRaw is Map) {
+      final countRaw = windowRaw['count'];
+      final windowName = windowRaw['window'];
+      if (countRaw is num &&
+          windowName is String &&
+          windowName.trim().isNotEmpty) {
+        maxPerWindow =
+            FrequencyWindow(count: countRaw.toInt(), window: windowName);
       }
     }
 
-    return FrequencyPolicy(
-      maxTotal: maxTotal is num ? maxTotal.toInt() : null,
+    final stopOnRaw = json['stopOn'];
+    final stopOn =
+        stopOnRaw is String && stopOnRaw.trim().isNotEmpty ? stopOnRaw : null;
+
+    final policy = FrequencyPolicy(
+      maxTotal: maxTotal,
       maxPerWindow: maxPerWindow,
-      stopOn: FrequencyStopOn.fromWire(json['stop_on']),
-      minGapMs: minGap is num ? minGap.toInt() : null,
+      stopOn: stopOn,
     );
+    return policy.hasConstraint ? policy : null;
   }
 }
 
-/// Per-campaign tracking state. Persisted as snake_case JSON for non-session
-/// policies; held in-memory for session policies. Mirrors RN's `FrequencyState`.
+/// Persisted per-campaign capping state. [total] (lifetime) and [windowCount]
+/// (current window) are tracked independently so a per-window cap never
+/// double-counts against [FrequencyPolicy.maxTotal]. Mirrors Android's
+/// `FrequencyState`.
 class FrequencyState {
-  final int shownCount;
+  final int total;
+  final int windowCount;
 
-  /// ms timestamp — set on the first impression; anchors the window check.
-  final int? firstShownAt;
+  /// ms timestamp anchoring the current time-based window (null for session /
+  /// total-only policies).
+  final int? windowAnchorAt;
 
-  /// ms timestamp — reserved for `min_gap_ms`.
-  final int? lastShownAt;
+  /// The session that owns the current `session`-window count (null otherwise).
+  final String? sessionId;
 
+  /// ms timestamp of the permanent stop (null while the campaign is still live).
   final int? stoppedAt;
-  final String? stoppedReason;
 
   const FrequencyState({
-    this.shownCount = 0,
-    this.firstShownAt,
-    this.lastShownAt,
+    this.total = 0,
+    this.windowCount = 0,
+    this.windowAnchorAt,
+    this.sessionId,
     this.stoppedAt,
-    this.stoppedReason,
   });
 
+  FrequencyState copyWith({
+    int? total,
+    int? windowCount,
+    int? windowAnchorAt,
+    String? sessionId,
+    int? stoppedAt,
+  }) =>
+      FrequencyState(
+        total: total ?? this.total,
+        windowCount: windowCount ?? this.windowCount,
+        windowAnchorAt: windowAnchorAt ?? this.windowAnchorAt,
+        sessionId: sessionId ?? this.sessionId,
+        stoppedAt: stoppedAt ?? this.stoppedAt,
+      );
+
   Map<String, dynamic> toJson() => {
-        'shown_count': shownCount,
-        'first_shown_at': firstShownAt,
-        'last_shown_at': lastShownAt,
-        'stopped_at': stoppedAt,
-        'stopped_reason': stoppedReason,
+        'total': total,
+        'windowCount': windowCount,
+        if (windowAnchorAt != null) 'windowAnchorAt': windowAnchorAt,
+        if (sessionId != null) 'sessionId': sessionId,
+        if (stoppedAt != null) 'stoppedAt': stoppedAt,
       };
 
   static FrequencyState fromJson(Map<String, dynamic> json) {
-    final shown = json['shown_count'];
-    final first = json['first_shown_at'];
-    final last = json['last_shown_at'];
-    final stopped = json['stopped_at'];
-    final reason = json['stopped_reason'];
+    final total = json['total'];
+    final windowCount = json['windowCount'];
+    final windowAnchorAt = json['windowAnchorAt'];
+    final sessionId = json['sessionId'];
+    final stoppedAt = json['stoppedAt'];
     return FrequencyState(
-      shownCount: shown is num ? shown.toInt() : 0,
-      firstShownAt: first is num ? first.toInt() : null,
-      lastShownAt: last is num ? last.toInt() : null,
-      stoppedAt: stopped is num ? stopped.toInt() : null,
-      stoppedReason: reason is String ? reason : null,
+      total: total is num ? total.toInt() : 0,
+      windowCount: windowCount is num ? windowCount.toInt() : 0,
+      windowAnchorAt: windowAnchorAt is num ? windowAnchorAt.toInt() : null,
+      sessionId: sessionId is String ? sessionId : null,
+      stoppedAt: stoppedAt is num ? stoppedAt.toInt() : null,
     );
   }
+
+  @override
+  bool operator ==(Object other) =>
+      other is FrequencyState &&
+      other.total == total &&
+      other.windowCount == windowCount &&
+      other.windowAnchorAt == windowAnchorAt &&
+      other.sessionId == sessionId &&
+      other.stoppedAt == stoppedAt;
+
+  @override
+  int get hashCode =>
+      Object.hash(total, windowCount, windowAnchorAt, sessionId, stoppedAt);
 }
 
-/// The result of evaluating a policy against a state. Mirrors RN's
+/// Why an evaluation blocked a campaign (`null` when allowed).
+enum FrequencySkipReason { maxTotal, window, stopped }
+
+/// The result of evaluating a policy against a state. Mirrors Android's
 /// `FrequencyEvalResult`.
 class FrequencyEvalResult {
   final bool allow;
   final FrequencySkipReason? reason;
 
-  const FrequencyEvalResult({required this.allow, required this.reason});
+  const FrequencyEvalResult(this.allow, [this.reason]);
 
-  static const allowed = FrequencyEvalResult(allow: true, reason: null);
+  static const allowed = FrequencyEvalResult(true);
 }

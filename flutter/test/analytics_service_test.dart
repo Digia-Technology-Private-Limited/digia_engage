@@ -121,15 +121,20 @@ void main() {
       'digia_test',
     );
 
+    final sessionStart = DigiaAnalyticsService.instance.sessionId;
+
+    // setUserId rotates the session (a new identity starts a new session).
     await DigiaAnalyticsService.instance.setUserId('user-123');
     expect(DigiaAnalyticsService.instance.userId, equals('user-123'));
+    final sessionAfterSet = DigiaAnalyticsService.instance.sessionId;
+    expect(sessionAfterSet, isNot(equals(sessionStart)));
 
-    final sessionBefore = DigiaAnalyticsService.instance.sessionId;
+    // clearUserId rotates it again.
     await DigiaAnalyticsService.instance.clearUserId();
     expect(DigiaAnalyticsService.instance.userId, isNull);
     expect(DigiaAnalyticsService.instance.sessionId, isNotEmpty);
-    expect(
-        DigiaAnalyticsService.instance.sessionId, isNot(equals(sessionBefore)));
+    expect(DigiaAnalyticsService.instance.sessionId,
+        isNot(equals(sessionAfterSet)));
   });
 
   test('queue drops oldest events when capacity is exceeded', () async {

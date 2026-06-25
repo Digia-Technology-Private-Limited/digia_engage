@@ -99,7 +99,7 @@ class CampaignModel {
   final CampaignConfigModel config;
 
   /// Server-configured frequency cap, or `null` when the campaign has none.
-  /// Consulted by the [FrequencyController] to gate and silence the campaign.
+  /// Consulted by the `FrequencyManager` to gate and silence the campaign.
   final FrequencyPolicy? frequency;
 
   const CampaignModel({

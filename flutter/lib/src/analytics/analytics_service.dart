@@ -126,6 +126,8 @@ class DigiaAnalyticsService {
     if (!_enabled) return;
     try {
       await _identity.setUserId(userId);
+      // A user-identity change starts a new session (matches Android).
+      await SessionManager.instance.reset();
     } catch (error) {
       _log('[Digia Analytics] setUserId failed: $error');
     }

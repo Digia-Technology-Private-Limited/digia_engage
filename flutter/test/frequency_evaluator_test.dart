@@ -2,137 +2,149 @@ import 'package:digia_engage/api/internal/frequency/frequency_evaluator.dart';
 import 'package:digia_engage/api/internal/frequency/frequency_policy.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-/// Mirrors the React Native SDK's frequency semantics (`frequencyEvaluator.ts`):
-/// a null state always allows; a stopped campaign is blocked; `max_total` and a
-/// `max_per_window` count both cap the show count; an elapsed window blocks.
+/// Golden matrix for frequency capping — mirrors Android's `FrequencyManagerTest`
+/// (and the RN/iOS suites) exactly. `now` and `sessionId` are injected for
+/// determinism.
 void main() {
-  const oneDayMs = 86400000;
+  const hour = 3600000;
+  const day = 86400000;
 
-  group('FrequencyPolicy.fromJson', () {
-    test('returns null when absent', () {
-      expect(FrequencyPolicy.fromJson(null), isNull);
-    });
+  FrequencyWindow win(int count, String window) =>
+      FrequencyWindow(count: count, window: window);
 
-    test('parses max_total / max_per_window / stop_on', () {
-      final policy = FrequencyPolicy.fromJson({
-        'max_total': 3,
-        'max_per_window': {'count': 2, 'window': 'week'},
-        'stop_on': 'any_action',
-        'min_gap_ms': 1000,
-      })!;
-      expect(policy.maxTotal, 3);
-      expect(policy.maxPerWindow!.count, 2);
-      expect(policy.maxPerWindow!.window, FrequencyWindowUnit.week);
-      expect(policy.stopOn, FrequencyStopOn.anyAction);
-      expect(policy.minGapMs, 1000);
-      expect(policy.hasPolicy, isTrue);
-      expect(policy.isSession, isFalse);
-    });
+  // Drive a policy through show attempts, threading state the way the real
+  // wiring does: evaluate → if allowed, recordShow → if complete, recordStop.
+  List<bool> run(FrequencyPolicy policy, List<(int, String, bool)> attempts) {
+    FrequencyState? state;
+    final allowed = <bool>[];
+    for (final (now, sessionId, complete) in attempts) {
+      final res = FrequencyEvaluator.evaluate(policy, state, now, sessionId);
+      allowed.add(res.allow);
+      if (res.allow) {
+        state = FrequencyEvaluator.recordShow(policy, state, now, sessionId);
+      }
+      if (complete) state = FrequencyEvaluator.recordStop(state, now);
+    }
+    return allowed;
+  }
 
-    test('isSession is true for a session window', () {
-      final policy = FrequencyPolicy.fromJson({
-        'max_per_window': {'count': 1, 'window': 'session'},
-      })!;
-      expect(policy.isSession, isTrue);
-    });
-
-    test('hasPolicy is false for an empty / unrecognised policy', () {
-      expect(FrequencyPolicy.fromJson({'foo': 'bar'})!.hasPolicy, isFalse);
-      // A malformed window (missing count) is dropped, leaving no limit.
-      expect(
-        FrequencyPolicy.fromJson({
-          'max_per_window': {'window': 'day'},
-        })!
-            .hasPolicy,
-        isFalse,
-      );
-    });
+  test('1 - no-constraint policy is treated as uncapped', () {
+    expect(const FrequencyPolicy().hasConstraint, isFalse);
+    expect(const FrequencyPolicy(maxTotal: 1).hasConstraint, isTrue);
   });
 
-  group('FrequencyEvaluator.evaluate', () {
-    const maxTotal2 = FrequencyPolicy(maxTotal: 2);
+  test('2 - maxTotal 3 allows three then blocks', () {
+    const policy = FrequencyPolicy(maxTotal: 3);
+    expect(
+      run(policy, [(0, 's1', false), (hour, 's1', false), (2 * hour, 's1', false), (3 * hour, 's1', false)]),
+      [true, true, true, false],
+    );
+  });
 
-    test('allows when there is no state yet', () {
-      final result = FrequencyEvaluator.evaluate(maxTotal2, null, 0);
-      expect(result.allow, isTrue);
-      expect(result.reason, isNull);
-    });
+  test('3 - session window same session blocks second', () {
+    final policy = FrequencyPolicy(maxPerWindow: win(1, 'session'));
+    expect(run(policy, [(0, 's1', false), (hour, 's1', false)]), [true, false]);
+  });
 
-    test('blocks once shown_count reaches max_total', () {
-      final result = FrequencyEvaluator.evaluate(
-        maxTotal2,
-        const FrequencyState(shownCount: 2, firstShownAt: 0),
-        oneDayMs,
-      );
-      expect(result.allow, isFalse);
-      expect(result.reason, FrequencySkipReason.maxTotal);
-    });
+  test('4 - session window rotated session allows both', () {
+    final policy = FrequencyPolicy(maxPerWindow: win(1, 'session'));
+    expect(run(policy, [(0, 's1', false), (hour, 's2', false)]), [true, true]);
+  });
 
-    test('blocks a stopped campaign regardless of counts', () {
-      final result = FrequencyEvaluator.evaluate(
-        const FrequencyPolicy(stopOn: FrequencyStopOn.click),
-        const FrequencyState(shownCount: 0, stoppedAt: 5, stoppedReason: 'click'),
-        oneDayMs,
-      );
-      expect(result.allow, isFalse);
-      expect(result.reason, FrequencySkipReason.stopped);
-    });
+  test('5 - two per day blocks third within 24h', () {
+    final policy = FrequencyPolicy(maxPerWindow: win(2, 'day'));
+    expect(
+      run(policy, [(0, 's1', false), (hour, 's1', false), (2 * hour, 's1', false)]),
+      [true, true, false],
+    );
+  });
 
-    group('max_per_window', () {
-      const dailyTwice = FrequencyPolicy(
-        maxPerWindow: FrequencyWindow(count: 2, window: FrequencyWindowUnit.day),
-      );
+  test('6 - one per day rolls over after 25h', () {
+    final policy = FrequencyPolicy(maxPerWindow: win(1, 'day'));
+    expect(run(policy, [(0, 's1', false), (25 * hour, 's1', false)]), [true, true]);
+  });
 
-      test('allows within the window and under the count', () {
-        final result = FrequencyEvaluator.evaluate(
-          dailyTwice,
-          const FrequencyState(shownCount: 1, firstShownAt: 0),
-          oneDayMs ~/ 2,
-        );
-        expect(result.allow, isTrue);
-      });
+  test('7 - weekly and monthly roll over after their window', () {
+    final week = FrequencyPolicy(maxPerWindow: win(1, 'week'));
+    expect(run(week, [(0, 's1', false), (8 * day, 's1', false)]), [true, true]);
+    expect(run(week, [(0, 's1', false), (6 * day, 's1', false)]), [true, false]);
+    final month = FrequencyPolicy(maxPerWindow: win(1, 'month'));
+    expect(run(month, [(0, 's1', false), (31 * day, 's1', false)]), [true, true]);
+    expect(run(month, [(0, 's1', false), (29 * day, 's1', false)]), [true, false]);
+  });
 
-      test('blocks once the window has elapsed since first show', () {
-        final result = FrequencyEvaluator.evaluate(
-          dailyTwice,
-          const FrequencyState(shownCount: 1, firstShownAt: 0),
-          oneDayMs + 1,
-        );
-        expect(result.allow, isFalse);
-        expect(result.reason, FrequencySkipReason.window);
-      });
+  test('8 - stopOn experienceCompleted blocks forever after completion', () {
+    const policy = FrequencyPolicy(stopOn: 'experienceCompleted');
+    expect(
+      run(policy, [(0, 's1', true), (hour, 's1', false), (2 * day, 's2', false)]),
+      [true, false, false],
+    );
+  });
 
-      test('blocks once the per-window count is reached', () {
-        final result = FrequencyEvaluator.evaluate(
-          dailyTwice,
-          const FrequencyState(shownCount: 2, firstShownAt: 0),
-          1,
-        );
-        expect(result.allow, isFalse);
-        expect(result.reason, FrequencySkipReason.maxTotal);
-      });
+  test('9 - maxTotal plus per-day: per-day wins same day', () {
+    final policy = FrequencyPolicy(maxTotal: 5, maxPerWindow: win(1, 'day'));
+    expect(run(policy, [(0, 's1', false), (hour, 's1', false)]), [true, false]);
+  });
 
-      test('a session window has no wall-clock expiry', () {
-        const sessionPolicy = FrequencyPolicy(
-          maxPerWindow:
-              FrequencyWindow(count: 1, window: FrequencyWindowUnit.session),
-        );
-        // Far in the "future": session windows are bounded by the process, not
-        // time, so the count is the only gate.
-        final allowed = FrequencyEvaluator.evaluate(
-          sessionPolicy,
-          const FrequencyState(shownCount: 0, firstShownAt: 0),
-          oneDayMs * 365,
-        );
-        expect(allowed.allow, isTrue);
-        final blocked = FrequencyEvaluator.evaluate(
-          sessionPolicy,
-          const FrequencyState(shownCount: 1, firstShownAt: 0),
-          oneDayMs * 365,
-        );
-        expect(blocked.allow, isFalse);
-        expect(blocked.reason, FrequencySkipReason.maxTotal);
-      });
+  test('10 - maxTotal ignores session rotation', () {
+    const policy = FrequencyPolicy(maxTotal: 2);
+    expect(
+      run(policy, [(0, 's1', false), (hour, 's2', false), (2 * hour, 's3', false)]),
+      [true, true, false],
+    );
+  });
+
+  test('11 - session window cold start allows both', () {
+    final policy = FrequencyPolicy(maxPerWindow: win(1, 'session'));
+    expect(run(policy, [(0, 'cold-1', false), (day, 'cold-2', false)]), [true, true]);
+  });
+
+  test('12 - blocked attempt does not advance state', () {
+    const policy = FrequencyPolicy(maxTotal: 1);
+    FrequencyState? state;
+    expect(FrequencyEvaluator.evaluate(policy, state, 0, 's1').allow, isTrue);
+    state = FrequencyEvaluator.recordShow(policy, state, 0, 's1');
+    expect(state.total, 1);
+    expect(FrequencyEvaluator.evaluate(policy, state, hour, 's1').allow, isFalse);
+    expect(state.total, 1);
+  });
+
+  test('recordShow re-anchors time window only on rollover', () {
+    final policy = FrequencyPolicy(maxPerWindow: win(5, 'day'));
+    var s = FrequencyEvaluator.recordShow(policy, null, 1000, 's1');
+    expect(s, const FrequencyState(total: 1, windowCount: 1, windowAnchorAt: 1000));
+    s = FrequencyEvaluator.recordShow(policy, s, 1000 + hour, 's1');
+    expect(s.total, 2);
+    expect(s.windowCount, 2);
+    expect(s.windowAnchorAt, 1000);
+    s = FrequencyEvaluator.recordShow(policy, s, 1000 + 25 * hour, 's1');
+    expect(s.total, 3);
+    expect(s.windowCount, 1);
+    expect(s.windowAnchorAt, 1000 + 25 * hour);
+  });
+
+  test('recordStop is idempotent', () {
+    var s = FrequencyEvaluator.recordStop(null, 500);
+    expect(s.stoppedAt, 500);
+    s = FrequencyEvaluator.recordStop(s, 900);
+    expect(s.stoppedAt, 500);
+  });
+
+  group('FrequencyPolicy.fromJson', () {
+    test('reads camelCase and rejects empty / snake_case', () {
+      expect(FrequencyPolicy.fromJson(null), isNull);
+      expect(FrequencyPolicy.fromJson(const {}), isNull);
+      final p = FrequencyPolicy.fromJson({
+        'maxTotal': 3,
+        'maxPerWindow': {'count': 2, 'window': 'day'},
+        'stopOn': 'experienceCompleted',
+      })!;
+      expect(p.maxTotal, 3);
+      expect(p.maxPerWindow, win(2, 'day'));
+      expect(p.stopOn, 'experienceCompleted');
+      // Old snake_case payload has no recognised keys → uncapped (null).
+      expect(FrequencyPolicy.fromJson(const {'max_total': 3, 'stop_on': 'click'}),
+          isNull);
     });
   });
 }

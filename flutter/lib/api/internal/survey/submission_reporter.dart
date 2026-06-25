@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 
 import '../../models/digia_config.dart';
 import '../campaign/campaign_model.dart';
+import '../digia_endpoints.dart';
 import 'survey_config.dart';
 import 'survey_logic_handler.dart';
 
@@ -17,9 +18,6 @@ import 'survey_logic_handler.dart';
 /// ISO-8601 `occurredAt`) is kept byte-for-byte compatible with Android so the
 /// backend sees identical submissions across platforms.
 class SubmissionReporter {
-  static const String _production = 'https://app.digia.tech';
-  static const String _sandbox = 'https://dev.digia.tech';
-
   final DigiaConfig config;
   final String deviceId;
 
@@ -40,8 +38,7 @@ class SubmissionReporter {
   }
 
   Future<void> _post(Map<String, dynamic> body) async {
-    final baseUrl = _resolveBaseUrl();
-    final fullUrl = '$baseUrl/api/v1/engage/sdk/recordSubmission';
+    final fullUrl = DigiaEndpoints.submission;
     try {
       final dio = Dio(BaseOptions(
         connectTimeout: const Duration(milliseconds: 10000),
@@ -63,16 +60,6 @@ class SubmissionReporter {
     } catch (e) {
       debugPrint('[SubmissionReporter] post failed: $e');
     }
-  }
-
-  /// Resolves the engage API origin, mirroring [CampaignFetcher]: an explicit
-  /// `config.baseUrl` wins; otherwise the host is derived from the environment.
-  String _resolveBaseUrl() {
-    final explicit = config.baseUrl;
-    if (explicit != null && explicit.isNotEmpty) {
-      return explicit.replaceAll(RegExp(r'/+$'), '');
-    }
-    return config.environment == DigiaEnvironment.sandbox ? _sandbox : _production;
   }
 
   Map<String, dynamic> _buildBody(
