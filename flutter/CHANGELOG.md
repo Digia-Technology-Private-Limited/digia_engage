@@ -1,5 +1,13 @@
 # Changelog
 
+
+## [1.6.0] - 2026-06-25
+
+### Changed
+
+- Fixed click tracking issues
+
+
 ## [1.1.2] - 2026-04-18
 
 ### Changed

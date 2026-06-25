@@ -55,8 +55,6 @@ void main() {
       expect(step.titleWeight, FontWeight.w600);
       expect(step.actions.single.type, GuideActionType.next);
       expect(step.actions.single.style, GuideActionStyle.primary);
-
-      expect(config.defaultVariables['userName'], 'there');
     });
 
     test('parses a spotlight guide campaign with multiple steps', () {

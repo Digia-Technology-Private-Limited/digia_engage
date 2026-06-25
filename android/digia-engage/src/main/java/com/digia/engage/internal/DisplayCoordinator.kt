@@ -17,12 +17,12 @@ internal class DisplayCoordinator(
     fun routeNudge(
             config: NudgeConfig,
             payload: CEPTriggerPayload,
-            variables: Map<String, String> = emptyMap()
+            context: VariableContext = VariableContext.empty,
     ) {
         Logger.verbose(
                 "Showing nudge: id=${payload.cepCampaignId} displayStyle=${config.surface.displayType}"
         )
-        overlayController.showNudge(config, payload, variables)
+        overlayController.showNudge(config, payload, context)
     }
 
     fun routeInline(placementKey: String, payload: CEPTriggerPayload) {

@@ -74,7 +74,7 @@ private fun NudgeSession(state: NudgeOverlayState) {
     // `{{ placeholder }}` node interpolates at draw time (mirrors Flutter's
     // `VariableScopeProvider`).
     val content: @Composable () -> Unit = {
-        CompositionLocalProvider(LocalNudgeVariables provides state.defaultVariables) {
+        CompositionLocalProvider(LocalNudgeVariables provides state.context) {
             NudgeColumnContent(state.config.content, ::dismiss)
         }
     }

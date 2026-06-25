@@ -1,5 +1,6 @@
 package com.digia.engage.internal.model
 
+import com.digia.engage.internal.VariableSchema
 import org.json.JSONObject
 
 internal data class StoryCtaAction(
@@ -96,6 +97,7 @@ internal data class InlineStoryConfig(
     val card: StoryCardConfig = StoryCardConfig(),
     val indicator: StoryIndicatorDisplayConfig = StoryIndicatorDisplayConfig(),
     val items: List<StoryItemConfig>,
+    val variableSchemas: List<VariableSchema> = emptyList(),
 ) {
     companion object {
         fun fromJson(json: JSONObject): InlineStoryConfig? {

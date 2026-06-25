@@ -205,10 +205,10 @@ class GuideShowcaseManager {
   ShowcasePresentation? presentationFor(String anchorKey) {
     final state = _orchestrator.state;
     if (state == null) return null;
-    final scope = VariableScope({
-      ...state.campaign.config.defaultVariables,
-      ...?state.payload.variables,
-    });
+    final scope = VariableScope.fromSchemas(
+      state.campaign.config.defaultVariables,
+      state.payload.variables,
+    );
     final config = state.config;
 
     // Honor the dashboard's `outsideTapBehavior` for scrim/barrier taps instead
@@ -462,7 +462,28 @@ class GuideShowcaseManager {
     _finishing = true;
     final total = state.config.stepCount;
     final elapsedMs = _dwell.consumeDwellMs(state.payload.cepCampaignId);
+    // A single-step guide has no completion semantics (matches RN) — closing the
+    // only step is just a dismiss. For multi-step, reaching the final step (by
+    // advancing past it or closing it) is a completion.
+    final reachedEnd =
+        _activeAnchorKeys.length > 1 && (completed || _isOnLastActiveStep);
 
+    // Mirrors RN exactly. Reaching the end adds Completed first (RN's last-step
+    // CTA / `complete()`). Every terminal close then emits Dismissed — the CEP
+    // plugin's unconditional teardown signal, even right after a completion. A
+    // *close* (the onDismiss path, `completed == false`) on a multi-step guide
+    // also emits the step-level dismiss (RN's `dismiss()` → `step_dismissed`);
+    // an advance-past-last (`completed == true`) does not. Step-level dismiss is
+    // Digia-only — the coarse channel has no per-step dismiss.
+    if (reachedEnd) {
+      // Completing the guide is its CEP engagement signal — the coarse channel
+      // has no "completed", so a completion maps to ExperienceClicked.
+      _events().toCep(const ExperienceClicked(), state.payload);
+      _events().toDigia(
+        GuideCompleted(itemTotal: total, timeToCompleteMs: elapsedMs),
+        state.payload,
+      );
+    }
     _events().toBoth(
       const ExperienceDismissed(),
       GuideDismissed(

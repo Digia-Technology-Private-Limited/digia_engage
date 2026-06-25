@@ -130,11 +130,10 @@ class _DigiaHostState extends State<DigiaHost> {
         campaignKey: campaign.campaignKey,
         surface: EngageSurface.nudge,
       ),
-      // Dashboard-declared defaults first, CEP trigger variables layered on top.
-      scope: VariableScope({
-        ...campaign.config.defaultVariables,
-        ...?payload.variables,
-      }),
+      scope: VariableScope.fromSchemas(
+        campaign.config.defaultVariables,
+        payload.variables,
+      ),
     ).whenComplete(() {
       DigiaInstance.instance.markNudgeDismissed(payload);
       _controller.dismiss();

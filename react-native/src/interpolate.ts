@@ -1,44 +1,33 @@
-export type VariableMap = Record<string, string>;
+import { evalArithmetic } from './expr-evaluator';
+import { buildVariableContext, type VariableContext } from './variable-context';
+import { normalizeVariable, parseVariableMap, type VariableMap, type VariableSchema } from './variable-schema';
 
-const PLACEHOLDER_PATTERN = /\{\{\s*([A-Za-z_][A-Za-z0-9_]*)\s*\}\}/g;
+export { buildVariableContext, normalizeVariable, parseVariableMap };
+export type { VariableContext, VariableMap, VariableSchema };
 
-export function interpolateVariables(
+const IDENTIFIER_RE = /^[a-z][a-z0-9_]*$/;
+const PLACEHOLDER_OPEN = '{{';
+
+export const interpolate = (text: string, context: VariableContext | undefined): string => {
+    if (!text.includes(PLACEHOLDER_OPEN)) return text;
+
+    return text.replace(/\{\{([\s\S]*?)\}\}/g, (_match, inner: string) => {
+        const trimmed = inner.trim();
+
+        if (IDENTIFIER_RE.test(trimmed)) {
+            return context?.values[trimmed] ?? '';
+        }
+
+        if (!context) return '';
+        return evalArithmetic(trimmed, context) ?? '';
+    });
+};
+
+// Backward-compat shim: flat map, plain substitution only (no type info).
+export const interpolateVariables = (
     text: string,
     variables: VariableMap | undefined,
-): string {
+): string => {
     if (!variables) return text;
-    return text.replace(PLACEHOLDER_PATTERN, (match, name: string) => {
-        const value = variables[name];
-        return value === undefined ? '' : value;
-    });
-}
-
-export function parseVariableMap(raw: unknown): VariableMap | undefined {
-    const source = parseVariableSource(raw);
-    if (!source) return undefined;
-
-    const variables: VariableMap = {};
-    for (const [key, value] of Object.entries(source)) {
-        if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(key)) continue;
-        if (typeof value === 'string') variables[key] = value;
-        else if (typeof value === 'number' || typeof value === 'boolean') variables[key] = String(value);
-    }
-    return Object.keys(variables).length > 0 ? variables : undefined;
-}
-
-function parseVariableSource(raw: unknown): Record<string, unknown> | undefined {
-    if (!raw) return undefined;
-    if (typeof raw === 'string') {
-        try {
-            const parsed = JSON.parse(raw);
-            return isPlainObject(parsed) ? parsed : undefined;
-        } catch {
-            return undefined;
-        }
-    }
-    return isPlainObject(raw) ? raw : undefined;
-}
-
-function isPlainObject(value: unknown): value is Record<string, unknown> {
-    return !!value && typeof value === 'object' && !Array.isArray(value);
-}
+    return interpolate(text, { values: { ...variables }, types: {} });
+};

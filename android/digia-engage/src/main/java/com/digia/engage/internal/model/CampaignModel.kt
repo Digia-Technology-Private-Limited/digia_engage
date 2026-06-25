@@ -1,5 +1,7 @@
 package com.digia.engage.internal.model
 
+import com.digia.engage.internal.VariableSchema
+import com.digia.engage.internal.normalizeVariable
 import org.json.JSONObject
 
 internal sealed interface CampaignConfigModel {
@@ -15,7 +17,7 @@ internal data class CampaignModel(
         val campaignKey: String,
         val campaignType: String,
         val config: CampaignConfigModel,
-        val defaultVariables: Map<String, String> = emptyMap(),
+        val variableSchemas: List<VariableSchema> = emptyList(),
 ) {
         val guideConfig: GuideConfigModel?
                 get() = (config as? CampaignConfigModel.Guide)?.guideConfig
@@ -68,15 +70,12 @@ internal data class CampaignModel(
                                                                 "carousel"
                                                         )
                                                 ) {
-                                                        "story" ->
-                                                                CampaignConfigModel.Story(
-                                                                        InlineStoryConfig.fromJson(
-                                                                                templateConfig
-                                                                        )
-                                                                                ?: error(
-                                                                                        "story campaign '$campaignKey' has no valid templateConfig"
-                                                                                )
-                                                                )
+                                                        "story" -> {
+                                                                val schemas = parseVariableSchemas(templateConfig)
+                                                                val storyCfg = InlineStoryConfig.fromJson(templateConfig)
+                                                                        ?: error("story campaign '$campaignKey' has no valid templateConfig")
+                                                                CampaignConfigModel.Story(storyCfg.copy(variableSchemas = schemas))
+                                                        }
                                                         else ->
                                                                 CampaignConfigModel.Inline(
                                                                         InlineCarouselConfig
@@ -104,29 +103,29 @@ internal data class CampaignModel(
                                 campaignKey = campaignKey,
                                 campaignType = campaignType,
                                 config = config,
-                                defaultVariables = parseDefaultVariables(json.optJSONObject("templateConfig")),
+                                variableSchemas = parseVariableSchemas(json.optJSONObject("templateConfig")),
                         )
                 }
 
-                private fun parseDefaultVariables(templateConfig: JSONObject?): Map<String, String> {
-                        val raw = templateConfig?.opt("variables") ?: return emptyMap()
-                        val result = mutableMapOf<String, String>()
+                private fun parseVariableSchemas(templateConfig: JSONObject?): List<VariableSchema> {
+                        val raw = templateConfig?.opt("variables") ?: return emptyList()
+                        val result = mutableListOf<VariableSchema>()
                         when (raw) {
-                                // List format: [{name, fallbackValue, sampleValue}] — matches Flutter wire
+                                // List format: [{name, type, fallbackValue, sampleValue}] — matches Flutter wire
                                 is org.json.JSONArray -> {
                                         for (i in 0 until raw.length()) {
                                                 val entry = raw.optJSONObject(i) ?: continue
-                                                val name = entry.optString("name").ifBlank { null } ?: continue
-                                                result[name] = entry.optString("fallbackValue")
+                                                val schema = normalizeVariable(entry) ?: continue
+                                                result += schema
                                         }
                                 }
                                 // Dict format: {key: value} — legacy or alternate representation
                                 is JSONObject -> {
                                         raw.keys().forEach { k ->
                                                 when (val v = raw.opt(k)) {
-                                                        is String -> result[k] = v
-                                                        is Number -> result[k] = v.toString()
-                                                        is Boolean -> result[k] = v.toString()
+                                                        is String -> result += VariableSchema(k, "string", v)
+                                                        is Number -> result += VariableSchema(k, "string", v.toString())
+                                                        is Boolean -> result += VariableSchema(k, "string", v.toString())
                                                 }
                                         }
                                 }

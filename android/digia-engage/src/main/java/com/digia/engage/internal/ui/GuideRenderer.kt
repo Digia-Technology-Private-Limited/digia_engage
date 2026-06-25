@@ -40,14 +40,15 @@ import androidx.compose.ui.window.PopupProperties
 import com.digia.engage.internal.ActiveGuideState
 import com.digia.engage.internal.DigiaInstance
 import com.digia.engage.internal.ScreenRect
+import com.digia.engage.internal.VariableContext
 import com.digia.engage.internal.interpolate
 import com.digia.engage.internal.model.ActionType
 import com.digia.engage.internal.model.GuideStepWidgetConfig
 import kotlinx.coroutines.delay
 
-// Ambient variable map for the active guide session.
+// Ambient variable context for the active guide session.
 // Provided at the GuideRenderer level; consumed by any composable that renders text.
-internal val LocalDigiaVariables = compositionLocalOf<Map<String, String>?> { null }
+internal val LocalDigiaVariables = compositionLocalOf<VariableContext?> { null }
 
 /**
  * GuideRenderer — pure Compose, no external popup library.
@@ -81,7 +82,7 @@ internal fun GuideRenderer() {
     }
     val onDismiss: () -> Unit = { DigiaInstance.dismissGuide() }
 
-    CompositionLocalProvider(LocalDigiaVariables provides guideState.variables) {
+    CompositionLocalProvider(LocalDigiaVariables provides guideState.context) {
         GuideTooltipOverlay(
             config     = config,
             guideState = guideState,

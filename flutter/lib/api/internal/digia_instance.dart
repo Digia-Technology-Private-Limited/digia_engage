@@ -13,6 +13,7 @@ import 'campaign/campaign_fetcher.dart';
 import 'campaign/campaign_model.dart';
 import 'campaign/campaign_store.dart';
 import 'digia_endpoints.dart';
+import 'digia_endpoints.dart';
 import 'digia_overlay_controller.dart';
 import 'engage_fonts.dart';
 import 'event/cep_plugin_sink.dart';
@@ -196,6 +197,9 @@ class DigiaInstance with WidgetsBindingObserver implements DigiaCEPDelegate {
 
       // Register the host's action override (if any) on the shared runner.
       EngageActionRunner.shared.interceptor = config.onAction;
+
+      // ── Resolve base URL (sandbox → dev.digia.tech, prod → app.digia.tech) ─
+      DigiaEndpoints.configure(config);
 
       // ── Fetch + cache engage campaigns ──────────────────────────────────
       await PreferencesStore.instance.initialize();
@@ -616,6 +620,9 @@ class DigiaInstance with WidgetsBindingObserver implements DigiaCEPDelegate {
     if (state == null || _completedSurveyToken == state.token) return;
     _completedSurveyToken = state.token;
     _recordCompleted(state.campaign.campaignKey);
+    // Completing the survey is its CEP engagement signal — the coarse channel
+    // has no "completed", so a completion maps to ExperienceClicked.
+    _events.toCep(const ExperienceClicked(), state.payload);
     _events.toDigia(
       SurveyCompleted(
         itemTotal: _surveyItemTotal(state.config),
@@ -765,8 +772,10 @@ class DigiaInstance with WidgetsBindingObserver implements DigiaCEPDelegate {
     );
   }
 
-  /// Fired when the user taps the nudge's primary CTA. First-party Digia
-  /// analytics only; `time_to_action_ms` is the dwell so far (nudge still open).
+  /// Fired when the user taps a nudge CTA. A *primary* CTA tap is the nudge's
+  /// CEP engagement signal and emits ExperienceClicked on the coarse channel;
+  /// secondary taps stay Digia-only. `time_to_action_ms` is the dwell so far
+  /// (nudge still open).
   void reportNudgeClicked(
     CEPTriggerPayload payload, {
     String? elementId,
@@ -775,6 +784,9 @@ class DigiaInstance with WidgetsBindingObserver implements DigiaCEPDelegate {
     String? actionUrl,
     String? ctaRole,
   }) {
+    if (ctaRole == 'primary') {
+      _events.toCep(ExperienceClicked(elementId: elementId), payload);
+    }
     _events.toDigia(
       NudgeClicked(
         elementId: elementId,
