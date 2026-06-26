@@ -93,6 +93,18 @@ internal class DigiaModule(
                     )
             Digia.initialize(reactContext.applicationContext, config)
 
+            // Guides render in JS, but are frequency-capped natively. When a guide
+            // trigger (forwarded via triggerCampaign) passes the native gate, the
+            // SDK calls this hook; we tell JS to render the stashed payload.
+            Digia.setOnGuideRenderRequest { payload ->
+                val params = Arguments.createMap().apply { putString("cepCampaignId", payload.cepCampaignId) }
+                if (reactContext.hasActiveReactInstance()) {
+                    reactContext
+                            .getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter::class.java)
+                            .emit("digiaRenderGuide", params)
+                }
+            }
+
             UiThreadUtil.runOnUiThread {
                 // Mount the Compose overlay ABOVE the ReactRootView via addContentView().
                 // This keeps it outside Fabric's shadow tree entirely so Fabric hit-testing

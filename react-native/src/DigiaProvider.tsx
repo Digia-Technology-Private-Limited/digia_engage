@@ -233,6 +233,9 @@ function TooltipOverlay({
     const viewedFired = useRef(false);
     // Tracks the last step index for which Step Viewed fired, to avoid re-firing on reposition.
     const stepViewedFor = useRef(-1);
+    // True once Completed has fired (the user tapped a CTA *inside* on the last/only step).
+    // Used so the teardown dismiss() doesn't also emit step_dismissed for a completion.
+    const completedFired = useRef(false);
     const fontFamily = Digia.fontFamily;
 
     const arrowSize = step.arrowSize ?? 8;
@@ -328,11 +331,15 @@ function TooltipOverlay({
     }, [stepIndex, floatPos]);
 
     // Fires dismissed analytics then closes — used for every dismissal (scrim, back gesture, close CTA).
+    // Dismissal is never a completion: closing the overlay (any way) is an abandonment.
+    // Completion is owned solely by handleActionPress (a CTA tapped *inside* the last/only step).
     const dismiss = useCallback((reason: DismissReason = 'scrim_tap') => {
         Animated.timing(opacityAnim, { toValue: 0, duration: 150, useNativeDriver: true }).start(() => {
             const isMultiStep = config.steps.length > 1;
             request.onExperienceEvent({ type: 'dismissed', stepIndex, stepTotal: config.steps.length, anchorKey: step.anchorKey, displayStyle: 'tooltip', dismissReason: reason });
-            if (isMultiStep) {
+            // step_dismissed marks abandoning a particular step. Skip it when this dismiss is the
+            // teardown that follows a completion (the last step was completed, not abandoned).
+            if (isMultiStep && !completedFired.current) {
                 request.onExperienceEvent({ type: 'step_dismissed', stepIndex, stepTotal: config.steps.length, anchorKey: step.anchorKey, displayStyle: 'tooltip', dismissReason: reason });
             }
             digiaGuideController.cancel(request.payloadId);
@@ -350,25 +357,17 @@ function TooltipOverlay({
         });
     }, [opacityAnim, request]);
 
-    // Finishes the guide: fires Completed, then Dismissed (which fires unconditionally
-    // on every close, even after completion — per the Engage matrix), then closes.
-    const complete = useCallback((reason: DismissReason = 'completed') => {
-        Animated.timing(opacityAnim, { toValue: 0, duration: 150, useNativeDriver: true }).start(() => {
-            request.onExperienceEvent({ type: 'completed', stepIndex, stepTotal: config.steps.length, anchorKey: step.anchorKey, displayStyle: 'tooltip' });
-            request.onExperienceEvent({ type: 'dismissed', stepIndex, stepTotal: config.steps.length, anchorKey: step.anchorKey, displayStyle: 'tooltip', dismissReason: reason });
-            digiaGuideController.cancel(request.payloadId);
-        });
-    }, [request, opacityAnim, step, config, stepIndex]);
-
     const next = useCallback(() => {
         if (stepIndex < config.steps.length - 1) {
             stepTo(stepIndex + 1);
-        } else if (config.steps.length > 1) {
-            complete();          // advancing past the last step finishes a multi-step guide
         } else {
-            dismiss();           // single-step guide has no completion semantics
+            // Past the last step there is nowhere to advance — tear down. This is NOT a
+            // completion by itself: if the user got here by tapping a CTA inside, completedFired
+            // is already set (so dismiss() skips step_dismissed); if they got here via an
+            // outside tap (outsideTapBehavior:'next'), it is a plain dismiss.
+            dismiss();
         }
-    }, [stepIndex, config.steps.length, stepTo, complete, dismiss]);
+    }, [stepIndex, config.steps.length, stepTo, dismiss]);
     const prev = useCallback(() => { if (stepIndex > 0) stepTo(stepIndex - 1); }, [stepIndex, stepTo]);
 
     const actionCallbacks = useCallback((): ActionCallbacks => ({
@@ -452,13 +451,15 @@ function TooltipOverlay({
                                             btnPrimaryText={step.buttonPrimaryTextColor}
                                             btnGhostText={step.buttonGhostTextColor}
                                             onPress={() => {
-                                                const isMultiStep = config.steps.length > 1;
                                                 const isLastStep = stepIndex === config.steps.length - 1;
                                                 const actionUrl = 'url' in action ? (action as { url: string }).url : undefined;
                                                 // Guides only have Step Clicked in the matrix (no Experience Clicked) —
                                                 // fire it once per CTA tap, single- and multi-step alike.
                                                 request.onExperienceEvent({ type: 'step_clicked', stepIndex, stepTotal: config.steps.length, anchorKey: step.anchorKey, displayStyle: 'tooltip', ctaLabel: action.label, actionType: action.type, actionUrl });
-                                                if (isMultiStep && isLastStep && action.type !== 'back') {
+                                                // Completion = the user engaged a CTA *inside* the tooltip on the last
+                                                // (or only) step. Single- and multi-step alike; 'back' isn't a finish.
+                                                if (isLastStep && action.type !== 'back') {
+                                                    completedFired.current = true;
                                                     request.onExperienceEvent({ type: 'completed', stepIndex, stepTotal: config.steps.length, anchorKey: step.anchorKey, displayStyle: 'tooltip' });
                                                 }
                                                 void digiaActionHandler.execute(action, {
@@ -659,6 +660,9 @@ function SpotlightOverlay({
     const viewedFired = useRef(false);
     // Tracks the last step index for which Step Viewed fired, to avoid re-firing on remeasure.
     const stepViewedFor = useRef(-1);
+    // True once Completed has fired (the user tapped a CTA *inside* on the last/only step).
+    // Used so the teardown dismiss() doesn't also emit step_dismissed for a completion.
+    const completedFired = useRef(false);
 
     // Wait for the step's delayInMs before marking it ready. Re-runs on every step entry.
     useEffect(() => {
@@ -729,11 +733,15 @@ function SpotlightOverlay({
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [stepIndex, layout]);
 
+    // Dismissal is never a completion: closing the overlay (any way) is an abandonment.
+    // Completion is owned solely by handleActionPress (a CTA tapped *inside* the last/only step).
     const dismiss = useCallback((reason: DismissReason = 'scrim_tap') => {
         Animated.timing(opacityAnim, { toValue: 0, duration: 150, useNativeDriver: true }).start(() => {
             const isMultiStep = config.steps.length > 1;
             request.onExperienceEvent({ type: 'dismissed', stepIndex, stepTotal: config.steps.length, anchorKey: step.anchorKey, displayStyle: 'spotlight', dismissReason: reason });
-            if (isMultiStep) {
+            // step_dismissed marks abandoning a particular step. Skip it when this dismiss is the
+            // teardown that follows a completion (the last step was completed, not abandoned).
+            if (isMultiStep && !completedFired.current) {
                 request.onExperienceEvent({ type: 'step_dismissed', stepIndex, stepTotal: config.steps.length, anchorKey: step.anchorKey, displayStyle: 'spotlight', dismissReason: reason });
             }
             digiaGuideController.cancel(request.payloadId);
@@ -751,25 +759,17 @@ function SpotlightOverlay({
         });
     }, [opacityAnim, request]);
 
-    // Finishes the guide: fires Completed, then Dismissed (which fires unconditionally
-    // on every close, even after completion — per the Engage matrix), then closes.
-    const complete = useCallback((reason: DismissReason = 'completed') => {
-        Animated.timing(opacityAnim, { toValue: 0, duration: 150, useNativeDriver: true }).start(() => {
-            request.onExperienceEvent({ type: 'completed', stepIndex, stepTotal: config.steps.length, anchorKey: step.anchorKey, displayStyle: 'spotlight' });
-            request.onExperienceEvent({ type: 'dismissed', stepIndex, stepTotal: config.steps.length, anchorKey: step.anchorKey, displayStyle: 'spotlight', dismissReason: reason });
-            digiaGuideController.cancel(request.payloadId);
-        });
-    }, [request, opacityAnim, step, config, stepIndex]);
-
     const next = useCallback(() => {
         if (stepIndex < config.steps.length - 1) {
             stepTo(stepIndex + 1);
-        } else if (config.steps.length > 1) {
-            complete();          // advancing past the last step finishes a multi-step guide
         } else {
-            dismiss();           // single-step guide has no completion semantics
+            // Past the last step there is nowhere to advance — tear down. This is NOT a
+            // completion by itself: if the user got here by tapping a CTA inside, completedFired
+            // is already set (so dismiss() skips step_dismissed); if they got here via an
+            // outside tap (outsideTapBehavior:'next'), it is a plain dismiss.
+            dismiss();
         }
-    }, [stepIndex, config.steps.length, stepTo, complete, dismiss]);
+    }, [stepIndex, config.steps.length, stepTo, dismiss]);
     const prev = useCallback(() => { if (stepIndex > 0) stepTo(stepIndex - 1); }, [stepIndex, stepTo]);
 
     const actionCallbacks = useCallback((): ActionCallbacks => ({
@@ -780,13 +780,15 @@ function SpotlightOverlay({
     }), [next, prev, dismiss]);
 
     const handleActionPress = useCallback((action: Action) => {
-        const isMultiStep = config.steps.length > 1;
         const isLastStep = stepIndex === config.steps.length - 1;
         const actionUrl = 'url' in action ? (action as { url: string }).url : undefined;
         // Guides only have Step Clicked in the matrix (no Experience Clicked) —
         // fire it once per CTA tap, single- and multi-step alike.
         request.onExperienceEvent({ type: 'step_clicked', stepIndex, stepTotal: config.steps.length, anchorKey: step.anchorKey, displayStyle: 'spotlight', ctaLabel: action.label, actionType: action.type, actionUrl });
-        if (isMultiStep && isLastStep && action.type !== 'back') {
+        // Completion = the user engaged a CTA *inside* the spotlight on the last
+        // (or only) step. Single- and multi-step alike; 'back' isn't a finish.
+        if (isLastStep && action.type !== 'back') {
+            completedFired.current = true;
             request.onExperienceEvent({ type: 'completed', stepIndex, stepTotal: config.steps.length, anchorKey: step.anchorKey, displayStyle: 'spotlight' });
         }
         digiaActionHandler.execute(action, {
