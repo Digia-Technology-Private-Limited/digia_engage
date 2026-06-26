@@ -56,8 +56,10 @@ class NudgeParser {
   NudgeColumn _column(Map<String, dynamic> layout) {
     final props = optMap(layout, 'props') ?? const <String, dynamic>{};
     return NudgeColumn(
-      crossAxisAlignment: _crossAxis(optString(props, 'crossAxisAlignment', 'start')),
-      mainAxisAlignment: _mainAxis(optString(props, 'mainAxisAlignment', 'start')),
+      crossAxisAlignment:
+          _crossAxis(optString(props, 'crossAxisAlignment', 'start')),
+      mainAxisAlignment:
+          _mainAxis(optString(props, 'mainAxisAlignment', 'start')),
       spacing: optDouble(props, 'spacing', 0),
       children: _childNodes(layout).map(_node).whereType<NudgeNode>().toList(),
     );
@@ -96,7 +98,8 @@ class NudgeParser {
 
   static NudgeNode _text(NudgeBox box, Map<String, dynamic> props) {
     final style = optMap(props, 'textStyle') ?? const {};
-    final font = optMap(optMap(style, 'fontToken') ?? const {}, 'font') ?? const {};
+    final font =
+        optMap(optMap(style, 'fontToken') ?? const {}, 'font') ?? const {};
     return NudgeText(
       box,
       text: optString(props, 'text'),
@@ -123,16 +126,19 @@ class NudgeParser {
   static NudgeNode _button(NudgeBox box, Map<String, dynamic> props) {
     final text = optMap(props, 'text') ?? const {};
     final textStyle = optMap(text, 'textStyle') ?? const {};
-    final font = optMap(optMap(textStyle, 'fontToken') ?? const {}, 'font') ?? const {};
+    final font =
+        optMap(optMap(textStyle, 'fontToken') ?? const {}, 'font') ?? const {};
     return NudgeButton(
       box,
       label: optString(text, 'text', 'Button'),
       variant: _buttonVariant(optString(props, 'variant', 'fill')),
       fontSize: optDouble(font, 'size', 16),
       weight: _fontWeight(optString(font, 'weight', '600')),
-      background: _color(optString(optMap(props, 'defaultStyle') ?? const {}, 'backgroundColor')) ??
+      background: _color(optString(
+              optMap(props, 'defaultStyle') ?? const {}, 'backgroundColor')) ??
           const Color(0xFF4945FF),
-      textColor: _color(optString(textStyle, 'textColor')) ?? const Color(0xFFFFFFFF),
+      textColor:
+          _color(optString(textStyle, 'textColor')) ?? const Color(0xFFFFFFFF),
       radius: optDouble(optMap(props, 'shape') ?? const {}, 'borderRadius', 8),
       actions: const EngageActionParser().parse(optMap(props, 'onClick')),
       isPrimary: optBool(props, 'isPrimary', false),
@@ -142,24 +148,35 @@ class NudgeParser {
   static NudgeNode _gap(NudgeBox box, Map<String, dynamic> props) =>
       NudgeGap(box, height: optDouble(props, 'height', 8));
 
-  static NudgeNode _divider(NudgeBox box, Map<String, dynamic> props) => NudgeDivider(
+  static NudgeNode _divider(NudgeBox box, Map<String, dynamic> props) =>
+      NudgeDivider(
         box,
         thickness: optDouble(props, 'thickness', 1),
         indent: optDouble(props, 'indent', 0),
         endIndent: optDouble(props, 'endIndent', 0),
-        color: _color(optString(optMap(props, 'colorType') ?? const {}, 'color')) ??
+        color: _color(
+                optString(optMap(props, 'colorType') ?? const {}, 'color')) ??
             const Color(0xFFE0E0E0),
       );
 
-  static NudgeNode _lottie(NudgeBox box, Map<String, dynamic> props) => NudgeLottie(
-        box,
-        url: optString(optMap(props, 'src') ?? const {}, 'lottiePath'),
-        height: optDouble(props, 'height', 160),
-        loop: optString(props, 'animationType', 'loop') != 'once',
-        autoplay: optBool(props, 'animate', true),
-      );
+  static NudgeNode _lottie(NudgeBox box, Map<String, dynamic> props) {
+    final aspectRatio = optDouble(props, 'aspectRatio', 0);
+    // Aspect ratio owns the height; ignore any fixed box height (older payloads
+    // may carry a stale one) so the AspectRatio fills the width instead of being
+    // clamped to a small fixed-height box.
+    return NudgeLottie(
+      aspectRatio > 0 ? box.withoutFixedHeight() : box,
+      url: optString(optMap(props, 'src') ?? const {}, 'lottiePath'),
+      height: optDouble(props, 'height', 160),
+      loop: optString(props, 'animationType', 'loop') != 'once',
+      autoplay: optBool(props, 'animate', true),
+      fit: _boxFit(optString(props, 'fit', 'cover')),
+      aspectRatio: aspectRatio,
+    );
+  }
 
-  static NudgeNode _carousel(NudgeBox box, Map<String, dynamic> props) => NudgeCarousel(
+  static NudgeNode _carousel(NudgeBox box, Map<String, dynamic> props) =>
+      NudgeCarousel(
         box,
         images: (optList(props, 'images') ?? const [])
             .whereType<String>()
@@ -172,7 +189,8 @@ class NudgeParser {
         showIndicator: optBool(props, 'showIndicator', true),
       );
 
-  static NudgeNode _video(NudgeBox box, Map<String, dynamic> props) => NudgeVideo(
+  static NudgeNode _video(NudgeBox box, Map<String, dynamic> props) =>
+      NudgeVideo(
         box,
         url: optString(props, 'url'),
         height: optDouble(props, 'height', 200),
@@ -194,11 +212,13 @@ class NudgeParser {
       fillWidth: widthStr == '100%',
       fixedWidth: widthStr == '100%' ? null : double.tryParse(widthStr),
       fixedHeight: double.tryParse(optString(style, 'height')),
-      background: _color(optString(style, 'bgColor', optString(style, 'backgroundColor'))),
+      background: _color(
+          optString(style, 'bgColor', optString(style, 'backgroundColor'))),
       padding: _edges(style['padding']),
       margin: _edges(style['margin']),
       borderRadius: optDouble(style, 'borderRadius', 0),
-      borderColor: border == null ? null : _color(optString(border, 'borderColor')),
+      borderColor:
+          border == null ? null : _color(optString(border, 'borderColor')),
       borderWidth: border == null ? 0 : optDouble(border, 'borderWidth', 0),
       selfAlign: _selfAlign(optString(cp, 'align')),
     );
@@ -238,6 +258,7 @@ FontWeight _fontWeight(String value) => switch (value) {
       '500' => FontWeight.w500,
       '600' => FontWeight.w600,
       '700' => FontWeight.w700,
+      '800' => FontWeight.w800,
       _ => FontWeight.w400,
     };
 
