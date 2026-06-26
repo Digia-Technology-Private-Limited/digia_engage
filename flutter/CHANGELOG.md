@@ -1,7 +1,8 @@
 # Changelog
 
 
-## [1.6.0] - 2026-06-25
+## [1.8.0] - 2026-06-25
+- Lottie now supports Content Fit & Aspect Ratio
 
 ### Changed
 
