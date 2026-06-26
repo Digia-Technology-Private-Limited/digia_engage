@@ -14,8 +14,10 @@ class NudgeBoxDecorator {
   const NudgeBoxDecorator();
 
   Widget decorate(NudgeBox box, Widget child) {
-    final radius = box.borderRadius > 0 ? BorderRadius.circular(box.borderRadius) : null;
-    final hasDecoration = box.background != null || box.borderWidth > 0 || radius != null;
+    final radius =
+        box.borderRadius > 0 ? BorderRadius.circular(box.borderRadius) : null;
+    final hasDecoration =
+        box.background != null || box.borderWidth > 0 || radius != null;
     final hasPadding = box.padding != EdgeInsets.zero;
     final hasFrame = box.fillWidth ||
         box.fixedWidth != null ||

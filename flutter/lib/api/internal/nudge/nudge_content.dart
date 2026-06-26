@@ -98,7 +98,8 @@ class NudgeImage extends NudgeNode {
   /// Width-to-height ratio; `0` = off (use the box's fixed height / natural size).
   final double aspectRatio;
 
-  const NudgeImage(super.box, {required this.url, required this.fit, required this.aspectRatio});
+  const NudgeImage(super.box,
+      {required this.url, required this.fit, required this.aspectRatio});
 }
 
 /// Visual style of a button. `fill`/`elevated` use background + textColor;
@@ -162,6 +163,10 @@ class NudgeLottie extends NudgeNode {
   final double height;
   final bool loop;
   final bool autoplay;
+  final BoxFit fit;
+
+  /// Width-to-height ratio; `0` = off (use the fixed height / natural size).
+  final double aspectRatio;
 
   const NudgeLottie(
     super.box, {
@@ -169,6 +174,8 @@ class NudgeLottie extends NudgeNode {
     required this.height,
     required this.loop,
     required this.autoplay,
+    required this.fit,
+    required this.aspectRatio,
   });
 }
 

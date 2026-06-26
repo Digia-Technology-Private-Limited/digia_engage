@@ -240,17 +240,48 @@ final class NudgeLottieRenderer extends NudgeNodeRenderer<NudgeLottie> {
   Widget render(NudgeLottie node, BuildContext context) {
     final url = VariableScopeProvider.of(context).resolve(node.url);
     if (url.isEmpty) {
-      return NudgePlaceholder(label: 'No Lottie URL', height: node.height);
+      return _placeholder(node, 'No Lottie URL');
     }
-    return Lottie.network(
-      url,
-      height: node.height,
-      repeat: node.loop,
-      animate: node.autoplay,
-      fit: BoxFit.contain,
-      errorBuilder: (_, __, ___) =>
-          NudgePlaceholder(label: 'Lottie failed', height: node.height),
+    // Aspect ratio (when set) drives the height; otherwise use the node's fixed
+    // height, then natural size. Unlike `Image`, Lottie's renderer scales the
+    // whole canvas for `BoxFit.cover` without clipping, so it would paint outside
+    // its box — wrap in `ClipRect` to keep the overflow inside its bounds.
+    if (node.aspectRatio > 0) {
+      return AspectRatio(
+        aspectRatio: node.aspectRatio,
+        child: ClipRect(
+          child: Lottie.network(
+            url,
+            repeat: node.loop,
+            animate: node.autoplay,
+            fit: node.fit,
+            alignment: Alignment.center,
+            errorBuilder: (_, __, ___) => _placeholder(node, 'Lottie failed'),
+          ),
+        ),
+      );
+    }
+    return ClipRect(
+      child: Lottie.network(
+        url,
+        height: node.height,
+        repeat: node.loop,
+        animate: node.autoplay,
+        fit: node.fit,
+        alignment: Alignment.center,
+        errorBuilder: (_, __, ___) => _placeholder(node, 'Lottie failed'),
+      ),
     );
+  }
+
+  Widget _placeholder(NudgeLottie node, String label) {
+    if (node.aspectRatio > 0) {
+      return AspectRatio(
+        aspectRatio: node.aspectRatio,
+        child: NudgePlaceholder(label: label, height: double.infinity),
+      );
+    }
+    return NudgePlaceholder(label: label, height: node.height);
   }
 }
 
