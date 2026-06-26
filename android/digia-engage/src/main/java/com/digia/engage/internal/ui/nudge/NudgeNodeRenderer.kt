@@ -45,6 +45,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -347,18 +348,27 @@ private fun NudgeLottieWidget(node: NudgeLottie) {
         NudgePlaceholder("Lottie", node.height)
         return
     }
+    // Aspect ratio (when set) drives the height; otherwise use the fixed height.
+    // Mirrors the image renderer.
+    val modifier = if (node.aspectRatio > 0f) {
+        Modifier.fillMaxWidth().aspectRatio(node.aspectRatio)
+    } else {
+        Modifier.fillMaxWidth().height(node.height.dp)
+    }.clipToBounds()  // keep the animation inside its box; never overflow the sheet
     val composition by rememberLottieComposition(LottieCompositionSpec.Url(url))
     val progress by animateLottieCompositionAsState(
-        composition = composition,
+        composition,
         iterations = if (node.loop) LottieConstants.IterateForever else 1,
         isPlaying = node.autoplay,
+        // Without this the animation freezes on frame 0 whenever the device's animator
+        // duration scale is 0 (emulators, battery saver, "remove animations" a11y setting).
+        ignoreSystemAnimatorScale = true,
     )
     LottieAnimation(
         composition = composition,
         progress = { progress },
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(node.height.dp),
+        contentScale = node.fit.toContentScale(),
+        modifier = modifier,
     )
 }
 
@@ -570,11 +580,9 @@ private fun NudgeTextAlign.toTextAlign(): TextAlign = when (this) {
     NudgeTextAlign.LEFT -> TextAlign.Start
 }
 
+// Engage dashboard supports exactly three fits. Anything else falls back to cover.
 private fun String.toContentScale(): ContentScale = when (this) {
-    "fill" -> ContentScale.FillBounds
-    "contain" -> ContentScale.Fit
-    "fitWidth" -> ContentScale.FillWidth
-    "fitHeight" -> ContentScale.FillHeight
-    "none" -> ContentScale.None
-    else -> ContentScale.Crop
+    "fill" -> ContentScale.FillBounds   // stretch to bounds (aspect ratio not preserved)
+    "contain" -> ContentScale.Fit       // fit inside, preserve aspect ratio
+    else -> ContentScale.Crop           // cover: fill bounds, crop overflow
 }

@@ -52,7 +52,7 @@ internal data class NudgeText(
 internal data class NudgeImage(
     override val box: NudgeBox,
     val url: String,
-    val fit: String,
+    val fit: String = "cover",
     val aspectRatio: Float,
 ) : NudgeNode(box)
 
@@ -126,6 +126,8 @@ internal data class NudgeLottie(
     val height: Float,
     val loop: Boolean,
     val autoplay: Boolean,
+    val fit: String = "cover",
+    val aspectRatio: Float = 0f,
 ) : NudgeNode(box)
 
 internal data class NudgeCarousel(

@@ -94,12 +94,12 @@ internal class NudgeParser {
     }
 
     private fun parseImage(box: NudgeBox, props: JSONObject): NudgeNode {
-        val ar = props.optDouble("aspectRatio", 0.0).toFloat()
+        val aspectRatio = props.optDouble("aspectRatio", 0.0).toFloat()
         return NudgeImage(
-            if (ar > 0f) box.withoutFixedHeight() else box,
+            if (aspectRatio > 0f) box.withoutFixedHeight() else box,
             url = props.optJSONObject("src")?.optString("imageSrc") ?: "",
             fit = props.optString("fit", "cover"),
-            aspectRatio = ar,
+            aspectRatio = aspectRatio,
         )
     }
 
@@ -138,13 +138,18 @@ internal class NudgeParser {
         color = parseColor(props.optJSONObject("colorType")?.optString("color")) ?: 0xFFE0E0E0.toInt(),
     )
 
-    private fun parseLottie(box: NudgeBox, props: JSONObject): NudgeNode = NudgeLottie(
-        box,
-        url = props.optJSONObject("src")?.optString("lottiePath") ?: "",
-        height = props.optDouble("height", 160.0).toFloat(),
-        loop = props.optString("animationType", "loop") != "once",
-        autoplay = props.optBoolean("animate", true),
-    )
+    private fun parseLottie(box: NudgeBox, props: JSONObject): NudgeNode {
+        val aspectRatio = props.optDouble("aspectRatio", 0.0).toFloat()
+        return NudgeLottie(
+            if (aspectRatio > 0f) box.withoutFixedHeight() else box,
+            url = props.optJSONObject("src")?.optString("lottiePath") ?: "",
+            height = props.optDouble("height", 160.0).toFloat(),
+            loop = props.optString("animationType", "loop") != "once",
+            autoplay = props.optBoolean("animate", true),
+            fit = props.optString("fit", "cover"),
+            aspectRatio = aspectRatio,
+        )
+    }
 
     private fun parseCarousel(box: NudgeBox, props: JSONObject): NudgeNode {
         val imgs = mutableListOf<String>()
