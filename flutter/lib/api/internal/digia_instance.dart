@@ -1,13 +1,18 @@
+import 'dart:async';
+
 import 'package:flutter/widgets.dart';
 
 import '../../digia_engage.dart';
 import '../../src/analytics/analytics_service.dart';
 import '../../src/engage_settings.dart';
 import '../../src/preferences_store.dart';
+import '../../src/session/session_manager.dart';
+import '../../src/session/session_reporter.dart';
 import 'action/engage_action_handler.dart';
 import 'campaign/campaign_fetcher.dart';
 import 'campaign/campaign_model.dart';
 import 'campaign/campaign_store.dart';
+import 'digia_endpoints.dart';
 import 'digia_endpoints.dart';
 import 'digia_overlay_controller.dart';
 import 'engage_fonts.dart';
@@ -16,6 +21,7 @@ import 'event/digia_analytics_sink.dart';
 import 'event/dwell_tracker.dart';
 import 'event/engage_analytics_event.dart';
 import 'event/engage_event_emitter.dart';
+import 'frequency/frequency_manager.dart';
 import 'guide/anchor_registry.dart';
 import 'guide/guide_orchestrator.dart';
 import 'guide/guide_showcase_manager.dart';
@@ -60,6 +66,22 @@ class DigiaInstance with WidgetsBindingObserver implements DigiaCEPDelegate {
   /// `campaignKey`. Consulted on every CEP-triggered campaign.
   final CampaignStore _campaignStore = CampaignStore();
 
+  /// Frequency capping for natively-rendered campaigns (nudge, survey, guide).
+  /// Persists per-campaign state via SharedPreferences and pulls the shared
+  /// [SessionManager] session so `session` windows reset on rotation. Reads are
+  /// synchronous, so the route-time gate stays synchronous. Built lazily — only
+  /// touched once [PreferencesStore] is ready. Shared with [GuideShowcaseManager]
+  /// so guide shows/completions count.
+  late final FrequencyManager _frequencyManager = FrequencyManager(
+    PreferencesStore.instance,
+    () => SessionManager.instance.sessionId,
+  );
+
+  /// Reports the shared session to the backend (session telemetry). Wired only
+  /// when analytics is enabled; null otherwise. Triggered once at startup and on
+  /// every session rotation via [SessionManager].
+  SessionReporter? _sessionReporter;
+
   /// A campaign that arrived before the fetch completed; routed once ready.
   CEPTriggerPayload? _pendingPayload;
 
@@ -88,6 +110,7 @@ class DigiaInstance with WidgetsBindingObserver implements DigiaCEPDelegate {
     orchestrator: _guideOrchestrator,
     registry: _anchorRegistry,
     events: () => _events,
+    frequency: () => _frequencyManager,
     dwell: _dwellTracker,
     screenName: () => _currentScreen,
   );
@@ -166,6 +189,12 @@ class DigiaInstance with WidgetsBindingObserver implements DigiaCEPDelegate {
     // any failure leaves the SDK in [SDKState.failed] and resets the
     // started flag so a later call can retry.
     try {
+      // Resolve the engage API host from the config (explicit `baseUrl` wins,
+      // else derived from `environment`) before ANY network call is made —
+      // campaign fetch, analytics track, and session reporting all read the
+      // URLs from [DigiaEndpoints]. Mirrors Android's endpoint configuration.
+      DigiaEndpoints.configure(config);
+
       // Register the host's action override (if any) on the shared runner.
       EngageActionRunner.shared.interceptor = config.onAction;
 
@@ -174,8 +203,14 @@ class DigiaInstance with WidgetsBindingObserver implements DigiaCEPDelegate {
 
       // ── Fetch + cache engage campaigns ──────────────────────────────────
       await PreferencesStore.instance.initialize();
+      // Resolve the shared session (reused across a relaunch within the timeout)
+      // before anything reads it — both analytics event grouping and frequency's
+      // session-scoped caps depend on it.
+      await SessionManager.instance
+          .initialize(config.analyticsConfig.sessionTimeoutMs);
       await DigiaAnalyticsService.instance
           .initialize(config.analyticsConfig, config.apiKey);
+      _wireSessionReporting(config);
       final deviceId = EngageSettings.instance.getUuid();
       _submissionReporter = SubmissionReporter(config, deviceId);
       final campaigns = await CampaignFetcher(config, deviceId).fetch();
@@ -357,10 +392,12 @@ class DigiaInstance with WidgetsBindingObserver implements DigiaCEPDelegate {
         );
         return true;
       case NudgeCampaignConfig():
+        if (_frequencyCapped(campaign, payload)) return false;
         _controller.show(payload);
         _logIfVerbose('nudge scheduled (campaignKey=${campaign.campaignKey}).');
         return true;
       case SurveyCampaignConfig():
+        if (_frequencyCapped(campaign, payload)) return false;
         final started = _surveyOrchestrator.start(
           campaign,
           payload,
@@ -378,6 +415,7 @@ class DigiaInstance with WidgetsBindingObserver implements DigiaCEPDelegate {
           return true;
         }
       case GuideCampaignConfig():
+        if (_frequencyCapped(campaign, payload)) return false;
         final started = _guideOrchestrator.start(campaign, payload);
         if (!started) {
           debugPrint(
@@ -458,6 +496,7 @@ class DigiaInstance with WidgetsBindingObserver implements DigiaCEPDelegate {
   void reportSurveyStarted() {
     final state = _surveyOrchestrator.state;
     if (state == null) return;
+    _recordShow(state.campaign.campaignKey);
     _dwellTracker.markViewed(state.payload.cepCampaignId);
     final config = state.config;
     _events.toBoth(
@@ -580,6 +619,7 @@ class DigiaInstance with WidgetsBindingObserver implements DigiaCEPDelegate {
     final state = _surveyOrchestrator.state;
     if (state == null || _completedSurveyToken == state.token) return;
     _completedSurveyToken = state.token;
+    _recordCompleted(state.campaign.campaignKey);
     // Completing the survey is its CEP engagement signal — the coarse channel
     // has no "completed", so a completion maps to ExperienceClicked.
     _events.toCep(const ExperienceClicked(), state.payload);
@@ -720,6 +760,7 @@ class DigiaInstance with WidgetsBindingObserver implements DigiaCEPDelegate {
 
   /// Fired once when the nudge first becomes visible (its impression).
   void reportNudgeImpression(CEPTriggerPayload payload, NudgeConfig config) {
+    _recordShow(payload.campaignKey);
     _dwellTracker.markViewed(payload.cepCampaignId);
     _events.toBoth(
       const ExperienceImpressed(),
@@ -782,6 +823,7 @@ class DigiaInstance with WidgetsBindingObserver implements DigiaCEPDelegate {
   void reportSlotFirstRender(CEPTriggerPayload payload) {
     final campaign = _campaignStore.find(payload.campaignKey);
     if (campaign == null) return;
+    // Inline campaigns are never frequency-capped (matches Android).
     final config = campaign.config;
     switch (config) {
       case InlineCarouselCampaignConfig(:final inlineConfig):
@@ -908,12 +950,78 @@ class DigiaInstance with WidgetsBindingObserver implements DigiaCEPDelegate {
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
+    // On resume, let the shared session rotate if it has gone idle past the
+    // timeout — so both analytics grouping and session-scoped frequency caps
+    // see a fresh session. Owned here (the SDK's lifecycle observer), not in
+    // analytics.
+    if (state == AppLifecycleState.resumed) {
+      SessionManager.instance.maybeExpire();
+    }
     // detached = permanent process destruction. Not paused (every background).
     DigiaAnalyticsService.instance.appLifecycleChanged(state);
     if (state == AppLifecycleState.detached) {
       _activePlugin?.teardown();
       _activePlugin = null;
     }
+  }
+
+  // ─── Session reporting ─────────────────────────────────────────────────────
+
+  /// Wires session telemetry: builds the [SessionReporter] (pulling device
+  /// context + identity from analytics, api key from config), subscribes it to
+  /// session rotations, and fires the initial report. Skipped when analytics is
+  /// disabled, so opting out of analytics also stops session telemetry.
+  void _wireSessionReporting(DigiaConfig config) {
+    if (!DigiaAnalyticsService.instance.isEnabled) return;
+    final analytics = DigiaAnalyticsService.instance;
+    final reporter = SessionReporter(
+      apiKey: () => config.apiKey,
+      sessionId: () => SessionManager.instance.sessionId,
+      anonymousId: analytics.getAnonymousId,
+      userId: () => analytics.userId,
+      context: () => analytics.staticContext,
+    );
+    _sessionReporter = reporter;
+    SessionManager.instance.addRotationListener(_onSessionRotated);
+    unawaited(reporter.report());
+  }
+
+  /// Reports the freshly rotated session. Wired as the [SessionManager] rotation
+  /// listener.
+  void _onSessionRotated() =>
+      unawaited(_sessionReporter?.report() ?? Future.value());
+
+  // ─── Frequency capping ───────────────────────────────────────────────────
+  // Gate at route (nudge/survey/guide); record a show on the campaign's "Viewed"
+  // and a permanent stop on its "Completed". No-ops for capless campaigns.
+  // Inline campaigns are never capped. Mirrors Android's FrequencyManager.
+
+  /// Whether [campaign] is frequency-capped and must be dropped. Logs a single
+  /// verbose line naming the campaign, CEP id, reason, and policy.
+  bool _frequencyCapped(CampaignModel campaign, CEPTriggerPayload payload) {
+    final reason = _frequencyManager.blockReason(campaign);
+    if (reason == null) return false;
+    _logIfVerbose(
+      '${campaign.campaignType} dropped — frequency capped: '
+      'key=${campaign.campaignKey} cep=${payload.cepCampaignId} '
+      'reason=${reason.name} policy=${campaign.frequency}',
+    );
+    return true;
+  }
+
+  /// Records one show of [campaignKey] (on "Digia Experience Viewed").
+  void _recordShow(String campaignKey) {
+    final campaign = _campaignStore.find(campaignKey);
+    if (campaign == null) return;
+    _frequencyManager.recordShow(campaign);
+  }
+
+  /// Applies the permanent stop for [campaignKey] (on "Digia Experience
+  /// Completed") when its policy opted into `stopOn: experienceCompleted`.
+  void _recordCompleted(String campaignKey) {
+    final campaign = _campaignStore.find(campaignKey);
+    if (campaign == null) return;
+    _frequencyManager.recordCompleted(campaign);
   }
 
   // ─── Helpers ───────────────────────────────────────────────────────────────

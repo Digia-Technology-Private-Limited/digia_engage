@@ -9,6 +9,7 @@ import '../action/engage_action_handler.dart';
 import '../event/dwell_tracker.dart';
 import '../event/engage_analytics_event.dart';
 import '../event/engage_event_emitter.dart';
+import '../frequency/frequency_manager.dart';
 import '../variable_scope.dart';
 import 'anchor_registry.dart';
 import 'guide_bubble.dart';
@@ -71,6 +72,7 @@ class GuideShowcaseManager {
   final GuideOrchestrator _orchestrator;
   final AnchorRegistry _registry;
   final EngageEventEmitter Function() _events;
+  final FrequencyManager Function() _frequency;
   final DwellTracker _dwell;
   final String? Function() _screenName;
 
@@ -78,11 +80,13 @@ class GuideShowcaseManager {
     required GuideOrchestrator orchestrator,
     required AnchorRegistry registry,
     required EngageEventEmitter Function() events,
+    required FrequencyManager Function() frequency,
     required DwellTracker dwell,
     required String? Function() screenName,
   })  : _orchestrator = orchestrator,
         _registry = registry,
         _events = events,
+        _frequency = frequency,
         _dwell = dwell,
         _screenName = screenName {
     _register();
@@ -91,6 +95,11 @@ class GuideShowcaseManager {
 
   int? _shownToken;
   bool _finishing = false;
+
+  /// Set once a CTA tap on the last/only step has fired the guide's "Completed".
+  /// Reset per showing. Guards against a trailing close re-counting as a
+  /// completion and against emitting a step-dismiss after a real completion.
+  bool _completedFired = false;
 
   /// True while a delayed step transition (a button next/prev waiting out the
   /// target step's `delayInMs`) is pending, so a second tap can't queue a second
@@ -145,6 +154,7 @@ class GuideShowcaseManager {
     if (state.token == _shownToken) return;
     _shownToken = state.token;
     _finishing = false;
+    _completedFired = false;
 
     // Wait a frame so the matching DigiaAnchors rebuild as Showcases before we
     // ask the controller to run them.
@@ -272,6 +282,26 @@ class GuideShowcaseManager {
       state.payload,
     );
 
+    // A CTA tap (anything but back/prev) on the last or only step is the guide's
+    // "Completed" — the single place completion is decided. Scrim taps, the close
+    // button, the back gesture, and an outside-tap advance never reach here, so
+    // they stay plain dismissals. Mirrors RN's handleActionPress rule.
+    if (_isOnLastActiveStep &&
+        !_completedFired &&
+        action.type != GuideActionType.back &&
+        action.type != GuideActionType.prev) {
+      _completedFired = true;
+      // Permanent stop when the policy opted into stopOn: experienceCompleted.
+      _frequency().recordCompleted(state.campaign);
+      _events().toDigia(
+        GuideCompleted(
+          itemTotal: state.config.stepCount,
+          timeToCompleteMs: _dwell.elapsedMs(state.payload.cepCampaignId),
+        ),
+        state.payload,
+      );
+    }
+
     switch (action.type) {
       case GuideActionType.next:
         _transition(forward: true);
@@ -389,6 +419,8 @@ class GuideShowcaseManager {
     final style = _displayStyle(state.config);
 
     if (index == 0) {
+      // Count one show toward the guide's frequency cap (its "Viewed").
+      _frequency().recordShow(state.campaign);
       _dwell.markViewed(state.payload.cepCampaignId);
       // Coarse impression to the CEP plugin; rich guide-viewed to Digia.
       _events().toBoth(
@@ -414,10 +446,15 @@ class GuideShowcaseManager {
     );
   }
 
-  /// [completed] is true when showcaseview advanced past the last step; a close
-  /// (dismiss button, scrim, back) arrives with it false. Either way, if we're
-  /// on the final step the user saw the whole guide, so it counts as a
-  /// completion — only a close *before* the last step is a real abandonment.
+  /// [completed] is true when showcaseview advanced past the last step (onFinish);
+  /// a close — dismiss button, scrim, back, or an outside-tap advance — arrives
+  /// with it false.
+  ///
+  /// Completion is *not* decided here: it is fired in [handleAction] on a CTA tap
+  /// on the last/only step (mirrors RN). Every terminal close emits Dismissed —
+  /// the CEP plugin's unconditional teardown signal, even right after a
+  /// completion. A close that was *not* a completion, on a multi-step guide, also
+  /// emits the step-level dismiss (RN's `dismiss()` → `step_dismissed`).
   void _finish({required bool completed}) {
     if (_finishing) return;
     final state = _orchestrator.state;
@@ -456,7 +493,7 @@ class GuideShowcaseManager {
       ),
       state.payload,
     );
-    if (!completed && total > 1) {
+    if (!_completedFired && !completed && total > 1) {
       _events().toDigia(
         GuideStepDismissed(itemIndex: _currentItemIndex),
         state.payload,
