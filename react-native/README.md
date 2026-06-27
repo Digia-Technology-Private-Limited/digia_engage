@@ -52,16 +52,6 @@ npx react-native run-android
 cd android && ./gradlew assembleDebug
 ```
 
-### Android – host app dependency
-
-Add the Digia Engage Android SDK to `android/app/build.gradle.kts`:
-
-```kotlin
-dependencies {
-    implementation("tech.digia:engage:2.0.0")
-}
-```
-
 ---
 
 ## Usage
