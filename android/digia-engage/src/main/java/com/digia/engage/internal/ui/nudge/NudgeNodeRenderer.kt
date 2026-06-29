@@ -49,12 +49,19 @@ import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextDecoration
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.media3.common.MediaItem
@@ -147,16 +154,60 @@ private fun ColumnScope.NudgeNodeItem(
 
 @Composable
 private fun NudgeTextWidget(node: NudgeText) {
+    val vars = LocalNudgeVariables.current
+    val baseStyle = TextStyle(
+        fontSize = node.fontSize.sp,
+        fontWeight = FontWeight(node.fontWeight),
+        color = Color(node.color),
+        fontFamily = DigiaFontConfig.composeFontFamily(),
+    )
+    val modifier = if (node.box.fillWidth) Modifier.fillMaxWidth() else Modifier
+
+    // TEMP diagnostic: confirm what reaches the renderer and which branch runs.
+    android.util.Log.d(
+        "DigiaNudgeRT",
+        "render text='${node.text}' spansCount=${node.spans.size} styles=${node.spans.map { it.style }}",
+    )
+
+    if (node.spans.isEmpty()) {
+        Text(
+            text = interpolate(node.text, vars),
+            textAlign = node.align.toTextAlign(),
+            style = baseStyle,
+            modifier = modifier,
+        )
+        return
+    }
+
+    // Rich overlay: each run is a SpanStyle whose unset fields cascade from the
+    // base style; set fields override (mirrors the dashboard). Compose has no
+    // per-span line height, so the first run's lineHeight applies to the whole
+    // Text (line height is uniform in practice).
+    val annotated = buildAnnotatedString {
+        node.spans.forEach { span ->
+            val s = span.style
+            withStyle(
+                SpanStyle(
+                    fontWeight = s.fontWeight?.let { FontWeight(it) },
+                    fontSize = s.fontSize?.sp ?: TextUnit.Unspecified,
+                    color = s.color?.let { Color(it) } ?: Color.Unspecified,
+                    background = s.highlightColor?.let { Color(it) } ?: Color.Unspecified,
+                    fontStyle = if (s.italic) FontStyle.Italic else null,
+                    textDecoration = when {
+                        s.underline -> TextDecoration.Underline
+                        s.strikethrough -> TextDecoration.LineThrough
+                        else -> null
+                    },
+                ),
+            ) { append(interpolate(span.text, vars)) }
+        }
+    }
+    val lineHeight = node.spans.firstNotNullOfOrNull { it.style.lineHeight }
     Text(
-        text = interpolate(node.text, LocalNudgeVariables.current),
+        text = annotated,
         textAlign = node.align.toTextAlign(),
-        style = TextStyle(
-            fontSize = node.fontSize.sp,
-            fontWeight = FontWeight(node.fontWeight),
-            color = Color(node.color),
-            fontFamily = DigiaFontConfig.composeFontFamily(),
-        ),
-        modifier = if (node.box.fillWidth) Modifier.fillMaxWidth() else Modifier,
+        style = if (lineHeight != null) baseStyle.copy(lineHeight = lineHeight.em) else baseStyle,
+        modifier = modifier,
     )
 }
 

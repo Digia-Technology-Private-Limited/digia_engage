@@ -79,6 +79,13 @@ internal class NudgeParser {
     private fun parseText(box: NudgeBox, props: JSONObject): NudgeNode {
         val style = props.optJSONObject("textStyle") ?: JSONObject()
         val font = style.optJSONObject("fontToken")?.optJSONObject("font") ?: JSONObject()
+        val rawSpans = props.optJSONArray("spans")
+        val spans = parseSpans(rawSpans)
+        // TEMP diagnostic: confirm the wire carries `spans` and what we parsed.
+        android.util.Log.d(
+            "DigiaNudgeRT",
+            "parseText text='${props.optString("text")}' rawSpans=$rawSpans parsedCount=${spans.size} parsed=$spans",
+        )
         return NudgeText(
             box,
             text = props.optString("text"),
@@ -90,7 +97,42 @@ internal class NudgeParser {
                 "right", "end" -> NudgeTextAlign.RIGHT
                 else -> NudgeTextAlign.LEFT
             },
+            spans = spans,
         )
+    }
+
+    /**
+     * Decodes the optional rich overlay (`props.spans`). Each entry is
+     * `{ text, style: { fontWeight, fontSize, textColor, highlightColor,
+     * lineHeight } }`; every style key is optional and inherits the base when
+     * absent. Empty/invalid entries are skipped.
+     */
+    private fun parseSpans(arr: JSONArray?): List<NudgeTextSpan> {
+        if (arr == null) return emptyList()
+        val out = ArrayList<NudgeTextSpan>(arr.length())
+        for (i in 0 until arr.length()) {
+            val item = arr.optJSONObject(i) ?: continue
+            val text = item.optString("text")
+            if (text.isEmpty()) continue
+            val style = item.optJSONObject("style") ?: JSONObject()
+            val decoration = style.optString("decoration")
+            out.add(
+                NudgeTextSpan(
+                    text = text,
+                    style = NudgeSpanStyle(
+                        fontWeight = if (style.has("fontWeight")) style.optInt("fontWeight").takeIf { it > 0 } else null,
+                        fontSize = if (style.has("fontSize")) style.optDouble("fontSize").toFloat().takeIf { it > 0f } else null,
+                        color = parseColor(style.optString("textColor")),
+                        highlightColor = parseColor(style.optString("highlightColor")),
+                        lineHeight = if (style.has("lineHeight")) style.optDouble("lineHeight").toFloat().takeIf { it > 0f } else null,
+                        italic = style.optString("fontStyle") == "italic",
+                        underline = decoration == "underline",
+                        strikethrough = decoration == "lineThrough",
+                    ),
+                )
+            )
+        }
+        return out
     }
 
     private fun parseImage(box: NudgeBox, props: JSONObject): NudgeNode {

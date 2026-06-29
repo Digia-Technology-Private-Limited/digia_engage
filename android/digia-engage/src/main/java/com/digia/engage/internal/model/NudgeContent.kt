@@ -40,6 +40,31 @@ internal data class NudgeBox(
 
 internal sealed class NudgeNode(open val box: NudgeBox)
 
+/**
+ * One styled run of a Text widget's rich overlay. Every style field is null when
+ * the run inherits the Text widget's base style for it (the dashboard's
+ * `span.style` contract). `highlightColor` paints behind the text; `lineHeight`
+ * is a unitless multiplier.
+ */
+/** Per-run style overrides; null/false fields inherit the Text widget's base. */
+internal data class NudgeSpanStyle(
+    val fontWeight: Int? = null,
+    val fontSize: Float? = null,
+    val color: Int? = null,
+    val highlightColor: Int? = null,
+    val lineHeight: Float? = null,
+    val italic: Boolean = false,
+    /** Single decoration (not combinable). */
+    val underline: Boolean = false,
+    val strikethrough: Boolean = false,
+)
+
+/** One styled run: its literal [text] plus a [style] bag (the wire `{ text, style }`). */
+internal data class NudgeTextSpan(
+    val text: String,
+    val style: NudgeSpanStyle = NudgeSpanStyle(),
+)
+
 internal data class NudgeText(
     override val box: NudgeBox,
     val text: String,
@@ -47,6 +72,8 @@ internal data class NudgeText(
     val fontWeight: Int,
     val color: Int,
     val align: NudgeTextAlign,
+    /** Optional rich overlay; empty = render plain [text] with the base style. */
+    val spans: List<NudgeTextSpan> = emptyList(),
 ) : NudgeNode(box)
 
 internal data class NudgeImage(
