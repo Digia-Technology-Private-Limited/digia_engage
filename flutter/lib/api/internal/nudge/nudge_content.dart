@@ -6,7 +6,8 @@ import 'package:flutter/material.dart'
         EdgeInsets,
         FontWeight,
         MainAxisAlignment,
-        TextAlign;
+        TextAlign,
+        TextDecoration;
 
 import '../action/engage_action.dart';
 
@@ -74,11 +75,9 @@ sealed class NudgeNode {
   const NudgeNode(this.box);
 }
 
-/// One styled run of a Text widget's rich overlay. [text] is the literal run;
-/// every style field is `null` when the run inherits the Text widget's base
-/// style for that property (mirroring the dashboard's `span.style` contract).
-class NudgeTextSpan {
-  final String text;
+/// Per-run style overrides. Every field is `null`/`false` when the run inherits
+/// the Text widget's base style for that property (the dashboard's `span.style`).
+class NudgeSpanStyle {
   final FontWeight? weight;
   final double? fontSize;
   final Color? color;
@@ -89,14 +88,30 @@ class NudgeTextSpan {
   /// Unitless line-height multiplier (Flutter `TextStyle.height`); `null` = inherit.
   final double? lineHeight;
 
-  const NudgeTextSpan(
-    this.text, {
+  /// Italic when true.
+  final bool italic;
+
+  /// Text decoration (single, not combinable): underline, line-through, or none.
+  final TextDecoration? decoration;
+
+  const NudgeSpanStyle({
     this.weight,
     this.fontSize,
     this.color,
     this.highlightColor,
     this.lineHeight,
+    this.italic = false,
+    this.decoration,
   });
+}
+
+/// One styled run of a Text widget's rich overlay: its literal [text] plus a
+/// [style] bag, mirroring the wire shape `{ text, style }`.
+class NudgeTextSpan {
+  final String text;
+  final NudgeSpanStyle style;
+
+  const NudgeTextSpan(this.text, {this.style = const NudgeSpanStyle()});
 }
 
 class NudgeText extends NudgeNode {

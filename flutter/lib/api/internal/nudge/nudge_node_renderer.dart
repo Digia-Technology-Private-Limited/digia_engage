@@ -88,11 +88,13 @@ final class NudgeTextRenderer extends NudgeNodeRenderer<NudgeText> {
             TextSpan(
               text: scope.resolve(span.text),
               style: TextStyle(
-                fontWeight: span.weight,
-                fontSize: span.fontSize,
-                color: span.color,
-                backgroundColor: span.highlightColor,
-                height: span.lineHeight,
+                fontWeight: span.style.weight,
+                fontSize: span.style.fontSize,
+                color: span.style.color,
+                backgroundColor: span.style.highlightColor,
+                height: span.style.lineHeight,
+                fontStyle: span.style.italic ? FontStyle.italic : null,
+                decoration: span.style.decoration,
               ),
             ),
         ],

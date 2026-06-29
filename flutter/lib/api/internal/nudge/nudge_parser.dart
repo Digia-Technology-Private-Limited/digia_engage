@@ -126,11 +126,15 @@ class NudgeParser {
       final style = optMap(map, 'style') ?? const {};
       spans.add(NudgeTextSpan(
         text,
-        weight: _weightFromNumber(style['fontWeight']),
-        fontSize: _optPositive(style['fontSize']),
-        color: _color(optString(style, 'textColor')),
-        highlightColor: _color(optString(style, 'highlightColor')),
-        lineHeight: _optPositive(style['lineHeight']),
+        style: NudgeSpanStyle(
+          weight: _weightFromNumber(style['fontWeight']),
+          fontSize: _optPositive(style['fontSize']),
+          color: _color(optString(style, 'textColor')),
+          highlightColor: _color(optString(style, 'highlightColor')),
+          lineHeight: _optPositive(style['lineHeight']),
+          italic: optString(style, 'fontStyle') == 'italic',
+          decoration: _decoration(optString(style, 'decoration')),
+        ),
       ));
     }
     return spans;
@@ -305,6 +309,13 @@ FontWeight? _weightFromNumber(Object? raw) {
     _ => null,
   };
 }
+
+/// A span's `decoration` token → [TextDecoration]; unknown/empty → null.
+TextDecoration? _decoration(String value) => switch (value) {
+      'underline' => TextDecoration.underline,
+      'lineThrough' => TextDecoration.lineThrough,
+      _ => null,
+    };
 
 /// A positive number → double; null/non-positive → null (inherit the base).
 double? _optPositive(Object? raw) {

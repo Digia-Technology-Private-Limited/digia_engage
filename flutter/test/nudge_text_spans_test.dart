@@ -42,6 +42,8 @@ void main() {
               'textColor': '#FF0000',
               'highlightColor': '#FFE08A',
               'lineHeight': 1.4,
+              'fontStyle': 'italic',
+              'decoration': 'underline',
             },
           },
         ],
@@ -51,18 +53,22 @@ void main() {
 
       final first = text.spans[0];
       expect(first.text, 'Welcome ');
-      expect(first.weight, FontWeight.w700);
-      // Unset fields inherit the base (null on the span).
-      expect(first.fontSize, isNull);
-      expect(first.color, isNull);
+      expect(first.style.weight, FontWeight.w700);
+      // Unset fields inherit the base (null/false on the span).
+      expect(first.style.fontSize, isNull);
+      expect(first.style.color, isNull);
+      expect(first.style.italic, isFalse);
+      expect(first.style.decoration, isNull);
 
       final second = text.spans[1];
       expect(second.text, 'back');
-      expect(second.fontSize, 18);
-      expect(second.color, const Color(0xFFFF0000));
-      expect(second.highlightColor, const Color(0xFFFFE08A));
-      expect(second.lineHeight, 1.4);
-      expect(second.weight, isNull);
+      expect(second.style.fontSize, 18);
+      expect(second.style.color, const Color(0xFFFF0000));
+      expect(second.style.highlightColor, const Color(0xFFFFE08A));
+      expect(second.style.lineHeight, 1.4);
+      expect(second.style.weight, isNull);
+      expect(second.style.italic, isTrue);
+      expect(second.style.decoration, TextDecoration.underline);
     });
 
     test('skips empty/invalid runs and out-of-range weights', () {
@@ -80,7 +86,27 @@ void main() {
 
       expect(text.spans, hasLength(1));
       expect(text.spans.single.text, 'x');
-      expect(text.spans.single.weight, isNull);
+      expect(text.spans.single.style.weight, isNull);
+    });
+
+    test('parses 400/500/600/700 as DISTINCT FontWeights (no collapse in code)', () {
+      final text = parseText({
+        'text': 'abcd',
+        'spans': [
+          {'text': 'a', 'style': {'fontWeight': 400}},
+          {'text': 'b', 'style': {'fontWeight': 500}},
+          {'text': 'c', 'style': {'fontWeight': 600}},
+          {'text': 'd', 'style': {'fontWeight': 700}},
+        ],
+      });
+      // The SDK maps each weight to a distinct FontWeight; any visual collapse
+      // (500→400, 600→700) is the configured font lacking those faces, not this.
+      expect(text.spans.map((s) => s.style.weight).toList(), [
+        FontWeight.w400,
+        FontWeight.w500,
+        FontWeight.w600,
+        FontWeight.w700,
+      ]);
     });
   });
 }
