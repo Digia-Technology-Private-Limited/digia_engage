@@ -41,14 +41,19 @@ void main() {
               'fontSize': 18,
               'textColor': '#FF0000',
               'highlightColor': '#FFE08A',
-              'lineHeight': 1.4,
               'fontStyle': 'italic',
               'decoration': 'underline',
+              'decorationColor': '#00FF00',
+              'decorationThickness': 2,
             },
           },
         ],
+        // Line height is block-level (whole text), not per-span.
+        'lineHeight': 1.4,
       });
 
+      // Block-level line height lands on the node, not the spans.
+      expect(text.lineHeight, 1.4);
       expect(text.spans, hasLength(2));
 
       final first = text.spans[0];
@@ -65,10 +70,11 @@ void main() {
       expect(second.style.fontSize, 18);
       expect(second.style.color, const Color(0xFFFF0000));
       expect(second.style.highlightColor, const Color(0xFFFFE08A));
-      expect(second.style.lineHeight, 1.4);
       expect(second.style.weight, isNull);
       expect(second.style.italic, isTrue);
       expect(second.style.decoration, TextDecoration.underline);
+      expect(second.style.decorationColor, const Color(0xFF00FF00));
+      expect(second.style.decorationThickness, 2);
     });
 
     test('skips empty/invalid runs and out-of-range weights', () {

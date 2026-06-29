@@ -107,6 +107,7 @@ class NudgeParser {
       weight: _fontWeight(optString(font, 'weight', '400')),
       color: _color(optString(style, 'textColor')) ?? const Color(0xFF111111),
       align: _textAlign(optString(props, 'alignment', 'left')),
+      lineHeight: _optPositive(props['lineHeight']),
       spans: _spans(optList(props, 'spans')),
     );
   }
@@ -131,9 +132,10 @@ class NudgeParser {
           fontSize: _optPositive(style['fontSize']),
           color: _color(optString(style, 'textColor')),
           highlightColor: _color(optString(style, 'highlightColor')),
-          lineHeight: _optPositive(style['lineHeight']),
           italic: optString(style, 'fontStyle') == 'italic',
           decoration: _decoration(optString(style, 'decoration')),
+          decorationColor: _color(optString(style, 'decorationColor')),
+          decorationThickness: _optPositive(style['decorationThickness']),
         ),
       ));
     }

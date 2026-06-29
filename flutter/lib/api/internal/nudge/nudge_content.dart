@@ -85,23 +85,27 @@ class NudgeSpanStyle {
   /// Highlight/background colour behind the run; `null` = none.
   final Color? highlightColor;
 
-  /// Unitless line-height multiplier (Flutter `TextStyle.height`); `null` = inherit.
-  final double? lineHeight;
-
   /// Italic when true.
   final bool italic;
 
   /// Text decoration (single, not combinable): underline, line-through, or none.
   final TextDecoration? decoration;
 
+  /// Decoration line colour; `null` = same as the text colour.
+  final Color? decorationColor;
+
+  /// Decoration line thickness as a multiplier of the font default; `null` = default.
+  final double? decorationThickness;
+
   const NudgeSpanStyle({
     this.weight,
     this.fontSize,
     this.color,
     this.highlightColor,
-    this.lineHeight,
     this.italic = false,
     this.decoration,
+    this.decorationColor,
+    this.decorationThickness,
   });
 }
 
@@ -121,6 +125,10 @@ class NudgeText extends NudgeNode {
   final Color color;
   final TextAlign align;
 
+  /// Block-level line height (unitless multiplier) for the whole text; the
+  /// dashboard authors one value, not per-span. `null` = engine default.
+  final double? lineHeight;
+
   /// Optional rich overlay: styled runs drawn on top of the base style above.
   /// Empty = render the plain [text] with the base style, exactly as before.
   final List<NudgeTextSpan> spans;
@@ -132,6 +140,7 @@ class NudgeText extends NudgeNode {
     required this.weight,
     required this.color,
     required this.align,
+    this.lineHeight,
     this.spans = const [],
   });
 }

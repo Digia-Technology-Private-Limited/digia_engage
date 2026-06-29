@@ -71,6 +71,7 @@ final class NudgeTextRenderer extends NudgeNodeRenderer<NudgeText> {
       fontSize: node.fontSize,
       fontWeight: node.weight,
       color: node.color,
+      height: node.lineHeight,
       fontFamily: EngageFonts.fontFamily,
     );
 
@@ -92,9 +93,10 @@ final class NudgeTextRenderer extends NudgeNodeRenderer<NudgeText> {
                 fontSize: span.style.fontSize,
                 color: span.style.color,
                 backgroundColor: span.style.highlightColor,
-                height: span.style.lineHeight,
                 fontStyle: span.style.italic ? FontStyle.italic : null,
                 decoration: span.style.decoration,
+                decorationColor: span.style.decorationColor,
+                decorationThickness: span.style.decorationThickness,
               ),
             ),
         ],
