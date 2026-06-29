@@ -74,12 +74,41 @@ sealed class NudgeNode {
   const NudgeNode(this.box);
 }
 
+/// One styled run of a Text widget's rich overlay. [text] is the literal run;
+/// every style field is `null` when the run inherits the Text widget's base
+/// style for that property (mirroring the dashboard's `span.style` contract).
+class NudgeTextSpan {
+  final String text;
+  final FontWeight? weight;
+  final double? fontSize;
+  final Color? color;
+
+  /// Highlight/background colour behind the run; `null` = none.
+  final Color? highlightColor;
+
+  /// Unitless line-height multiplier (Flutter `TextStyle.height`); `null` = inherit.
+  final double? lineHeight;
+
+  const NudgeTextSpan(
+    this.text, {
+    this.weight,
+    this.fontSize,
+    this.color,
+    this.highlightColor,
+    this.lineHeight,
+  });
+}
+
 class NudgeText extends NudgeNode {
   final String text;
   final double fontSize;
   final FontWeight weight;
   final Color color;
   final TextAlign align;
+
+  /// Optional rich overlay: styled runs drawn on top of the base style above.
+  /// Empty = render the plain [text] with the base style, exactly as before.
+  final List<NudgeTextSpan> spans;
 
   const NudgeText(
     super.box, {
@@ -88,6 +117,7 @@ class NudgeText extends NudgeNode {
     required this.weight,
     required this.color,
     required this.align,
+    this.spans = const [],
   });
 }
 

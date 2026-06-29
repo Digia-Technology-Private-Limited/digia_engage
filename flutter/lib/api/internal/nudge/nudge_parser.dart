@@ -107,7 +107,33 @@ class NudgeParser {
       weight: _fontWeight(optString(font, 'weight', '400')),
       color: _color(optString(style, 'textColor')) ?? const Color(0xFF111111),
       align: _textAlign(optString(props, 'alignment', 'left')),
+      spans: _spans(optList(props, 'spans')),
     );
+  }
+
+  /// Decodes the optional rich overlay (`props.spans`). Each entry is
+  /// `{ text, style: { fontWeight, fontSize, textColor, highlightColor,
+  /// lineHeight } }`; every style key is optional and inherits the base when
+  /// absent. Empty/invalid entries are skipped.
+  static List<NudgeTextSpan> _spans(List<dynamic>? raw) {
+    if (raw == null) return const [];
+    final spans = <NudgeTextSpan>[];
+    for (final item in raw) {
+      if (item is! Map) continue;
+      final map = item.cast<String, dynamic>();
+      final text = optString(map, 'text');
+      if (text.isEmpty) continue;
+      final style = optMap(map, 'style') ?? const {};
+      spans.add(NudgeTextSpan(
+        text,
+        weight: _weightFromNumber(style['fontWeight']),
+        fontSize: _optPositive(style['fontSize']),
+        color: _color(optString(style, 'textColor')),
+        highlightColor: _color(optString(style, 'highlightColor')),
+        lineHeight: _optPositive(style['lineHeight']),
+      ));
+    }
+    return spans;
   }
 
   static NudgeNode _image(NudgeBox box, Map<String, dynamic> props) {
@@ -261,6 +287,30 @@ FontWeight _fontWeight(String value) => switch (value) {
       '800' => FontWeight.w800,
       _ => FontWeight.w400,
     };
+
+/// A span's numeric CSS weight (100…900) → [FontWeight]; null/out-of-range → null
+/// (the run then inherits the base weight).
+FontWeight? _weightFromNumber(Object? raw) {
+  final n = raw is num ? raw.toInt() : null;
+  return switch (n) {
+    100 => FontWeight.w100,
+    200 => FontWeight.w200,
+    300 => FontWeight.w300,
+    400 => FontWeight.w400,
+    500 => FontWeight.w500,
+    600 => FontWeight.w600,
+    700 => FontWeight.w700,
+    800 => FontWeight.w800,
+    900 => FontWeight.w900,
+    _ => null,
+  };
+}
+
+/// A positive number → double; null/non-positive → null (inherit the base).
+double? _optPositive(Object? raw) {
+  final n = raw is num ? raw.toDouble() : null;
+  return (n != null && n > 0) ? n : null;
+}
 
 /// Per-side edges → [EdgeInsets]. Accepts a `{left,top,right,bottom}` map or a
 /// legacy uniform number; anything else is zero.
