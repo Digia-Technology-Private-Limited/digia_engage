@@ -64,16 +64,48 @@ final class NudgeTextRenderer extends NudgeNodeRenderer<NudgeText> {
   const NudgeTextRenderer();
 
   @override
-  Widget render(NudgeText node, BuildContext context) => Text(
-        VariableScopeProvider.of(context).resolve(node.text),
-        textAlign: node.align,
-        style: TextStyle(
-          fontSize: node.fontSize,
-          fontWeight: node.weight,
-          color: node.color,
-          fontFamily: EngageFonts.fontFamily,
-        ),
-      );
+  Widget render(NudgeText node, BuildContext context) {
+    final scope = VariableScopeProvider.of(context);
+    // The base style; rich runs inherit it and override only what they set.
+    final base = TextStyle(
+      fontSize: node.fontSize,
+      fontWeight: node.weight,
+      color: node.color,
+      height: node.lineHeight,
+      fontFamily: EngageFonts.fontFamily,
+    );
+
+    if (node.spans.isEmpty) {
+      return Text(scope.resolve(node.text), textAlign: node.align, style: base);
+    }
+
+    // Rich overlay: each run is a TextSpan whose null style fields cascade from
+    // the root span's base style; set fields override (mirrors the dashboard).
+    return Text.rich(
+      TextSpan(
+        style: base,
+        children: [
+          for (final span in node.spans)
+            TextSpan(
+              text: scope.resolve(span.text),
+              style: TextStyle(
+                fontWeight: span.style.weight,
+                fontSize: span.style.fontSize,
+                color: span.style.color,
+                backgroundColor: span.style.highlightColor,
+                fontStyle: span.style.italic ? FontStyle.italic : null,
+                // Decoration temporarily disabled at the parser — see
+                // ai_docs/text_decoration_parity.md.
+                // decoration: span.style.decoration,
+                // decorationColor: span.style.decorationColor,
+                // decorationThickness: span.style.decorationThickness,
+              ),
+            ),
+        ],
+      ),
+      textAlign: node.align,
+    );
+  }
 }
 
 final class NudgeImageRenderer extends NudgeNodeRenderer<NudgeImage> {

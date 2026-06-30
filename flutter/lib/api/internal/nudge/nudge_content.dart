@@ -6,7 +6,8 @@ import 'package:flutter/material.dart'
         EdgeInsets,
         FontWeight,
         MainAxisAlignment,
-        TextAlign;
+        TextAlign,
+        TextDecoration;
 
 import '../action/engage_action.dart';
 
@@ -74,12 +75,63 @@ sealed class NudgeNode {
   const NudgeNode(this.box);
 }
 
+/// Per-run style overrides. Every field is `null`/`false` when the run inherits
+/// the Text widget's base style for that property (the dashboard's `span.style`).
+class NudgeSpanStyle {
+  final FontWeight? weight;
+  final double? fontSize;
+  final Color? color;
+
+  /// Highlight/background colour behind the run; `null` = none.
+  final Color? highlightColor;
+
+  /// Italic when true.
+  final bool italic;
+
+  /// Text decoration (single, not combinable): underline, line-through, or none.
+  final TextDecoration? decoration;
+
+  /// Decoration line colour; `null` = same as the text colour.
+  final Color? decorationColor;
+
+  /// Decoration line thickness as a multiplier of the font default; `null` = default.
+  final double? decorationThickness;
+
+  const NudgeSpanStyle({
+    this.weight,
+    this.fontSize,
+    this.color,
+    this.highlightColor,
+    this.italic = false,
+    this.decoration,
+    this.decorationColor,
+    this.decorationThickness,
+  });
+}
+
+/// One styled run of a Text widget's rich overlay: its literal [text] plus a
+/// [style] bag, mirroring the wire shape `{ text, style }`.
+class NudgeTextSpan {
+  final String text;
+  final NudgeSpanStyle style;
+
+  const NudgeTextSpan(this.text, {this.style = const NudgeSpanStyle()});
+}
+
 class NudgeText extends NudgeNode {
   final String text;
   final double fontSize;
   final FontWeight weight;
   final Color color;
   final TextAlign align;
+
+  /// Block-level line height (unitless multiplier) for the whole text; the
+  /// dashboard authors one value, not per-span. `null` = engine default.
+  final double? lineHeight;
+
+  /// Optional rich overlay: styled runs drawn on top of the base style above.
+  /// Empty = render the plain [text] with the base style, exactly as before.
+  final List<NudgeTextSpan> spans;
 
   const NudgeText(
     super.box, {
@@ -88,6 +140,8 @@ class NudgeText extends NudgeNode {
     required this.weight,
     required this.color,
     required this.align,
+    this.lineHeight,
+    this.spans = const [],
   });
 }
 
