@@ -94,9 +94,11 @@ final class NudgeTextRenderer extends NudgeNodeRenderer<NudgeText> {
                 color: span.style.color,
                 backgroundColor: span.style.highlightColor,
                 fontStyle: span.style.italic ? FontStyle.italic : null,
-                decoration: span.style.decoration,
-                decorationColor: span.style.decorationColor,
-                decorationThickness: span.style.decorationThickness,
+                // Decoration temporarily disabled at the parser — see
+                // ai_docs/text_decoration_parity.md.
+                // decoration: span.style.decoration,
+                // decorationColor: span.style.decorationColor,
+                // decorationThickness: span.style.decorationThickness,
               ),
             ),
         ],

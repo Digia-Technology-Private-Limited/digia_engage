@@ -133,9 +133,11 @@ class NudgeParser {
           color: _color(optString(style, 'textColor')),
           highlightColor: _color(optString(style, 'highlightColor')),
           italic: optString(style, 'fontStyle') == 'italic',
-          decoration: _decoration(optString(style, 'decoration')),
-          decorationColor: _color(optString(style, 'decorationColor')),
-          decorationThickness: _optPositive(style['decorationThickness']),
+          // Decoration (underline / lineThrough / colour / thickness) temporarily
+          // disabled pending cross-platform parity — see ai_docs/text_decoration_parity.md.
+          // decoration: _decoration(optString(style, 'decoration')),
+          // decorationColor: _color(optString(style, 'decorationColor')),
+          // decorationThickness: _optPositive(style['decorationThickness']),
         ),
       ));
     }
@@ -312,12 +314,14 @@ FontWeight? _weightFromNumber(Object? raw) {
   };
 }
 
-/// A span's `decoration` token → [TextDecoration]; unknown/empty → null.
-TextDecoration? _decoration(String value) => switch (value) {
-      'underline' => TextDecoration.underline,
-      'lineThrough' => TextDecoration.lineThrough,
-      _ => null,
-    };
+// Decoration parsing temporarily disabled — see the note in `_spans` above and
+// ai_docs/text_decoration_parity.md. Restore with the parser fields when re-enabling.
+// /// A span's `decoration` token → [TextDecoration]; unknown/empty → null.
+// TextDecoration? _decoration(String value) => switch (value) {
+//       'underline' => TextDecoration.underline,
+//       'lineThrough' => TextDecoration.lineThrough,
+//       _ => null,
+//     };
 
 /// A positive number → double; null/non-positive → null (inherit the base).
 double? _optPositive(Object? raw) {
