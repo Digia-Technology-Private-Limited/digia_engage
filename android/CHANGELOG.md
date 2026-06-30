@@ -1,3 +1,7 @@
+## [2.5.0] - 2026-06-30
+
+### Added
+- Rich Text Support in Nudges
 
 
 ## [1.0.0] - 2026-05-16
