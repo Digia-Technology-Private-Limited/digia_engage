@@ -86,6 +86,67 @@ class NudgeConfigTest {
         val text = config.content.children.first() as NudgeText
         assertEquals("Hello", text.text)
         assertEquals(NudgeTextAlign.LEFT, text.align)
+        assertTrue(text.spans.isEmpty())
+    }
+
+    @Test
+    fun `parses text rich spans overlay`() {
+        val json = JSONObject(
+            """
+            {
+              "container": {},
+              "layout": {
+                "type": "digia/column",
+                "children": [
+                  {
+                    "type": "digia/text",
+                    "props": {
+                      "text": "Welcome back",
+                      "lineHeight": 1.4,
+                      "spans": [
+                        { "text": "Welcome ", "style": { "fontWeight": 700 } },
+                        { "text": "back", "style": {
+                            "fontSize": 18, "textColor": "#FF0000",
+                            "highlightColor": "#FFE08A",
+                            "fontStyle": "italic", "decoration": "underline",
+                            "decorationColor": "#00FF00", "decorationThickness": 2 } },
+                        { "text": "", "style": {} }
+                      ]
+                    }
+                  }
+                ]
+              }
+            }
+            """.trimIndent(),
+        )
+        val text = NudgeParser().parse(json)!!.content.children.first() as NudgeText
+        // Line height is block-level (on the node, not per-span).
+        assertEquals(1.4f, text.lineHeight)
+        // The empty run is dropped.
+        assertEquals(2, text.spans.size)
+
+        val first = text.spans[0]
+        assertEquals("Welcome ", first.text)
+        assertEquals(700, first.style.fontWeight)
+        assertNull(first.style.fontSize) // unset → inherits base
+        assertNull(first.style.color)
+        assertEquals(false, first.style.italic)
+        assertEquals(false, first.style.underline)
+
+        val second = text.spans[1]
+        assertEquals("back", second.text)
+        assertEquals(18f, second.style.fontSize)
+        assertEquals(0xFFFF0000.toInt(), second.style.color)
+        assertEquals(0xFFFFE08A.toInt(), second.style.highlightColor)
+        assertNull(second.style.fontWeight)
+        assertEquals(true, second.style.italic)
+        // Decoration (underline / lineThrough / colour / thickness) is temporarily
+        // disabled in the parser pending cross-platform parity, so it never parses —
+        // even though the wire above still carries the fields.
+        assertEquals(false, second.style.underline)
+        assertEquals(false, second.style.strikethrough)
+        assertNull(second.style.decorationColor)
+        assertNull(second.style.decorationThickness)
     }
 
     @Test
