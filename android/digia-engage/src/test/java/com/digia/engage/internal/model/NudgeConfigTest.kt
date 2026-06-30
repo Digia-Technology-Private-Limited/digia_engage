@@ -102,12 +102,14 @@ class NudgeConfigTest {
                     "type": "digia/text",
                     "props": {
                       "text": "Welcome back",
+                      "lineHeight": 1.4,
                       "spans": [
                         { "text": "Welcome ", "style": { "fontWeight": 700 } },
                         { "text": "back", "style": {
                             "fontSize": 18, "textColor": "#FF0000",
-                            "highlightColor": "#FFE08A", "lineHeight": 1.4,
-                            "fontStyle": "italic", "decoration": "underline" } },
+                            "highlightColor": "#FFE08A",
+                            "fontStyle": "italic", "decoration": "underline",
+                            "decorationColor": "#00FF00", "decorationThickness": 2 } },
                         { "text": "", "style": {} }
                       ]
                     }
@@ -118,6 +120,8 @@ class NudgeConfigTest {
             """.trimIndent(),
         )
         val text = NudgeParser().parse(json)!!.content.children.first() as NudgeText
+        // Line height is block-level (on the node, not per-span).
+        assertEquals(1.4f, text.lineHeight)
         // The empty run is dropped.
         assertEquals(2, text.spans.size)
 
@@ -134,11 +138,15 @@ class NudgeConfigTest {
         assertEquals(18f, second.style.fontSize)
         assertEquals(0xFFFF0000.toInt(), second.style.color)
         assertEquals(0xFFFFE08A.toInt(), second.style.highlightColor)
-        assertEquals(1.4f, second.style.lineHeight)
         assertNull(second.style.fontWeight)
         assertEquals(true, second.style.italic)
-        assertEquals(true, second.style.underline)
+        // Decoration (underline / lineThrough / colour / thickness) is temporarily
+        // disabled in the parser pending cross-platform parity, so it never parses —
+        // even though the wire above still carries the fields.
+        assertEquals(false, second.style.underline)
         assertEquals(false, second.style.strikethrough)
+        assertNull(second.style.decorationColor)
+        assertNull(second.style.decorationThickness)
     }
 
     @Test

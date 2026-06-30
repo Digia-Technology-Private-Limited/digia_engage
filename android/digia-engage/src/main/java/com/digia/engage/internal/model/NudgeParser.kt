@@ -81,11 +81,6 @@ internal class NudgeParser {
         val font = style.optJSONObject("fontToken")?.optJSONObject("font") ?: JSONObject()
         val rawSpans = props.optJSONArray("spans")
         val spans = parseSpans(rawSpans)
-        // TEMP diagnostic: confirm the wire carries `spans` and what we parsed.
-        android.util.Log.d(
-            "DigiaNudgeRT",
-            "parseText text='${props.optString("text")}' rawSpans=$rawSpans parsedCount=${spans.size} parsed=$spans",
-        )
         return NudgeText(
             box,
             text = props.optString("text"),
@@ -97,6 +92,8 @@ internal class NudgeParser {
                 "right", "end" -> NudgeTextAlign.RIGHT
                 else -> NudgeTextAlign.LEFT
             },
+            lineHeight = if (props.has("lineHeight"))
+                props.optDouble("lineHeight").toFloat().takeIf { it > 0f } else null,
             spans = spans,
         )
     }
@@ -115,7 +112,9 @@ internal class NudgeParser {
             val text = item.optString("text")
             if (text.isEmpty()) continue
             val style = item.optJSONObject("style") ?: JSONObject()
-            val decoration = style.optString("decoration")
+            // Decoration (underline / lineThrough / colour / thickness) temporarily
+            // disabled pending cross-platform parity — see ai_docs/text_decoration_parity.md.
+            // val decoration = style.optString("decoration")
             out.add(
                 NudgeTextSpan(
                     text = text,
@@ -124,10 +123,12 @@ internal class NudgeParser {
                         fontSize = if (style.has("fontSize")) style.optDouble("fontSize").toFloat().takeIf { it > 0f } else null,
                         color = parseColor(style.optString("textColor")),
                         highlightColor = parseColor(style.optString("highlightColor")),
-                        lineHeight = if (style.has("lineHeight")) style.optDouble("lineHeight").toFloat().takeIf { it > 0f } else null,
                         italic = style.optString("fontStyle") == "italic",
-                        underline = decoration == "underline",
-                        strikethrough = decoration == "lineThrough",
+                        // underline = decoration == "underline",
+                        // strikethrough = decoration == "lineThrough",
+                        // decorationColor = parseColor(style.optString("decorationColor")),
+                        // decorationThickness = if (style.has("decorationThickness"))
+                        //     style.optDouble("decorationThickness").toFloat().takeIf { it > 0f } else null,
                     ),
                 )
             )

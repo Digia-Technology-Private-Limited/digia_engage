@@ -41,15 +41,21 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.drawscope.ContentDrawScope
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontFamily
@@ -161,31 +167,32 @@ private fun NudgeTextWidget(node: NudgeText) {
         color = Color(node.color),
         fontFamily = DigiaFontConfig.composeFontFamily(),
     )
+    // Line height is block-level: a unitless multiplier applied to the whole Text
+    // (`.em` is relative to the font size, so it acts as the multiplier).
+    val style = if (node.lineHeight != null) baseStyle.copy(lineHeight = node.lineHeight.em) else baseStyle
     val modifier = if (node.box.fillWidth) Modifier.fillMaxWidth() else Modifier
-
-    // TEMP diagnostic: confirm what reaches the renderer and which branch runs.
-    android.util.Log.d(
-        "DigiaNudgeRT",
-        "render text='${node.text}' spansCount=${node.spans.size} styles=${node.spans.map { it.style }}",
-    )
 
     if (node.spans.isEmpty()) {
         Text(
             text = interpolate(node.text, vars),
             textAlign = node.align.toTextAlign(),
-            style = baseStyle,
+            style = style,
             modifier = modifier,
         )
         return
     }
 
     // Rich overlay: each run is a SpanStyle whose unset fields cascade from the
-    // base style; set fields override (mirrors the dashboard). Compose has no
-    // per-span line height, so the first run's lineHeight applies to the whole
-    // Text (line height is uniform in practice).
+    // base style; set fields override (mirrors the dashboard). Compose's built-in
+    // TextDecoration can't carry a colour or thickness, so runs that set either are
+    // drawn manually below (and their built-in decoration is suppressed to avoid a
+    // double line); plain underline/strike still use the built-in decoration.
+    val decorations = ArrayList<RtDecoration>()
     val annotated = buildAnnotatedString {
         node.spans.forEach { span ->
             val s = span.style
+            val custom = (s.underline || s.strikethrough) &&
+                (s.decorationColor != null || s.decorationThickness != null)
             withStyle(
                 SpanStyle(
                     fontWeight = s.fontWeight?.let { FontWeight(it) },
@@ -194,21 +201,89 @@ private fun NudgeTextWidget(node: NudgeText) {
                     background = s.highlightColor?.let { Color(it) } ?: Color.Unspecified,
                     fontStyle = if (s.italic) FontStyle.Italic else null,
                     textDecoration = when {
+                        custom -> null
                         s.underline -> TextDecoration.Underline
                         s.strikethrough -> TextDecoration.LineThrough
                         else -> null
                     },
                 ),
-            ) { append(interpolate(span.text, vars)) }
+            ) {
+                val start = length
+                append(interpolate(span.text, vars))
+                if (custom) {
+                    decorations.add(
+                        RtDecoration(
+                            start = start,
+                            end = length,
+                            strikethrough = s.strikethrough,
+                            color = s.decorationColor?.let { Color(it) }
+                                ?: s.color?.let { Color(it) } ?: Color(node.color),
+                            fontSizeSp = s.fontSize ?: node.fontSize,
+                            thicknessDp = s.decorationThickness,
+                        ),
+                    )
+                }
+            }
         }
     }
-    val lineHeight = node.spans.firstNotNullOfOrNull { it.style.lineHeight }
+
+    var layout by remember { mutableStateOf<TextLayoutResult?>(null) }
+    val drawMod = if (decorations.isEmpty()) modifier else modifier.drawWithContent {
+        drawContent()
+        layout?.let { result -> decorations.forEach { drawRtDecoration(result, it) } }
+    }
     Text(
         text = annotated,
         textAlign = node.align.toTextAlign(),
-        style = if (lineHeight != null) baseStyle.copy(lineHeight = lineHeight.em) else baseStyle,
-        modifier = modifier,
+        style = style,
+        onTextLayout = { layout = it },
+        modifier = drawMod,
     )
+}
+
+/** A run whose underline/strikethrough we draw ourselves (for colour + thickness). */
+private class RtDecoration(
+    val start: Int,
+    val end: Int,
+    val strikethrough: Boolean,
+    val color: Color,
+    val fontSizeSp: Float,
+    val thicknessDp: Float?,
+)
+
+/**
+ * Draws one decoration run across however many lines it spans, positioned off the
+ * run's font metrics so it matches the other platforms: strikethrough through the
+ * x-height, underline just below the baseline. The glyph band is recovered from
+ * the character bounding box (which spans the full line height) by removing the
+ * leading and descent, so it stays correct when a line-height multiplier is set.
+ */
+private fun ContentDrawScope.drawRtDecoration(layout: TextLayoutResult, run: RtDecoration) {
+    if (run.end <= run.start) return
+    val fontSizePx = run.fontSizeSp.sp.toPx()
+    val thicknessPx = run.thicknessDp?.dp?.toPx() ?: maxOf(1.dp.toPx(), fontSizePx * 0.07f)
+    // Use each line's own baseline rather than reusing line 0's ascent: under a
+    // line-height multiplier (or wrapping) the ascent isn't uniform across lines,
+    // so deriving every line's baseline from line 0 mis-positions the decoration
+    // on lines 2+. Position off the per-line baseline like Flutter/CSS: underline
+    // just below the baseline, strikethrough through the x-height.
+    val firstLine = layout.getLineForOffset(run.start)
+    val lastLine = layout.getLineForOffset((run.end - 1).coerceAtLeast(run.start))
+    for (line in firstLine..lastLine) {
+        val startOffset = maxOf(run.start, layout.getLineStart(line))
+        val endOffset = minOf(run.end, layout.getLineEnd(line, visibleEnd = true))
+        if (endOffset <= startOffset) continue
+        val xStart = layout.getHorizontalPosition(startOffset, usePrimaryDirection = true)
+        val xEnd = layout.getHorizontalPosition(endOffset, usePrimaryDirection = true)
+        val baseline = layout.getLineBaseline(line)
+        val y = if (run.strikethrough) baseline - fontSizePx * 0.28f else baseline + fontSizePx * 0.10f
+        drawLine(
+            color = run.color,
+            start = Offset(minOf(xStart, xEnd), y),
+            end = Offset(maxOf(xStart, xEnd), y),
+            strokeWidth = thicknessPx,
+        )
+    }
 }
 
 // ─── image ────────────────────────────────────────────────────────────────────
