@@ -155,7 +155,7 @@ private fun BottomSheetChrome(
                                             },
                                         ) else Modifier,
                                     )
-                                    .padding(vertical = 8.dp),
+                                    .padding(top = 12.dp, bottom = 8.dp),
                                 contentAlignment = Alignment.Center,
                             ) {
                                 Box(
