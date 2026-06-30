@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.9.0] - 2026-06-30
+- Text widget in Nudges now supports Rich Text.
+- Bug fixes in ToolTip/Spotlight arrow position and color.
+
 
 ## [1.8.0] - 2026-06-25
 - Lottie now supports Content Fit & Aspect Ratio
