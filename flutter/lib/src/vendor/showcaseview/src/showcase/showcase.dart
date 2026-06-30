@@ -81,6 +81,7 @@ class Showcase extends StatefulWidget {
     // DIGIA: optional arrow border (RN's arrowBorderColor / arrowBorderWidth).
     this.arrowBorderColor,
     this.arrowBorderWidth = 0,
+    this.arrowSize = Constants.arrowHeight,
     this.onTargetClick,
     this.disposeOnTap,
     this.autoPlayDelay,
@@ -215,6 +216,7 @@ class Showcase extends StatefulWidget {
     this.tooltipBackgroundColor = Colors.white,
     this.arrowBorderColor,
     this.arrowBorderWidth = 0,
+    this.arrowSize = Constants.arrowHeight,
   })  : onToolTipClick = null,
         scaleAnimationDuration = const Duration(milliseconds: 300),
         scaleAnimationCurve = Curves.decelerate,
@@ -364,6 +366,10 @@ class Showcase extends StatefulWidget {
 
   /// DIGIA: optional border width for the arrow (RN's arrowBorderWidth).
   final double arrowBorderWidth;
+
+  /// DIGIA: server-driven arrow size (dashboard `arrowSize`) — the arrow height.
+  /// The base width is 2× this value (matches RN and the vendor's 18×9 ratio).
+  final double arrowSize;
 
   /// The duration of time the bouncing animation of tooltip should last.
   ///

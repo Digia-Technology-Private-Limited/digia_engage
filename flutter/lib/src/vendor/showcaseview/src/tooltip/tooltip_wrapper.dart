@@ -73,9 +73,9 @@ class ToolTipWrapper extends StatefulWidget {
     this.descriptionPadding,
     this.titleTextDirection,
     this.descriptionTextDirection,
-    // DIGIA: optional arrow border (RN's arrowBorderColor / arrowBorderWidth).
     this.arrowBorderColor,
     this.arrowBorderWidth = 0,
+    this.arrowSize = Constants.arrowHeight,
     super.key,
   });
 
@@ -116,6 +116,7 @@ class ToolTipWrapper extends StatefulWidget {
   // DIGIA: optional arrow border.
   final Color? arrowBorderColor;
   final double arrowBorderWidth;
+  final double arrowSize;
 
   @override
   State<ToolTipWrapper> createState() => _ToolTipWrapperState();
@@ -267,6 +268,7 @@ class _ToolTipWrapperState extends State<ToolTipWrapper>
                 ?.localToGlobal(Offset.zero) ??
             Offset.zero,
         targetTooltipGap: widget.targetTooltipGap,
+        arrowSize: widget.arrowSize,
         children: [
           // We have to use UniqueKey here to avoid the issue with the
           // _TooltipLayoutId being reused and causing layout issues
@@ -303,6 +305,8 @@ class _ToolTipWrapperState extends State<ToolTipWrapper>
                 // DIGIA: optional arrow border (RN's arrowBorderColor/Width).
                 borderColor: widget.arrowBorderColor,
                 borderWidth: widget.arrowBorderWidth,
+                // DIGIA: server-driven arrow size (dashboard `arrowSize`).
+                arrowSize: widget.arrowSize,
               ),
             ),
         ],

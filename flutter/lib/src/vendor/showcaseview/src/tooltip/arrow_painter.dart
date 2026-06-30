@@ -25,27 +25,31 @@ class ShowcaseArrow extends StatelessWidget {
   const ShowcaseArrow({
     super.key,
     required this.strokeColor,
-    // DIGIA: optional border on the arrow (RN's arrowBorderColor/Width).
     this.borderColor,
     this.borderWidth = 0,
+    this.arrowSize = Constants.arrowHeight,
   });
 
   final Color strokeColor;
 
-  // DIGIA: when set, a stroke is drawn along the two visible (slanted) edges.
   final Color? borderColor;
   final double borderWidth;
+  final double arrowSize;
 
   @override
   Widget build(BuildContext context) {
+    final width = arrowSize * 2;
+    final height = arrowSize;
     return CustomPaint(
       painter: _ArrowPainter(
         strokeColor: strokeColor,
         // DIGIA
         borderColor: borderColor,
         borderWidth: borderWidth,
+        arrowWidth: width,
+        arrowHeight: height,
       ),
-      size: const Size(Constants.arrowWidth, Constants.arrowHeight),
+      size: Size(width, height),
     );
   }
 }
@@ -58,18 +62,21 @@ class _ArrowPainter extends CustomPainter {
     // DIGIA
     this.borderColor,
     this.borderWidth = 0,
+    this.arrowWidth = Constants.arrowWidth,
+    this.arrowHeight = Constants.arrowHeight,
   })  : _paint = Paint()
           ..color = strokeColor
           ..strokeWidth = strokeWidth
           ..style = paintingStyle,
-        // Cache the triangle path since it never changes
         _path = Path()
-          ..moveTo(0, Constants.arrowHeight)
-          ..lineTo(Constants.arrowWidth * 0.5, 0)
-          ..lineTo(Constants.arrowWidth, Constants.arrowHeight)
-          ..lineTo(0, Constants.arrowHeight),
+          ..moveTo(0, arrowHeight + borderWidth)
+          ..lineTo(arrowWidth * 0.5, 0)
+          ..lineTo(arrowWidth, arrowHeight + borderWidth)
+          ..lineTo(0, arrowHeight + borderWidth),
         // DIGIA: border paint + an OPEN path tracing only the two slanted edges
         // (not the base, which meets the bubble) — mirrors RN's arrow border.
+        // The slanted edges run down to the plunged base so they connect into
+        // the bubble's border instead of stopping short of it.
         _borderPaint = (borderColor != null && borderWidth > 0)
             ? (Paint()
               ..color = borderColor
@@ -78,9 +85,9 @@ class _ArrowPainter extends CustomPainter {
               ..strokeJoin = StrokeJoin.miter)
             : null,
         _borderPath = Path()
-          ..moveTo(0, Constants.arrowHeight)
-          ..lineTo(Constants.arrowWidth * 0.5, 0)
-          ..lineTo(Constants.arrowWidth, Constants.arrowHeight);
+          ..moveTo(0, arrowHeight + borderWidth)
+          ..lineTo(arrowWidth * 0.5, 0)
+          ..lineTo(arrowWidth, arrowHeight + borderWidth);
 
   final Color strokeColor;
   final PaintingStyle paintingStyle;
@@ -88,6 +95,8 @@ class _ArrowPainter extends CustomPainter {
   // DIGIA
   final Color? borderColor;
   final double borderWidth;
+  final double arrowWidth;
+  final double arrowHeight;
   final Paint _paint;
   final Path _path;
   // DIGIA
@@ -109,6 +118,8 @@ class _ArrowPainter extends CustomPainter {
         oldDelegate.strokeWidth != strokeWidth ||
         // DIGIA
         oldDelegate.borderColor != borderColor ||
-        oldDelegate.borderWidth != borderWidth;
+        oldDelegate.borderWidth != borderWidth ||
+        oldDelegate.arrowWidth != arrowWidth ||
+        oldDelegate.arrowHeight != arrowHeight;
   }
 }

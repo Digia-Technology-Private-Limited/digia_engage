@@ -41,6 +41,7 @@ class _AnimatedTooltipMultiLayout extends MultiChildRenderObjectWidget {
     required this.targetPadding,
     required this.showcaseOffset,
     required this.targetTooltipGap,
+    required this.arrowSize,
     // If we remove this parameter it will cause error in v3.29.0 so ignore
     // ignore: unused_element_parameter
     super.key,
@@ -63,6 +64,7 @@ class _AnimatedTooltipMultiLayout extends MultiChildRenderObjectWidget {
   final EdgeInsets targetPadding;
   final Offset showcaseOffset;
   final double targetTooltipGap;
+  final double arrowSize;
 
   @override
   RenderObject createRenderObject(BuildContext context) {
@@ -84,6 +86,7 @@ class _AnimatedTooltipMultiLayout extends MultiChildRenderObjectWidget {
       targetPadding: targetPadding,
       showcaseOffset: showcaseOffset,
       targetTooltipGap: targetTooltipGap,
+      arrowSize: arrowSize,
     );
   }
 
@@ -108,6 +111,7 @@ class _AnimatedTooltipMultiLayout extends MultiChildRenderObjectWidget {
       ..gapBetweenContentAndAction = gapBetweenContentAndAction
       ..targetPadding = targetPadding
       ..showcaseOffset = showcaseOffset
-      ..targetTooltipGap = targetTooltipGap;
+      ..targetTooltipGap = targetTooltipGap
+      ..arrowSize = arrowSize;
   }
 }

@@ -91,6 +91,8 @@ class _DigiaAnchorState extends State<DigiaAnchor> {
       tooltipBackgroundColor: p.arrowColor,
       arrowBorderColor: p.arrowBorderColor,
       arrowBorderWidth: p.arrowBorderWidth,
+      arrowSize: p.arrowSize,
+      targetTooltipGap: p.targetTooltipGap,
       overlayColor: p.overlayColor,
       overlayOpacity: p.overlayOpacity,
       targetShapeBorder: p.targetShapeBorder,

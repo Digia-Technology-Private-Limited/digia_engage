@@ -37,6 +37,8 @@ class ShowcasePresentation {
   final Color arrowColor;
   final Color? arrowBorderColor;
   final double arrowBorderWidth;
+  final double arrowSize;
+  final double targetTooltipGap;
 
   /// Whether scrim/barrier taps are inert (`outsideTapBehavior == 'nothing'`).
   /// When false, [onBarrierClick] (if set) runs, else the engine advances.
@@ -57,6 +59,8 @@ class ShowcasePresentation {
     required this.arrowColor,
     required this.arrowBorderColor,
     required this.arrowBorderWidth,
+    required this.arrowSize,
+    required this.targetTooltipGap,
     required this.disableBarrierInteraction,
     required this.onBarrierClick,
   });
@@ -211,11 +215,6 @@ class GuideShowcaseManager {
     );
     final config = state.config;
 
-    // Honor the dashboard's `outsideTapBehavior` for scrim/barrier taps instead
-    // of the engine default (which always advances — silently completing the
-    // last step and stealing taps meant for the bubble button). 'nothing' makes
-    // the scrim inert (buttons drive the flow); 'dismiss' dismisses; 'next'
-    // (default) keeps the engine's advance.
     final behavior = config.outsideTapBehavior.trim().toLowerCase();
     final disableBarrier = behavior == 'nothing';
     final onBarrier = behavior == 'dismiss' ? () => _view.dismiss() : null;
@@ -223,6 +222,7 @@ class GuideShowcaseManager {
     if (config is TooltipGuideConfig) {
       final step = _firstWhere(config.steps, (s) => s.anchorKey == anchorKey);
       if (step == null) return null;
+      final stickyHold = config.sticky && step.actions.isNotEmpty;
       return ShowcasePresentation(
         container: GuideBubble.tooltip(
             step: step, scope: scope, onAction: handleAction),
@@ -239,8 +239,12 @@ class GuideShowcaseManager {
         // RN: arrowBorderColor ?? borderColor; border width follows the bubble.
         arrowBorderColor: step.arrowBorderColor ?? step.borderColor,
         arrowBorderWidth: step.borderWidth,
-        disableBarrierInteraction: disableBarrier,
-        onBarrierClick: onBarrier,
+        arrowSize: step.arrowSize,
+        // RN tooltip: gap = showArrow ? arrowSize + 4 : 8. The arrow height is
+        // reserved by the renderer, so we pass only the clearance beyond it.
+        targetTooltipGap: step.showArrow ? 4 : 8,
+        disableBarrierInteraction: stickyHold || disableBarrier,
+        onBarrierClick: stickyHold ? null : onBarrier,
       );
     }
     if (config is SpotlightGuideConfig) {
@@ -258,6 +262,10 @@ class GuideShowcaseManager {
         arrowColor: step.arrowColor ?? step.calloutBackgroundColor,
         arrowBorderColor: step.arrowBorderColor ?? step.calloutBorderColor,
         arrowBorderWidth: step.calloutBorderWidth,
+        arrowSize: step.arrowSize,
+        // RN spotlight: gap = calloutGap + (showArrow ? arrowSize : 0). The
+        // arrow height is reserved by the renderer, so we pass calloutGap.
+        targetTooltipGap: step.calloutGap,
         disableBarrierInteraction: disableBarrier,
         onBarrierClick: onBarrier,
       );
