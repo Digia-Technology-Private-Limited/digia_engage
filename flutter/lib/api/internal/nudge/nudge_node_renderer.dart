@@ -87,8 +87,9 @@ final class NudgeImageRenderer extends NudgeNodeRenderer<NudgeImage> {
     }
     // Aspect ratio (when set) drives the height; otherwise use the box's fixed
     // height, then natural size.
+    final Widget image;
     if (node.aspectRatio > 0) {
-      return AspectRatio(
+      image = AspectRatio(
         aspectRatio: node.aspectRatio,
         child: Image.network(
           url,
@@ -98,14 +99,28 @@ final class NudgeImageRenderer extends NudgeNodeRenderer<NudgeImage> {
           errorBuilder: (_, __, ___) => _placeholder(node),
         ),
       );
+    } else {
+      image = Image.network(
+        url,
+        fit: node.fit,
+        width: node.box.fillWidth ? double.infinity : null,
+        height: node.box.fixedHeight,
+        errorBuilder: (_, __, ___) => _placeholder(node),
+      );
     }
-    return Image.network(
-      url,
-      fit: node.fit,
-      width: node.box.fillWidth ? double.infinity : null,
-      height: node.box.fixedHeight,
-      errorBuilder: (_, __, ___) => _placeholder(node),
-    );
+    // Clip the image to the box's corners at the source — like the carousel and
+    // lottie renderers — so rounded corners hold even with a BoxFit.cover image.
+    // Inset by the border width so the rounded image sits inside the border the
+    // decorator draws, instead of bleeding under it.
+    if (node.box.borderRadius > 0) {
+      final inner = (node.box.borderRadius - node.box.borderWidth)
+          .clamp(0.0, double.infinity);
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(inner.toDouble()),
+        child: image,
+      );
+    }
+    return image;
   }
 
   Widget _placeholder(NudgeImage node) {

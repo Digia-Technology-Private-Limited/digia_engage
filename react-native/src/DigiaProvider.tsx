@@ -3,7 +3,6 @@ import {
     Animated,
     Dimensions,
     Modal,
-    Platform,
     Pressable,
     StyleSheet,
     Text,
@@ -19,7 +18,7 @@ import { digiaAnchorRegistry, type AnchorLayout } from './digiaAnchorRegistry';
 import { digiaHealthReporter, HealthEventType } from './DigiaHealthReporter';
 import { digiaActionHandler, type ActionCallbacks } from './actionHandler';
 import type { DismissReason } from './types';
-import type { Action, SpotlightConfig, SpotlightStep, TooltipConfig, TooltipStep } from './templateTypes';
+import type { Action, SpotlightConfig, SpotlightStep, TooltipConfig } from './templateTypes';
 import { buildVariableContext, interpolate, type VariableContext } from './interpolate';
 
 // ─── Variable context ─────────────────────────────────────────────────────────
@@ -77,36 +76,43 @@ function GuideArrow({
     placement,
     color,
     borderColor,
+    borderWidth,
     size,
     arrowOffset,
 }: {
     placement: string;
     color: string;
     borderColor: string;
+    borderWidth: number;
     size: number;
     arrowOffset?: number;
 }) {
-    const s1 = size + 1;
+    const bw = Math.max(0, borderWidth);
+    const inset = Math.round(bw * (Math.SQRT2 - 1));
+    const outer = size + inset;
+    const ov = bw;
 
     // Horizontal: used for top / bottom placements (left offset within bubble width)
     const hWrap = (edge: 'top' | 'bottom') =>
         arrowOffset !== undefined
-            ? { [edge]: -s1, left: arrowOffset - s1, width: s1 * 2 }
-            : { [edge]: -s1, left: 0, right: 0 };
+            ? { [edge]: -outer, left: arrowOffset - outer, width: outer * 2 }
+            : { [edge]: -outer, left: 0, right: 0 };
 
     // Vertical: used for left / right placements (top offset within bubble height)
     const vWrap = (edge: 'left' | 'right') =>
         arrowOffset !== undefined
-            ? { [edge]: -s1, top: arrowOffset - s1, height: s1 * 2 }
-            : { [edge]: -s1, top: 0, bottom: 0 };
+            ? { [edge]: -outer, top: arrowOffset - outer, height: outer * 2 }
+            : { [edge]: -outer, top: 0, bottom: 0 };
 
     if (placement === 'bottom' || placement === 'below') {
         // bubble below anchor → arrow at TOP pointing ▲ up
         return (
             <View style={[arrowS.wrap, hWrap('top')]}>
-                <View style={{ position: 'relative', width: s1 * 2, height: s1, alignItems: 'center' }}>
-                    <View style={{ position: 'absolute', top: 0, width: 0, height: 0, borderStyle: 'solid', borderLeftWidth: s1, borderRightWidth: s1, borderBottomWidth: s1, borderTopWidth: 0, borderLeftColor: 'transparent', borderRightColor: 'transparent', borderBottomColor: borderColor }} />
-                    <View style={{ position: 'absolute', top: 1, width: 0, height: 0, borderStyle: 'solid', borderLeftWidth: size, borderRightWidth: size, borderBottomWidth: size, borderTopWidth: 0, borderLeftColor: 'transparent', borderRightColor: 'transparent', borderBottomColor: color }} />
+                <View style={{ position: 'relative', width: outer * 2, height: outer }}>
+                    {bw > 0 && (
+                        <View style={{ position: 'absolute', bottom: 0, left: 0, width: 0, height: 0, borderStyle: 'solid', borderLeftWidth: outer, borderRightWidth: outer, borderBottomWidth: outer, borderTopWidth: 0, borderLeftColor: 'transparent', borderRightColor: 'transparent', borderBottomColor: borderColor }} />
+                    )}
+                    <View style={{ position: 'absolute', bottom: -ov, left: inset, width: 0, height: 0, borderStyle: 'solid', borderLeftWidth: size, borderRightWidth: size, borderBottomWidth: size, borderTopWidth: 0, borderLeftColor: 'transparent', borderRightColor: 'transparent', borderBottomColor: color }} />
                 </View>
             </View>
         );
@@ -115,9 +121,11 @@ function GuideArrow({
         // bubble above anchor → arrow at BOTTOM pointing ▼ down
         return (
             <View style={[arrowS.wrap, hWrap('bottom')]}>
-                <View style={{ position: 'relative', width: s1 * 2, height: s1, alignItems: 'center' }}>
-                    <View style={{ position: 'absolute', top: 0, width: 0, height: 0, borderStyle: 'solid', borderLeftWidth: s1, borderRightWidth: s1, borderTopWidth: s1, borderBottomWidth: 0, borderLeftColor: 'transparent', borderRightColor: 'transparent', borderTopColor: borderColor }} />
-                    <View style={{ position: 'absolute', top: 0, width: 0, height: 0, borderStyle: 'solid', borderLeftWidth: size, borderRightWidth: size, borderTopWidth: size, borderBottomWidth: 0, borderLeftColor: 'transparent', borderRightColor: 'transparent', borderTopColor: color }} />
+                <View style={{ position: 'relative', width: outer * 2, height: outer }}>
+                    {bw > 0 && (
+                        <View style={{ position: 'absolute', top: 0, left: 0, width: 0, height: 0, borderStyle: 'solid', borderLeftWidth: outer, borderRightWidth: outer, borderTopWidth: outer, borderBottomWidth: 0, borderLeftColor: 'transparent', borderRightColor: 'transparent', borderTopColor: borderColor }} />
+                    )}
+                    <View style={{ position: 'absolute', top: -ov, left: inset, width: 0, height: 0, borderStyle: 'solid', borderLeftWidth: size, borderRightWidth: size, borderTopWidth: size, borderBottomWidth: 0, borderLeftColor: 'transparent', borderRightColor: 'transparent', borderTopColor: color }} />
                 </View>
             </View>
         );
@@ -126,9 +134,11 @@ function GuideArrow({
         // bubble right of anchor → arrow at LEFT pointing ◀ left
         return (
             <View style={[arrowS.wrap, vWrap('left')]}>
-                <View style={{ position: 'relative', width: s1, height: s1 * 2, justifyContent: 'center' }}>
-                    <View style={{ position: 'absolute', left: 0, width: 0, height: 0, borderStyle: 'solid', borderTopWidth: s1, borderBottomWidth: s1, borderRightWidth: s1, borderLeftWidth: 0, borderTopColor: 'transparent', borderBottomColor: 'transparent', borderRightColor: borderColor }} />
-                    <View style={{ position: 'absolute', left: 1, width: 0, height: 0, borderStyle: 'solid', borderTopWidth: size, borderBottomWidth: size, borderRightWidth: size, borderLeftWidth: 0, borderTopColor: 'transparent', borderBottomColor: 'transparent', borderRightColor: color }} />
+                <View style={{ position: 'relative', width: outer, height: outer * 2 }}>
+                    {bw > 0 && (
+                        <View style={{ position: 'absolute', right: 0, top: 0, width: 0, height: 0, borderStyle: 'solid', borderTopWidth: outer, borderBottomWidth: outer, borderRightWidth: outer, borderLeftWidth: 0, borderTopColor: 'transparent', borderBottomColor: 'transparent', borderRightColor: borderColor }} />
+                    )}
+                    <View style={{ position: 'absolute', right: -ov, top: inset, width: 0, height: 0, borderStyle: 'solid', borderTopWidth: size, borderBottomWidth: size, borderRightWidth: size, borderLeftWidth: 0, borderTopColor: 'transparent', borderBottomColor: 'transparent', borderRightColor: color }} />
                 </View>
             </View>
         );
@@ -137,9 +147,11 @@ function GuideArrow({
         // bubble left of anchor → arrow at RIGHT pointing ▶ right
         return (
             <View style={[arrowS.wrap, vWrap('right')]}>
-                <View style={{ position: 'relative', width: s1, height: s1 * 2, justifyContent: 'center' }}>
-                    <View style={{ position: 'absolute', right: 0, width: 0, height: 0, borderStyle: 'solid', borderTopWidth: s1, borderBottomWidth: s1, borderLeftWidth: s1, borderRightWidth: 0, borderTopColor: 'transparent', borderBottomColor: 'transparent', borderLeftColor: borderColor }} />
-                    <View style={{ position: 'absolute', right: 1, width: 0, height: 0, borderStyle: 'solid', borderTopWidth: size, borderBottomWidth: size, borderLeftWidth: size, borderRightWidth: 0, borderTopColor: 'transparent', borderBottomColor: 'transparent', borderLeftColor: color }} />
+                <View style={{ position: 'relative', width: outer, height: outer * 2 }}>
+                    {bw > 0 && (
+                        <View style={{ position: 'absolute', left: 0, top: 0, width: 0, height: 0, borderStyle: 'solid', borderTopWidth: outer, borderBottomWidth: outer, borderLeftWidth: outer, borderRightWidth: 0, borderTopColor: 'transparent', borderBottomColor: 'transparent', borderLeftColor: borderColor }} />
+                    )}
+                    <View style={{ position: 'absolute', left: -ov, top: inset, width: 0, height: 0, borderStyle: 'solid', borderTopWidth: size, borderBottomWidth: size, borderLeftWidth: size, borderRightWidth: 0, borderTopColor: 'transparent', borderBottomColor: 'transparent', borderLeftColor: color }} />
                 </View>
             </View>
         );
@@ -384,11 +396,13 @@ function TooltipOverlay({
         : undefined;
 
     const handleBackdropPress = useCallback(() => {
+        const isSticky = config.sticky !== false;
+        if (isSticky && step.actions.length > 0) return;
         const behavior = config.outsideTapBehavior ?? 'next';
         if (behavior === 'nothing') return;
         if (behavior === 'next') next();
         if (behavior === 'dismiss') dismiss();
-    }, [config.outsideTapBehavior, next, dismiss]);
+    }, [config.sticky, config.outsideTapBehavior, step.actions.length, next, dismiss]);
 
     const tooltipVarCtx = buildVariableContext(request.variableSchemas ?? [], request.variables);
     return (
@@ -428,8 +442,9 @@ function TooltipOverlay({
                                 {showArrow && (
                                     <GuideArrow
                                         placement={resolvedPlacement}
-                                        color={step.arrowColor ?? step.backgroundColor}
-                                        borderColor={step.arrowBorderColor ?? step.borderColor}
+                                        color={step.backgroundColor}
+                                        borderColor={step.borderColor}
+                                        borderWidth={step.borderWidth}
                                         size={arrowSize}
                                         arrowOffset={arrowOffset}
                                     />
@@ -611,8 +626,9 @@ function SpotlightCallout({
             {showArrow && (
                 <GuideArrow
                     placement={resolvedPlacement}
-                    color={step.arrowColor ?? step.calloutBackgroundColor}
-                    borderColor={step.arrowBorderColor ?? step.calloutBorderColor}
+                    color={step.calloutBackgroundColor}
+                    borderColor={step.calloutBorderColor}
+                    borderWidth={step.calloutBorderWidth}
                     size={arrowSize}
                     arrowOffset={arrowOffset}
                 />
