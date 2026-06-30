@@ -21,8 +21,6 @@ export type TooltipStep = {
     maxWidth: number
     padding: number
     showArrow: boolean
-    arrowColor?: string
-    arrowBorderColor?: string
     arrowSize?: number
     titleColor: string
     titleSize: number
@@ -57,8 +55,6 @@ export type SpotlightStep = {
     calloutBorderColor: string
     calloutBorderWidth: number
     showArrow?: boolean
-    arrowColor?: string
-    arrowBorderColor?: string
     arrowSize?: number
     titleColor: string
     titleSize: number
@@ -76,6 +72,7 @@ export type TooltipConfig = {
     templateId: string | null
     steps: TooltipStep[]
     outsideTapBehavior?: 'dismiss' | 'next' | 'nothing'
+    sticky?: boolean
 }
 
 export type SpotlightConfig = {
