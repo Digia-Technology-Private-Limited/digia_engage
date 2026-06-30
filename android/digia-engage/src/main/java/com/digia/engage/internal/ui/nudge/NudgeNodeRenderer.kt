@@ -167,9 +167,18 @@ private fun NudgeTextWidget(node: NudgeText) {
         color = Color(node.color),
         fontFamily = DigiaFontConfig.composeFontFamily(),
     )
-    // Line height is block-level: a unitless multiplier applied to the whole Text
-    // (`.em` is relative to the font size, so it acts as the multiplier).
-    val style = if (node.lineHeight != null) baseStyle.copy(lineHeight = node.lineHeight.em) else baseStyle
+    // Line height is block-level: a unitless multiplier (`.em` is relative to the
+    // base font size, so it acts as the multiplier). Unlike iOS's minimumLineHeight,
+    // Compose FORCES this height and can't grow a single line to fit a taller span —
+    // so a big span (e.g. a 48sp "lo" in a 16sp/1.4 block) would be crushed and
+    // overlap the next line. Only apply the multiplier when it won't shrink the
+    // largest span's line; otherwise fall back to natural per-line heights so the
+    // tall line keeps its room (matching iOS, where that line grows to fit).
+    val maxSpanFont = node.spans.maxOfOrNull { it.style.fontSize ?: node.fontSize } ?: node.fontSize
+    val style =
+        if (node.lineHeight != null && node.fontSize * node.lineHeight >= maxSpanFont)
+            baseStyle.copy(lineHeight = node.lineHeight.em)
+        else baseStyle
     val modifier = if (node.box.fillWidth) Modifier.fillMaxWidth() else Modifier
 
     if (node.spans.isEmpty()) {
