@@ -62,6 +62,12 @@ final class DigiaAnchorViewManager: RCTViewManager {
     override static func requiresMainQueueSetup() -> Bool { true }
 
     override func view() -> UIView! {
-        DigiaAnchorContainerUIView()
+        #if swift(>=5.9)
+            return MainActor.assumeIsolated {
+                DigiaAnchorContainerUIView()
+            }
+        #else
+            return DigiaAnchorContainerUIView()
+        #endif
     }
 }

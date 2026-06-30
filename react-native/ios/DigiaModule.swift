@@ -263,14 +263,15 @@ final class DigiaModule: RCTEventEmitter, @unchecked Sendable {
     /// JS sends physical pixels; convert to UIKit points using screen scale.
     @objc
     func registerAnchor(_ key: String, x: Double, y: Double, width: Double, height: Double) {
-        let scale = UIScreen.main.scale
-        let rect = CGRect(
-            x: CGFloat(x) / scale,
-            y: CGFloat(y) / scale,
-            width: CGFloat(width) / scale,
-            height: CGFloat(height) / scale
-        )
         Task { @MainActor in
+            // JS sends physical pixels; convert to UIKit points using screen scale.
+            let scale = UIScreen.main.scale
+            let rect = CGRect(
+                x: CGFloat(x) / scale,
+                y: CGFloat(y) / scale,
+                width: CGFloat(width) / scale,
+                height: CGFloat(height) / scale
+            )
             AnchorRegistry.shared.register(key: key, rect: rect)
         }
     }

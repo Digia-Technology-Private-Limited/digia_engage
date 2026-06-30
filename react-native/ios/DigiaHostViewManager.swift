@@ -20,7 +20,13 @@ final class DigiaHostViewManager: RCTViewManager {
     override static func requiresMainQueueSetup() -> Bool { true }
 
     override func view() -> UIView! {
-        return DigiaHostUIView()
+        #if swift(>=5.9)
+            return MainActor.assumeIsolated {
+                DigiaHostUIView()
+            }
+        #else
+            return DigiaHostUIView()
+        #endif
     }
 }
 

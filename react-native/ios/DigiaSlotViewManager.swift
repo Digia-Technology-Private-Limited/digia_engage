@@ -8,11 +8,23 @@ final class DigiaSlotViewManager: RCTViewManager {
     override static func requiresMainQueueSetup() -> Bool { true }
 
     override func view() -> UIView! {
-        return DigiaSlotUIView()
+        #if swift(>=5.9)
+            return MainActor.assumeIsolated {
+                DigiaSlotUIView()
+            }
+        #else
+            return DigiaSlotUIView()
+        #endif
     }
 
     @objc func setPlacementKey(_ placementKey: String, forView view: DigiaSlotUIView) {
-        view.placementKey = placementKey
+        #if swift(>=5.9)
+            MainActor.assumeIsolated {
+                view.placementKey = placementKey
+            }
+        #else
+            view.placementKey = placementKey
+        #endif
     }
 }
 
@@ -267,11 +279,20 @@ private final class RCTTouchDelegateProxy: NSObject, UIGestureRecognizerDelegate
 
     override func responds(to aSelector: Selector!) -> Bool {
         if super.responds(to: aSelector) { return true }
-        return originalDelegate?.responds(to: aSelector) ?? false
+        #if swift(>=5.9)
+            return MainActor.assumeIsolated { originalDelegate?.responds(to: aSelector) ?? false }
+        #else
+            return originalDelegate?.responds(to: aSelector) ?? false
+        #endif
     }
 
     override func forwardingTarget(for aSelector: Selector!) -> Any? {
-        if let original = originalDelegate, original.responds(to: aSelector) {
+        #if swift(>=5.9)
+            let original = MainActor.assumeIsolated { originalDelegate }
+        #else
+            let original = originalDelegate
+        #endif
+        if let original, original.responds(to: aSelector) {
             return original
         }
         return super.forwardingTarget(for: aSelector)
