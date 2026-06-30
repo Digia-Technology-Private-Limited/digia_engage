@@ -72,9 +72,12 @@ void main() {
       expect(second.style.highlightColor, const Color(0xFFFFE08A));
       expect(second.style.weight, isNull);
       expect(second.style.italic, isTrue);
-      expect(second.style.decoration, TextDecoration.underline);
-      expect(second.style.decorationColor, const Color(0xFF00FF00));
-      expect(second.style.decorationThickness, 2);
+      // Decoration (underline / colour / thickness) is temporarily disabled in the
+      // parser pending cross-platform parity, so it never parses even though the
+      // wire above still carries the fields.
+      expect(second.style.decoration, isNull);
+      expect(second.style.decorationColor, isNull);
+      expect(second.style.decorationThickness, isNull);
     });
 
     test('skips empty/invalid runs and out-of-range weights', () {
