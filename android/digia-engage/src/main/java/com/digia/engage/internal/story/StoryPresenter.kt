@@ -22,6 +22,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.MotionDurationScale
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalLifecycleOwner
@@ -32,6 +33,14 @@ import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
+
+// The progress countdown is a timer, not a decorative animation. animateTo() otherwise honors the
+// OS "animator duration scale", which is 0 on emulators / when animations are disabled — collapsing
+// the tween to a single frame so stories auto-advance instantly. Pin the scale to 1f for real time.
+private val StoryTimerMotionScale =
+        object : MotionDurationScale {
+            override val scaleFactor: Float = 1f
+        }
 
 /**
  * Main Story presenter composable. Mirrors Flutter's FlutterStoryPresenterWidgets from
@@ -80,10 +89,9 @@ fun StoryPresenter(
 
     // Functions to control animation
     fun startCountdown(duration: Duration) {
-
         animationJob?.cancel()
         animationJob =
-                scope.launch {
+                scope.launch(StoryTimerMotionScale) {
                     progressAnimation.snapTo(0f)
                     progressAnimation.animateTo(
                             targetValue = 1f,
@@ -120,9 +128,14 @@ fun StoryPresenter(
         // Resume from current progress
         val remainingProgress = 1f - progressAnimation.value
         if (remainingProgress > 0 && currentVideoPlayer != null) {
-            val remainingDuration = (currentVideoPlayer!!.duration * remainingProgress).toLong()
+            // duration can be TIME_UNSET/negative (live, still buffering); fall back to the same
+            // defaultDuration the countdown originally used so resume doesn't instantly skip ahead.
+            val frameDuration =
+                    currentVideoPlayer!!.duration.takeIf { it > 0 }?.milliseconds ?: defaultDuration
+            val remainingDuration =
+                    (frameDuration.inWholeMilliseconds * remainingProgress).toLong()
             animationJob =
-                    scope.launch {
+                    scope.launch(StoryTimerMotionScale) {
                         progressAnimation.animateTo(
                                 targetValue = 1f,
                                 animationSpec =
@@ -136,7 +149,6 @@ fun StoryPresenter(
     }
 
     fun goToNext() {
-
         animationJob?.cancel()
         currentVideoPlayer?.stop()
         currentVideoPlayer = null
@@ -185,7 +197,9 @@ fun StoryPresenter(
                         // Video is ready
                         currentVideoPlayer = player
                         isWaitingForVideo = false
-                        val duration = player.duration.milliseconds
+                        val duration =
+                                if (player.duration > 0) player.duration.milliseconds
+                                else defaultDuration
 
                         startCountdown(duration)
                     }

@@ -1,8 +1,9 @@
 package com.digia.engage.internal.ui
 
 import android.content.Intent
+import android.graphics.Matrix
 import android.net.Uri
-import android.view.ViewGroup.LayoutParams.MATCH_PARENT
+import android.view.TextureView
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -33,12 +34,13 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import androidx.media3.common.AudioAttributes
+import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
+import androidx.media3.common.VideoSize
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
-import androidx.media3.ui.AspectRatioFrameLayout
-import androidx.media3.ui.PlayerView
 import coil.compose.SubcomposeAsyncImage
 import coil.compose.SubcomposeAsyncImageContent
 import com.digia.engage.internal.buildVariableContext
@@ -252,7 +254,8 @@ private fun FullScreenStoryImage(url: String) {
         model = url,
         contentDescription = null,
         modifier = Modifier.fillMaxSize(),
-        contentScale = ContentScale.Crop,
+        // Letterbox (never crop): show the whole image with bars where aspect differs.
+        contentScale = ContentScale.Fit,
         loading = {
             Box(modifier = Modifier.fillMaxSize().background(Color(0xFF1A1A1A)))
         },
@@ -269,11 +272,22 @@ private fun FullScreenStoryVideo(url: String) {
     val context = LocalContext.current
     val onVideoLoad = LocalStoryVideoCallback.current
     var isInitialized by remember { mutableStateOf(false) }
+    val textureView = remember { mutableStateOf<TextureView?>(null) }
+    val videoSize = remember { mutableStateOf(VideoSize.UNKNOWN) }
 
     val exoPlayer = remember(url) {
         ExoPlayer.Builder(context).build().apply {
             setMediaItem(MediaItem.fromUri(url))
             repeatMode = Player.REPEAT_MODE_OFF
+            volume = 1f
+            setAudioAttributes(
+                AudioAttributes.Builder()
+                    .setUsage(C.USAGE_MEDIA)
+                    .setContentType(C.AUDIO_CONTENT_TYPE_MOVIE)
+                    .build(),
+                /* handleAudioFocus = */ true,
+            )
+            playWhenReady = true
             prepare()
         }
     }
@@ -282,17 +296,34 @@ private fun FullScreenStoryVideo(url: String) {
         onVideoLoad?.invoke(null)
     }
 
-    LaunchedEffect(exoPlayer) {
+    DisposableEffect(exoPlayer) {
+        // Notify the presenter once the player is ready so it can time the progress bar off the real
+        // duration. Also check the current state in case READY was reached before the listener attached.
         val listener = object : Player.Listener {
             override fun onPlaybackStateChanged(state: Int) {
                 if (state == Player.STATE_READY && !isInitialized) {
                     isInitialized = true
                     onVideoLoad?.invoke(exoPlayer)
-                    exoPlayer.play()
                 }
+            }
+
+            override fun onVideoSizeChanged(size: VideoSize) {
+                videoSize.value = size
+                textureView.value?.fitCenter(size)
             }
         }
         exoPlayer.addListener(listener)
+        if (exoPlayer.playbackState == Player.STATE_READY && !isInitialized) {
+            isInitialized = true
+            onVideoLoad?.invoke(exoPlayer)
+        }
+        onDispose { exoPlayer.removeListener(listener) }
+    }
+
+    DisposableEffect(exoPlayer, textureView.value) {
+        val view = textureView.value
+        view?.let(exoPlayer::setVideoTextureView)
+        onDispose { view?.let(exoPlayer::clearVideoTextureView) }
     }
 
     DisposableEffect(Unit) {
@@ -304,18 +335,39 @@ private fun FullScreenStoryVideo(url: String) {
 
     AndroidView(
         modifier = Modifier.fillMaxSize(),
+        // A TextureView composites inside the Dialog window; a SurfaceView/PlayerView punches through
+        // to a separate layer and renders black here. Start hidden and reveal once the letterbox
+        // transform is applied, so the first un-letterboxed (stretched) frame never flashes.
         factory = { ctx ->
-            PlayerView(ctx).apply {
-                player = exoPlayer
-                useController = false
-                setResizeMode(AspectRatioFrameLayout.RESIZE_MODE_ZOOM)
-                layoutParams = android.view.ViewGroup.LayoutParams(MATCH_PARENT, MATCH_PARENT)
+            TextureView(ctx).apply {
+                alpha = 0f
+                addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ ->
+                    fitCenter(videoSize.value)
+                }
+                textureView.value = this
             }
         },
-        update = { view -> view.player = exoPlayer },
     )
 }
 
 private fun parseColor(hex: String): Color = runCatching {
     Color(android.graphics.Color.parseColor(hex))
 }.getOrDefault(Color.White)
+
+/** Scales the surface to FIT inside the view, preserving aspect ratio (letterbox — never crops). */
+private fun TextureView.fitCenter(videoSize: androidx.media3.common.VideoSize) {
+    if (videoSize.width == 0 || videoSize.height == 0 || width == 0 || height == 0) return
+    val videoAspect = videoSize.width * videoSize.pixelWidthHeightRatio / videoSize.height
+    val viewAspect = width.toFloat() / height
+    val matrix = Matrix()
+    if (videoAspect > viewAspect) {
+        // Video wider than the view → fit to width, bars top & bottom.
+        matrix.setScale(1f, viewAspect / videoAspect, width / 2f, height / 2f)
+    } else {
+        // Video taller than the view → fit to height, bars left & right.
+        matrix.setScale(videoAspect / viewAspect, 1f, width / 2f, height / 2f)
+    }
+    setTransform(matrix)
+    // Reveal only now that the surface is correctly letterboxed (see factory: starts at alpha 0).
+    alpha = 1f
+}

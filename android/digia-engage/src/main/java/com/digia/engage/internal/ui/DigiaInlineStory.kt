@@ -2,7 +2,6 @@ package com.digia.engage.internal.ui
 
 import android.graphics.Matrix
 import android.view.TextureView
-import android.view.ViewGroup.LayoutParams.MATCH_PARENT
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -133,16 +132,18 @@ private fun StoryThumbnailVideoPlayer(url: String) {
     Box(modifier = Modifier.fillMaxSize().background(Color.Black)) {
         AndroidView(
             modifier = Modifier.fillMaxSize(),
-            // A TextureView composites inline; PlayerView's default SurfaceView lives in a
-            // separate window layer where neighbouring videos in the row overlap each other.
+            // A TextureView composites inline; a SurfaceView/PlayerView lives in a separate window
+            // layer where neighbouring videos in the row overlap each other. Start hidden and reveal
+            // once the crop transform is applied, so the first un-cropped (stretched) frame never shows.
             factory = { ctx ->
-                TextureView(ctx).also { view ->
+                TextureView(ctx).apply {
+                    alpha = 0f
                     // The crop also has to re-run on layout: the video size can resolve before
                     // the view is measured, when its width/height are still zero.
-                    view.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ ->
-                        view.centerCrop(videoSize.value)
+                    addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ ->
+                        centerCrop(videoSize.value)
                     }
-                    textureView.value = view
+                    textureView.value = this
                 }
             },
         )
@@ -161,4 +162,6 @@ private fun TextureView.centerCrop(videoSize: VideoSize) {
         matrix.setScale(1f, viewAspect / videoAspect, width / 2f, height / 2f)
     }
     setTransform(matrix)
+    // Reveal only now that the surface is correctly cropped (see factory: starts at alpha 0).
+    alpha = 1f
 }
