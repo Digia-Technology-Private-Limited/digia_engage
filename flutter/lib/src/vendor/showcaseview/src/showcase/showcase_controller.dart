@@ -328,6 +328,7 @@ class ShowcaseController {
               // DIGIA: optional arrow border (RN's arrowBorderColor/Width).
               arrowBorderColor: config.arrowBorderColor,
               arrowBorderWidth: config.arrowBorderWidth,
+              arrowSize: config.arrowSize,
               onTooltipTap: config.disposeOnTap ?? config.onToolTipClick != null
                   ? _getOnTooltipTap
                   : null,

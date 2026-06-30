@@ -55,6 +55,7 @@ class _RenderPositionDelegate extends RenderBox
     required this.targetPadding,
     required this.showcaseOffset,
     required this.targetTooltipGap,
+    this.arrowSize = Constants.arrowHeight,
   });
 
   // Core positioning parameters
@@ -69,6 +70,18 @@ class _RenderPositionDelegate extends RenderBox
   double screenEdgePadding;
   EdgeInsets targetPadding;
   double targetTooltipGap;
+
+  /// DIGIA: server-driven arrow size (dashboard `arrowSize`) — the arrow height.
+  /// Base width is 2× this (see [_arrowWidth]); defaults to the vendor height so
+  /// non-Digia callers keep the original 18×9 arrow.
+  double arrowSize;
+
+  /// DIGIA: arrow base width — twice the height, matching RN and the vendor's
+  /// original 18×9 ratio.
+  double get _arrowWidth => arrowSize * 2;
+
+  /// DIGIA: arrow height.
+  double get _arrowHeight => arrowSize;
 
   /// This is used when there is some space around showcaseview as this widget
   /// implementation works in global coordinate system so because of that we
@@ -125,9 +138,13 @@ class _RenderPositionDelegate extends RenderBox
   set _yOffset(double value) =>
       TooltipLayoutSlot.tooltipBox.getObjectManager?.yOffset = value;
 
-  double get _getArrowPadding => hasArrow
-      ? Constants.withArrowToolTipPadding
-      : Constants.withOutArrowToolTipPadding;
+  // DIGIA: the gap reserved between the tooltip box and the target is exactly
+  // the arrow height (the arrow points from the bubble to the target and spans
+  // its full height). The extra clearance between the arrow tip and the target
+  // is supplied separately via `targetTooltipGap`, so total gap =
+  // targetTooltipGap + arrow height (mirrors RN's `arrowSize + clearance`).
+  double get _getArrowPadding =>
+      hasArrow ? _arrowHeight : Constants.withOutArrowToolTipPadding;
 
   // Override to make this object a repaint boundary for better raster thread performance
   @override
@@ -202,9 +219,9 @@ class _RenderPositionDelegate extends RenderBox
   void _performDryLayout() {
     // Dry layout arrow
     TooltipLayoutSlot.arrow.getObjectManager?.performDryLayout(
-      const BoxConstraints.tightFor(
-        width: Constants.arrowWidth,
-        height: Constants.arrowHeight,
+      BoxConstraints.tightFor(
+        width: _arrowWidth,
+        height: _arrowHeight,
       ),
     );
 
@@ -705,9 +722,9 @@ class _RenderPositionDelegate extends RenderBox
   /// Layout the arrow element
   void _layoutArrowElement() {
     TooltipLayoutSlot.arrow.getObjectManager?.performLayout(
-      const BoxConstraints.tightFor(
-        width: Constants.arrowWidth,
-        height: Constants.arrowHeight,
+      BoxConstraints.tightFor(
+        width: _arrowWidth,
+        height: _arrowHeight,
       ),
     );
   }
@@ -754,8 +771,8 @@ class _RenderPositionDelegate extends RenderBox
         TooltipLayoutSlot.arrow.getObjectManager?.layoutParentData;
     if (!hasArrow || arrowBoxParentData == null) return;
 
-    const halfArrowWidth = Constants.arrowWidth * 0.5;
-    const halfArrowHeight = Constants.arrowWidth * 0.5;
+    final halfArrowWidth = _arrowWidth * 0.5;
+    final halfArrowHeight = _arrowWidth * 0.5;
     final halfTargetHeight = targetSize.height * 0.5;
     final halfTargetWidth = targetSize.width * 0.5;
 
@@ -783,7 +800,7 @@ class _RenderPositionDelegate extends RenderBox
             _xOffset,
             _toolTipBoxSize.width,
           ),
-          _yOffset - Constants.arrowHeight + 1,
+          _yOffset - _arrowHeight + 1,
         );
 
       case TooltipPosition.left:
@@ -801,7 +818,7 @@ class _RenderPositionDelegate extends RenderBox
       case TooltipPosition.right:
         // Arrow points left from left side of tooltip
         arrowBoxParentData.offset = Offset(
-          _xOffset - Constants.arrowHeight - 4,
+          _xOffset - _arrowHeight - 4,
           // DIGIA: clamp within the bubble (see above).
           _clampArrowAlong(
             targetPosition.dy + halfTargetHeight - halfArrowHeight + 4 - showcaseOffset.dy,
@@ -820,13 +837,13 @@ class _RenderPositionDelegate extends RenderBox
   /// small to hold the arrow plus margins.
   double _clampArrowAlong(double value, double start, double extent) {
     final min = start + _arrowEdgeMargin;
-    final max = start + extent - Constants.arrowWidth - _arrowEdgeMargin;
-    if (max <= min) return start + (extent - Constants.arrowWidth) / 2;
+    final max = start + extent - _arrowWidth - _arrowEdgeMargin;
+    if (max <= min) return start + (extent - _arrowWidth) / 2;
     return value.clamp(min, max);
   }
 
   /// DIGIA: clearance kept between the arrow and the bubble's corners.
-  static const double _arrowEdgeMargin = Constants.arrowWidth;
+  double get _arrowEdgeMargin => _arrowWidth;
 
   /// Helper function to calculate position based on selected direction
   Offset positionToolTip({

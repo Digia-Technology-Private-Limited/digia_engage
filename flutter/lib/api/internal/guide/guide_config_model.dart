@@ -337,7 +337,10 @@ sealed class GuideConfig {
       }
       if (steps.isEmpty) return null;
       return TooltipGuideConfig(
-          steps: steps, templateId: templateId, outsideTapBehavior: outsideTap);
+          steps: steps,
+          templateId: templateId,
+          outsideTapBehavior: outsideTap,
+          sticky: optBool(tc, 'sticky', true));
     }
     if (type == 'spotlight') {
       final steps = <SpotlightStep>[];
@@ -358,10 +361,16 @@ sealed class GuideConfig {
 class TooltipGuideConfig extends GuideConfig {
   final List<TooltipStep> steps;
 
+  /// When true (the dashboard default), a tooltip step that has buttons ignores
+  /// scrim/outside taps — the bubble stays until a button dismisses it. Mirrors
+  /// RN's `config.sticky !== false` guard in `handleBackdropPress`.
+  final bool sticky;
+
   const TooltipGuideConfig({
     required this.steps,
     super.templateId,
     super.outsideTapBehavior,
+    this.sticky = true,
   });
 
   @override
