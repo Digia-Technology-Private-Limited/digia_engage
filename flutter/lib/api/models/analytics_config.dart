@@ -20,9 +20,9 @@ class DigiaAnalyticsConfig {
 
   const DigiaAnalyticsConfig({
     this.enabled = true,
-    this.flushIntervalMs = 5000,
-    this.flushBatchSize = 10,
-    this.maxBatchSize = 100,
+    this.flushIntervalMs = 30000,
+    this.flushBatchSize = 50,
+    this.maxBatchSize = 200,
     this.queueMaxEvents = 5000,
     this.sessionTimeoutMs = 30 * 60 * 1000,
   });
