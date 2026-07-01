@@ -8,6 +8,7 @@ class InternalVideoPlayer extends StatefulWidget {
   final double? aspectRatio;
   final bool? autoPlay;
   final bool? looping;
+  final bool? muted;
 
   const InternalVideoPlayer({
     super.key,
@@ -16,6 +17,7 @@ class InternalVideoPlayer extends StatefulWidget {
     this.aspectRatio,
     this.autoPlay,
     this.looping,
+    this.muted,
   });
 
   @override
@@ -49,6 +51,7 @@ class _InternalVideoPlayerState extends State<InternalVideoPlayer> {
         return;
       }
 
+      await controller.setVolume((widget.muted ?? false) ? 0.0 : 1.0);
       _aspectRatio = widget.aspectRatio ?? controller.value.aspectRatio;
       _chewieController = _createChewieController(autoPlay: widget.autoPlay ?? true);
       _initializationError = false;
@@ -86,6 +89,8 @@ class _InternalVideoPlayerState extends State<InternalVideoPlayer> {
       _chewieController?.dispose();
       _chewieController = _createChewieController(autoPlay: widget.autoPlay ?? wasPlaying);
       setState(() {});
+    } else if (oldWidget.muted != widget.muted && _isInitialized) {
+      _videoPlayerController.setVolume((widget.muted ?? false) ? 0.0 : 1.0);
     }
   }
 
@@ -105,15 +110,26 @@ class _InternalVideoPlayerState extends State<InternalVideoPlayer> {
     );
   }
 
+  // Chewie playback-error callback. The raw error is logged, not shown to the
+  // user; the UI mirrors the initialization-error widget for a consistent look.
   Widget _buildErrorWidget(BuildContext context, String error) {
+    debugPrint('InternalVideoPlayer playback error: $error');
+    return _videoErrorWidget(context);
+  }
+
+  Widget _videoErrorWidget(BuildContext context) {
     return Center(
       child: Column(
         mainAxisSize: MainAxisSize.min,
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.info, color: Colors.red,
-              size: MediaQuery.of(context).size.height * 0.1),
-          Text(error, textAlign: TextAlign.center),
+          const Icon(Icons.error_outline, color: Colors.red, size: 48),
+          const SizedBox(height: 8),
+          Text(
+            "Couldn't load video",
+            textAlign: TextAlign.center,
+            style: Theme.of(context).textTheme.bodyMedium,
+          ),
         ],
       ),
     );
@@ -133,24 +149,11 @@ class _InternalVideoPlayerState extends State<InternalVideoPlayer> {
   @override
   Widget build(BuildContext context) {
     if (_initializationError) {
-      return Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.error_outline, color: Colors.red, size: 48),
-            const SizedBox(height: 8),
-            Text('Video initialization failed',
-                style: Theme.of(context).textTheme.titleMedium),
-            if (_initializationErrorMessage != null)
-              Padding(
-                padding: const EdgeInsets.all(8.0),
-                child: Text(_initializationErrorMessage!,
-                    textAlign: TextAlign.center,
-                    style: Theme.of(context).textTheme.bodySmall),
-              ),
-          ],
-        ),
-      );
+      if (_initializationErrorMessage != null) {
+        debugPrint(
+            'InternalVideoPlayer init error: $_initializationErrorMessage');
+      }
+      return _videoErrorWidget(context);
     }
 
     if (!_isInitialized || _chewieController == null) {

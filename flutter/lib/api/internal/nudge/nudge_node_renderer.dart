@@ -382,7 +382,7 @@ final class NudgeVideoRenderer extends NudgeNodeRenderer<NudgeVideo> {
   Widget render(NudgeVideo node, BuildContext context) {
     final url = VariableScopeProvider.of(context).resolve(node.url);
     if (url.isEmpty) {
-      return NudgePlaceholder(label: 'No video URL', height: node.height);
+      return const SizedBox.shrink();
     }
     final radius = node.box.borderRadius > 0
         ? BorderRadius.circular(node.box.borderRadius)
@@ -398,13 +398,12 @@ final class NudgeVideoRenderer extends NudgeNodeRenderer<NudgeVideo> {
         width: double.infinity,
         color: const Color(0xFF000000),
         alignment: Alignment.center,
-        // `muted` is parsed but InternalVideoPlayer has no volume control yet;
-        // chewie plays with its default volume.
         child: InternalVideoPlayer(
           videoUrl: url,
           autoPlay: node.autoplay,
           looping: node.loop,
           showControls: node.showControls,
+          muted: node.muted,
         ),
       ),
     );

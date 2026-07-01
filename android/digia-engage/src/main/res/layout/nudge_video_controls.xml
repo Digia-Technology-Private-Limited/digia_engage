@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Custom Media3 controller layout for nudge videos: keeps the default DefaultTimeBar
+  progress bar and adds centered rewind-10 / play-pause / fast-forward-10 buttons.
+  Uses the standard @id/exo_* ids and ExoStyledControls styles from media3-ui.
+-->
+<merge xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <LinearLayout
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center"
+        android:gravity="center"
+        android:orientation="horizontal">
+
+        <ImageButton
+            android:id="@id/exo_rew"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:layout_margin="8dp"
+            android:background="?android:attr/selectableItemBackgroundBorderless"
+            android:contentDescription="Rewind 10 seconds"
+            android:padding="8dp"
+            android:scaleType="fitCenter"
+            android:src="@drawable/ic_nudge_rewind_10" />
+
+        <ImageButton
+            android:id="@id/exo_play_pause"
+            style="@style/ExoStyledControls.Button.Center.PlayPause" />
+
+        <ImageButton
+            android:id="@id/exo_ffwd"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:layout_margin="8dp"
+            android:background="?android:attr/selectableItemBackgroundBorderless"
+            android:contentDescription="Forward 10 seconds"
+            android:padding="8dp"
+            android:scaleType="fitCenter"
+            android:src="@drawable/ic_nudge_forward_10" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom"
+        android:background="#66000000"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingHorizontal="8dp">
+
+        <TextView
+            android:id="@id/exo_position"
+            style="@style/ExoStyledControls.TimeText.Position" />
+
+        <androidx.media3.ui.DefaultTimeBar
+            android:id="@id/exo_progress"
+            android:layout_width="0dp"
+            android:layout_height="26dp"
+            android:layout_weight="1" />
+
+        <TextView
+            android:id="@id/exo_duration"
+            style="@style/ExoStyledControls.TimeText.Duration" />
+    </LinearLayout>
+</merge>

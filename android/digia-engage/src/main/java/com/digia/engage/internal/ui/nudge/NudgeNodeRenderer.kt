@@ -5,6 +5,7 @@ import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import android.view.LayoutInflater
 import android.view.ViewGroup
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -29,6 +30,9 @@ import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.WarningAmber
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.ripple
@@ -65,6 +69,7 @@ import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.media3.common.MediaItem
+import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
@@ -79,6 +84,7 @@ import com.airbnb.lottie.compose.LottieCompositionSpec
 import com.airbnb.lottie.compose.LottieConstants
 import com.airbnb.lottie.compose.animateLottieCompositionAsState
 import com.airbnb.lottie.compose.rememberLottieComposition
+import com.digia.engage.R
 import com.digia.engage.internal.DigiaFontConfig
 import com.digia.engage.internal.DigiaInstance
 import com.digia.engage.internal.VariableContext
@@ -641,47 +647,101 @@ private fun NudgeCarouselWidget(node: NudgeCarousel) {
 @Composable
 private fun NudgeVideoWidget(node: NudgeVideo) {
     val url = interpolate(node.url, LocalNudgeVariables.current)
-    if (url.isEmpty()) {
-        NudgePlaceholder("No video URL", node.height)
-        return
-    }
+    if (url.isEmpty()) return
     val context = LocalContext.current
+    var hasError by remember { mutableStateOf(false) }
+
     val exoPlayer = remember {
-        ExoPlayer.Builder(context).build().apply {
-            setMediaItem(MediaItem.fromUri(url))
-            prepare()
-            playWhenReady = node.autoplay
-            repeatMode = if (node.loop) Player.REPEAT_MODE_ONE else Player.REPEAT_MODE_OFF
-            volume = if (node.muted) 0f else 1f
+        ExoPlayer.Builder(context)
+                .setSeekBackIncrementMs(10_000L)
+                .setSeekForwardIncrementMs(10_000L)
+                .build()
+                .apply {
+                    setMediaItem(MediaItem.fromUri(url))
+                    playWhenReady = node.autoplay
+                    repeatMode =
+                            if (node.loop) Player.REPEAT_MODE_ONE else Player.REPEAT_MODE_OFF
+                    volume = if (node.muted) 0f else 1f
+                }
+    }
+    DisposableEffect(Unit) {
+        val listener =
+                object : Player.Listener {
+                    override fun onPlaybackStateChanged(playbackState: Int) {
+                        if (playbackState == Player.STATE_READY ||
+                                        playbackState == Player.STATE_ENDED
+                        ) {
+                            hasError = false
+                        }
+                    }
+
+                    override fun onPlayerError(error: PlaybackException) {
+                        Logger.error("Nudge video playback failed url=$url", error = error)
+                        hasError = true
+                    }
+                }
+        // Attach the listener BEFORE prepare() so a fast failure (e.g. bad URL)
+        // can't be missed; addListener does not replay past events.
+        exoPlayer.addListener(listener)
+        exoPlayer.playerError?.let { listener.onPlayerError(it) }
+        exoPlayer.prepare()
+        onDispose {
+            exoPlayer.removeListener(listener)
+            exoPlayer.release()
         }
     }
-    DisposableEffect(Unit) { onDispose { exoPlayer.release() } }
 
     val cornerRadius = node.box.borderRadius
+    val clip: Modifier =
+            if (cornerRadius > 0f) Modifier.clip(RoundedCornerShape(cornerRadius.dp)) else Modifier
+
+    if (hasError) {
+        Box(
+                modifier =
+                        Modifier.fillMaxWidth()
+                                .height(node.height.dp)
+                                .background(Color.Black)
+                                .then(clip),
+                contentAlignment = Alignment.Center,
+        ) {
+            Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                Icon(
+                        imageVector = Icons.Outlined.WarningAmber,
+                        contentDescription = null,
+                        tint = Color.White,
+                        modifier = Modifier.size(28.dp),
+                )
+                Text(text = "Video failed", color = Color.White, fontSize = 13.sp)
+            }
+        }
+        return
+    }
+
     Box(
             modifier =
-                    Modifier.fillMaxWidth()
-                            .height(node.height.dp)
-                            .background(Color.Black)
-                            .then(
-                                    if (cornerRadius > 0f)
-                                            Modifier.clip(RoundedCornerShape(cornerRadius.dp))
-                                    else Modifier
-                            ),
+                    Modifier.fillMaxWidth().height(node.height.dp).background(Color.Black).then(clip),
             contentAlignment = Alignment.Center,
     ) {
+        // Native PlayerView with the default DefaultTimeBar progress bar plus a custom
+        // controller layout that adds rewind-10 / play-pause / forward-10 buttons.
+        // show_buffering="always" (set in XML) gives the loader. All chrome is native,
+        // so it composites correctly over the video surface.
         AndroidView(
                 factory = { ctx ->
-                    PlayerView(ctx).apply {
-                        player = exoPlayer
-                        useController = node.showControls
-                        resizeMode = AspectRatioFrameLayout.RESIZE_MODE_FIT
-                        layoutParams =
-                                ViewGroup.LayoutParams(
-                                        ViewGroup.LayoutParams.MATCH_PARENT,
-                                        ViewGroup.LayoutParams.MATCH_PARENT,
-                                )
-                    }
+                    (LayoutInflater.from(ctx).inflate(R.layout.nudge_video_player, null, false)
+                                    as PlayerView)
+                            .apply {
+                                player = exoPlayer
+                                useController = node.showControls
+                                layoutParams =
+                                        ViewGroup.LayoutParams(
+                                                ViewGroup.LayoutParams.MATCH_PARENT,
+                                                ViewGroup.LayoutParams.MATCH_PARENT,
+                                        )
+                            }
                 },
                 modifier = Modifier.fillMaxSize(),
         )
